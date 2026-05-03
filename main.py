@@ -33,6 +33,13 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@app.on_event("startup")
+async def startup_event():
+    if not db.get_user("admin"):
+        db.create_user("admin", "admin123", "Administrador CNR", "admin")
+        print("✅ Usuario admin creado: admin / admin123")
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def get_current_user(request: Request) -> Optional[dict]:
