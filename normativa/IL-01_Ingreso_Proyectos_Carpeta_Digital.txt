@@ -1,0 +1,33 @@
+IL-01 Instructivo legal-administrativo de Ingreso antecedentes en Carpeta Digital
+Ley N° 18.450, Comisión Nacional de Riego
+
+La postulación electrónica considera la incorporación de una carpeta digital administrativa y una técnica compuesta de una serie de documentos digitalizados que deberán ser adjuntados en aquellos anexos que en el sistema de postulación corresponda.
+
+El tamaño de cada archivo que se suba al SIAL 18.450 no debe superar los 10 MB.
+
+DOCUMENTOS REQUERIDOS (Carpeta Administrativa):
+- Formulario de postulación / Carta de aporte (PDF)
+- AL-25 RUT solicitante (PDF)
+- AL-26 RUT representante (PDF)
+- AL-27 Poder representante (PDF)
+- AL-3.3 Certificado INDAP (PDF)
+- AL-32 Certificado Consultor MOP (PDF)
+- AL-34 Permisos y autorizaciones incluye medioambientales (PDF)
+- AL-33 Servidumbres (PDF)
+- AL-39 Certificado Art. 19° del Reglamento (PDF)
+- AL-8 Acta Asamblea Org. de usuarios constituida, incluye estatutos y poder representante (FL-02) (PDF)
+- AL-31 Certificado inscripción registro DGA de Organizaciones de Usuarios (PDF)
+- AL-9 Listado de beneficiarios organizaciones de usuarios (FL-07) (PDF)
+- AL-7 Acta Constitución Comunidad No Organizada incluye poder representante y estado de tramitación (FL-03 o FL-08) (PDF)
+- AL-20 Carta de Retiro (FL-05) (PDF)
+- AL-40 Certificado de Art. 4° de la Ley N° 18.450 (PDF)
+- AL-41 Cambio consultor (FL-10) (PDF)
+- AL-35 Constitución Sociedades y documentos relacionados (PDF)
+- AL-28 Acreditación predios (PDF)
+- AL-29 Acreditación de Derechos de Agua (PDF)
+- AL-30 Certificado del Registro Público de Derechos de Aprovechamiento (PDF)
+- AL-19 Autorización arrendatarios (FL-04) (PDF)
+- AL-38 Certificado de avalúo del SII (PDF)
+- AL-42 Acreditación de calidad de beneficiario (FL-09) (PDF)
+
+Versión 3

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Revisor CNR{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mt-2" style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem; color:#1a365d;">Proyectos asignados</h1>
+  <a href="/proyecto/nuevo" class="btn btn-primary">+ Nuevo proyecto</a>
+</div>
+
+{% if proyectos %}
+<div class="card" style="overflow-x:auto;">
+  <table style="min-width:700px;">
+    <thead>
+      <tr>
+        <th style="white-space:nowrap;">Código SEP</th>
+        <th>Nombre del proyecto</th>
+        <th>Postulante</th>
+        <th style="white-space:nowrap;">Revisión</th>
+        <th>Estado</th>
+        <th style="white-space:nowrap;">Fecha</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in proyectos %}
+      <tr>
+        <td><strong style="white-space:nowrap; font-family:monospace;">{{ p.codigo_sep }}</strong></td>
+        <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
+        <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>
+        <td>
+          {% if p.tipo_revision == 'tecnica' %}
+            <span class="badge badge-tecnica">Técnica</span>
+          {% else %}
+            <span class="badge badge-legal">Legal</span>
+          {% endif %}
+        </td>
+        <td><span class="badge badge-estado" style="white-space:nowrap;">{{ p.estado }}</span></td>
+        <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion[:10] }}</td>
+        <td style="white-space:nowrap;">
+          <a href="/proyecto/{{ p.id }}" class="btn btn-outline btn-sm">Abrir</a>
+          <form method="post" action="/proyecto/{{ p.id }}/eliminar" style="display:inline"
+                onsubmit="return confirm('¿Eliminar el proyecto {{ p.codigo_sep }}? Esta acción no se puede deshacer.')">
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:3rem;">
+  <p style="color:#718096; font-size:1rem;">No tienes proyectos asignados aún.</p>
+  <a href="/proyecto/nuevo" class="btn btn-primary" style="margin-top:1rem;">Crear primer proyecto</a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}{{ proyecto.codigo_sep }} — Revisor CNR{% endblock %}
+{% block content %}
+
+<!-- Encabezado -->
+<div style="margin:1.4rem 0 1.1rem; display:flex; flex-wrap:wrap; gap:0.6rem; align-items:flex-start; justify-content:space-between;">
+  <div style="display:flex; align-items:flex-start; gap:0.6rem; flex:1; min-width:0;">
+    <a href="/" class="btn btn-ghost btn-sm" style="flex-shrink:0;">← Inicio</a>
+    <div style="min-width:0;">
+      <h1 style="font-size:1.15rem; font-weight:700; letter-spacing:-0.015em; color:var(--text); margin-bottom:0.15rem; word-break:break-word;">{{ proyecto.nombre }}</h1>
+      <p class="text-muted">
+        <span style="font-family:monospace;">{{ proyecto.codigo_sep }}</span>
+        &nbsp;·&nbsp; {{ proyecto.postulante }}
+      </p>
+    </div>
+  </div>
+  <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; flex-shrink:0;">
+    {% if proyecto.tipo_revision == 'tecnica' %}
+      <span class="badge badge-tecnica">Técnica</span>
+    {% else %}
+      <span class="badge badge-legal">Legal</span>
+    {% endif %}
+    <span class="badge badge-estado">{{ proyecto.estado }}</span>
+    <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">💬 Consultar</a>
+    <form method="post" action="/proyecto/{{ proyecto.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar este proyecto? Se borrarán todos sus documentos y observaciones.')">
+      <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+    </form>
+  </div>
+</div>
+
+<!-- Subida ZIP -->
+<div class="card" style="border-left:4px solid #2b6cb0; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
+  <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+    <strong style="font-size:0.92rem; white-space:nowrap;">⚡ ZIP del SEP</strong>
+    <span class="text-muted" style="font-size:0.82rem; flex:1;">Extrae y clasifica todos los anexos automáticamente.</span>
+    {% if request.query_params.get('zip_ok') %}
+    <span class="badge badge-tecnica">✅ {{ request.query_params.get('zip_ok') }} docs cargados</span>
+    {% endif %}
+  </div>
+  <form method="post" action="/proyecto/{{ proyecto.id }}/subir-zip" enctype="multipart/form-data" style="margin-top:0.5rem;">
+    <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+      <input type="file" name="archivo" accept=".zip" required style="flex:1; min-width:180px; font-size:0.85rem;">
+      <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">Subir ZIP</button>
+    </div>
+  </form>
+</div>
+
+<!-- Subida múltiple / carpeta -->
+<div class="card" style="border-left:4px solid #6b46c1; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
+  <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+    <strong style="font-size:0.92rem; white-space:nowrap;">📂 Archivos o carpeta</strong>
+    <span class="text-muted" style="font-size:0.82rem; flex:1;">Selecciona varios archivos o una carpeta. Se clasifican por nombre de anexo.</span>
+    {% if request.query_params.get('multi_ok') %}
+    <span class="badge badge-tecnica">✅ {{ request.query_params.get('multi_ok') }} docs cargados</span>
+    {% endif %}
+  </div>
+  <form method="post" action="/proyecto/{{ proyecto.id }}/subir-multiple" enctype="multipart/form-data"
+        id="form-multiple" style="margin-top:0.5rem;">
+    <input type="file" id="input-multi" name="archivos" accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+           multiple style="display:none;" onchange="actualizarEtiqueta(this)">
+    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="btn btn-outline btn-sm" style="border-color:#6b46c1; color:#6b46c1;"
+              onclick="abrirSelector('archivos')">📄 Elegir archivos</button>
+      <button type="button" class="btn btn-outline btn-sm" style="border-color:#6b46c1; color:#6b46c1;"
+              onclick="abrirSelector('carpeta')">📁 Elegir carpeta</button>
+      <span id="etiqueta-multi" class="text-muted" style="font-size:0.82rem; flex:1;"></span>
+      <button type="submit" id="btn-subir-multi" class="btn btn-sm"
+              style="display:none; background:#6b46c1; color:white; white-space:nowrap;">Subir selección</button>
+    </div>
+  </form>
+</div>
+
+<!-- Subida individual -->
+<div class="card" style="padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
+  <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+    <strong style="font-size:0.92rem;">📄 Documento individual</strong>
+    <span class="text-muted" style="font-size:0.82rem;">Con clasificación manual del tipo de anexo.</span>
+  </div>
+  <form method="post" action="/proyecto/{{ proyecto.id }}/subir" enctype="multipart/form-data">
+    <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+      <select name="tipo_doc" required style="flex:1.2; min-width:180px; font-size:0.85rem;">
+        <option value="">Selecciona el anexo...</option>
+        <optgroup label="Tecnificación — Anexos SEP">
+          <option value="plano_ubicacion">Anexo 9.1 — Plano de ubicación</option>
+          <option value="identificacion_riego">Anexo 9.2 — Identificación área de riego</option>
+          <option value="estudio_hidrologico">Anexo 9.4 — Análisis Hidrológico</option>
+          <option value="pruebas_bombeo">Anexo 9.4.2 — Prueba de bombeo</option>
+          <option value="diseno_hidraulico">Anexo 9.5 — Diseño y cálculos hidráulicos</option>
+          <option value="estudios_complementarios">Anexo 9.6 — Estudios complementarios</option>
+          <option value="especificaciones_tecnicas">Anexo 9.8 — Especificaciones técnicas</option>
+          <option value="cronograma">Anexo 9.8.1 — Cronograma</option>
+          <option value="cubicaciones">Anexo 9.9 — Cubicaciones</option>
+          <option value="presupuesto">Anexo 9.10.1 — Presupuesto obras</option>
+          <option value="presupuesto_electrico">Anexo 9.10.2 — Presupuesto electrificación</option>
+          <option value="cotizaciones_facturas">Anexo 9.10.3 — Cotizaciones y Facturas</option>
+          <option value="cotizaciones">Anexo 9.10.4 — Cotizaciones</option>
+          <option value="declaracion_iva">Anexo 9.10.5 — Declaración No Contribuyente IVA</option>
+          <option value="planos_tecnificacion">Anexo 9.12.1.1 — Planos tecnificación</option>
+          <option value="planos_obras_civiles">Anexo 9.12.1.2 — Planos obras civiles</option>
+          <option value="memoria_superficies">Anexo 9.13.1 — Memoria cálculo superficies</option>
+          <option value="estudio_suelos">Anexo 9.13.2 — Estudio de suelos</option>
+          <option value="evaluacion_social">Anexo 9.14 — Evaluación Social MIDESO</option>
+        </optgroup>
+        <optgroup label="Otros">
+          <option value="antecedentes_legales">Antecedentes legales</option>
+          <option value="lista_beneficiarios">Lista de beneficiarios</option>
+          <option value="otro">Otro documento</option>
+        </optgroup>
+      </select>
+      <input type="file" name="archivo" accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required
+             style="flex:1.5; min-width:180px; font-size:0.85rem;">
+      <button type="submit" class="btn btn-outline btn-sm" style="white-space:nowrap;">Subir</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function abrirSelector(tipo) {
+  var input = document.getElementById('input-multi');
+  if (tipo === 'carpeta') {
+    input.setAttribute('webkitdirectory', '');
+    input.removeAttribute('multiple');
+  } else {
+    input.removeAttribute('webkitdirectory');
+    input.setAttribute('multiple', '');
+  }
+  input.value = '';
+  input.click();
+}
+function actualizarEtiqueta(input) {
+  var n = input.files.length;
+  var etiqueta = document.getElementById('etiqueta-multi');
+  var btn = document.getElementById('btn-subir-multi');
+  if (n > 0) {
+    etiqueta.textContent = n + ' archivo' + (n > 1 ? 's' : '') + ' seleccionado' + (n > 1 ? 's' : '');
+    btn.style.display = 'inline-block';
+  } else {
+    etiqueta.textContent = '';
+    btn.style.display = 'none';
+  }
+}
+</script>
+
+<!-- Documentos -->
+{% if proyecto.documentos %}
+<div class="card" style="overflow-x:auto;">
+  <h2>Documentos del expediente ({{ proyecto.documentos|length }})</h2>
+  <table style="min-width:600px; font-size:0.82rem;">
+    <thead>
+      <tr>
+        <th>Archivo</th>
+        <th>Anexo / Tipo</th>
+        <th style="white-space:nowrap;">Fecha</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in proyecto.documentos %}
+      <tr>
+        <td style="max-width:200px; word-break:break-all;">
+          <a href="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/ver"
+             target="_blank" title="Ver documento"
+             style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
+        </td>
+        <td style="max-width:180px;">
+          {{ doc.tipo_doc_label if doc.tipo_doc_label else doc.tipo_doc.replace('_', ' ').title() }}
+        </td>
+        <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida[8:10] }}-{{ doc.fecha_subida[5:7] }}-{{ doc.fecha_subida[:4] }}</td>
+        <td>
+          {% if doc.analizado %}
+            <span class="badge badge-tecnica">Analizado</span>
+          {% else %}
+            <span class="badge badge-administrativa">Pendiente</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap;">
+          {% if not doc.analizado %}
+          <form method="post" action="/proyecto/{{ proyecto.id }}/analizar/{{ doc.id }}" style="display:inline">
+            <button type="submit" class="btn btn-success btn-sm">Analizar IA</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar"
+                style="display:inline"
+                onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Observaciones -->
+{% if proyecto.observaciones %}
+
+{% set obs_principales = proyecto.observaciones|rejectattr("severidad","eq","informativa")|list %}
+{% set obs_informativas = proyecto.observaciones|selectattr("severidad","eq","informativa")|list %}
+{% set pendientes = obs_principales|selectattr("estado","eq","pendiente")|list %}
+{% set aprobadas = obs_principales|selectattr("estado","eq","aprobada")|list %}
+{% set descartadas = obs_principales|rejectattr("estado","eq","pendiente")|rejectattr("estado","eq","aprobada")|list %}
+
+<!-- Observaciones principales (mayor / menor) -->
+{% if obs_principales %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+    <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ obs_principales|length }})</h2>
+    <a href="/proyecto/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
+      📄 Generar Ficha de Revisión
+    </a>
+  </div>
+
+  <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
+    <strong>{{ pendientes|length }}</strong> pendientes &nbsp;·&nbsp;
+    <strong>{{ aprobadas|length }}</strong> aprobadas &nbsp;·&nbsp;
+    <strong>{{ descartadas|length }}</strong> descartadas
+  </p>
+
+  {% for obs in obs_principales %}
+  <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
+    {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
+    {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
+    {% else %}border-left:4px solid #d69e2e;{% endif %}">
+
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.6rem;">
+      <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
+        <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
+        <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+        <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
+        <span class="text-muted" style="font-size:0.78rem; word-break:break-word;">{{ obs.doc_nombre }}</span>
+      </div>
+      <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
+            style="white-space:nowrap;">{{ obs.estado }}</span>
+    </div>
+
+    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
+      <textarea name="texto_editado" rows="3"
+        style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
+               font-size:0.88rem; margin-bottom:0.5rem; box-sizing:border-box; resize:vertical;">{{ obs.texto }}</textarea>
+      {% if obs.referencia_normativa %}
+      <p class="text-muted" style="margin-bottom:0.5rem; font-size:0.82rem;">
+        📋 Ref. normativa: {{ obs.referencia_normativa }}
+      </p>
+      {% endif %}
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">✓ Aprobar</button>
+        <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">✗ Descartar</button>
+        <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm">↺ Pendiente</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Notas para el revisor (informativas) -->
+{% if obs_informativas %}
+<div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
+  <h2 style="color:#2b6cb0;">💡 Notas para el revisor ({{ obs_informativas|length }})</h2>
+  <p class="text-muted" style="margin-bottom:0.75rem; font-size:0.85rem;">
+    Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
+    No se incluyen en la ficha de revisión oficial.
+  </p>
+  {% for obs in obs_informativas %}
+  <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
+    {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
+    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
+      <span class="badge badge-informativa">informativa</span>
+      <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+      <span class="text-muted" style="font-size:0.78rem;">{{ obs.doc_nombre }}</span>
+    </div>
+    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
+      <textarea name="texto_editado" rows="2"
+        style="width:100%; padding:0.4rem 0.6rem; border:1px solid #bee3f8; border-radius:6px;
+               font-size:0.85rem; margin-bottom:0.4rem; box-sizing:border-box; resize:vertical; background:#f7faff;">{{ obs.texto }}</textarea>
+      {% if obs.referencia_normativa %}
+      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">📋 {{ obs.referencia_normativa }}</p>
+      {% endif %}
+      <button type="submit" name="estado" value="descartada" class="btn btn-sm"
+              style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

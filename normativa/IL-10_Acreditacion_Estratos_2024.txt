@@ -1,0 +1,41 @@
+INSTRUCTIVO LEGAL-ADMINISTRATIVO DE ACREDITACIÓN DE ESTRATOS DE POSTULACIÓN
+Resolución Exenta N° 06450/2024 — Santiago, 11/09/2024
+Comisión Nacional de Riego — Ley N° 18.450
+
+ESTRATOS Y BONIFICACIONES:
+a) Pequeños productores agrícolas y campesinos (Ley 18.910): bonificación máxima 95%
+b) Ingresos ≤ 2.400 UF promedio 3 años + superficie ≤ 12 há riego básico: bonificación máxima 90%
+c) Ingresos ≤ 2.400 UF promedio 3 años + superficie > 12 há riego básico: bonificación máxima 80%
+d) Ingresos > 2.400 UF y ≤ 10.000 UF promedio 3 años: bonificación máxima 70%
+e) Ingresos > 10.000 UF y ≤ 25.000 UF promedio 3 años: bonificación máxima 60%
+f) Ingresos > 25.000 UF y ≤ 50.000 UF promedio 3 años: bonificación máxima 50% (máx 7% recursos anuales)
+g) Indígenas y comunidades indígenas (Ley 19.253): bonificación máxima 95%
+h) Organizaciones de usuarios (Código de Aguas Título III Libro II):
+   - ≥50% productores estrato a) o b): bonificación máxima 90%
+   - <50% productores estrato a) o b): bonificación máxima 80%
+NO pueden postular quienes tengan ingresos > 50.000 UF.
+
+DOCUMENTOS PARA ACREDITAR ESTRATO:
+5.1 Declaración jurada con contador según Formato "Certificado Acreditación de Estrato"
+5.2 Documentos participación en entidades relacionadas:
+    - Documento de constitución con % de participación
+    - Reporte "Datos personales y tributarios" del SII (máx 15 días antes de postular)
+5.3 Planilla "Verificación de Estratos y Bonificación Máxima" con:
+    - Valor UF primer día del mes de apertura del concurso
+    - N° hectáreas riego básico calculadas por SEP
+    - Valores F22: códigos 1400, 1600 o 1657 según régimen tributario
+    - Últimos 3 ejercicios tributarios anteriores al año de postulación
+5.4 Formularios F22 Extendido (3 últimos años): postulante + cada entidad relacionada (solo PDF descargado del SII)
+
+REVISIÓN POR EL REVISOR LEGAL:
+- Verificar validez de F22 en SII (módulo VERIFICAR DECLARACIÓN DE TERCEROS)
+- Ingresar Folio del F22 + códigos 18, 36, 158, 305 y 611
+- Cotejar certificado punto 5.1 con F22 y planilla "Verificación de Estratos"
+- Si hay inconsistencias: proyecto queda como "No Admitido"
+
+ENTIDADES RELACIONADAS (Código Tributario Art. 8 N°17):
+- Controlador y controladas (>50% acciones/derechos/cuotas/utilidades)
+- Entidades bajo controlador común
+- Dueños con >10% de acciones, derechos, cuotas o utilidades
+- Gestor de contrato de asociación con >10% utilidades
+Incluye información de cónyuge, conviviente civil y parientes hasta 2° grado consanguinidad/afinidad.

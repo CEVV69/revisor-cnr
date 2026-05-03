@@ -1,0 +1,1188 @@
+“Guía Metodológica para el Fomento de la Inversión Privada en Obras de Riego y Drenaje” Ley 18.450 
+
+“Guía Metodológica de Formulación y Evaluación de Proyectos postulados a la ley 18.450”
+
+Versión Junio 2024
+
+INDICE
+
+1\. INTRODUCCIÓN............................................................................................................................. 3 1.1 DOCUMENTOS SOLICITADOS POR CNR PARA POSTULAR AL CONCURSO ............................ 3 1.2 ANTECEDENTES REQUERIDOS POR MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA ......... 4 1.3 SISTEMA NACIONAL DE INVERSIONES Y PLAZOS DEL PROCESO ........................................... 4 2. FORMULACIÓN DE PROYECTOS DE RIEGO ....................................................................................... 5 ANTECEDENTES GENERALES ............................................................................................................. 5 2.1DIAGNÓSTICO DE LA SITUACIÓN ACTUAL ................................................................................... 5 2.1.1 Identificación del problema ................................................................................................. 5 2.1.2 Descripción del área de influencia ....................................................................................... 5 2.1.3 Estratificación predial ......................................................................................................... 8 2.1.4 Análisis de la oferta hídrica .................................................................................................. 9 2.1.5 Análisis de la demanda hídrica .......................................................................................... 22 2.1.6 Déficit o Balance hídrico .................................................................................................... 26 2.2 OPTIMIZACIÓN DE LA SITUACIÓN ACTUAL ............................................................................... 29 2.3 DESCRIPCIÓN DE LAS ALTERNATIVAS DE SOLUCIÓN ................................................................ 29 3. EVALUACIÓN SOCIAL DE PROYECTOS ............................................................................................. 30 3.1 IDENTIFICACIÓN DE BENEFICIOS DE LOS PROYECTOS DE RIEGO.............................................. 30 3.2 IDENTIFICACIÓN DE LOS COSTOS DE LOS PROYECTOS DE RIEGO ............................................ 31 3.3 ESTIMACIÓN DE BENEFICIOS .................................................................................................... 31 3.3.1 Método del Presupuesto ................................................................................................... 32 3.3.2 Estimación del ahorro de costos ........................................................................................ 32 3.3.3 Valorización económica por tipo de proyecto ................................................................... 35 3.4 CONFIGURACIÓN DE LOS FLUJOS NETOS ................................................................................ 37 3.4.1 Corrección a precios sociales ............................................................................................. 37 3.4.2 Horizonte de evaluación .................................................................................................... 39 3.4.3 Valor Residual .................................................................................................................... 40 3.4.4 Construcción de flujos netos ............................................................................................. 40 3.5 CÁLCULO DE INDICADORES ...................................................................................................... 41 3.5.1 Tasa social de descuento ................................................................................................... 41 3.5.2 Valor Actual Neto (VAN) .................................................................................................... 41 3.5.3 Tasa Interna de Retorno (TIR) ............................................................................................ 42 3.5.4 Análisis de Sensibilidad ...................................................................................................... 42 4. CONCLUSIONES………… ………………………………………………………………………………………………………………43
+
+2
+
+1\. INTRODUCCIÓN
+
+El año 2023 se aprobó la modificación a la “Ley de Fomento de la Inversión Privada al Riego y Drenaje 18.450”, en donde el Estado, por intermedio de la Comisión Nacional de Riego, en adelante e indistintamente "la Comisión", bonificará el costo de estudios, construcción y rehabilitación de obras de riego o drenaje, equipos y elementos de riego mecánico, equipos de generación, proyectos con nuevas fuentes de agua y tecnologías; y, en general, toda obra de puesta en riego u otros usos asociados directamente a las obras bonificadas, habilitación y conexión a proyectos que sean seleccionados y aprobados en la forma que se establece en esta ley”1.
+
+Algunas de las diferencias importantes con la Ley anterior son:
+
+a) Se limita el monto de inversión al cual los agricultores y organizaciones de usuarios pueden postular. La versión anterior de la Ley permitía proyectos de hasta 250.000 UF, mientras que ahora se podrán presentar proyectos cuyo costo de inversión puede alcanzar hasta 100.000 UF.
+
+b) Los proyectos cuyo costo supere las 20.000 UF deberán contar con la aprobación del Ministerio de Desarrollo Social y Familia, es decir, con una recomendación favorable en el Sistema de Evaluación de Proyectos de la CNR.
+
+1.1 DOCUMENTOS SOLICITADOS POR CNR PARA POSTULAR AL CONCURSO
+
+Los antecedentes requeridos por la Comisión Nacional de Riego (CNR) para postular a la bonificación de este tipo de proyectos son los indicados en los artículos 8° y 9° del reglamento (DS N°95 de 2015) y los requerimientos establecidos en las respectivas bases.
+
+Es importante señalar, que según Art. 294 del Código de Aguas (DFL 1.122 de 1981), se requiere la aprobación de la Dirección General de Aguas (DGA) en los siguientes casos:
+
+✓ Los embalses de capacidad superior a 50.000 m3 o cuyo muro tenga más de 5 m. de
+
+altura; ✓ Los acueductos que conduzcan más de 2 m3/s; ✓ Los acueductos que conduzcan más de 0,5 m3/s, que se proyecten próximos a zonas urbanas, y cuya distancia al extremo más cercano del límite urbano sea inferior a 1 km y la cota de fondo sea superior a 10 m. sobre la cota de dicho límite; ✓ Los sifones y canoas que crucen cauces naturales.
+
+1 Artículo 1° Ley 18.450.
+
+3
+
+1.2 ANTECEDENTES REQUERIDOS POR MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA
+
+Los antecedentes que se solicitarán por parte del Ministerio de Desarrollo Social y Familia son los que se mencionan a continuación:
+
+✓ Informe con antecedentes de formulación y evaluación según los capítulos
+
+segundo y tercero de esta guía. ✓ Plano con superficie de riego actual y con proyecto. ✓ Certificado de propiedad de terrenos, inscrito en conservador de bienes raíces.2 ✓ Certificado de derechos de aguas constituidos inscritos en conservador de
+
+bienes raíces.3 ✓ Resolución de Calificación Ambiental cuando corresponda. ✓ Certificado de la DGA, según Art. 294 del Código de Aguas, cuando
+
+corresponda. ✓ Presupuesto detallado de la obra a precios privados y sociales. ✓ Cronograma de actividades. ✓ Planillas de balances hídricos ✓ Evaluación Social ✓ Compromiso del postulante de asumir costos de mantenimiento de las obras.
+
+1.3 SISTEMA NACIONAL DE INVERSIONES Y PLAZOS DEL PROCESO
+
+El Sistema Nacional de Inversiones (SNI) norma y rige el proceso de inversión pública de Chile. Reúne las metodologías, normas y procedimientos que orientan la formulación, ejecución y evaluación de las Iniciativas Inversión (IDI) que postulan a fondos públicos. Los plazos de revisión para el concurso de obras medianas son:
+
+Primera revisión: 60 días corridos Segunda revisión: 25 días corridos Tercera revisión: 11 días corridos
+
+2 Indicar anexo legal en que se encuentra. 3 Ídem.
+
+4
+
+2\. FORMULACIÓN DE PROYECTOS DE RIEGO
+
+ANTECEDENTES GENERALES
+
+Se deberá incorporar los antecedentes generales donde se indiquen las características del proyecto: tipo, material, magnitud, costo, otros y las presentaciones de tramos a concursos anteriores y el estado en que se encuentra dicha postulación.
+
+2.1DIAGNÓSTICO DE LA SITUACIÓN ACTUAL
+
+En el diagnóstico de la situación actual se identifica la magnitud del problema del área de estudio, se describen sus características y las variables que lo producen. Es por ello que, para decidir por la mejor solución a esta situación negativa, es muy importante describir la zona a intervenir; estratificación predial; realizar un análisis de la demanda y oferta y por último calcular el balance hídrico.
+
+2.1.1 Identificación del problema
+
+Se deberá describir el problema que afecta al proponente del proyecto en relación al recurso hídrico, con sus respectivos efectos negativos que inciden en su bienestar y las causas que explican el problema detectado. Es importante señalar que el problema no se debe definir como una carencia de una infraestructura específica, como, por ejemplo: “falta un canal”, ya que se está anticipando una solución en particular.
+
+2.1.2 Descripción del área de influencia
+
+A continuación, se indican brevemente los diferentes aspectos a considerar:
+
+✓ Ubicación geográfica: debe especificar las características físicas de la localidad y comuna, con sus respectivas coordenadas, límites, etc. (se pueden agregar fotografías georeferenciadas).
+
+✓ Caracterización de los beneficiarios: organización de aguas; características socioeconómicas
+
+✓ Climatología: tiene el fin de definir las zonas agroclimáticas de acuerdo a sus características productivas. Se deben incluir parámetros como la temperatura máxima y mínima, precipitaciones, radiación solar, humedad relativa, presión atmosférica, velocidad del viento. También funciones agroclimáticas como grados días, horas de frío, evapotranspiración de referencia, entre otras. Algunas fuentes sugeridas son: Centro de Agricultura y Medioambiente AGRIMED y Estaciones meteorológicas, DGA.
+
+✓ Suelo: es esencial su descripción porque la productividad agrícola está dada principalmente por las características del suelo. Dentro de las características que son importantes detallar están: clases y categorías de suelo del área beneficiada, textura, pedregosidad, pendiente, grado de erosión, drenaje, salinidad, fertilidad, entre otras. Dentro de las fuentes sugeridas están: FAO, INIA, entre otras.
+
+✓ Uso actual de suelo: se debe identificar a través de una encuesta a los agricultores o del catastro de las Organizaciones de Usuarios de Agua (OUA) la superficie actual de riego, es decir, los tipos de cultivos existentes con sus respectivas hectáreas y métodos de riego utilizado.
+
+✓ Diagrama unifilar: indicar las acciones totales y las acciones del proyecto.
+
+✓ Hidrología: Este estudio comprende al balance natural de recursos hídricos, y para ello se debe complementar o actualizar toda la información existente, así como efectuar un análisis crítico a los temas relacionados con la hidrología de la zona en estudio. Entre las materias que se deben abordar y complementar se encuentran: pluviometría; fluviometría; afluentes al embalse y a las obras de captación (si corresponde); identificación de las cuencas y subcuencas aportantes y en el área de influencia del proyecto; y modelación conceptual.
+
+Para el caso de obras cuyo costo sea mayor a 30.000 UF se deberá realizar lo siguiente:
+
+Hidrología local
+
+Se deberán efectuar todos los estudios hidrológicos que se requieran para el desarrollo de la ingeniería a nivel de diseño de la presa y sus obras anexas, haciendo uso de la información estadística actualizada al año hidrológico disponible más reciente.
+
+Se solicita incluir los trabajos debidamente validados asociados al procesamiento y corrección de esa información, entre los que se mencionan corrección de errores; relleno; extensión; y homogeneización, con el fin de obtener estadísticas confiables y aceptablemente continuas de una extensión mínima de 30 años hidrológicos.
+
+Modelación Conceptual del Sistema Hídrico
+
+Realizar la topología del sistema hídrico, identificando: el sistema principal; aportes de caudal en cuencas de cabecera; aportes de cuenca intermedia; zonas de demanda; otros cuerpos de agua, tanto naturales como artificiales.
+
+6
+
+Para la realización del modelo de balance hídrico, se espera que este sea simplificado, y que sea flexible a cambios, ya sea de operación, de demanda o de infraestructura de conducción. La escala de modelación se considerará mensual, en todo el periodo a analizar.
+
+Para la realización del análisis hidrológico, deben llevarse a cabo los siguientes pasos:
+
+✓ Identificación de cuencas aportantes a la zona del proyecto ✓ Identificación de estaciones fluviométricas y pluviométricas relevantes ✓ Análisis de precipitaciones mensuales actualizado, correspondiente al periodo a analizar ✓ Análisis de caudales medios mensuales actualizado, correspondiente al periodo a analizar ✓ Modelo de generación de caudales en cuencas no controladas, de ser necesario ✓ Estudio del cauce principal, identificando zonas de infiltración y zonas de afloramiento
+
+Debe justificarse el uso del modelo particular para el análisis hidrológico, en especial si este es simplificado, señalando adecuadamente todos los supuestos e hipótesis involucradas.
+
+Para la evaluación de los recursos hídricos, se debe tener una serie homogeneizada para la cuenca aportante total del proyecto, vale decir, para la cuenca definida por el punto de captación de la obra. Se recomienda fuertemente utilizar un periodo continuo de 40 años o más, con el fin de calibrar el modelo hidrológico con el 75% más antiguo del periodo analizado (igual o mayor a 30 años) y validar con el 25% más reciente del periodo (equivalente a los últimos 10 o más años).
+
+Para la calibración (y validación) se debe utilizar el coeficiente de eficiencia de modelo de Nash- Sutcliffe, y su versión logarítmica, entendiéndose que entre más cercano a 1 sea el valor del coeficiente, mejor es la calibración (y la validación). El coeficiente de Nash-Sutcliffe está definido como:
+
+Donde:
+
+NS: Coeficiente de Nash-Sutcliffe LNS: Coeficiente logarítmico de Nash-Sutcliffe Qmt: Caudal modelado en el tiempo t Q0t: Caudal observado en el tiempo t Q0:
+
+Caudal observado promedio para todo el periodo n, con n el periodo (en meses) a evaluar.
+
+7
+
+A partir de la modelación hidrológica se debe generar la Curva de Variación Estacional (C. V. E.) realizada ajustando una función de distribución de probabilidades de forma independiente en cada mes, justificando dicho ajuste mediante un test de bondad de ajuste Χ2 o similar. Entre las funciones de distribución de probabilidades, se recomiendan analizar las distribuciones: Normal; Log-Normal; Pearson tipo 3; Log-Pearson; Gumbel; u otra que el modelador estime conveniente. La C.V.E debe presentar, al menos, los caudales con 5%, 50% y 85% de probabilidad de excedencia, además de los que el formulador estime pertinentes.
+
+En caso de proyectos cuya fuente sea el agua subterránea, es necesario contar con información sobre la disponibilidad y ubicación del recurso hídrico. También es importante que se entreguen antecedentes sobre la capacidad de recarga del acuífero y la movilidad del agua, tanto de forma vertical como horizontal.
+
+✓ Situación Actual de la Infraestructura: Se deben identificar y describir aspectos como el estado de sistemas de conducción y acumulación, nivel de tecnificación, redes de monitoreo pertinentes al proyecto, obras de drenaje, entre otros.
+
+✓ Derechos de Agua: se debe acreditar en qué situación y estado están los derechos de agua de los
+
+respectivos usuarios y los derechos asociados al proyecto. Indicar anexo donde se encuentran.
+
+✓ Tenencia de la Tierra: Se debe indicar en qué situación y estado están los terrenos de los
+
+usuarios. Indicar anexo en el que se encuentra.
+
+✓ Matriz de Involucrados: Describir las organizaciones de usuarios de aguas a las cuales pertenecen los grupos de beneficiarios de la iniciativa, tales como: juntas de vigilancia, asociaciones de canalistas, comunidades de aguas u otros.
+
+2.1.3 Estratificación predial
+
+Corresponde a aquellos regantes de la población que están siendo afectados por el problema actual y que por lo tanto serán beneficiados con el proyecto. Para esto se deberá agrupar por rango de superficie el número de regantes. La información se obtiene a través de la encuesta realizada para determinar el uso de suelo, como se ejemplifica en la Tabla 1.
+
+8
+
+TABLA 1: ESTRATIFICACIÓN PREDIAL Estratos Regantes 0-1ha Número de regantes encuestados 1-12 ha Número de regantes encuestados 12-40 ha Número de regantes encuestados 40-200 ha Número de regantes encuestados 200 y mas ha Número de regantes encuestados
+
+FUENTE: ELABORACIÓN PROPIA
+
+2.1.4 Análisis de la oferta hídrica
+
+La oferta hídrica consiste en la cantidad de agua disponible o recuperada expresada en volumen (m3) o volumen por unidad de tiempo, generalmente litros/segundo (l/s) o metros cúbicos/segundo (m3/s).
+
+Para el caso de obras cuyo costo sea mayor a 30.000 UF la oferta hídrica se puede calcular a partir del caudal o volumen Q85% que se obtenga del análisis hidrológico.
+
+Para el caso de obras cuyo costo sea menor a 30.000 UF la oferta hídrica se puede calcular a partir del caudal o volumen Q85% del documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso.
+
+Dependiendo del tipo de obra se determinarán los pasos a seguir para el cálculo de la oferta hídrica para la situación actual Qo(s/p), la oferta hídrica para la situación futura o con proyecto Qo(c/p) y el caudal o volumen recuperado con el proyecto Qo(recuperado):
+
+a. Obras de revestimiento o entubamiento de canales y revestimiento de tranque de
+
+regulación.
+
+Son obras que tienen en común evitar infiltraciones, por lo que el Qo (recuperado) con el proyecto dependerá directamente del cálculo de porcentaje de pérdida de agua que se analizará más adelante.
+
+Se tiene una oferta hídrica para la situación sin proyecto Qo(s/p) y una oferta hídrica para la situación futura o con proyecto Qo(c/p), cuya diferencia de ambos corresponde al caudal recuperado gracias a la futura obra por construir:
+
+Qo(recuperado) = Qo(c/p) - Qo(s/p)
+
+Donde,
+
+9
+
+Qo(recuperado): Caudal o volumen recuperado con el proyecto. Qo(c/p): Caudal o volumen en la situación con proyecto. Qo(s/p): Caudal o volumen en la situación sin proyecto.
+
+La unidad de medida de los tres conceptos anteriores será (l/s), (m3/s) o (m3), dependiendo del tipo de obra. En los siguientes párrafos se describen 3 pasos a seguir para su cálculo:
+
+PASO 1: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Se debe calcular el Qo(c/p) de la siguiente forma:
+
+Qo(c/p) = Q85% \* acc.
+
+El Q85% es el caudal o volumen de agua con 85% de seguridad de riego y se puede obtener de dos fuentes de información distinta:
+
+1\. Análisis hidrológico para obras cuyo costo sea mayor a 30.000 UF, en el que se obtiene el
+
+Q85% en las siguientes unidades: (l/s) o (m3). 2. Documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso para obras cuyo costo sea menor a 30.000 UF, en el que obtiene el Q85% en las siguientes unidades (l/s/acc.) o (m3/acc./temp)
+
+La unidad temp se refiere a la temporada de riego que es de los meses de septiembre a abril, es decir, 8 meses o 242 días exactos.
+
+Dependiendo de dónde se obtenga el Q85%, se ha definido el término acc. de dos formas diferentes:
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Donde, Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal, estero, río o embalse.
+
+Si Q85% está dado en m3/temp/acc se convierte a l/s/acc con la siguiente fórmula:
+
+10
+
+Ejemplo de cálculo de Q(c/p) o disponibilidad de aguas para un proyecto cuyo costo es mayor a 30.000 UF:
+
+Supongamos que se trata del canal Vista Hermosa que pertenece al Tramo V de la Cuenca del Río Huasco. Se postula un proyecto cuyo costo es mayor a 30.000 UF, por lo que de la hidrología se obtiene un Q85% = 250 (l/s)
+
+Atendiendo la ubicación de las obras, se benefician del proyecto 121,2 acciones y existen un total de 158 acciones para el canal, por ende: Qo(c/p) = Q85% \* acc.
+
+Q(oc/p) = Q85% \* Acc. Proyecto / Acc. Totales
+
+De esta forma:
+
+Qo(c/p) = 250 (l/s) \* 121,2 acciones / 158 acciones
+
+Por lo que:
+
+Qo(c/p) = 192 (l/s)
+
+Ejemplo de cálculo de Q(c/p) o disponibilidad de aguas para un proyecto, cuyo costo es menor a 30.000 UF:
+
+Supongamos que se trata del canal Bellavista que pertenece al Tramo IV de la Cuenca del Río Huasco. Se postula un proyecto cuyo costo es menor a 30.000 UF, por lo que del DT-01 Documento Técnico “Caudales 85% de seguridad” se obtiene un Q85% = 29.360 (m3/acción/temp). Atendiendo la ubicación de las obras, se benefician del proyecto 121,20 acciones del total de 158 acciones con que cuenta el canal, por ende:
+
+Qo(c/p) = Q85% \* acc.
+
+Qo(c/p) = Q85% \* Acc. Proyecto
+
+11
+
+De esta forma:
+
+Qo(c/p) = 29.360 (m3/acción/temp) \* 121,20 acciones
+
+Qo(c/p) = 3.558.432 (m3/temp)
+
+Para convertir (m3/temp) a (l/s), según lo explicado anteriormente:
+
+Qo(c/p) = 3.558.432 (m3/temp) \* 0.0000478
+
+Por lo que:
+
+Qo(c/p) = 170 (l/s)
+
+PASO 2: Cálculo de caudal o volumen recuperado con el proyecto Qo(recuperado)
+
+Como ya se dijo, por tratarse de obras que evitan infiltraciones, el Q(recuperado) depende directamente del cálculo de porcentaje de pérdida de agua, por lo que se debe calcular el Q(recuperado) de la siguiente forma:
+
+Qo(recuperado) = Q85%4 \* acc. \* % pérdidas
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Cálculo del % de pérdidas Se deberán calcular las pérdidas de manera empírica a través de la fórmula de Moritz:
+
+En donde,
+
+P: Pérdidas por conducción (m3/s/km) Q: Caudal de diseño en el tramo (m3/s) V: Velocidad del flujo (m/s) C: Coeficiente que depende de las características del suelo (ver Tabla 2).
+
+4 Corresponde al caudal o volumen Q85% que se obtenga del análisis hidrológico o del documento técnico DT-01 “Caudales 85% de seguridad”.
+
+12
+
+Los valores del coeficiente C de acuerdo con el tipo de suelo, se presentan en la Tabla 2:
+
+TABLA 2: VALORES DEL COEFICIENTE C PARA DISTINTOS TIPOS DE SUELO
+
+Tipo de suelo Coeficiente C
+
+(m/día) Grava cementada, franco arenoso 0,10 Arcillosos y franco arcilloso 0,13 Franco arenoso 0,20 Ceniza volcánica 0,21 Arena, cenizas volcánicas o arcilla 0.37 Arenoso con roca 0.51 Arenoso con grava 0.67
+
+FUENTE: COMISIÓN NACIONAL DE RIEGO.
+
+Se debe entregar informe de suelos con tamizados, debidamente certificado.
+
+PASO 3: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+b. Obras de rehabilitación de embalse de regulación corta
+
+El embalse de regulación corta es una obra que permite la acumulación de agua de riego para la regulación nocturna y de fin de semana.
+
+En los embalses de regulación nocturna se acumula el agua de riego durante la noche y se utiliza al día siguiente con mayor eficiencia, puesto que se evitan las grandes pérdidas de agua por riego nocturno. En estos embalses se acumula agua durante 12 ó 14 horas en la noche, para entregarla en 12 ó 10 horas de riego diurno efectivo. Los embalses de regulación de fin de semana permiten, además de acumular agua durante la noche, almacenar el volumen de agua que se recibe durante las 24 horas del día domingo y entregarla en forma diurna durante los seis días siguientes.
+
+Por tratarse de una obra que recupera un volumen para almacenar agua, el volumen recuperado Q(recuperado) depende de la comparación del volumen físico que se recupera con el volumen de agua disponible.
+
+Se contará con los siguientes datos:
+
+13
+
+Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal o embalse Q85%5: Caudal o volumen con 85% de seguridad de riego Volumen Actual (m3): Cantidad física actual disponible para almacenar agua de acuerdo con la topografía existente. Volumen Proyectado (m3): Capacidad física total que se espera obtener una vez ejecutado el proyecto de acuerdo con la topografía del proyecto.
+
+PASO 1: Cálculo de caudal o volumen recuperado con el proyecto Qo (recuperado)
+
+1\. Se debe considerar el volumen a embalsar durante la noche:
+
+Volumen 85% en 14 horas (m3) = Q85%3 \* acc. \* 3600 \* 14/1000
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Si: Vol. actual \< Vol. 85% en 14 hrs =\> Qo(recuperado(noches)) = Vol. 85% en 14 hrs - Vol. actual
+
+Si: Vol. actual \> Vol. 85% en 14 hrs =\> Qo(recuperado(noches)) = 0
+
+2\. También se debe considerar el volumen a embalsar los fines de semana (FdS):
+
+Volumen 85% en 36 horas (m3) = Q85% \* acc. \* 3600 \* 36/1000
+
+Qo(recuperado(FdS)) = Mín. valor (Vol. 85% en 36 hrs ó Vol. Proy.) – Vol. actual –
+
+Qo(recuperado(noches))
+
+3\. En general, se presentan varios embalses juntos, por lo que el caudal recuperado total es:
+
+Qo(recuperado total mensual) = (∑Qo(recuperado(noches))\*30 + (∑Qo(recuperado(FdS)))\*4
+
+5 Corresponde al caudal o volumen Q85% que se obtenga del análisis hidrológico o del documento técnico DT-01 “Caudales 85% de seguridad”.
+
+14
+
+PASO 2: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+4\. Se debe considerar el volumen a embalsar durante la noche:
+
+Volumen 85% en 14 horas (m3) = Q85%6 \* acc. \* 3600 \* 14/1000
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Qo(s/p)(noches) = Mín. valor (Vol. 85% en 14 hrs ó Vol. Actual)
+
+5\. También se debe considerar el volumen a embalsar los fines de semana:
+
+Volumen 85% en 36 horas (m3) = Q85% \* acc. \* 3600 \* 36/1000
+
+Qo(s/p)(FdS) = Mín. valor (Vol. 85% en 36 hrs ó Vol. Actual)
+
+6\. En general, se presentan varios embalses juntos, por lo que el caudal sin proyecto total
+
+es:
+
+Qo(s/p total) = (∑Qo(s/p)(noches))\*30 + (∑Qo(s/p)(FdS))\*4
+
+PASO 3: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Como:
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+Qo(c/p total) = Qo(s/p total) + Qo(recuperado total)
+
+6 Corresponde al caudal o volumen Q85% que se obtenga del análisis hidrológico o del documento técnico DT-01 “Caudales 85% de seguridad”.
+
+15
+
+c. Obras de rehabilitación de embalse de regulación estacional
+
+El embalse de regulación estacional o de temporada es una obra hidráulica que permite almacenar aguas en el período del año en que dicho recurso es abundante para utilizarlas en el período en que escasea. En Chile, estas obras se utilizan generalmente para acumular aguas provenientes de las lluvias de otoño e invierno para utilizarlas en los meses siguientes, de primavera y verano (meses de la temporada agrícola).
+
+Por tratarse de una obra que recupera un volumen para almacenar agua, el caudal recuperado Q(recuperado) depende de la comparación del volumen físico que se recupera con el volumen de agua disponible.
+
+Se contará con los siguientes datos: Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal o embalse Q85%: Caudal o volumen con 85% de seguridad de riego Volumen actual (m3): capacidad física actual disponible para almacenar agua de acuerdo con la topografía existente. Volumen proyectado (m3): capacidad física total que se espera obtener una vez ejecutado el proyecto de acuerdo con la topografía con proyecto.
+
+PASO 1: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Se debe calcular el Qo(c/p) de la siguiente forma:
+
+Qo(c/p) = Q85% \* acc.
+
+El Q85% es el caudal o volumen de agua con 85% de seguridad de riego y se puede obtener de dos fuentes de información distinta:
+
+1\. Análisis hidrológico para obras cuyo costo sea mayor a 30.000 UF, en el que se obtiene el Q85% en las siguientes unidades: (l/s) o (m3). 2. Documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso para obras cuyo costo sea menor a 30.000 UF, en el que obtiene el Q85% en las siguientes unidades: (l/s/acc.) o (m3/acc./temp)
+
+La unidad temp se refiere a la temporada de riego que es de los meses de septiembre a abril, es decir, 8 meses o 242 días exactos.
+
+Dependiendo de dónde se obtenga el Q85%, se ha definido acc. de dos formas diferentes,
+
+16
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto Donde, Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal, estero, río o embalse.
+
+PASO 2: Cálculo de caudal o volumen recuperado con el proyecto Qo(recuperado)
+
+Qo(recuperado) = Mín. valor ((Vol. Proyectado - Vol. Actual) ó Qo(c/p))
+
+PASO 3: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+d. Obras de Telemetría y Motorización de Compuertas
+
+La telemetría consiste en la transmisión de datos a distancia y en tiempo real, por lo que las obras de telemetría y motorización de compuertas son obras que permiten optimizar la gestión y distribución de aguas.
+
+Este tipo de tecnología requiere de la operación y mantención de los equipos instalados. Esta mantención y operación es parte de los costos en la situación con proyecto en la evaluación económica y debe considerarse como una columna de flujos de costos.
+
+PASO 1: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Se debe calcular el Qo(c/p) de la siguiente forma:
+
+Qo(c/p) = Q85% \* acc.
+
+El Q85% es el caudal o volumen de agua con 85% de seguridad de riego y se puede obtener de dos fuentes de información distinta:
+
+17
+
+1\. Análisis hidrológico para obras cuyo costo sea mayor a 30.000 UF, en el que se obtiene el Q85% en las siguientes unidades: (l/s) o (m3). 2. Documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso para obras cuyo costo sea menor a 30.000 UF, en el que obtiene el Q85% en las siguientes unidades (l/s/acc.) o (m3/acc./temp)
+
+La unidad temp se refiere a la temporada de riego que es de los meses de septiembre a abril, es decir, 8 meses o 242 días exactos.
+
+Dependiendo de dónde se obtenga el Q85%, se ha definido acc. de dos formas diferentes,
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Donde, Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal, estero, río o embalse.
+
+PASO 2: Cálculo de caudal o volumen recuperado con el proyecto Qo(recuperado)
+
+Por tratarse de obras que mejoran el reparto de agua, se considerará una pérdida igual al 1%.
+
+Para proyectos de telemetría y por cada compuerta en paralelo, el caudal recuperado es:
+
+Qo(recuperado) = Q85%7 \* acc. \* % pérdidas
+
+Qo(recuperado) = Q85%5 \* acc. \* 1%
+
+7 Corresponde al caudal o volumen Q85% que se obtenga del análisis hidrológico o del documento técnico DT-01 “Caudales 85% de seguridad”.
+
+18
+
+Para proyectos de compuertas en serie, el caudal recuperado se calcula como:
+
+Qo(recuperado) = Q85%5 \* acc. \* ( 1 - (1-0,01)^N )
+
+Con N = Número de compuertas
+
+PASO 3: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+e. Reparación de Obras
+
+En este caso las pérdidas corresponden a un factor de riesgo de colapso. Estos factores de riesgo de colapso se justifican con certificado emitido por la Comisión Nacional de Riego, que avala la situación actual de la obra.
+
+TABLA 3: FACTORES DE RIESGO Clasificación de la obra Factores de riesgo Colapsada 1.0 Alto riego colapso 0.5
+
+PASO 1: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Se debe calcular el Qo(c/p) de la siguiente forma:
+
+Qo(c/p) = Q85% \* acc.
+
+El Q85% es el caudal o volumen de agua con 85% de seguridad de riego y se puede obtener de dos fuentes de información distinta:
+
+1\. Análisis hidrológico para obras cuyo costo sea mayor a 30.000 UF, en el que se obtiene el Q85% en las siguientes unidades: (l/s) o (m3).
+
+2\. Documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso para obras cuyo costo sea menor a 30.000 UF, en el que obtiene el Q85% en las siguientes unidades (l/s/acc.) o (m3/acc./temp)
+
+19
+
+La unidad temp se refiere a la temporada de riego que es de los meses de septiembre a abril, es decir, 8 meses o 242 días exactos.
+
+Dependiendo de dónde se obtenga el Q85%, se ha definido acc. de dos formas diferentes,
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Donde, Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal, estero, río o embalse.
+
+PASO 2: Cálculo de caudal o volumen recuperado con el proyecto Qo(recuperado)
+
+Qo(recuperado) = Q85%5 \* acc. \* Factor de Riesgo
+
+PASO 3: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+f. Obras de Tecnificación de Riego
+
+Se entenderá por obras de tecnificación a los sistemas de riego que permiten aplicar el agua al interior del o de los predios aumentando la eficiencia del uso del agua y/o incorporando nuevas superficies de riego. Entre los tipos de obras de tecnificación se distinguen los sistemas de riego por goteo, cinta, microaspersión, borboteo, aspersión, pivotes centrales, avance frontal, carretes, side roll, californiano u otros.
+
+20
+
+Si es mejoramiento de riego, considerar la situación base optimizada real, sin embargo, si en la actualidad no hay riego, se debe considerar la situación base optimizada de riego con un tendido de surco del mismo cultivo o cultivos que se considerarán en la situación futura o con proyecto (aunque hoy no haya riego, ya que es lo que el agricultor podría realizar de no ganarse el bono y es el beneficio que realmente genera la obra de tecnificación).
+
+PASO 1: Cálculo de caudal o volumen en la situación con proyecto Qo(c/p)
+
+Se debe calcular el Qo(c/p) de la siguiente forma:
+
+Qo(c/p) = Q85% \* acc.
+
+El Q85% es el caudal o volumen de agua con 85% de seguridad de riego y se puede obtener de dos fuentes de información distinta:
+
+1\. Análisis hidrológico para obras cuyo costo sea mayor a 30.000 UF, en el que se obtiene el Q85% en las siguientes unidades: (l/s) o (m3).
+
+2\. Documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso para obras cuyo costo sea menor a 30.000 UF, en el que obtiene el Q85% en las siguientes unidades (l/s/acc.) o (m3/acc./temp)
+
+La unidad temp se refiere a la temporada de riego que es de los meses de septiembre a abril, es decir, 8 meses o 242 días exactos.
+
+Dependiendo de dónde se obtenga el Q85%, se ha definido acc. de dos formas diferentes,
+
+Para el caso que Q85% se obtenga de análisis hidrológico, se tiene:
+
+acc. = Acc. Proyecto / Acc. Totales
+
+Para el caso que Q85% se obtenga de documento técnico DT-01 “Caudales 85% de seguridad” que entrega CNR junto a las bases de cada concurso, se tiene:
+
+acc. = Acc. Proyecto
+
+Donde, Acc. Proyecto: Acciones que intervienen en el proyecto Acc. Totales: Acciones Totales con que cuenta el canal, estero, río o embalse.
+
+21
+
+PASO 2: Cálculo de caudal o volumen recuperado con el proyecto Qo(recuperado)
+
+Qo(recuperado) = 0
+
+PASO 3: Cálculo de caudal o volumen en la situación sin proyecto Qo(s/p)
+
+Qo(s/p) = Qo(c/p) - Qo(recuperado)
+
+Por lo que:
+
+Qo(s/p) = Qo(c/p)
+
+2.1.5 Análisis de la demanda hídrica
+
+La demanda hídrica depende de la cantidad de agua que consume un cultivo y de la eficiencia del sistema de riego, tanto intrapredial como extrapredial, incluyendo así los sistemas de conducción, acumulación y otras obras hidráulicas que estén involucradas entre la fuente de captación y el cultivo.
+
+Para determinar la demanda hídrica y la superficie de cada cultivo se requiere considerar las pérdidas y los consumos, y para esto se debe tener en cuenta los siguientes conceptos:
+
+a) Evapotranspiración: se conoce como evapotranspiración (ET) la combinación de dos procesos separados por los que el agua se pierde, a través de la superficie del suelo por evaporación (E) y, por otra parte, mediante transpiración (T) de las plantas.8
+
+b) Evapotranspiración del Cultivo (ETc): Corresponde al proceso de evapotranspiración del cultivo mediante condiciones estándar. Las condiciones estándar de los cultivos son: que se desarrollen en campos extensos, bajo condiciones agronómicas excelentes y sin limitaciones de humedad en el suelo. Para determinar este valor, es necesario conocer el coeficiente del cultivo (Kc), el que incorpora la evapotranspiración del cultivo en todo el proceso fenológico.
+
+c) Evapotranspiración de Referencia (ETo): es la cantidad de agua consumida, durante un período de tiempo determinado, en un suelo cubierto de vegetación homogénea, densa,
+
+8 AGRIMED: Atlas de la Evapotranspiración 2015
+
+22
+
+Donde; Pef: Precipitación Efectiva (mm); X: Precipitación Media Mensual (mm)
+
+Por lo tanto, la Demanda hídrica neta sería:
+
+9 idem
+
+en plena actividad vegetativa y con un buen suministro de agua. Cabe tener presente que esta evapotranspiración de referencia dependerá necesariamente de las condiciones climáticas imperantes en cada lugar. Se expresa en mm/mes.9
+
+d) Coeficiente del cultivo (Kc): El coeficiente de cultivo depende de las características anatómicas, morfológicas y fisiológicas de cada especie y expresa la capacidad de la planta para extraer el agua del suelo en las distintas etapas del período vegetativo. No se expresa en unidades.
+
+Para el desarrollo del balance hídrico de cada proyecto se deberán utilizar los Kc por tipo de cultivo según etapa fenológica. Estos coeficientes se encuentran en la Hoja Kc de la planilla Excel “Balance Hídrico”, que se encuentra disponible para desarrollar el proyecto. En caso en que el kc no se encuentre en la planilla, se deberá consultar de la FAO.
+
+Entonces, la evapotranspiración de cultivo (ETc) se calcula de la siguiente manera:
+
+: Coeficiente de cultivo;
+
+e) Demanda Hídrica Neta (DHN): Se obtiene a través de la diferencia entre la ETc y el aporte de la precipitación, particularmente la precipitación efectiva, la que corresponde a la fracción de la precipitación total que puede ser aprovechada por el cultivo. La fracción que no es utilizada puede perderse en forma de escorrentía superficial, percolación profunda o evaporación.
+
+La fórmula que expresa el método de Blaney y Criddle modificado por Merlet y Santibañez es la siguiente:
+
+Donde;
+
+: Es la evapotranspiración del Cultivo (mm/mes);
+
+: Evapotranspiración de referencia (mm/mes);
+
+23
+
+Donde; DHN: Demanda hídrica Neta (m3/ha/mes) ETc: evapotranspiración del cultivo (mm/mes) Pef: precipitación efectiva (mm/mes)
+
+f) Tasa de riego: La tasa de riego, da cuenta del volumen de agua que es preciso aplicar a una superficie unitaria (1 hectárea) de cultivo, para satisfacer su demanda hídrica neta.
+
+El volumen definitivo de agua que será aplicado depende de la eficiencia del riego, según la siguiente tabla:
+
+TABLA 4: EFICIENCIA DE APLICACIÓN EN SISTEMAS DE RIEGO
+
+Tipo de Riego Porcentaje de
+
+Eficiencia Tendido 30% Surcos 45% Bordes 60% Aspersión 75% Cinta 90% Goteo 90%
+
+Cada cultivo posee un método de riego y por consecuencia una eficiencia asociada a ese método. Por ello, para estimar la tasa de riego se debe utilizar el porcentaje de eficiencia distinguiendo por cada tipo de cultivo, tanto para la situación actual como la proyectada; lo que se obtiene de la encuesta a los agricultores o de los catastros de las Organizaciones de Usuarios de Agua (OUA).
+
+La tasa de riego (TR) se calcula mediante la siguiente fórmula:
+
+Donde; TR: Tasa de Riego (m3/ha/mes); DHN: Demanda hídrica neta (m3/ha/mes); Ef. de Riego: es la eficiencia de aplicación de riego (%).
+
+24
+
+Donde; Qd: Caudal demandado (l/s); MR: Módulo de riego (l/s/ha); A= Superficie de cada cultivo (ha).
+
+h) Cálculo del caudal demandado: Para que los cultivos cumplan exitosamente todos los procesos fenológicos es importante que cuenten con toda el agua que necesitan, sólo así entregarán un máximo potencial productivo. Por ello, se deben determinar todos los requerimientos vistos anteriormente (la evapotranspiración de los cultivos, precipitaciones efectivas, déficits y las eficiencias de riego de acuerdo al método utilizado).
+
+Es necesario realizar un análisis de la demanda hídrica para todos los meses del año para los cultivos de la situación actual Qd (s/p) y otra para los cultivos de la situación con proyecto Qd (c/p).
+
+Se cuenta con la planilla “Balance Hídrico” elaborada por el Ministerio de Desarrollo Social y Familia, que la CNR publica en la página web para ser utilizada por los formuladores. Dicha planilla cuanta con una primera hoja Excel denominada “Instrucciones” con los pasos a seguir para la confección del balance hídrico.
+
+El cálculo de la tasa de riego, expresada como lámina de agua por mes también se puede calcular como el flujo permanente o caudal fijo que necesita una hectárea de cultivo. Esta forma de expresar la demanda bruta se denomina Módulo de Riego.
+
+g) Módulo de riego: se refiere al volumen total que demanda un cultivo en todo su ciclo
+
+vegetativo, desde la preparación del suelo y la siembra, hasta la cosecha, es decir:
+
+Donde; MR: Módulo de riego (l/s/ha); TR: Tasa de riego (m3/ha/mes).
+
+El módulo de riego (MR) es un caudal específico por unidad de superficie de cultivo (una hectárea). Por esto, debe multiplicarse este valor por la cantidad de superficie para hallar el caudal demandado (Qd) en litros por segundos; este valor determina la cantidad de agua que debe llegar de forma constante al terreno de forma ininterrumpida para mantener las condiciones óptimas de humedad, es decir:
+
+25
+
+A continuación, se muestra una tabla resumen para obtener la demanda con toda la información anterior:
+
+TABLA 5: CÁLCULO DEL CAUDAL DEMANDADO
+
+Paso Fuente de Dato u Operación Ene Feb Mar … …. Nov Dic
+
+1 Evapotranspiración de Referencia ETo (mm/mes) Centro de Agricultura y Medioambiente AGRIMED.
+
+Stgo, 2015. 2 Coeficiente de Cultivo Kc \* Centro de Agricultura y Medioambiente
+
+AGRIMED. Stgo, 2015. \* FAO 3 Evapotranspiración de Cultivo Etc (mm/mes) Etc = Etp \* Kc
+
+4 Precipitación Media Mensual X (mm/mes) Fuente: Dirección General de Aguas (DGA) http://snia.dga.cl/BNAConsultas/reportes
+
+5 Precipitación Efectiva Pef (mm/mes) Pef = -0,0022\*X^2 + 1,0903\*X
+
+6 Demanda Hídrica Neta DHN (m3/ha/mes) DHN = (Etc-Pef)\*10
+
+7 Tasa de Riego TR (m3/ha/mes) TR = DHN / Ef, dónde Ef: Eficiencia
+
+8 Módulo de Riego MR (l/s/ha) MR = TR \* 0,0004
+
+9 Caudal demandado Qd (l/s) Qd = MR \* A, dónde A: héctareas de c/cultivo
+
+Datos y Resultados del Cálculo por Mes Parámetro a Determinar
+
+FUENTE: ELABORACIÓN PROPIA
+
+2.1.6 Déficit o Balance hídrico
+
+El déficit o balance hídrico corresponde a la suma algebraica entre las ganancias y pérdidas de agua del suelo. Se debe realizar tanto para la situación actual como para la situación con proyecto. Dentro de las ganancias se incluyen: la precipitación, el riego y el ascenso capilar; mientras que en las pérdidas se encuentran la evapotranspiración, el escurrimiento superficial y la percolación profunda. En consecuencia, el déficit se calcula mediante la comparación entre oferta y demanda calculadas anteriormente en los puntos 2.1.4 y 2.1.5.
+
+En el siguiente gráfico se muestra un ejemplo del déficit hídrico:
+
+26
+
+Análisis oferta v/s demanda (en l/s)
+
+200
+
+150
+
+100
+
+50 \]
+
+s/l\[0-50-100
+
+\-150
+
+Meses
+
+Déficit hídrico (l/s)
+
+Oferta (l/s)
+
+Qd o Demanda (l/s)
+
+FUENTE: ELABORACIÓN PROPIA
+
+En el gráfico expuesto se muestra una oferta constante de enero a diciembre de 88 (l/s), por otro lado, existe una demanda de los cultivos que en algunos meses supera la oferta disponible, como es el caso de enero, mes más desfavorable con un déficit de 89 (l/s). Se puede apreciar un déficit en los meses de enero, febrero, marzo, noviembre y diciembre (gráficamente el déficit es indicado con las barras verdes y en la tabla se aprecia en los valores negativos de la tercera fila: Déficit hídrico (l/s)).
+
+El primer paso es realizar el balance hídrico para la situación actual:
+
+1\. Del capítulo 2.1.4 se obtiene la Oferta Hídrica para la situación actual Qo (s/p) 2. Del capítulo 2.1.5 se obtiene el Caudal demandado Qd (s/p) para la situación actual. 3. Calcular Déficit para la situación actual (diferencia de las anteriores). 4. Se deben obtener conclusiones de la situación actual. Este resultado permite determinar si
+
+existe déficit o superávit en la situación actual.
+
+Al realizar el Balance Hídrico para la situación actual, se pueden dar tres casos que se analizarán:
+
+27
+
+Caso1: Qd (58) \< Qo (s/p) (80) (se está comparando el mes de diciembre)
+
+Situación de la demanda y oferta del proyecto (sin proyecto)
+
+Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre Octubre Noviembre Diciembre Qd o Demanda (l/s) 56 48 33 17 9 7 5 10 29 40 56 58 Oferta (l/s) 80 80 80 80 80 80 80 80 80 80 80 80 Déficit hídrico (l/s) 0 0 0 0 0 0 0 0 0 0 0 0
+
+En la tabla se muestra una oferta constante de enero a diciembre de 80 (l/s), por otro lado, existe una demanda de los cultivos que en ningún mes supera la oferta disponible. No se presenta déficit en la situación actual, es decir, déficit = 0. Por el contrario, le sobra agua, por ejemplo, para el mes de diciembre le sobran 80-58 = 22 (l/s) para agregar hectáreas sin realizar obras o proyecto. En este caso deberá replantearse el proyecto; deberá distinguirse entre la superficie que pude ser regada con el agua sobrante y la superficie que puede regarse con el agua recuperada, siendo esta última la que genera los beneficios del proyecto. Deberá estimarse la cantidad de hectáreas que permiten obtener déficit igual a cero en la situación sin proyecto, aumentando la superficie cultivada, las cuales deben ser utilizadas en la evaluación.
+
+Caso2: Qd (85) = Qo (s/p) (85) (se está comparando el mes de enero)
+
+Situación de la demanda y oferta del proyecto (sin proyecto)
+
+Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre Octubre Noviembre Diciembre Qd o Demanda (l/s) 85 78 61 45 24 3 15 15 33 46 70 84 Oferta (l/s) 85 85 85 85 85 85 85 85 85 85 85 85 Déficit hídrico (l/s) 0 0 0 0 0 0 0 0 0 0 0 0
+
+En la tabla se muestra una oferta constante de enero a diciembre de 85 (l/s), por otro lado, existe una demanda de los cultivos que en ningún mes supera la oferta disponible. No se presenta déficit en la situación actual, es decir, déficit = 0. Sin embargo, no sobra agua como en el caso 1. Proyecto puede agregar hectáreas de nuevo riego con el agua recuperada.
+
+Caso3: Qd (75) \> Qo (s/p) (60) (se está comparando el mes de noviembre)
+
+Situación de la demanda y oferta del proyecto (sin proyecto)
+
+Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre Octubre Noviembre Diciembre Qd o Demanda (l/s) 63 47 29 20 9 8 4 15 36 58 75 71 Oferta (l/s) 60 60 60 60 60 60 60 60 60 60 60 60 Déficit hídrico (l/s) -3 0 0 0 0 0 0 0 0 0 -15 -11
+
+En la tabla se muestra una oferta constante de enero a diciembre de 60 (l/s), por otro lado, existe una demanda de los cultivos que en algunos meses supera la oferta disponible, como es el caso de noviembre, mes más desfavorable con un déficit de 15 (l/s). Se puede apreciar un déficit en los meses de enero, noviembre y diciembre.
+
+28
+
+Se presenta déficit en la situación actual, con lo cual el caudal recuperado Q(recuperado) puede ser mayor o menor que el déficit, es decir, el proyecto puede solucionar todo o parte del problema, por lo que el proyecto puede mejorar las hectáreas actuales y/o agregar hectáreas de nuevo riego.
+
+El segundo paso es realizar el balance hídrico para la situación actual sin déficit ni superávit
+
+1\. Del capítulo 2.1.4 se obtiene la Oferta Hídrica para la situación actual Qo (s/p) 2. Del capítulo 2.1.5 se obtiene el Caudal demandado Qd (s/p) para la situación actual. 3. Se debe ajustar la cantidad de hectáreas (aumentar o disminuir) hasta obtener déficit igual a cero. La superficie resultante de la situación actual sin déficit deberá ser la utilizada en la evaluación.
+
+El tercer paso es realizar el balance hídrico para la situación futura o con proyecto:
+
+1\. Del capítulo 2.1.4 se obtiene la Oferta Hídrica para la situación con proyecto Qo (c/p) 2. Del capítulo 2.1.5 se obtiene el Caudal demandado Qd (c/p) para la situación con proyecto. 3. Calcular Déficit para la situación con proyecto (diferencia de las anteriores). 4. Se deben obtener conclusiones de la situación con proyecto. Si se presenta déficit o superávit, deberá reducirse o aumentarse la superficie de riego hasta obtener déficit igual a cero. La diferencia entre las superficies sin déficit en situación sin proyecto y con proyecto corresponderá a la superficie recuperada a utilizar en la evaluación.
+
+En resumen, se deberá presentar 3 balances hídricos:
+
+\- Balance hídrico situación sin proyecto - Balance hídrico situación sin proyecto, sin déficit ni superávit - Balance hídrico situación con proyecto, sin déficit ni superávit.
+
+2.2 OPTIMIZACIÓN DE LA SITUACIÓN ACTUAL
+
+La optimización de la situación actual consiste en identificar medidas de inversiones marginales que puedan mejorar la situación actual, eliminando parcialmente el problema. Evita atribuirle al proyecto estos beneficios y así no sobreestimarlos en la evaluación.
+
+Algunas son: medidas de gestión y/o administrativas, capacitación, reparaciones de bajo costo, entre otras.
+
+2.3 DESCRIPCIÓN DE LAS ALTERNATIVAS DE SOLUCIÓN
+
+En cada alternativa se debe describir: las características principales de infraestructura como también de las obras complementarias, ventajas, desventajas, entre otras; y justificar la alternativa seleccionada.
+
+29
+
+3\. EVALUACIÓN SOCIAL DE PROYECTOS
+
+La evaluación social de proyectos permite determinar en qué medida el proyecto a desarrollar tendrá un efecto económico y de bienestar en la sociedad. Para ello es fundamental identificar los beneficios y costos que se obtendrán del proyecto.
+
+3.1 IDENTIFICACIÓN DE BENEFICIOS DE LOS PROYECTOS DE RIEGO
+
+Los beneficios que se pueden identificar en los proyectos de riego son:
+
+a) Beneficios por aumento en la producción agrícola: Con la construcción de la obra aumentará la disponibilidad de agua, y por lo tanto disminuirá la incertidumbre de la tenencia de agua (mayor seguridad de riego). Esto permite, por un lado, que los cultivos actuales obtengan mayores rendimientos y mejoren su calidad, y por otro, que hectáreas agrícolas que no estaban siendo regadas sean incorporadas10. En ambos casos, se logrará aumentar la producción actual.
+
+b) Beneficios por cambio en la estructura de cultivo: El agricultor podrá optar por cambiar su estructura por cultivos más rentables y así obtener mayores beneficios, como por ejemplo de un cultivo anual a uno permanente. Esto debe ser recogido en las encuestas a los productores.
+
+c) Ahorro de costos: Se refiere a los recursos que dejan de ser empleados en las faenas actuales, como por ejemplo ahorro del tiempo en la distribución manual del agua, ahorro por disminución de pérdidas de agua, ahorro de energía, ahorro en los costos de operación y mantención, etc.
+
+d) Beneficio por daño evitado: Se refiere a la diminución de las pérdidas que se obtendrían por el mejoramiento y/o reparación de la obra de riego colapsada o por colapsar, como, por ejemplo: los beneficios que se recuperan de las hectáreas agrícolas que se inundarían o dejarían de ser regadas.
+
+e) Ventas por energía: Se refiere a la venta de energía de los proyectos de hidrogeneración, en donde el dueño del proyecto puede vender energía al distribuidor de electricidad
+
+10 Es fundamental que las superficies de nuevo riego tengan una cierta lógica en cuanto a la gradualidad en la incorporación de cultivos. El porcentaje de la tasa de incorporación dependerá de la superficie nueva y de los datos que entreguen respaldando los supuestos.
+
+30
+
+3.2 IDENTIFICACIÓN DE LOS COSTOS DE LOS PROYECTOS DE RIEGO
+
+Los costos que se pueden identificar en los proyectos de riego son:
+
+a) Costos de inversión: corresponden a los costos de construcción de las obras civiles como, por ejemplo: sistemas de captación, conducción, canales matrices secundarios, regulación nocturna, revestimientos, equipos de bombeo, perforaciones, puesta en riego, etc.; adquisición y/o habilitación de terrenos; mejoramiento y/o ampliación de componentes o equipos; transferencia tecnológica y capacitación.
+
+b) Costos de operación y mantenimiento: Se registran durante la vida útil del proyecto y son los que permiten el buen funcionamiento y mantenimiento del sistema, como, por ejemplo: sueldos del personal operativo, gastos en energía, combustibles, productos químicos, labores de presas, costos de mantención de compuertas, entre otros.
+
+c) Costos de producción agrícola: Corresponde a los costos incurridos en la adquisición de los factores productivos e insumos como: mano de obra, semillas, maquinarias, fertilizantes, otros. Estos costos aparecen en las fichas agroeconómicas de cada cultivo. También se debe agregar el costo por tecnificación en los frutales, así como en la evaluación.
+
+d) Costos indirectos: Considerar gastos administrativos, movilización, otros
+
+e) Costos ambientales: consiste en todos los costos de inversión, operación y mantenimiento que se asocian al cumplimiento de las obligaciones de la Resolución de Calificación Ambiental (RCA) de la iniciativa de inversión (en caso que sea pertinente). Dichas obligaciones corresponden al cumplimiento de normas ambientales; permisos ambientales sectoriales mixtos; compromisos ambientales voluntarios; plan de medidas ambientales de reparación, mitigación y/o compensación (solo en los casos de los estudios de impacto ambiental); etc. Si no es posible establecer el costo real asociado al cumplimiento de las obligaciones de la RCA al momento de presentación del proyecto al MDSF, al menos debe incluirse un costo estimado en base a información secundaria y cotizaciones.
+
+3.3 ESTIMACIÓN DE BENEFICIOS
+
+Para la estimación de los beneficios relacionados a la mayor seguridad de riego y al aumento de la superficie regada se aplicará el Método del Valor del Producto Marginal o Método del Presupuesto. El beneficio estará dado por la diferencia de márgenes brutos entre situación con y sin proyecto.
+
+31
+
+Margen Bruto = Ingresos por venta-Costos (De Fichas Técnicas)
+
+Por otra parte, y según el tipo de proyecto, se estimará el beneficio por ahorro de costos de insumos o factores productivos, daño evitado y venta de energía.
+
+3.3.1 Método del Presupuesto
+
+Se aplica en casos donde el proyecto de riego aumenta la disponibilidad de agua, lo que permite a los agricultores por un lado aumentar la producción agrícola, ya sea por un aumento de la superficie cultivada o mayores rendimientos y por otro, cambiar la estructura de cultivo. Este beneficio se calcula como el diferencial de beneficios y costos de las situaciones sin y con proyecto, es decir, es el valor incremental de los flujos netos. Para el cálculo se debe considerar todos los costos requeridos en la producción agrícola para que así, efectivamente, se obtenga el beneficio neto atribuible al proyecto. Para determinar la nueva superficie de riego se debe utilizar el balance hídrico de situación sin proyecto sin déficit; y el balance hídrico de la situación con proyecto también sin déficit. En aquellos casos en que en situación sin proyecto exista agua suficiente para regar nuevas hectáreas; o si no tiene disponibilidad de hectáreas nuevas para aumentar la producción, deberá estimarse beneficios por ahorros de costos de mantención.
+
+3.3.2 Estimación del ahorro de costos
+
+Para aquellos proyectos que generen una liberación de recursos, ya sea de insumos o factores productivos, energía, entre otros, será necesario valorarlos monetariamente. Para esto, primero deberá cuantificarse la magnitud del ahorro del recurso y luego aplicar un precio que refleje su valor. a) Ahorro de insumos
+
+Ains = (Cinssp – Cinscp) \* Pins
+
+Donde; Ains = Ahorro de insumos Cinssp = Cantidad del insumo sin proyecto Cinscp = Cantidad del insumo con proyecto Pins = Precio del insumo
+
+b) Ahorro de mano de obra calificada
+
+AC = (Hcsp – Hccp) \*Sc\*0,98
+
+Donde; Ac = Ahorro mano de obra calificada
+
+32
+
+Hcsp = Horas hombre mano de obra calificada sin proyecto Hccp = Horas hombre mano de obra calificada con proyecto Sc = Sueldo bruto mano de obra calificada 0,98 = Factor de corrección
+
+c) Ahorro de mano de obra semi calificada
+
+Asc = (Hscsp – Hsccp) \*Ssc\*0,68 Donde; Asc = Ahorro de mano de obra semi calificada Hscsp = Horas hombre mano de obra semi calificada sin proyecto Hsccp = Horas hombre mano de obra semi calificada con proyecto Ssc = Sueldo bruto mano de obra semi calificada 0,68 = Factor de corrección mano de obra semi calificada
+
+d) Ahorro de mano de obra no calificada
+
+Anc = (Hncsp – Hnccp) \*Snc\*0,62 Donde; Anc = Ahorro de mano de obra no calificada Hncsp = Horas hombre mano de obra no calificada sin proyecto Hnccp = Horas hombre mano de obra no calificada con proyecto Snc = Sueldo bruto mano de obra no calificada
+
+0,62 = Factor de corrección mano de obra no calificada
+
+d) Ahorro de energía
+
+Uno de los beneficios de los proyectos de hidrogeneración, energía solar o eólica es el ahorro de costos en operación en forma directa; pero también puede tener el beneficio por inyección a la red, en cuyo caso obtiene descuento en el cobro de la cuenta de electricidad. En este caso se debe contar con certificado de factibilidad de la empresa.
+
+Ae = (Kwhccp) \*Te
+
+Donde; Ae = Ahorro energía Kwhecp = Energía generada con proyecto Te = Tarifa eléctrica
+
+Esta fórmula también aplica para los casos en que se pueda vender electricidad al distribuidor, generándose en ese caso un beneficio por venta de electricidad.
+
+33
+
+3.3.3 Daño Evitado
+
+Esta metodología consiste en estimar las pérdidas que se obtendrían por las obras colapsadas o por colapsar. Es por ello que es necesario considerar en la situación con proyecto todos los daños evitados respecto a la situación sin proyecto, entre estos están: pérdida de cultivos, propiedades residenciales, entre otros. El cálculo del beneficio por daño evitado de una superficie agrícola corresponderá a estimar el valor de los cultivos que se dejan de regar o se inundan a causa de la obra colapsada. Se debe utilizar el factor de colapso dependiendo del estado en que se encuentre la obra de riego
+
+Qp=FC\* Q85%
+
+Donde; Qp= Caudal perdido (l/s) FC= Factor de colapso (ver tabla 3) Q85% = Caudal con seguridad de riego 85% (l/s)
+
+Este caudal que se pierde (Qp) se traduce en beneficios de los cultivos que se dejarían de regar a causa del colapso de la obra de riego.
+
+34
+
+3.3.4 Valorización económica por tipo de proyecto
+
+A continuación, se presenta una tabla resumen que describe los tipos de proyectos que pueden postular al concurso y sus características.
+
+Tipos de proyectos Ejemplificación de según Tipo Ejemplos de Beneficios Esperados
+
+Metodología de Valorización Económica de Beneficios
+
+Acumulación Embalses o Tranques de
+
+regulación
+
+Aumento superficie regada, seguridad de riego, cambio en la estructura de cultivo, entre otros
+
+Método del Presupuesto
+
+Conducción Revestimiento y entubamiento
+
+de canales
+
+Disminución de pérdidas de agua, menores costos de operación y mantención de los canales, disminución de horas hombre destinadas a la vigilancia y reparto, entre otros.
+
+Método del Presupuesto y ahorro de costos
+
+Mejoramiento de la eficiencia de la gestión
+
+Ahorro de horas hombre destinados a vigilancia y a la operación y mantención, cambio en la estructura de cultivos, entre otros. Obras de arte, calidad de aguas, telemetría
+
+Daño evitado, Método del Presupuesto y ahorro de costos.
+
+Aumento de la superficie regada,
+
+Drenaje Obras de drenaje
+
+mayor productividad por superficie, cambio en estructura de cultivos, entre
+
+Método del Presupuesto
+
+otros.
+
+Infiltración Acuíferos subterráneos
+
+Seguridad de riego, aumento de la superficie regada, entre otros.
+
+.
+
+Método del Presupuesto
+
+Tecnificación
+
+Sistema de riego como: goteo, cinta, micro-aspersión, pivote central, entre otros.
+
+Mayor productividad por superficie, mayor superficie regada, entre otros. Método del Presupuesto.
+
+Energía renovable no convencional
+
+Hidrogeneración, generación
+
+Menores costos de operación y venta eólica y solar
+
+de energía.
+
+Ahorro de costos y Valorización de ventas de energía.
+
+FUENTE: ELABORACIÓN PROPIA
+
+36
+
+3.4 CONFIGURACIÓN DE LOS FLUJOS NETOS
+
+3.4.1 Corrección a precios sociales
+
+El objetivo de la estimación de los precios sociales es disponer de valores que reflejen el verdadero beneficio o costo para la sociedad de utilizar unidades adicionales de recursos durante la ejecución y operación de un proyecto. Para una correcta evaluación social de los proyectos se requiere valorizar tanto beneficios como costos de los proyectos usando precios sociales. Para ello es necesario tener en cuenta ciertos factores de conversión, los cuales multiplicados por el precio de mercado neto darán origen a los denominados “precios sociales”.
+
+TABLA 6: PRECIOS SOCIALES
+
+Costos Ajuste
+
+Maquinarias, equipos e insumos nacionales Descontar IVA y otros impuestos;
+
+Maquinarias, equipos e insumos importados
+
+\*Los precios sociales deben estar linkeados para que sea más fácil su revisión en la planilla de evaluación social del proyecto.
+
+Los principales factores de corrección son:
+
+a) Impuestos El IVA y cualquier otro tipo de impuesto deben ser descontados de los ingresos y costos en los flujos al realizar la evaluación social.
+
+TABLA 7: VARIABLES DE CORRECCIÓN DE PRECIOS
+
+Variable Valor IVA 19% Arancel Aduanero\* FUENTE: MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA E INSTITUTO NACIONAL DE ESTADÍSTICAS (INE) (\*) Depende el origen del bien importado.
+
+Descontar IVA, arancel y otros impuestos; aplicar el factor de corrección de la divisa
+
+Sueldos y salarios Aplicar el factor de corrección de la mano de
+
+obra, para cada nivel de calificación.
+
+Combustibles Utilizar el Valor Social del Diesel o Gasolina.
+
+b) Mano de Obra
+
+Existen distintas calificaciones según tipo de mano de obra, y cada una de ellas tiene un factor de corrección, por lo tanto, estas se definen a continuación:
+
+• Mano de Obra Calificada: Aquellos trabajadores que desempeñan actividades cuya ejecución requiere estudios previos o vasta experiencia, por ejemplo: profesionales, técnicos, obreros especializados. Entre estos últimos se debe considerar maestros de primera en general, ya sean mecánicos, electricistas, albañiles, pintores, carpinteros u otros.
+
+• Mano de Obra Semi Calificada: Aquellos trabajadores que desempeñan actividades para las cuales no se requiere estudios previos y que, teniendo experiencia, esta no es suficientes para ser clasificados como maestros de primera.
+
+• Mano de Obra no Calificada: Aquellos trabajadores que desempeñan actividades cuya ejecución no requiere de estudios ni experiencia previa, por ejemplo: jornaleros, cargadores, personas sin oficio definido.
+
+El costo social de la mano de obra se obtiene a partir de la siguiente expresión:
+
+PS=g\*PB
+
+Donde:
+
+PS: Precio Social de la Mano de Obra g: Factor de corrección PB: Salario bruto o costo para el empleador de la mano de obra (costo privado)
+
+TABLA 8: FACTORES CORRECCIÓN PRECIO SOCIAL MANO DE OBRA
+
+Categoría Mano de Obra Factor de corrección Calificada 0,97 Semi calificada 0,95 No calificada 0,91
+
+FUENTE: MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA 2023
+
+38
+
+c) Importación de Productos
+
+TABLA 9: FACTORES CORRECCIÓN PRECIO SOCIAL DIVISA
+
+FUENTE: ESTIMACIÓN PRECIOS SOCIALES, MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA 2023
+
+d) Precio Social del Combustible
+
+Se calculan precios sociales para el diesel y las gasolinas diferenciando por octanaje (93, 95 y 97). Los precios sociales vigentes para los distintos combustibles por litro se presentan en la siguiente tabla.
+
+TABLA 10: PRECIO SOCIAL COMBUSTIBLE
+
+Combustible $/litro Petróleo diesel 855 Gasolina 93 785 Gasolina 95 819 Gasolina 97 876 FUENTE: PRECIOS SOCIALES MINISTERIO DE DESARROLLO SOCIAL Y FAMILIA 2024
+
+\*Los precios sociales de valor monetario se actualizan todos los años, por lo que se recomienda estar revisando periódicamente el link que aparece en la referencia.11
+
+3.4.2 Horizonte de evaluación
+
+El horizonte de evaluación corresponde al período para el cual se proyectan tanto los beneficios, como los costos del proyecto. El horizonte de evaluación será de 30 años. Deberá incluirse en el flujo las inversiones en reposiciones en caso de ser necesarias las que dependen de la vida útil de cada componente del sistema. A continuación, se muestra una tabla con los tipos de proyectos y su vida útil estimada. 11 http://sni.ministeriodesarrollosocial.gob.cl Variable Precio Social ($/l) Precio Social de la Divisa 1,00
+
+39
+
+TABLA 11: VIDA ÚTIL
+
+Tipo de proyecto Vida útil
+
+Obras civiles (embalses, canales, etc.), compuertas. 30 años
+
+Telemetría, Calidad de aguas y riego tecnificado. 10 años
+
+FUENTE: ELABORACIÓN PROPIA
+
+3.4.3 Valor Residual
+
+Se debe incluir un valor residual cuando la vida útil de las obras es superior al horizonte de evaluación. Éste se calcula restando la depreciación acumulada al valor inicial de los activos. Para el caso de los terrenos, el valor residual es equivalente al valor considerado en la inversión, ya que cualquier aumento en su plusvalía no es beneficio atribuible al proyecto. Este valor deberá incluirse en el último periodo del horizonte de evaluación.
+
+3.4.4 Construcción de flujos netos
+
+En la siguiente tabla se muestra cómo deben construirse los flujos netos que permitirán la evaluación económica de los proyectos de riego. Es necesario reiterar que los cultivos estimados para la situación con proyecto deben ser ingresados gradualmente.
+
+TABLA 12: FLUJOS CONSIDERADOS EN LA EVALUACIÓN ECONÓMICA
+
+COSTOS BENEFICIOS
+
+Flujo
+
+Año Inversión
+
+neto Δ Mantención y operación
+
+Δ costos
+
+Costos indirectos
+
+ambientales
+
+Costo Total
+
+Margen Bruto Actual
+
+Margen Bruto Futuro
+
+Beneficio Total
+
+0 1 2 ….
+
+30
+
+VAN FUENTE: ELABORACIÓN PROPIA
+
+40
+
+3.5 CÁLCULO DE INDICADORES
+
+3.5.1 Tasa social de descuento
+
+La tasa social de descuento es el costo alternativo del proyecto, es decir, es el costo que significa para el país invertir en el proyecto y no en su mejor uso alternativo. Esta tasa sirve para determinar la equivalencia de un monto de dinero en dos periodos de tiempo distintos, por lo que los flujos deben ser actualizados o descontados utilizando la tasa social de descuento, que actualmente corresponde al 5,5%.
+
+3.5.2 Valor Actual Neto (VAN)
+
+Es la suma de los flujos futuros en un periodo fijo que están expresados, mediante la tasa de descuento, en valores actuales. En este caso se debe calcular el VAN social, por lo que se utilizará la tasa social de descuento.
+
+Donde:
+
+Flujo neto al final del periodo t n : Horizonte de evaluación r\* : Tasa Social de Descuento
+
+El criterio de decisión al utilizar el VAN es el siguiente:
+
+TABLA 13: CRITERIO DE DECISIÓN DEL VANS
+
+VANS Decisión = 0 Indiferente de ejecutar o no el proyecto. \< 0 No se realiza el proyecto \> 0 Se realiza el proyecto
+
+FUENTE: ELABORACIÓN PROPIA
+
+: Inversión Inicial
+
+: Valor Actual Neto Social
+
+41
+
+3.5.3 Tasa Interna de Retorno (TIR)
+
+Mide la rentabilidad promedio de un proyecto, suponiendo que los flujos se reinvierten en el mismo proyecto a una tasa constante. La tasa Interna de Retorno Social corresponde a la tasa que hace el VANS igual a cero. La TIRS se calcula de la siguiente manera:
+
+El criterio de decisión utilizando la TIRS es:
+
+TABLA 14: CRITERIO DE DECISIÓN DE LA TIRS12 TIRS Decisión = 5,5% Indiferente de ejecutar o no el proyecto \< 5,5% No se realiza el proyecto \> 5,5% Se realiza el proyecto
+
+FUENTE: ELABORACIÓN PROPIA
+
+3.5.4 Análisis de Sensibilidad
+
+El análisis de sensibilidad reconoce que las variables que fueron incluidas y analizadas en la evaluación de proyectos pueden cambiar durante el tiempo, las cuales afectarán de manera positiva o negativa a la evaluación. Algunas de las variables más relevantes son: ingresos, precios de insumos, costos de producción, rendimiento de los cultivos, costo de inversión. Es por esto que el objetivo es identificar la fortaleza del proyecto ante las modificaciones de las variables relevantes, es decir, que el proyecto se mantenga rentable (VAN\>0). Se deberá realizar al menos para las variables ingresos por venta, costo de venta y costo de inversión.
+
+TABLA 15: ANÁLISIS DE SENSIBILIDAD
+
+Escenarios Sensibilizadores Resultados
+
+(Disminución de un 20% en los ingresos por venta)
+
+Ingresos por venta 0,8 Costo de venta 1,0 Inversión del proyecto 1,0
+
+VANS TIRS Δ% VANS
+
+(Aumento del 20% en el costo de venta)
+
+Ingresos por venta 1,0 Costo de venta 1,2 Inversión del proyecto 1,0
+
+VANS TIRS Δ% VANS
+
+(Aumento del 30% en la inversión del proyecto)
+
+Ingresos por venta 1,0 Costo de venta 1,0 Inversión del proyecto 1,3
+
+VANS TIRS Δ% VANS
+
+12 El valor de la TIRs se compara con la tasa social de descuento, la cual puede variar en su valor, según cálculos realizados periódicamente por el Ministerio de Desarrollo Social y Familia.
+
+42
+
+4\. CONCLUSIONES
+
+Se deberá comentar en forma resumida la situación actual, las bondades de la intervención propuesta y el escenario que se espera en la situación con proyecto.
+
+43
+
+[\#3](#3)   
+[\#3](#3)   
+[\#4](#4)   
+[\#4](#4)   
+[\#5](#5)   
+[\#5](#5)   
+[\#5](#5)   
+[\#5](#5)   
+[\#5](#5)   
+[\#8](#8)   
+[\#9](#9)   
+[\#22](#22)   
+[\#26](#26)   
+[\#29](#29)   
+[\#29](#29)   
+[\#30](#30)   
+[\#30](#30)   
+[\#31](#31)   
+[\#31](#31)   
+[\#32](#32)   
+[\#32](#32)   
+[\#35](#35)   
+[\#37](#37)   
+[\#37](#37)   
+[\#39](#39)   
+[\#40](#40)   
+[\#40](#40)   
+[\#41](#41)   
+[\#41](#41)   
+[\#41](#41)   
+[\#42](#42)   
+[\#42](#42)   
+[\#3](#3)   
+[\#4](#4)   
+[\#4](#4)   
+[\#12](#12)   
+[\#14](#14)   
+[\#15](#15)   
+[\#18](#18)   
+[\#22](#22)   
+[\#23](#23)   
+[\#30](#30)   
+[\#39](#39)   
+[\#42](#42)   

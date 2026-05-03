@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Proyecto — Revisor CNR{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-2 mt-2" style="margin-bottom:1.5rem">
+  <a href="/" class="btn btn-outline btn-sm">← Volver</a>
+  <h1 style="font-size:1.4rem; color:#1a365d;">Registrar nuevo proyecto</h1>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <h2>Antecedentes del expediente</h2>
+  <form method="post" action="/proyecto/nuevo">
+    <div class="form-group">
+      <label>Código SEP</label>
+      <input type="text" name="codigo_sep"
+             placeholder="Ej: 205-2022-16-015"
+             pattern="\d{3}-\d{4}-\d{2}-\d{3}"
+             title="Formato: Concurso-Año-Región-Número (ej: 205-2022-16-015)"
+             required style="font-family:monospace; letter-spacing:1px;">
+      <p class="text-muted mt-1">Formato: <strong>Concurso-Año-Región-N° Proyecto</strong> &nbsp;(ej: 205-2022-16-015)</p>
+    </div>
+    <div class="form-group">
+      <label>Nombre del proyecto</label>
+      <input type="text" name="nombre_proyecto" placeholder="Ej: Sistema de riego tecnificado Los Aromos" required>
+    </div>
+    <div class="form-group">
+      <label>Nombre del postulante</label>
+      <input type="text" name="postulante" placeholder="Nombre o razón social" required>
+    </div>
+    <div class="form-group">
+      <label>Tipo de revisión asignada</label>
+      <select name="tipo_revision" required>
+        <option value="">Selecciona...</option>
+        <option value="tecnica">Revisión técnica</option>
+        <option value="legal">Revisión legal</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Crear expediente</button>
+  </form>
+</div>
+
+{% endblock %}

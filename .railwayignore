@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+ngrok/
+uploads/
+data/
+/tmp/
+*.log

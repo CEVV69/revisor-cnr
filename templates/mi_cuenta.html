@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Mi cuenta — Revisor CNR{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:2rem auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+    <h1 style="font-size:1.3rem;font-weight:600;letter-spacing:-0.02em;">Mi cuenta</h1>
+    <a href="/" class="btn btn-ghost btn-sm">← Volver</a>
+  </div>
+
+  <div class="card">
+    <div style="margin-bottom:1rem;padding-bottom:0.85rem;border-bottom:1px solid var(--border);">
+      <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">Usuario</div>
+      <div style="font-family:monospace;font-size:0.9rem;">{{ user.username }}</div>
+    </div>
+    <div style="margin-bottom:1.2rem;">
+      <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">Nombre</div>
+      <div>{{ user.nombre }}</div>
+    </div>
+
+    <div class="card-title">Cambiar contraseña</div>
+
+    {% if ok %}
+    <div class="alert alert-success" style="margin-bottom:1rem;">Contraseña actualizada correctamente.</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error" style="margin-bottom:1rem;">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/mi-cuenta">
+      <div class="form-group">
+        <label>Contraseña actual</label>
+        <input type="password" name="password_actual" required autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label>Nueva contraseña</label>
+        <input type="password" name="password_nuevo" required autocomplete="new-password" placeholder="mínimo 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label>Confirmar nueva contraseña</label>
+        <input type="password" name="password_confirmar" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Cambiar contraseña</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+CÁLCULO DE EFICIENCIA DE RIEGO PONDERADA
+Documento Técnico DT-04 (ex AT-11) — CNR Ley N° 18.450
+
+METODOLOGÍA:
+Se utiliza para calcular la superficie generada por aguas excedentarias.
+Debe considerar disponibilidad de aguas y demanda hídrica por hectárea.
+Si existe más de un método de riego en situación actual, las eficiencias se ponderan.
+
+Solo se ponderan eficiencias de métodos que generen excedente de aguas.
+Solo se consideran superficies de métodos involucrados en el mejoramiento de eficiencia.
+
+FÓRMULA:
+Efrpond = 1 / Σ(Si/Stotal * 1/Efri)
+
+Donde:
+- Si = superficie de cada método de riego (há)
+- Stotal = superficie total
+- Efri = eficiencia del método i
+
+EFICIENCIAS DE REFERENCIA POR MÉTODO:
+- Tendido: 30%
+- Surcos: 45%
+- Aspersión: 70-75%
+- Goteo/microaspersión: 85-90%
+
+VERIFICACIÓN:
+- Qtotal (suma de caudales por método) ≤ caudal disponible en predio
+- Stotal ≤ superficie del proyecto
+
+EJEMPLO:
+ETP = 6,0 mm/día = 0,7 l/s/há
+Tendido: 5 há, 30% eficiencia → demanda 2,33 l/s/há → Q = 11,65 l/s
+Surcos: 7 há, 45% eficiencia → demanda 1,56 l/s/há → Q = 10,92 l/s
+Stotal = 12 há, Qtotal = 22,57 l/s
+Efrpond = 1/(5/12*1/0,30 + 7/12*1/0,45) = 0,372 = 37,2%

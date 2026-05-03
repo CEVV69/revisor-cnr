@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Revisor CNR{% endblock %}</title>
+  <style>
+    :root {
+      --bg:       #f5f5f7;
+      --surface:  #ffffff;
+      --border:   rgba(0,0,0,0.08);
+      --text:     #1d1d1f;
+      --text-2:   #6e6e73;
+      --text-3:   #86868b;
+      --blue:     #0071e3;
+      --blue-h:   #0077ed;
+      --red:      #ff3b30;
+      --red-h:    #d93025;
+      --green:    #34c759;
+      --green-dk: #248a3d;
+      --orange:   #ff9f0a;
+      --shadow:   0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05);
+      --r-lg: 14px; --r: 10px; --r-sm: 7px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Nav */
+    nav {
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      height: 52px; display: flex; align-items: center;
+      padding: 0 2rem; justify-content: space-between;
+    }
+    .nav-logo { font-size: 0.95rem; font-weight: 600; color: var(--text); text-decoration: none; letter-spacing: -0.01em; }
+    .nav-logo span { color: var(--blue); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; font-size: 0.83rem; color: var(--text-2); }
+    .nav-right a { color: var(--blue); text-decoration: none; }
+    .nav-right a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .container { max-width: 1020px; margin: 2rem auto; padding: 0 1.5rem; }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 1.2rem 1.4rem; margin-bottom: 0.9rem; }
+    .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
+
+    /* Botones */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.4rem 1rem; border-radius: 980px;
+      font-size: 0.83rem; font-weight: 500;
+      cursor: pointer; text-decoration: none; border: none;
+      transition: opacity .15s, background .15s; white-space: nowrap;
+      font-family: inherit; line-height: 1.4;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary  { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-h); }
+    .btn-danger   { background: var(--red); color: #fff; }
+    .btn-danger:hover { background: var(--red-h); }
+    .btn-success  { background: var(--green-dk); color: #fff; }
+    .btn-success:hover { background: #1e7a35; }
+    .btn-outline  { background: transparent; color: var(--blue); border: 1px solid rgba(0,113,227,0.3); }
+    .btn-outline:hover { background: rgba(0,113,227,0.06); }
+    .btn-ghost    { background: rgba(0,0,0,0.05); color: var(--text); border: none; }
+    .btn-ghost:hover { background: rgba(0,0,0,0.09); }
+    .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
+
+    /* Formularios */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.78rem; font-weight: 500; color: var(--text-2); margin-bottom: 0.3rem; }
+    input, select, textarea {
+      width: 100%; padding: 0.52rem 0.82rem;
+      border: 1px solid rgba(0,0,0,0.14); border-radius: var(--r-sm);
+      font-size: 0.88rem; color: var(--text); background: var(--surface);
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.14);
+    }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 0.16rem 0.55rem; border-radius: 980px; font-size: 0.71rem; font-weight: 500; }
+    .badge-mayor        { background: #fff0f0; color: #c41230; border: 1px solid rgba(196,18,48,.18); }
+    .badge-menor        { background: #fff8e6; color: #7d4e00; border: 1px solid rgba(255,159,10,.28); }
+    .badge-informativa  { background: #e8f4fd; color: #0055b3; border: 1px solid rgba(0,113,227,.18); }
+    .badge-tecnica      { background: #edfaf1; color: var(--green-dk); border: 1px solid rgba(52,199,89,.22); }
+    .badge-legal        { background: #f3eeff; color: #5e35b1; border: 1px solid rgba(94,53,177,.18); }
+    .badge-presupuesto  { background: #fff3e0; color: #7d4e00; border: 1px solid rgba(255,159,10,.28); }
+    .badge-administrativa { background: #f5f5f7; color: var(--text-2); border: 1px solid var(--border); }
+    .badge-estado       { background: #e8f4fd; color: var(--blue); border: 1px solid rgba(0,113,227,.18); }
+
+    /* Tabla */
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th { font-size: 0.72rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; padding: 0.5rem 0.85rem; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,0,0,0.015); }
+
+    /* Alertas */
+    .alert { padding: 0.7rem 1rem; border-radius: var(--r-sm); margin-bottom: 1rem; font-size: 0.85rem; }
+    .alert-error   { background: #fff0f0; color: #c41230; border: 1px solid rgba(196,18,48,.18); }
+    .alert-success { background: #edfaf1; color: var(--green-dk); border: 1px solid rgba(52,199,89,.22); }
+
+    /* Utils */
+    .text-muted { color: var(--text-2); font-size: 0.81rem; }
+    .text-sm    { font-size: 0.81rem; }
+    .mt-1 { margin-top: 0.4rem; }
+    .mt-2 { margin-top: 0.85rem; }
+    .flex { display: flex; }
+    .gap-1 { gap: 0.35rem; }
+    .gap-2 { gap: 0.7rem; }
+    .items-center  { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .section-label {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin: 1.4rem 0 0.45rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">Revisor <span>CNR</span></a>
+    {% if user %}
+    <div class="nav-right">
+      <a href="/mi-cuenta">{{ user.nombre }}</a>
+      <span class="badge badge-estado">{{ user.rol }}</span>
+      {% if user.rol == "admin" %}<a href="/admin/usuarios">Usuarios</a>{% endif %}
+      <a href="/logout">Salir</a>
+    </div>
+    {% endif %}
+  </nav>
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+<script>
+  document.addEventListener('submit', function(e) {
+    if (!e.target.querySelector('input[type="file"]')) {
+      sessionStorage.setItem('cnr_scroll', window.scrollY);
+    }
+  });
+  window.addEventListener('load', function() {
+    var pos = sessionStorage.getItem('cnr_scroll');
+    if (pos !== null) { sessionStorage.removeItem('cnr_scroll'); window.scrollTo({ top: parseInt(pos), behavior: 'instant' }); }
+  });
+</script>
+</body>
+</html>

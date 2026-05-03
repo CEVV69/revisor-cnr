@@ -1,0 +1,41 @@
+RANGO DE VALORES DE Kc DE CULTIVOS — CNR Ley N° 18.450
+Documento Técnico DT-05 (ex AT-13)
+
+Valores Kc aceptados por CNR para elaborar diseños de riego.
+Cualquier Kc fuera de estos rangos debe respaldarse con publicaciones de instituciones reconocidas.
+
+Cultivo          Kc Mínimo   Kc Máximo
+Alfalfa          0.85        1.00
+Almendro         0.95        1.05
+Arándano         0.60        1.00
+Arroz            1.05        1.15
+Avellano Europeo 0.70        0.80
+Cerezo           1.00        1.25
+Ciruelo          0.90        1.15
+Damasco          0.80        1.15
+Duraznero y Nectarino 1.00  1.15
+Espárragos       1.00        1.10
+Frambuesa        0.70        0.80
+Granado          0.80        0.95
+Kiwi             1.10        1.20
+Limonero         0.60        0.80
+Maíz             1.00        1.10
+Manzano          1.05        1.25
+Naranjo          0.65        0.90
+Nogal            0.90        1.10
+Olivo para mesa  0.50        0.80
+Olivo para aceite 0.40       0.80
+Palto            0.75        0.85
+Papas            1.00        1.10
+Peral            1.00        1.15
+Pistacho         1.10        1.30
+Pradera          0.90        1.05
+Remolacha        1.00        1.10
+Tabaco           0.95        1.10
+Tomate           1.00        1.10
+Tuna             0.25        0.35
+Vides Viníferas  0.50        0.60
+Vid de mesa      1.00        1.30
+
+NOTA: Si el proyecto utiliza Kc fuera de estos rangos sin respaldo bibliográfico de institución reconocida,
+debe generarse observación técnica mayor.

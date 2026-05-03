@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ficha de Revisión — {{ proyecto.codigo_sep }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm; }
+
+    /* Botón imprimir — solo en pantalla */
+    .no-print { text-align: right; margin-bottom: 1rem; }
+    .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
+                 border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .btn-print:hover { background: #2c5282; }
+    @media print { .no-print { display: none; } body { padding: 0; } }
+
+    /* Encabezado */
+    .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
+    .header-logo { width: 60px; }
+    .header-titulo { flex: 1; }
+    .header-titulo h1 { font-size: 15px; color: #1a365d; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
+    .header-fecha { font-size: 10px; color: #555; text-align: right; }
+
+    /* Tabla de datos del proyecto */
+    .tabla-proyecto { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; }
+    .tabla-proyecto td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; }
+    .tabla-proyecto .label { background: #d0d8e8; font-weight: bold; white-space: nowrap; width: 1%; }
+    .tabla-proyecto .valor { background: white; }
+    .tabla-proyecto .celda-ancha { background: white; }
+
+    /* Sección observaciones */
+    .titulo-obs { font-size: 13px; font-weight: bold; color: #1a365d; margin: 1rem 0 0.5rem;
+                  border-bottom: 1px solid #1a365d; padding-bottom: 2px; }
+    .obs-item { border: 1px solid #ccc; border-radius: 3px; padding: 6px 8px;
+                margin-bottom: 0.5rem; page-break-inside: avoid; }
+    .obs-header { display: flex; gap: 0.5rem; align-items: baseline; margin-bottom: 3px; flex-wrap: wrap; }
+    .obs-num { font-weight: bold; color: #1a365d; }
+    .obs-anexo { font-style: italic; color: #555; font-size: 10px; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; }
+    .badge-mayor { background: #fed7d7; color: #9b2c2c; border: 1px solid #fc8181; }
+    .badge-menor { background: #fefcbf; color: #744210; border: 1px solid #f6e05e; }
+    .badge-tecnica  { background: #c6f6d5; color: #22543d; }
+    .badge-legal    { background: #e9d8fd; color: #44337a; }
+    .badge-presupuesto { background: #feebc8; color: #7b341e; }
+    .badge-administrativa { background: #e2e8f0; color: #4a5568; }
+    .obs-texto { margin-top: 2px; line-height: 1.5; }
+    .obs-ref { font-size: 9.5px; color: #555; margin-top: 3px; font-style: italic; }
+    .obs-respuesta { margin-top: 5px; border-top: 1px dashed #ccc; padding-top: 4px; min-height: 22px; }
+    .obs-respuesta-label { font-size: 9.5px; font-weight: bold; color: #276749; }
+
+    /* Resumen contadores */
+    .resumen { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px;
+               padding: 6px 10px; margin-bottom: 0.8rem; font-size: 10.5px; }
+    .resumen span { margin-right: 1.2rem; }
+
+    /* Firma */
+    .firma { margin-top: 2.5rem; display: flex; justify-content: space-between; }
+    .firma-bloque { text-align: center; width: 40%; }
+    .firma-linea { border-top: 1px solid #000; margin-bottom: 4px; }
+    .firma-nombre { font-weight: bold; font-size: 10.5px; }
+    .firma-cargo { font-size: 10px; color: #555; }
+
+    /* Sin observaciones */
+    .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
+  </style>
+</head>
+<body>
+
+<div class="no-print">
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
+
+<!-- Encabezado -->
+<div class="header">
+  <div class="header-titulo">
+    <h1>Ficha de Revisión Técnica</h1>
+    <div style="text-align:center; font-size:10px; color:#555; margin-top:2px;">
+      Comisión Nacional de Riego — Ley N° 18.450
+    </div>
+  </div>
+  <div class="header-fecha">Fecha: {{ fecha_ficha }}</div>
+</div>
+
+<!-- Datos del proyecto -->
+<table class="tabla-proyecto">
+  <tr>
+    <td class="label">Código</td>
+    <td class="valor" style="font-family:monospace; font-weight:bold;">{{ proyecto.codigo_sep }}</td>
+    <td class="label">Concurso</td>
+    <td class="valor">{{ proyecto.codigo_sep.split('-')[0] }}-{{ proyecto.codigo_sep.split('-')[1] if '-' in proyecto.codigo_sep else '' }}</td>
+    <td class="label">Tipo revisión</td>
+    <td class="valor">{{ "Técnica" if proyecto.tipo_revision == "tecnica" else "Legal" }}</td>
+  </tr>
+  <tr>
+    <td class="label">Nombre del proyecto</td>
+    <td class="celda-ancha" colspan="5">{{ proyecto.nombre }}</td>
+  </tr>
+  <tr>
+    <td class="label">Postulante / Solicitante</td>
+    <td class="celda-ancha" colspan="5">{{ proyecto.postulante }}</td>
+  </tr>
+  <tr>
+    <td class="label">Revisor</td>
+    <td class="valor" colspan="2">{{ proyecto.revisor_nombre }}</td>
+    <td class="label">Estado</td>
+    <td class="valor" colspan="2">{{ proyecto.estado }}</td>
+  </tr>
+  <tr>
+    <td class="label">Fecha revisión</td>
+    <td class="valor" colspan="2">{{ fecha_ficha }}</td>
+    <td class="label">Documentos revisados</td>
+    <td class="valor" colspan="2">{{ proyecto.documentos|length }}</td>
+  </tr>
+</table>
+
+<!-- Resumen -->
+{% set n_mayor = obs_aprobadas|selectattr("severidad","eq","mayor")|list|length %}
+{% set n_menor = obs_aprobadas|selectattr("severidad","eq","menor")|list|length %}
+<div class="resumen">
+  <strong>Resumen observaciones aprobadas:</strong>
+  <span>🔴 Mayor: <strong>{{ n_mayor }}</strong></span>
+  <span>🟡 Menor: <strong>{{ n_menor }}</strong></span>
+  <span>Total: <strong>{{ obs_aprobadas|length }}</strong></span>
+  {% if n_mayor == 0 and n_menor == 0 %}
+  &nbsp;&nbsp; ✅ <strong>Sin observaciones que impidan la admisión.</strong>
+  {% elif n_mayor == 0 %}
+  &nbsp;&nbsp; ⚠️ Proyecto admisible con observaciones menores a subsanar.
+  {% else %}
+  &nbsp;&nbsp; ❌ Proyecto presenta observaciones mayores — requiere subsanación antes de admisión.
+  {% endif %}
+</div>
+
+<!-- Observaciones -->
+<div class="titulo-obs">Observaciones</div>
+
+{% if obs_aprobadas %}
+  {% for obs in obs_aprobadas %}
+  <div class="obs-item">
+    <div class="obs-header">
+      <span class="obs-num">{{ loop.index }})</span>
+      <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad|upper }}</span>
+      <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+      <span class="obs-anexo">{{ obs.doc_nombre }}</span>
+    </div>
+    <div class="obs-texto">{{ obs.texto }}</div>
+    {% if obs.referencia_normativa %}
+    <div class="obs-ref">📋 Ref.: {{ obs.referencia_normativa }}</div>
+    {% endif %}
+    <div class="obs-respuesta">
+      <span class="obs-respuesta-label">R)</span>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="sin-obs">Sin observaciones registradas como aprobadas para este proyecto.</p>
+{% endif %}
+
+<!-- Firma -->
+<div class="firma">
+  <div class="firma-bloque">
+    <div class="firma-linea"></div>
+    <div class="firma-nombre">{{ proyecto.revisor_nombre }}</div>
+    <div class="firma-cargo">Revisor {{ "Técnico" if proyecto.tipo_revision == "tecnica" else "Legal" }} CNR</div>
+  </div>
+  <div class="firma-bloque">
+    <div class="firma-linea"></div>
+    <div class="firma-nombre">Jefe de Departamento</div>
+    <div class="firma-cargo">Comisión Nacional de Riego</div>
+  </div>
+</div>
+
+</body>
+</html>

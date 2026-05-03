@@ -1,0 +1,50 @@
+PAUTAS PARA ESTUDIOS DE SUELOS — CNR Ley N° 18.450
+Documento Técnico DT-03 (ex AT-07)
+
+CLASES DE CAPACIDAD DE USO (I al VIII):
+Clase I: Pocas limitaciones, suelos casi planos, profundos, bien drenados. Aptos para cultivos intensivos.
+Clase II: Algunas limitaciones, pendientes suaves, moderada susceptibilidad erosión.
+Clase III: Moderadas limitaciones, pendientes moderadas, alta susceptibilidad erosión.
+Clase IV: Severas limitaciones, suelos delgados, pendientes pronunciadas.
+Clase V: Sin riesgo erosión pero otras limitaciones. Solo pastizales, praderas o forestal.
+Clase VI: Inadecuados para cultivos. Solo pastos y forestales.
+Clase VII: Limitaciones muy severas. Pastoreo y forestal.
+Clase VIII: Sin valor agrícola/ganadero/forestal. Solo vida silvestre o protección.
+
+CATEGORÍAS PARA REGADÍO (1 a 6):
+1: Muy bien adaptada. Planos, profundos, permeables, bien drenados.
+2: Moderadamente bien adaptada. Algunas limitaciones.
+3: Pobremente adaptada. Serias limitaciones.
+4: Muy pobremente adaptada. Limitaciones muy serias.
+5: Condiciones especiales. Con tratamiento pueden ser aptos.
+6: No apta para riego.
+
+APTITUD PARA FRUTALES (Clases A, B, C, D):
+A (Sin limitaciones): Prof. >100cm, textura F-FA, drenaje bueno, pend. 0-1.5%, salinidad <0.2 S/m
+B (Ligera): Prof. 75-100cm, buen a moderadamente bien drenado, pend. <3%
+C (Moderada): Prof. 40-75cm, drenaje variable, pend. <6%
+D (Severa): Prof. <30cm, drenaje imperfecto, pend. >6%
+
+PROFUNDIDADES:
+Muy profundo: >150cm
+Profundo: 100-150cm
+Moderadamente profundo: 50-100cm
+Delgado: 25-50cm
+Muy delgado: <25cm
+
+CLASES DE PENDIENTE:
+Plana: 0-1%, Ligeramente inclinada: 1-3%, Suavemente inclinada: 3-8%
+Moderadamente inclinada: 8-15%, Fuertemente inclinada: 15-25%
+Moderadamente escarpada: 15-25%, Escarpada: 25-45%, Muy escarpada: 45-65%
+
+SALINIDAD (Conductividad Eléctrica):
+No salino a muy ligeramente salino: 0-0.4 S/m
+Ligeramente salino: 0.4-0.8 S/m
+Moderadamente salino: 0.8-1.6 S/m
+Fuertemente salino: >1.6 S/m
+
+REQUERIMIENTOS PARA RECONOCIMIENTO:
+- Descripción de perfil: calicata o barreno cada 4 há mínimo
+- Indicar: profundidad, horizontes, textura, estructura, pendiente, drenaje
+- Profundidad efectiva, textura superficial y subsuelo
+- Permeabilidad (cm/hr), pedregosidad, salinidad

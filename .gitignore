@@ -1,0 +1,13 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+uploads/
+data/
+ngrok/
+*.log
+.DS_Store
+ngrok
+.claude/
+static/

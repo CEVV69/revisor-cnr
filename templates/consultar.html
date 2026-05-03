@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Consulta — {{ proyecto.codigo_sep }}{% endblock %}
+{% block content %}
+
+<!-- Navegación -->
+<div style="display:flex; align-items:center; gap:0.6rem; margin:1.2rem 0 1.4rem;">
+  <a href="/proyecto/{{ proyecto.id }}" class="btn btn-ghost btn-sm">← Volver</a>
+  <span style="color:var(--text-3); font-size:0.8rem;">|</span>
+  <span style="font-size:0.85rem; color:var(--text-2); font-family:monospace;">{{ proyecto.codigo_sep }}</span>
+  <span style="font-size:0.85rem; color:var(--text-2);">— {{ proyecto.nombre }}</span>
+</div>
+
+<!-- Encabezado -->
+<div style="margin-bottom:1.2rem;">
+  <h1 style="font-size:1.3rem; font-weight:700; letter-spacing:-0.02em; color:var(--text);">Consultar documentos</h1>
+  <p style="color:var(--text-2); font-size:0.85rem; margin-top:0.3rem;">
+    Escribe tu duda. La IA revisará los documentos subidos y la normativa CNR para responderte.
+  </p>
+</div>
+
+<!-- Formulario de consulta -->
+<div class="card">
+  <form method="post" action="/proyecto/{{ proyecto.id }}/consultar">
+    <div class="form-group" style="margin-bottom:0.75rem;">
+      <label>Tu consulta</label>
+      <textarea name="pregunta" rows="4" required
+        placeholder="Ej: El consultor presenta diseño agronómico para dos cultivos pero el diseño hidráulico solo considera uno. ¿Corresponde observación?"
+        style="resize:vertical; font-size:0.88rem;">{% if ultima_consulta %}{% endif %}</textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="submit" class="btn btn-primary">Consultar →</button>
+    </div>
+  </form>
+</div>
+
+<!-- Respuesta más reciente -->
+{% if ultima_consulta %}
+<div class="section-label">Respuesta</div>
+<div class="card" style="border-left:3px solid var(--blue);">
+  <div style="background:rgba(0,113,227,0.04); border-radius:8px; padding:0.7rem 0.9rem; margin-bottom:0.9rem;">
+    <span style="font-size:0.72rem; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em;">Pregunta</span>
+    <p style="margin-top:0.25rem; font-size:0.88rem; color:var(--text);">{{ ultima_consulta.pregunta }}</p>
+  </div>
+  <div style="font-size:0.88rem; line-height:1.65; color:var(--text); white-space:pre-wrap;">{{ ultima_consulta.respuesta }}</div>
+  <p style="margin-top:0.75rem; font-size:0.76rem; color:var(--text-3);">
+    {{ ultima_consulta.fecha[8:10] }}-{{ ultima_consulta.fecha[5:7] }}-{{ ultima_consulta.fecha[:4] }}
+    · {{ ultima_consulta.revisor }}
+  </p>
+</div>
+{% endif %}
+
+<!-- Historial -->
+{% set historial = proyecto.consultas if proyecto.consultas else [] %}
+{% set desde = 1 if ultima_consulta else 0 %}
+{% if historial|length > desde %}
+<div class="section-label">Historial de consultas</div>
+{% for c in historial %}
+  {% if not ultima_consulta or c.id != ultima_consulta.id %}
+  <div class="card" style="opacity:0.85;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.3rem;">
+      <p style="font-size:0.85rem; font-weight:500; color:var(--text);">{{ c.pregunta }}</p>
+      <span style="font-size:0.74rem; color:var(--text-3); white-space:nowrap;">
+        {{ c.fecha[8:10] }}-{{ c.fecha[5:7] }}-{{ c.fecha[:4] }} · {{ c.revisor }}
+      </span>
+    </div>
+    <div style="font-size:0.85rem; line-height:1.6; color:var(--text-2); white-space:pre-wrap;">{{ c.respuesta }}</div>
+  </div>
+  {% endif %}
+{% endfor %}
+{% endif %}
+
+{% if not proyecto.documentos %}
+<div class="card" style="text-align:center; padding:2rem; color:var(--text-2);">
+  <p style="font-size:0.88rem;">Este proyecto no tiene documentos subidos aún.</p>
+  <a href="/proyecto/{{ proyecto.id }}" class="btn btn-outline" style="margin-top:0.8rem;">← Subir documentos</a>
+</div>
+{% endif %}
+
+{% endblock %}
