@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "ANTHROPIC_API_KEY=${{ANTHROPIC_API_KEY}} SECRET_KEY=${{SECRET_KEY}} DATA_DIR=${{DATA_DIR}} UPLOAD_DIR=${{UPLOAD_DIR}} uvicorn main:app --host 0.0.0.0 --port $PORT"
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/login"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

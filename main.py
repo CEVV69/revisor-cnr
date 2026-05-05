@@ -58,19 +58,33 @@ def require_user(request: Request) -> dict:
 
 # ─── Debug temporal ──────────────────────────────────────────────────────────
 
+def _leer_env_proc1() -> dict:
+    """Lee variables del proceso init del contenedor (workaround Railway V2)."""
+    try:
+        with open("/proc/1/environ", "rb") as f:
+            data = f.read()
+        return dict(
+            item.split(b"=", 1)
+            for item in data.split(b"\x00")
+            if b"=" in item
+        )
+    except Exception:
+        return {}
+
+
 @app.get("/debug-env")
 async def debug_env(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return {"error": "forbidden"}
     key = os.environ.get("ANTHROPIC_API_KEY", "")
+    proc1 = _leer_env_proc1()
+    key_proc1 = proc1.get(b"ANTHROPIC_API_KEY", b"").decode("utf-8", errors="replace")
     return {
-        "tiene_api_key": bool(key),
-        "primeros_chars": key[:10] if key else "(vacio)",
-        "longitud": len(key),
-        "DATA_DIR": os.environ.get("DATA_DIR", "(no definida)"),
-        "UPLOAD_DIR": os.environ.get("UPLOAD_DIR", "(no definida)"),
-        "todas_las_variables": sorted(os.environ.keys()),
+        "os_environ_tiene_key": bool(key),
+        "proc1_tiene_key": bool(key_proc1),
+        "proc1_primeros_chars": key_proc1[:10] if key_proc1 else "(vacio)",
+        "proc1_vars": sorted(k.decode("utf-8", errors="replace") for k in proc1.keys()),
     }
 
 
