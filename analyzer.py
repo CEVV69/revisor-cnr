@@ -5,7 +5,7 @@ from pathlib import Path
 import anthropic
 
 def _get_client():
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip().strip('"').strip("'")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY no está definida en las variables de entorno")
     return anthropic.Anthropic(api_key=api_key)
