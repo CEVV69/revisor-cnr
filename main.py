@@ -66,10 +66,11 @@ async def debug_env(request: Request):
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return {
         "tiene_api_key": bool(key),
-        "primeros_chars": key[:10] if key else "(vacío)",
+        "primeros_chars": key[:10] if key else "(vacio)",
         "longitud": len(key),
         "DATA_DIR": os.environ.get("DATA_DIR", "(no definida)"),
         "UPLOAD_DIR": os.environ.get("UPLOAD_DIR", "(no definida)"),
+        "todas_las_variables": sorted(os.environ.keys()),
     }
 
 
