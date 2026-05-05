@@ -4,25 +4,10 @@ import json
 from pathlib import Path
 import anthropic
 
-ENV_FILE = Path(__file__).parent / ".env"
-
-def _read_api_key() -> str:
-    """Lee la API key directamente del archivo .env sin depender de dotenv."""
-    key = os.getenv("ANTHROPIC_API_KEY", "")
-    if key:
-        return key
-    if ENV_FILE.exists():
-        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line.startswith("ANTHROPIC_API_KEY="):
-                return line.split("=", 1)[1].strip()
-    return ""
-
 def _get_client():
-    api_key = _read_api_key()
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY no encontrada en .env")
-    return anthropic.Anthropic(api_key=api_key)
+    # El SDK lee ANTHROPIC_API_KEY del entorno automáticamente.
+    # En local también carga el .env vía load_dotenv en main.py.
+    return anthropic.Anthropic()
 
 BASE_DIR = Path(__file__).parent
 NORMATIVA_DIR = BASE_DIR / "normativa"
