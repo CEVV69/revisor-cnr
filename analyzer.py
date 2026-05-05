@@ -5,9 +5,10 @@ from pathlib import Path
 import anthropic
 
 def _get_client():
-    # El SDK lee ANTHROPIC_API_KEY del entorno automáticamente.
-    # En local también carga el .env vía load_dotenv en main.py.
-    return anthropic.Anthropic()
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY no está definida en las variables de entorno")
+    return anthropic.Anthropic(api_key=api_key)
 
 BASE_DIR = Path(__file__).parent
 NORMATIVA_DIR = BASE_DIR / "normativa"
