@@ -56,6 +56,23 @@ def require_user(request: Request) -> dict:
     return user
 
 
+# ─── Debug temporal ──────────────────────────────────────────────────────────
+
+@app.get("/debug-env")
+async def debug_env(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return {"error": "forbidden"}
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return {
+        "tiene_api_key": bool(key),
+        "primeros_chars": key[:10] if key else "(vacío)",
+        "longitud": len(key),
+        "DATA_DIR": os.environ.get("DATA_DIR", "(no definida)"),
+        "UPLOAD_DIR": os.environ.get("UPLOAD_DIR", "(no definida)"),
+    }
+
+
 # ─── Rutas de autenticación ───────────────────────────────────────────────────
 
 @app.get("/login", response_class=HTMLResponse)
