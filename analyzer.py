@@ -37,7 +37,7 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
         return MODELO_SONNET
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 1500   # Documentos simples
-MAX_TOKENS_SONNET = 2500   # Documentos complejos — margen amplio para observaciones detalladas
+MAX_TOKENS_SONNET = 4000   # Documentos complejos — presupuestos y tablas Excel requieren más margen
 MAX_CHARS_DOCUMENTO = 3000    # Primeros 3.000 chars del documento (reduce costo ~50%)
 MAX_PAGINAS_ESCANEADO = 3     # Páginas a procesar en PDFs escaneados
 
