@@ -38,7 +38,8 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 1500   # Documentos simples
 MAX_TOKENS_SONNET = 4000   # Documentos complejos — presupuestos y tablas Excel requieren más margen
-MAX_CHARS_DOCUMENTO = 3000    # Primeros 3.000 chars del documento (reduce costo ~50%)
+MAX_CHARS_DOCUMENTO        = 3000   # Documentos simples
+MAX_CHARS_DOCUMENTO_COMPLEJO = 8000   # Presupuestos y Excel con múltiples hojas
 MAX_PAGINAS_ESCANEADO = 3     # Páginas a procesar en PDFs escaneados
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
@@ -191,6 +192,7 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
     es_escaneado = texto.strip() == "__PDF_ESCANEADO__"
     modelo = seleccionar_modelo(tipo_doc, es_escaneado)
     max_tokens = MAX_TOKENS_SONNET if modelo == MODELO_SONNET else MAX_TOKENS_HAIKU
+    max_chars = MAX_CHARS_DOCUMENTO_COMPLEJO if tipo_doc in DOCS_COMPLEJOS else MAX_CHARS_DOCUMENTO
 
     contexto_expediente = _construir_contexto_expediente(todos_documentos or [], doc_id)
 
@@ -247,7 +249,7 @@ Nombre del archivo: {nombre_doc}
 Tipo de revisión asignada: Revisión {revision_nombre}
 {contexto_expediente}
 CONTENIDO DEL DOCUMENTO:
-{texto[:MAX_CHARS_DOCUMENTO]}
+{texto[:max_chars]}
 
 Identifica todas las observaciones que el postulante debe subsanar basándote
 en la normativa CNR que tienes disponible. Sé específico y cita la norma aplicable."""
