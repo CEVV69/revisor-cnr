@@ -419,6 +419,56 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
 
 
+# ─── Cambiar tipo de documento ───────────────────────────────────────────────
+
+# Mapa completo tipo_doc → label (coincide con las opciones del select en proyecto.html)
+TIPO_DOC_LABELS = {
+    "plano_ubicacion":        "Anexo 9.1 — Plano de ubicación",
+    "identificacion_riego":   "Anexo 9.2 — Identificación área de riego",
+    "estudio_hidrologico":    "Anexo 9.4 — Análisis Hidrológico",
+    "pruebas_bombeo":         "Anexo 9.4.2 — Prueba de bombeo",
+    "diseno_hidraulico":      "Anexo 9.5 — Diseño y cálculos hidráulicos",
+    "estudios_complementarios":"Anexo 9.6 — Estudios complementarios",
+    "especificaciones_tecnicas":"Anexo 9.8 — Especificaciones técnicas",
+    "cronograma":             "Anexo 9.8.1 — Cronograma",
+    "cubicaciones":           "Anexo 9.9 — Cubicaciones",
+    "presupuesto":            "Anexo 9.10.1 — Presupuesto obras",
+    "presupuesto_electrico":  "Anexo 9.10.2 — Presupuesto electrificación",
+    "cotizaciones_facturas":  "Anexo 9.10.3 — Cotizaciones y Facturas",
+    "cotizaciones":           "Anexo 9.10.4 — Cotizaciones",
+    "declaracion_iva":        "Anexo 9.10.5 — Declaración No Contribuyente IVA",
+    "planos_tecnificacion":   "Anexo 9.12.1.1 — Planos tecnificación",
+    "planos_obras_civiles":   "Anexo 9.12.1.2 — Planos obras civiles",
+    "memoria_superficies":    "Anexo 9.13.1 — Memoria cálculo superficies",
+    "estudio_suelos":         "Anexo 9.13.2 — Estudio de suelos",
+    "evaluacion_social":      "Anexo 9.14 — Evaluación Social MIDESO",
+    "antecedentes_legales":   "Antecedentes legales",
+    "lista_beneficiarios":    "Lista de beneficiarios",
+    "otro":                   "Otro documento",
+}
+
+
+@app.post("/proyecto/{proyecto_id}/documento/{doc_id}/tipo")
+async def actualizar_tipo_documento(
+    request: Request, proyecto_id: str, doc_id: str,
+    tipo_doc: str = Form(...)
+):
+    user = get_current_user(request)
+    if not user:
+        return {"error": "no autorizado"}
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        return {"error": "proyecto no encontrado"}
+    doc = next((d for d in proyecto["documentos"] if d["id"] == doc_id), None)
+    if not doc or doc.get("analizado"):
+        return {"error": "documento no modificable"}
+    label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc.replace("_", " ").title())
+    doc["tipo_doc"] = tipo_doc
+    doc["tipo_doc_label"] = label
+    db.save_proyecto(proyecto)
+    return {"ok": True, "label": label}
+
+
 # ─── Ver / previsualizar documento ───────────────────────────────────────────
 
 @app.get("/proyecto/{proyecto_id}/documento/{doc_id}/ver")

@@ -164,8 +164,40 @@ function actualizarEtiqueta(input) {
              target="_blank" title="Ver documento"
              style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
         </td>
-        <td style="max-width:180px;">
-          {{ doc.tipo_doc_label if doc.tipo_doc_label else doc.tipo_doc.replace('_', ' ').title() }}
+        <td style="max-width:200px;">
+          {% if doc.analizado %}
+            <span class="text-muted" style="font-size:0.8rem;">{{ doc.tipo_doc_label if doc.tipo_doc_label else doc.tipo_doc.replace('_',' ').title() }}</span>
+          {% else %}
+            <select onchange="cambiarTipo('{{ proyecto.id }}','{{ doc.id }}',this)"
+                    style="width:100%;font-size:0.76rem;padding:0.25rem 0.4rem;border-radius:6px;border:1px solid rgba(0,0,0,0.14);background:var(--surface);color:var(--text);font-family:inherit;">
+              <optgroup label="Tecnificación — Anexos SEP">
+                <option value="plano_ubicacion" {% if doc.tipo_doc=='plano_ubicacion' %}selected{% endif %}>Anexo 9.1 — Plano de ubicación</option>
+                <option value="identificacion_riego" {% if doc.tipo_doc=='identificacion_riego' %}selected{% endif %}>Anexo 9.2 — Identificación área de riego</option>
+                <option value="estudio_hidrologico" {% if doc.tipo_doc=='estudio_hidrologico' %}selected{% endif %}>Anexo 9.4 — Análisis Hidrológico</option>
+                <option value="pruebas_bombeo" {% if doc.tipo_doc=='pruebas_bombeo' %}selected{% endif %}>Anexo 9.4.2 — Prueba de bombeo</option>
+                <option value="diseno_hidraulico" {% if doc.tipo_doc=='diseno_hidraulico' %}selected{% endif %}>Anexo 9.5 — Diseño y cálculos hidráulicos</option>
+                <option value="estudios_complementarios" {% if doc.tipo_doc=='estudios_complementarios' %}selected{% endif %}>Anexo 9.6 — Estudios complementarios</option>
+                <option value="especificaciones_tecnicas" {% if doc.tipo_doc=='especificaciones_tecnicas' %}selected{% endif %}>Anexo 9.8 — Especificaciones técnicas</option>
+                <option value="cronograma" {% if doc.tipo_doc=='cronograma' %}selected{% endif %}>Anexo 9.8.1 — Cronograma</option>
+                <option value="cubicaciones" {% if doc.tipo_doc=='cubicaciones' %}selected{% endif %}>Anexo 9.9 — Cubicaciones</option>
+                <option value="presupuesto" {% if doc.tipo_doc=='presupuesto' %}selected{% endif %}>Anexo 9.10.1 — Presupuesto obras</option>
+                <option value="presupuesto_electrico" {% if doc.tipo_doc=='presupuesto_electrico' %}selected{% endif %}>Anexo 9.10.2 — Presupuesto electrificación</option>
+                <option value="cotizaciones_facturas" {% if doc.tipo_doc=='cotizaciones_facturas' %}selected{% endif %}>Anexo 9.10.3 — Cotizaciones y Facturas</option>
+                <option value="cotizaciones" {% if doc.tipo_doc=='cotizaciones' %}selected{% endif %}>Anexo 9.10.4 — Cotizaciones</option>
+                <option value="declaracion_iva" {% if doc.tipo_doc=='declaracion_iva' %}selected{% endif %}>Anexo 9.10.5 — Declaración IVA</option>
+                <option value="planos_tecnificacion" {% if doc.tipo_doc=='planos_tecnificacion' %}selected{% endif %}>Anexo 9.12.1.1 — Planos tecnificación</option>
+                <option value="planos_obras_civiles" {% if doc.tipo_doc=='planos_obras_civiles' %}selected{% endif %}>Anexo 9.12.1.2 — Planos obras civiles</option>
+                <option value="memoria_superficies" {% if doc.tipo_doc=='memoria_superficies' %}selected{% endif %}>Anexo 9.13.1 — Memoria superficies</option>
+                <option value="estudio_suelos" {% if doc.tipo_doc=='estudio_suelos' %}selected{% endif %}>Anexo 9.13.2 — Estudio de suelos</option>
+                <option value="evaluacion_social" {% if doc.tipo_doc=='evaluacion_social' %}selected{% endif %}>Anexo 9.14 — Evaluación Social MIDESO</option>
+              </optgroup>
+              <optgroup label="Otros">
+                <option value="antecedentes_legales" {% if doc.tipo_doc=='antecedentes_legales' %}selected{% endif %}>Antecedentes legales</option>
+                <option value="lista_beneficiarios" {% if doc.tipo_doc=='lista_beneficiarios' %}selected{% endif %}>Lista de beneficiarios</option>
+                <option value="otro" {% if doc.tipo_doc=='otro' %}selected{% endif %}>Otro documento</option>
+              </optgroup>
+            </select>
+          {% endif %}
         </td>
         <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida[8:10] }}-{{ doc.fecha_subida[5:7] }}-{{ doc.fecha_subida[:4] }}</td>
         <td>
@@ -289,4 +321,23 @@ function actualizarEtiqueta(input) {
 
 {% endif %}
 
+<script>
+function cambiarTipo(proyectoId, docId, select) {
+  const tipo = select.value;
+  const fd = new FormData();
+  fd.append('tipo_doc', tipo);
+  select.style.borderColor = '#ff9f0a';
+  fetch(`/proyecto/${proyectoId}/documento/${docId}/tipo`, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        select.style.borderColor = '#34c759';
+        setTimeout(() => select.style.borderColor = '', 1200);
+      } else {
+        select.style.borderColor = '#ff3b30';
+      }
+    })
+    .catch(() => { select.style.borderColor = '#ff3b30'; });
+}
+</script>
 {% endblock %}
