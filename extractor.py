@@ -33,14 +33,27 @@ ANEXOS_ORDEN = sorted(ANEXOS_SEP.keys(), key=lambda x: len(x), reverse=True)
 def detectar_anexo(nombre_archivo: str) -> tuple:
     """
     Detecta el tipo de anexo desde el nombre del archivo.
+    Intento 1: patrón completo "9.X.Y" (ej: 9.10.1).
+    Intento 2: patrón sin "9." inicial para claves multi-nivel (ej: 10.1, 8.1, 12.1.2).
     Retorna (tipo_doc, label) o ("otro", "Documento sin clasificar").
     """
     nombre = nombre_archivo.lower()
-    # Buscar patrón "9.X" o "9_X" o "anexo9X" en el nombre
+
+    # Intento 1: patrón completo con "9."
     for clave in ANEXOS_ORDEN:
-        patron_punto = clave.replace(".", r"[\.\-_\s]")
-        if re.search(rf"9{patron_punto[1:]}", nombre):
+        patron = clave.replace(".", r"[\.\-_\s]")
+        if re.search(rf"9{patron[1:]}", nombre):
             return ANEXOS_SEP[clave]
+
+    # Intento 2: sin el "9." inicial — solo para claves multi-nivel (ej: 9.10.1 → 10.1)
+    for clave in ANEXOS_ORDEN:
+        sufijo = clave[2:]          # quita "9."
+        if "." not in sufijo:       # evitar "1","4","5"… demasiado ambiguos
+            continue
+        patron = sufijo.replace(".", r"[\.\-_\s]")
+        if re.search(rf"(?<!\d){patron}(?!\d)", nombre):
+            return ANEXOS_SEP[clave]
+
     return ("otro", "Documento sin clasificar")
 
 
