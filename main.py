@@ -214,6 +214,11 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
     concurso = db.get_concurso(concurso_id)
+    # Ordenar documentos por número de anexo SEP
+    proyecto["documentos"] = sorted(
+        proyecto.get("documentos", []),
+        key=lambda d: TIPO_DOC_ORDEN.get(d.get("tipo_doc", "otro"), 50)
+    )
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
         "user": user,
@@ -221,6 +226,29 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         "concurso": concurso,
         "concurso_id": concurso_id,
     })
+
+
+# ─── Cambiar estado del proyecto ─────────────────────────────────────────────
+
+@app.post("/proyecto/{proyecto_id}/estado")
+async def cambiar_estado_proyecto(
+    request: Request,
+    proyecto_id: str,
+    estado: str = Form(...)
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    estados_validos = {"En revisión", "Revisado", "Observado", "Admitido", "Rechazado"}
+    if estado in estados_validos:
+        proyecto["estado"] = estado
+        proyecto["fecha_estado"] = datetime.now().isoformat()
+        proyecto["estado_por"] = user["nombre"]
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
 
 
 # ─── Documentos ───────────────────────────────────────────────────────────────
@@ -462,6 +490,32 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
 
 
 # ─── Cambiar tipo de documento ───────────────────────────────────────────────
+
+# Orden de visualización por número de anexo SEP
+TIPO_DOC_ORDEN = {
+    "plano_ubicacion":          1,
+    "identificacion_riego":     2,
+    "estudio_hidrologico":      3,
+    "pruebas_bombeo":           4,
+    "diseno_hidraulico":        5,
+    "estudios_complementarios": 6,
+    "especificaciones_tecnicas":7,
+    "cronograma":               8,
+    "cubicaciones":             9,
+    "presupuesto":              10,
+    "presupuesto_electrico":    11,
+    "cotizaciones_facturas":    12,
+    "cotizaciones":             13,
+    "declaracion_iva":          14,
+    "planos_tecnificacion":     15,
+    "planos_obras_civiles":     16,
+    "memoria_superficies":      17,
+    "estudio_suelos":           18,
+    "evaluacion_social":        19,
+    "antecedentes_legales":     20,
+    "lista_beneficiarios":      21,
+    "otro":                     99,
+}
 
 # Mapa completo tipo_doc → label (coincide con las opciones del select en proyecto.html)
 TIPO_DOC_LABELS = {

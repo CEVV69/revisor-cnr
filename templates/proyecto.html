@@ -14,12 +14,42 @@
     {% else %}
       <span class="badge badge-legal">Tipo revisión: Legal</span>
     {% endif %}
-    <span class="badge badge-estado">{{ proyecto.estado }}</span>
+    <!-- Badge estado con color dinámico -->
+    {% if proyecto.estado == 'Revisado' %}
+      <span class="badge badge-tecnica">{{ proyecto.estado }}</span>
+    {% elif proyecto.estado in ['Admitido'] %}
+      <span class="badge" style="background:#e6fffa;color:#234e52;border:1px solid #81e6d9;">{{ proyecto.estado }}</span>
+    {% elif proyecto.estado in ['Rechazado','Observado'] %}
+      <span class="badge badge-mayor">{{ proyecto.estado }}</span>
+    {% else %}
+      <span class="badge badge-estado">{{ proyecto.estado }}</span>
+    {% endif %}
     <span style="flex:1;"></span>
     <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">💬 Consultas</a>
-    <button class="btn btn-ghost btn-sm" disabled
-            title="Disponible próximamente"
-            style="opacity:0.45; cursor:not-allowed;">Modificaciones</button>
+
+    <!-- Botón de estado -->
+    <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
+      <button onclick="toggleMenuEstado()" class="btn btn-sm"
+              style="background:{% if proyecto.estado == 'Revisado' %}#276749{% elif proyecto.estado == 'En revisión' %}#2b6cb0{% else %}#4a5568{% endif %};color:white;white-space:nowrap;">
+        {% if proyecto.estado == 'Revisado' %}✓ Revisado ▾
+        {% elif proyecto.estado == 'En revisión' %}● En revisión ▾
+        {% else %}{{ proyecto.estado }} ▾{% endif %}
+      </button>
+      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:50;min-width:160px;overflow:hidden;">
+        {% for est in [('En revisión','#2b6cb0'),('Revisado','#276749'),('Observado','#c05621'),('Admitido','#234e52'),('Rechazado','#c41230')] %}
+        <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
+          <button type="submit" name="estado" value="{{ est[0] }}"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:{% if proyecto.estado == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                         color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            {% if proyecto.estado == est[0] %}● {% endif %}{{ est[0] }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+
     <form method="post" action="/proyecto/{{ proyecto.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este proyecto? Se borrarán todos sus documentos y observaciones.')">
       <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
@@ -185,8 +215,19 @@ function actualizarEtiqueta(input) {
 
 <!-- Documentos -->
 {% if proyecto.documentos %}
+{% set docs_analizados = proyecto.documentos|selectattr("analizado")|list %}
+{% set docs_pendientes = proyecto.documentos|rejectattr("analizado")|list %}
 <div class="card" style="overflow-x:auto;">
-  <h2>Documentos del expediente ({{ proyecto.documentos|length }})</h2>
+  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+    <h2 style="margin:0; border:none; padding:0;">Documentos del expediente</h2>
+    <span style="font-size:0.82rem; color:var(--text-2);">
+      <strong style="color:var(--text);">{{ proyecto.documentos|length }}</strong> total
+      &nbsp;·&nbsp;
+      <strong style="color:#276749;">{{ docs_analizados|length }}</strong> analizados
+      &nbsp;·&nbsp;
+      <strong style="color:#c05621;">{{ docs_pendientes|length }}</strong> pendientes
+    </span>
+  </div>
   <table style="min-width:600px; font-size:0.82rem;">
     <thead>
       <tr>
@@ -363,6 +404,17 @@ function actualizarEtiqueta(input) {
 {% endif %}
 
 <script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var w = document.getElementById('menu-estado-wrapper');
+  if (w && !w.contains(e.target)) {
+    document.getElementById('menu-estado').style.display = 'none';
+  }
+});
+
 function cambiarTipo(proyectoId, docId, select) {
   const tipo = select.value;
   const fd = new FormData();

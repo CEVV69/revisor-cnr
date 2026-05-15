@@ -22,6 +22,42 @@
       --shadow:   0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05);
       --r-lg: 14px; --r: 10px; --r-sm: 7px;
     }
+    /* ── Modo oscuro (19:00 – 07:00) ─────────────────────────── */
+    html.dark-mode {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #e6edf3;
+      --text-2:  #8b949e;
+      --text-3:  #6e7681;
+      --blue:    #58a6ff;
+      --blue-h:  #79b8ff;
+      --red:     #ff7b72;
+      --red-h:   #ffa198;
+      --green:   #3fb950;
+      --green-dk:#2ea043;
+      --orange:  #d29922;
+      --shadow:  0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.5);
+    }
+    html.dark-mode nav {
+      background: rgba(22,27,34,0.92);
+    }
+    html.dark-mode input, html.dark-mode select, html.dark-mode textarea {
+      background: #0d1117;
+      color: var(--text);
+      border-color: rgba(255,255,255,0.12);
+    }
+    html.dark-mode input:disabled, html.dark-mode select:disabled {
+      background: #161b22;
+    }
+    html.dark-mode tr:hover td { background: rgba(255,255,255,0.03); }
+    /* Indicador de modo en nav */
+    #modo-indicator {
+      font-size:0.75rem; color:var(--text-3); cursor:pointer;
+      user-select:none; padding:2px 6px; border-radius:12px;
+      border:1px solid var(--border);
+    }
+    #modo-indicator:hover { background: rgba(128,128,128,0.1); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
@@ -138,6 +174,7 @@
       <span class="badge badge-estado">{{ user.rol }}</span>
       {% if user.rol == "admin" %}<a href="/admin/usuarios">Usuarios</a>{% endif %}
       {% if user.rol == "admin" %}<a href="/admin/concursos">Concursos</a>{% endif %}
+      <span id="modo-indicator" onclick="toggleModo()" title="Cambiar modo claro/oscuro">🌙</span>
       <a href="/logout">Salir</a>
     </div>
     {% endif %}
@@ -146,6 +183,27 @@
     {% block content %}{% endblock %}
   </div>
 <script>
+  // ── Modo claro/oscuro automático por hora ──────────────────
+  (function() {
+    var KEY = 'cnr_modo';
+    var saved = localStorage.getItem(KEY);
+    var h = new Date().getHours();
+    var autoDark = (h >= 19 || h < 7);
+    var dark = saved !== null ? saved === 'dark' : autoDark;
+    if (dark) document.documentElement.classList.add('dark-mode');
+    // Actualizar indicador
+    function updateIndicator() {
+      var el = document.getElementById('modo-indicator');
+      if (el) el.textContent = document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙';
+    }
+    document.addEventListener('DOMContentLoaded', updateIndicator);
+    window.toggleModo = function() {
+      var isDark = document.documentElement.classList.toggle('dark-mode');
+      localStorage.setItem(KEY, isDark ? 'dark' : 'light');
+      updateIndicator();
+    };
+  })();
+
   document.addEventListener('submit', function(e) {
     if (!e.target.querySelector('input[type="file"]')) {
       sessionStorage.setItem('cnr_scroll', window.scrollY);
