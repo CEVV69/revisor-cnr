@@ -47,6 +47,23 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.on_event("startup")
 async def startup_event():
+    # Diagnóstico de almacenamiento
+    from database import DATA_DIR
+    storage_path = Path("/storage")
+    print(f"📁 DATA_DIR = {DATA_DIR} (absoluta: {DATA_DIR.resolve()})")
+    print(f"📁 UPLOAD_DIR = {UPLOAD_DIR} (absoluta: {UPLOAD_DIR.resolve()})")
+    print(f"📦 /storage existe: {storage_path.exists()}")
+    if storage_path.exists():
+        try:
+            test_file = storage_path / ".write_test"
+            test_file.write_text("ok")
+            test_file.unlink()
+            print("✅ /storage es escribible — volumen montado correctamente")
+        except Exception as e:
+            print(f"❌ /storage NO es escribible: {e}")
+    else:
+        print("❌ /storage NO existe — los datos se guardarán en el contenedor temporal (se borrarán en cada deploy)")
+
     if not db.get_user("admin"):
         db.create_user("admin", "admin123", "Administrador CNR", "admin")
         print("✅ Usuario admin creado: admin / admin123")
