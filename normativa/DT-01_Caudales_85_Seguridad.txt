@@ -1,0 +1,30 @@
+DT-01 — Caudales con 85% de seguridad por cuenca — CNR Ley 18.450
+Actualizado: Septiembre 2022
+
+Esta planilla se utiliza para verificar la disponibilidad hídrica de derechos de aprovechamiento
+según cuenca o zona. Las equivalencias deben usarse conforme a las Bases Técnicas del concurso.
+
+INSTRUCCIONES:
+- Seleccionar la cuenca/zona donde se ubica la fuente de agua del proyecto.
+- Si la fuente no aparece en esta planilla, seguir instrucciones de las Bases Técnicas.
+- Los valores corresponden a caudales con 85% de probabilidad de excedencia.
+
+CUENCAS DISPONIBLES (resumen):
+- Arica y Parinacota: Río San José (50 l/s/acción-hora), Río Lluta (0.510 l/s/acción), Río Camarones (350 l/s)
+- Tarapacá: Canal Tarapacá (40.46 l/s), múltiples canales con caudales individuales
+- Antofagasta: Comunidades indígenas, caudales variables por vertiente/quebrada
+- Atacama (Copiapó): Ríos Jorquera, Pulido, Manflas — entre 0.059 y 2.92 l/s/acc
+- Huasco: Cuenca Río Huasco por tramos (10.700 a 29.360 m3/acc/temp)
+- Elqui: Ríos Turbio, Cochiguaz, Claro y Elqui — 9.900 m3/acc/temp
+- Limarí: Combarbalá/Rapel/Cogotí 0.25 l/s/acc; Embalse Recoleta 3.500 m3/acc/temp
+- Choapa: Río Illapel 6.000 m3/acc/temp; Río Choapa por tramos (8.700-12.500 m3/acc/temp)
+- Rapel (Cachapoal/Tinguiririca): valores variables por canal, entre 0.96 y 13.75 l/s/acc
+- Mataquito: Río Teno 10.35 l/s/acc; Río Lontué 483.88 l/s/acc; Río Mataquito 10.00 l/s/acc
+- Maule: Río Maule 1ª sección 1.20 l/s/acc; Río Claro de Talca 0.055 l/s/acc
+- Itata: Río Ñuble 1.82 l/s/acc; Río Chillán 5.2 l/s/acc; Embalse Coihueco 10.063 m3/acc/temp
+- Bío-Bío: Río Laja 16.4 l/s/acc canal; Río Bío Bío Norte 15 l/s/acc; Bío Bío Sur 1.07 l/s/acc
+
+REGLA GENERAL:
+El caudal del proyecto no puede superar la disponibilidad al 85% de seguridad del derecho de agua.
+Si el canal/cuenca no aparece en esta tabla, se debe acreditar caudal con metodología alternativa
+aprobada por las Bases Técnicas del concurso.
