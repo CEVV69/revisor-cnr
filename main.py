@@ -54,17 +54,17 @@ async def startup_event():
     print(f"📁 UPLOAD_DIR    = {UPLOAD_DIR.resolve()}")
     print(f"📦 /storage existe: {storage_path.exists()}")
     if storage_path.exists():
-        # Verificar si /storage es un VOLUMEN REAL o solo directorio del contenedor
+        # Verificar si /storage es un VOLUMEN REAL comparando dispositivos
         try:
-            with open("/proc/mounts") as mf:
-                mounts = mf.read()
-            es_volumen = "/storage" in mounts
+            import os as _os
+            dev_storage = _os.stat("/storage").st_dev
+            dev_root    = _os.stat("/").st_dev
+            es_volumen  = dev_storage != dev_root
             print(f"💾 /storage es volumen real: {es_volumen}")
-            if es_volumen:
-                linea = [l for l in mounts.splitlines() if "/storage" in l]
-                print(f"   Mount info: {linea}")
+            print(f"   dev /storage={dev_storage}  dev /={dev_root}")
         except Exception as e:
-            print(f"   (no se pudo leer /proc/mounts: {e})")
+            es_volumen = False
+            print(f"   (error al verificar volumen: {e})")
 
         marca = storage_path / ".deploy_count"
         count = int(marca.read_text()) if marca.exists() else 0
