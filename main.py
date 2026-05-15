@@ -54,13 +54,23 @@ async def startup_event():
     print(f"📁 UPLOAD_DIR    = {UPLOAD_DIR.resolve()}")
     print(f"📦 /storage existe: {storage_path.exists()}")
     if storage_path.exists():
-        # Verificar si hay un archivo de marca de arranques previos
+        # Verificar si /storage es un VOLUMEN REAL o solo directorio del contenedor
+        try:
+            with open("/proc/mounts") as mf:
+                mounts = mf.read()
+            es_volumen = "/storage" in mounts
+            print(f"💾 /storage es volumen real: {es_volumen}")
+            if es_volumen:
+                linea = [l for l in mounts.splitlines() if "/storage" in l]
+                print(f"   Mount info: {linea}")
+        except Exception as e:
+            print(f"   (no se pudo leer /proc/mounts: {e})")
+
         marca = storage_path / ".deploy_count"
         count = int(marca.read_text()) if marca.exists() else 0
         count += 1
         marca.write_text(str(count))
         print(f"🔢 Deploy #{count} desde que el volumen fue montado por primera vez")
-        # Listar archivos persistidos
         data_files = list(DATA_DIR.glob("*.json")) if DATA_DIR.exists() else []
         print(f"📄 Archivos JSON en DATA_DIR: {[f.name for f in data_files]}")
         for f in data_files:
