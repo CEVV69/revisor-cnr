@@ -13,69 +13,67 @@
 <div class="alert alert-success" style="margin-bottom:1rem;">
   {% if msg_ok == 'creado' %}✅ Concurso creado. Ahora carga las bases.
   {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
-  {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído correctamente.
+  {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído. Revisa el contenido y guarda.
   {% else %}✅ Guardado.{% endif %}
 </div>
 {% endif %}
 {% set msg_err = request.query_params.get('error') %}
 {% if msg_err %}
 <div class="alert alert-error" style="margin-bottom:1rem;">
-  {% if msg_err == 'escaneado' %}⚠️ El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital o pega el texto manualmente.
+  {% if msg_err == 'escaneado' %}⚠️ El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital.
   {% elif msg_err == 'formato' %}⚠️ Formato no soportado. Sube un PDF, DOC o DOCX.
   {% else %}⚠️ Error: {{ msg_err }}{% endif %}
 </div>
 {% endif %}
 
+<!-- FORM 1: Subida de PDF (independiente) -->
+<form method="post" action="/admin/concursos/{{ concurso.id }}/bases-pdf"
+      enctype="multipart/form-data">
+  <div class="card" style="margin-bottom:1.2rem; border-left:4px solid #2b6cb0;">
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">📄 Subir PDF de bases</h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Sube el PDF de las bases del concurso. El sistema extrae el texto automáticamente
+      y lo carga en el campo de abajo para que puedas revisarlo y guardar.
+    </p>
+    <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+      <input type="file" name="archivo" accept=".pdf,.doc,.docx" required
+             style="flex:1; min-width:180px; font-size:0.85rem; border:1px solid var(--border);
+                    border-radius:6px; padding:0.4rem 0.6rem;">
+      <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+        Extraer texto del PDF
+      </button>
+    </div>
+  </div>
+</form>
+
+<!-- FORM 2: Editar y guardar bases (independiente) -->
 <form method="post" action="/admin/concursos/{{ concurso.id }}/bases">
   <div class="card" style="margin-bottom:1.5rem;">
     <h2 style="font-size:1rem; margin-bottom:1rem;">Información del concurso</h2>
-
     <div class="form-group">
       <label>ID del concurso</label>
       <input type="text" value="{{ concurso.id }}" disabled
-             style="font-family:monospace; background:#f7fafc; color:#718096;">
+             style="font-family:monospace; background:#f7fafc; color:#718096; max-width:160px;">
     </div>
-
     <div class="form-group">
       <label>Nombre del concurso</label>
       <input type="text" name="nombre" value="{{ concurso.nombre }}" required>
     </div>
   </div>
 
-  <!-- Subida PDF -->
-  <div class="card" style="margin-bottom:1rem; border-left:4px solid #2b6cb0;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">📄 Subir PDF de bases</h2>
-    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-      Sube el PDF de las bases del concurso. El sistema extrae el texto automáticamente
-      (funciona con PDFs digitales, no escaneados).
-    </p>
-    <!-- Este form es independiente del form principal -->
-  </div>
-  <form method="post" action="/admin/concursos/{{ concurso.id }}/bases-pdf"
-        enctype="multipart/form-data" style="margin-bottom:1.5rem;">
-    <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;
-                background:#fff; border:1px solid var(--border); border-radius:10px;
-                padding:0.75rem 1rem;">
-      <input type="file" name="archivo" accept=".pdf,.doc,.docx" required
-             style="flex:1; min-width:180px; font-size:0.85rem; border:none;
-                    box-shadow:none; padding:0; background:transparent;">
-      <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">
-        Extraer texto del PDF
-      </button>
-    </div>
-  </form>
-
-  <!-- Edición manual -->
   <div class="card" style="margin-bottom:1.5rem;">
     <h2 style="font-size:1rem; margin-bottom:0.5rem;">
       ✏️ Texto de las bases
-      {% if concurso.bases_texto %}<span class="text-muted" style="font-size:0.8rem; font-weight:400;">· {{ concurso.bases_texto | length }} caracteres</span>{% endif %}
+      {% if concurso.bases_texto %}
+      <span class="text-muted" style="font-size:0.8rem; font-weight:400;">
+        · {{ concurso.bases_texto | length }} caracteres
+      </span>
+      {% endif %}
     </h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-      Texto que la IA usa al analizar proyectos de este concurso. Se completa automáticamente al subir un PDF,
-      o puedes pegarlo/editarlo manualmente.
+      Se completa automáticamente al subir un PDF. Puedes editarlo antes de guardar.
     </p>
-    <textarea name="bases_texto" rows="18"
+    <textarea name="bases_texto" rows="20"
               style="width:100%; font-size:0.84rem; font-family:inherit; padding:0.7rem;
                      border:1px solid var(--border); border-radius:6px; resize:vertical;
                      line-height:1.55;"
@@ -88,7 +86,7 @@
     {% endif %}
   </div>
 
-  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-bottom:2rem;">
     <button type="submit" class="btn btn-primary">Guardar bases</button>
     <a href="/admin/concursos" class="btn btn-ghost btn-sm">Cancelar</a>
   </div>
@@ -96,7 +94,7 @@
 
 <!-- Estadísticas de feedback -->
 {% if concurso.feedback %}
-<div class="card" style="margin-top:2rem;">
+<div class="card" style="margin-top:1rem;">
   <h2 style="font-size:1rem; margin-bottom:0.75rem;">
     Historial de aprendizaje
     <span class="text-muted" style="font-size:0.82rem; font-weight:400;">
@@ -146,7 +144,9 @@
               <span style="color:#c05621; font-weight:600;">✗ descartada</span>
             {% endif %}
           </td>
-          <td style="padding:0.4rem 0.75rem; color:#4a5568;">{{ fb.texto_obs[:120] }}{% if fb.texto_obs | length > 120 %}…{% endif %}</td>
+          <td style="padding:0.4rem 0.75rem; color:#4a5568;">
+            {{ fb.texto_obs[:120] }}{% if fb.texto_obs | length > 120 %}…{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
