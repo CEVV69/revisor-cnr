@@ -47,40 +47,23 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.on_event("startup")
 async def startup_event():
-    # Diagnóstico de almacenamiento
-    from database import DATA_DIR, USERS_FILE, PROYECTOS_FILE
-    storage_path = Path("/storage")
-    print(f"📁 DATA_DIR      = {DATA_DIR.resolve()}")
-    print(f"📁 UPLOAD_DIR    = {UPLOAD_DIR.resolve()}")
-    print(f"📦 /storage existe: {storage_path.exists()}")
-    if storage_path.exists():
-        # Verificar si /storage es un VOLUMEN REAL comparando dispositivos
+    from database import DATABASE_URL, db
+    if DATABASE_URL:
+        print(f"🐘 Modo: PostgreSQL (persistencia garantizada)")
         try:
-            import os as _os
-            dev_storage = _os.stat("/storage").st_dev
-            dev_root    = _os.stat("/").st_dev
-            es_volumen  = dev_storage != dev_root
-            print(f"💾 /storage es volumen real: {es_volumen}")
-            print(f"   dev /storage={dev_storage}  dev /={dev_root}")
+            from database import _get_pg
+            _get_pg()
+            print("✅ Conexión PostgreSQL OK")
         except Exception as e:
-            es_volumen = False
-            print(f"   (error al verificar volumen: {e})")
-
-        marca = storage_path / ".deploy_count"
-        count = int(marca.read_text()) if marca.exists() else 0
-        count += 1
-        marca.write_text(str(count))
-        print(f"🔢 Deploy #{count} desde que el volumen fue montado por primera vez")
-        data_files = list(DATA_DIR.glob("*.json")) if DATA_DIR.exists() else []
-        print(f"📄 Archivos JSON en DATA_DIR: {[f.name for f in data_files]}")
-        for f in data_files:
-            print(f"   {f.name}: {f.stat().st_size} bytes")
+            print(f"❌ Error PostgreSQL: {e}")
     else:
-        print("❌ /storage NO existe — datos en contenedor temporal (se borran en cada deploy)")
+        print(f"📁 Modo: JSON local (DATA_DIR = {os.getenv('DATA_DIR', 'data')})")
 
     if not db.get_user("admin"):
         db.create_user("admin", "admin123", "Administrador CNR", "admin")
         print("✅ Usuario admin creado: admin / admin123")
+    else:
+        print("✅ Usuario admin existe — datos persistidos correctamente")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
