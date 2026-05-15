@@ -13,7 +13,16 @@
 <div class="alert alert-success" style="margin-bottom:1rem;">
   {% if msg_ok == 'creado' %}✅ Concurso creado. Ahora carga las bases.
   {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
+  {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído correctamente.
   {% else %}✅ Guardado.{% endif %}
+</div>
+{% endif %}
+{% set msg_err = request.query_params.get('error') %}
+{% if msg_err %}
+<div class="alert alert-error" style="margin-bottom:1rem;">
+  {% if msg_err == 'escaneado' %}⚠️ El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital o pega el texto manualmente.
+  {% elif msg_err == 'formato' %}⚠️ Formato no soportado. Sube un PDF, DOC o DOCX.
+  {% else %}⚠️ Error: {{ msg_err }}{% endif %}
 </div>
 {% endif %}
 
@@ -33,32 +42,48 @@
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:1.5rem;">
-    <h2 style="font-size:1rem; margin-bottom:0.5rem;">Bases del concurso</h2>
-    <p class="text-muted" style="font-size:0.83rem; margin-bottom:0.75rem;">
-      Pega aquí el texto completo de las bases del concurso. La IA lo usará con prioridad
-      máxima al analizar documentos de proyectos de este concurso. Incluye requisitos
-      específicos de elegibilidad, superficie mínima/máxima, tecnologías aceptadas,
-      plazos, porcentajes de subsidio y cualquier exigencia particular.
+  <!-- Subida PDF -->
+  <div class="card" style="margin-bottom:1rem; border-left:4px solid #2b6cb0;">
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">📄 Subir PDF de bases</h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Sube el PDF de las bases del concurso. El sistema extrae el texto automáticamente
+      (funciona con PDFs digitales, no escaneados).
     </p>
-    <textarea name="bases_texto" rows="22"
+    <!-- Este form es independiente del form principal -->
+  </div>
+  <form method="post" action="/admin/concursos/{{ concurso.id }}/bases-pdf"
+        enctype="multipart/form-data" style="margin-bottom:1.5rem;">
+    <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;
+                background:#fff; border:1px solid var(--border); border-radius:10px;
+                padding:0.75rem 1rem;">
+      <input type="file" name="archivo" accept=".pdf,.doc,.docx" required
+             style="flex:1; min-width:180px; font-size:0.85rem; border:none;
+                    box-shadow:none; padding:0; background:transparent;">
+      <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+        Extraer texto del PDF
+      </button>
+    </div>
+  </form>
+
+  <!-- Edición manual -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem; margin-bottom:0.5rem;">
+      ✏️ Texto de las bases
+      {% if concurso.bases_texto %}<span class="text-muted" style="font-size:0.8rem; font-weight:400;">· {{ concurso.bases_texto | length }} caracteres</span>{% endif %}
+    </h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Texto que la IA usa al analizar proyectos de este concurso. Se completa automáticamente al subir un PDF,
+      o puedes pegarlo/editarlo manualmente.
+    </p>
+    <textarea name="bases_texto" rows="18"
               style="width:100%; font-size:0.84rem; font-family:inherit; padding:0.7rem;
                      border:1px solid var(--border); border-radius:6px; resize:vertical;
                      line-height:1.55;"
-              placeholder="Pega aquí el texto de las bases del concurso...
-
-Ejemplo:
-- Superficie mínima elegible: 5 hectáreas
-- Tecnologías admitidas: goteo, microaspersión, aspersión
-- Postulante debe ser propietario o arrendatario con contrato vigente
-- El consultor debe tener registro vigente en el MOP
-- Monto máximo de subsidio: UF 5.000
-...">{{ concurso.bases_texto }}</textarea>
+              placeholder="El texto aparecerá aquí al subir un PDF, o puedes pegarlo manualmente...">{{ concurso.bases_texto }}</textarea>
 
     {% if concurso.bases_texto %}
     <p class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
       Último guardado: {{ concurso.get('fecha_actualizacion', concurso.get('fecha_creacion', ''))[:16].replace('T', ' ') }}
-      · {{ concurso.bases_texto | length }} caracteres
     </p>
     {% endif %}
   </div>

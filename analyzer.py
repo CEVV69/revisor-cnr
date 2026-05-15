@@ -207,20 +207,29 @@ CONTENIDO DE OTROS DOCUMENTOS YA ANALIZADOS (para detectar inconsistencias entre
     return contexto
 
 
+MAX_CHARS_BASES = 20000   # ~5-6 páginas de bases — suficiente para requisitos clave
+
 def _construir_bloque_bases(bases_texto: str, concurso_id: str) -> str:
     """Construye el bloque de contexto con las bases del concurso."""
     if not bases_texto or not bases_texto.strip():
         return ""
-    return f"""
+    texto = bases_texto.strip()
+    truncado = len(texto) > MAX_CHARS_BASES
+    if truncado:
+        texto = texto[:MAX_CHARS_BASES]
+    bloque = f"""
 {'═'*60}
 BASES DEL CONCURSO {concurso_id} — PRIORIDAD MÁXIMA
 {'═'*60}
 Las siguientes bases son específicas de este concurso y tienen PRIORIDAD sobre
 la normativa general. Verifica su cumplimiento en el documento analizado:
 
-{bases_texto.strip()}
-
+{texto}
 """
+    if truncado:
+        bloque += "\n[... texto de bases truncado por longitud — se muestran los primeros 20.000 caracteres]\n"
+    bloque += "\n"
+    return bloque
 
 
 def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:

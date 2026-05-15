@@ -748,6 +748,47 @@ async def admin_guardar_bases(
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=guardado", status_code=302)
 
 
+@app.post("/admin/concursos/{concurso_id}/bases-pdf")
+async def admin_subir_bases_pdf(
+    request: Request,
+    concurso_id: str,
+    archivo: UploadFile = File(...),
+    nombre: str = Form("")
+):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+
+    ext = Path(archivo.filename).suffix.lower()
+    if ext not in (".pdf", ".doc", ".docx"):
+        return RedirectResponse(url=f"/admin/concursos/{concurso_id}?error=formato", status_code=302)
+
+    # Guardar temporalmente
+    tmp_path = UPLOAD_DIR / f"_bases_{concurso_id}{ext}"
+    tmp_path.parent.mkdir(parents=True, exist_ok=True)
+    content = await archivo.read()
+    with open(tmp_path, "wb") as f:
+        f.write(content)
+
+    # Extraer texto
+    from extractor import extract_text
+    texto = extract_text(str(tmp_path), ext)
+    tmp_path.unlink(missing_ok=True)
+
+    if texto.strip() == "__PDF_ESCANEADO__":
+        return RedirectResponse(url=f"/admin/concursos/{concurso_id}?error=escaneado", status_code=302)
+
+    if nombre.strip():
+        concurso["nombre"] = nombre.strip()
+    concurso["bases_texto"] = texto.strip()
+    concurso["fecha_actualizacion"] = datetime.now().isoformat()
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=pdf_cargado", status_code=302)
+
+
 @app.post("/admin/concursos/{concurso_id}/eliminar")
 async def admin_eliminar_concurso(request: Request, concurso_id: str):
     user = get_current_user(request)
