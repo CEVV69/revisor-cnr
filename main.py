@@ -25,6 +25,18 @@ BASE_DIR = Path(__file__).parent
 os.chdir(BASE_DIR)
 load_dotenv(BASE_DIR / ".env")
 
+
+def _extraer_concurso_id(codigo_sep: str) -> str:
+    """
+    Extrae el ID del concurso desde el código SEP.
+    Ej: '204-2026-16-003' → '204-2026'
+         '16-2026-8-001'  → '16-2026'
+    """
+    partes = codigo_sep.strip().split("-")
+    if len(partes) >= 2:
+        return f"{partes[0]}-{partes[1]}"
+    return codigo_sep
+
 app = FastAPI(title="Revisor CNR")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -183,10 +195,14 @@ async def ver_proyecto(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
         "user": user,
-        "proyecto": proyecto
+        "proyecto": proyecto,
+        "concurso": concurso,
+        "concurso_id": concurso_id,
     })
 
 
@@ -247,6 +263,12 @@ async def analizar_documento(request: Request, proyecto_id: str, doc_id: str):
     if not doc:
         raise HTTPException(status_code=404)
 
+    # Cargar bases y feedback del concurso
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
+    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
+    feedback_concurso = concurso.get("feedback", [])   if concurso else []
+
     # Analizar con Claude — incluye contexto de todos los documentos del proyecto
     observaciones = await analyze_document(
         texto=doc["texto_extraido"],
@@ -255,7 +277,10 @@ async def analizar_documento(request: Request, proyecto_id: str, doc_id: str):
         nombre_doc=doc["nombre_original"],
         filepath=str(UPLOAD_DIR / proyecto_id / doc["filename"]),
         doc_id=doc_id,
-        todos_documentos=proyecto.get("documentos", [])
+        todos_documentos=proyecto.get("documentos", []),
+        bases_texto=bases_texto,
+        concurso_id=concurso_id,
+        feedback_concurso=feedback_concurso,
     )
 
     # Guardar nuevas observaciones
@@ -605,16 +630,134 @@ async def actualizar_observacion(
         return RedirectResponse(url="/login")
 
     proyecto = db.get_proyecto(proyecto_id)
+    obs_actualizada = None
     for obs in proyecto["observaciones"]:
         if obs["id"] == obs_id:
             obs["estado"] = estado
             if texto_editado:
                 obs["texto"] = texto_editado
             obs["revisado_por"] = user["nombre"]
+            obs_actualizada = obs
             break
 
     db.save_proyecto(proyecto)
+
+    # ── Guardar feedback en el concurso para aprendizaje futuro ──────────────
+    if obs_actualizada and estado in ("aprobada", "descartada"):
+        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+        # Encontrar el tipo_doc del documento al que pertenece la observación
+        doc_de_obs = next(
+            (d for d in proyecto.get("documentos", [])
+             if d["id"] == obs_actualizada.get("doc_id")), None
+        )
+        tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
+        db.add_feedback_concurso(concurso_id, {
+            "id":        obs_actualizada["id"],
+            "fecha":     datetime.now().isoformat(),
+            "tipo_doc":  tipo_doc_obs,
+            "texto_obs": obs_actualizada["texto"][:300],
+            "accion":    estado,   # "aprobada" o "descartada"
+            "revisor":   user["username"],
+        })
+
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+
+
+# ─── Administración de concursos ─────────────────────────────────────────────
+
+@app.get("/admin/concursos", response_class=HTMLResponse)
+async def admin_concursos(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concursos = db.get_all_concursos()
+    msg_ok  = request.query_params.get("ok")
+    msg_err = request.query_params.get("error")
+    return templates.TemplateResponse("admin_concursos.html", {
+        "request": request, "user": user, "concursos": concursos,
+        "msg_ok": msg_ok, "msg_err": msg_err
+    })
+
+
+@app.post("/admin/concursos/crear")
+async def admin_crear_concurso(
+    request: Request,
+    concurso_id: str = Form(...),
+    nombre: str = Form(...)
+):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso_id = concurso_id.strip()
+    if db.get_concurso(concurso_id):
+        return RedirectResponse(url="/admin/concursos?error=existe", status_code=302)
+    db.save_concurso({
+        "id": concurso_id,
+        "nombre": nombre.strip(),
+        "bases_texto": "",
+        "fecha_creacion": datetime.now().isoformat(),
+        "feedback": []
+    })
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=creado", status_code=302)
+
+
+@app.get("/admin/concursos/{concurso_id}", response_class=HTMLResponse)
+async def admin_concurso_detalle(request: Request, concurso_id: str):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    # Si llega desde el banner con ?crear=1 y el concurso no existe, lo creamos
+    if not concurso and request.query_params.get("crear") == "1":
+        concurso = {
+            "id": concurso_id,
+            "nombre": f"Concurso {concurso_id}",
+            "bases_texto": "",
+            "fecha_creacion": datetime.now().isoformat(),
+            "feedback": []
+        }
+        db.save_concurso(concurso)
+        msg_ok = "creado"
+    elif not concurso:
+        raise HTTPException(status_code=404, detail="Concurso no encontrado")
+    else:
+        msg_ok = request.query_params.get("ok")
+    return templates.TemplateResponse("admin_concurso_detalle.html", {
+        "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok
+    })
+
+
+@app.post("/admin/concursos/{concurso_id}/bases")
+async def admin_guardar_bases(
+    request: Request,
+    concurso_id: str,
+    bases_texto: str = Form(""),
+    nombre: str = Form("")
+):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+    if nombre.strip():
+        concurso["nombre"] = nombre.strip()
+    concurso["bases_texto"] = bases_texto.strip()
+    concurso["fecha_actualizacion"] = datetime.now().isoformat()
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=guardado", status_code=302)
+
+
+@app.post("/admin/concursos/{concurso_id}/eliminar")
+async def admin_eliminar_concurso(request: Request, concurso_id: str):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    from database import CONCURSOS_FILE
+    concursos_data = db._load(CONCURSOS_FILE)
+    concursos_data.pop(concurso_id, None)
+    db._save(CONCURSOS_FILE, concursos_data)
+    return RedirectResponse(url="/admin/concursos?ok=eliminado", status_code=302)
 
 
 # ─── Administración de usuarios ──────────────────────────────────────────────

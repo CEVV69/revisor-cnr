@@ -137,6 +137,7 @@
       <a href="/mi-cuenta">{{ user.nombre }}</a>
       <span class="badge badge-estado">{{ user.rol }}</span>
       {% if user.rol == "admin" %}<a href="/admin/usuarios">Usuarios</a>{% endif %}
+      {% if user.rol == "admin" %}<a href="/admin/concursos">Concursos</a>{% endif %}
       <a href="/logout">Salir</a>
     </div>
     {% endif %}

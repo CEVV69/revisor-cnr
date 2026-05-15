@@ -9,6 +9,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 USERS_FILE = DATA_DIR / "users.json"
 PROYECTOS_FILE = DATA_DIR / "proyectos.json"
+CONCURSOS_FILE = DATA_DIR / "concursos.json"
 
 
 class Database:
@@ -73,6 +74,33 @@ class Database:
 
     def _proyectos_file(self):
         return PROYECTOS_FILE
+
+    # ── Concursos ─────────────────────────────────────────────────────────────
+
+    def get_concurso(self, concurso_id: str) -> dict:
+        concursos = self._load(CONCURSOS_FILE)
+        return concursos.get(concurso_id)
+
+    def get_all_concursos(self) -> list:
+        concursos = self._load(CONCURSOS_FILE)
+        return sorted(concursos.values(), key=lambda c: c.get("id", ""))
+
+    def save_concurso(self, concurso: dict):
+        concursos = self._load(CONCURSOS_FILE)
+        concursos[concurso["id"]] = concurso
+        self._save(CONCURSOS_FILE, concursos)
+
+    def add_feedback_concurso(self, concurso_id: str, feedback_entry: dict):
+        """Añade una entrada de feedback al historial del concurso (máx. 200)."""
+        concurso = self.get_concurso(concurso_id)
+        if concurso is None:
+            return
+        if "feedback" not in concurso:
+            concurso["feedback"] = []
+        concurso["feedback"].append(feedback_entry)
+        # Conservar solo los últimos 200 para no inflar el archivo
+        concurso["feedback"] = concurso["feedback"][-200:]
+        self.save_concurso(concurso)
 
 
 db = Database()

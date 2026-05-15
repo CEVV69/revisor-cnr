@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Concurso {{ concurso.id }} — Revisor CNR{% endblock %}
+{% block content %}
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <a href="/admin/concursos" class="btn btn-ghost btn-sm">← Concursos</a>
+  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">
+    Concurso <span style="font-family:monospace;">{{ concurso.id }}</span>
+  </h1>
+</div>
+
+{% if msg_ok %}
+<div class="alert alert-success" style="margin-bottom:1rem;">
+  {% if msg_ok == 'creado' %}✅ Concurso creado. Ahora carga las bases.
+  {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
+  {% else %}✅ Guardado.{% endif %}
+</div>
+{% endif %}
+
+<form method="post" action="/admin/concursos/{{ concurso.id }}/bases">
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem; margin-bottom:1rem;">Información del concurso</h2>
+
+    <div class="form-group">
+      <label>ID del concurso</label>
+      <input type="text" value="{{ concurso.id }}" disabled
+             style="font-family:monospace; background:#f7fafc; color:#718096;">
+    </div>
+
+    <div class="form-group">
+      <label>Nombre del concurso</label>
+      <input type="text" name="nombre" value="{{ concurso.nombre }}" required>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem; margin-bottom:0.5rem;">Bases del concurso</h2>
+    <p class="text-muted" style="font-size:0.83rem; margin-bottom:0.75rem;">
+      Pega aquí el texto completo de las bases del concurso. La IA lo usará con prioridad
+      máxima al analizar documentos de proyectos de este concurso. Incluye requisitos
+      específicos de elegibilidad, superficie mínima/máxima, tecnologías aceptadas,
+      plazos, porcentajes de subsidio y cualquier exigencia particular.
+    </p>
+    <textarea name="bases_texto" rows="22"
+              style="width:100%; font-size:0.84rem; font-family:inherit; padding:0.7rem;
+                     border:1px solid var(--border); border-radius:6px; resize:vertical;
+                     line-height:1.55;"
+              placeholder="Pega aquí el texto de las bases del concurso...
+
+Ejemplo:
+- Superficie mínima elegible: 5 hectáreas
+- Tecnologías admitidas: goteo, microaspersión, aspersión
+- Postulante debe ser propietario o arrendatario con contrato vigente
+- El consultor debe tener registro vigente en el MOP
+- Monto máximo de subsidio: UF 5.000
+...">{{ concurso.bases_texto }}</textarea>
+
+    {% if concurso.bases_texto %}
+    <p class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
+      Último guardado: {{ concurso.get('fecha_actualizacion', concurso.get('fecha_creacion', ''))[:16].replace('T', ' ') }}
+      · {{ concurso.bases_texto | length }} caracteres
+    </p>
+    {% endif %}
+  </div>
+
+  <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+    <button type="submit" class="btn btn-primary">Guardar bases</button>
+    <a href="/admin/concursos" class="btn btn-ghost btn-sm">Cancelar</a>
+  </div>
+</form>
+
+<!-- Estadísticas de feedback -->
+{% if concurso.feedback %}
+<div class="card" style="margin-top:2rem;">
+  <h2 style="font-size:1rem; margin-bottom:0.75rem;">
+    Historial de aprendizaje
+    <span class="text-muted" style="font-size:0.82rem; font-weight:400;">
+      ({{ concurso.feedback | length }} decisiones de revisores)
+    </span>
+  </h2>
+
+  {% set aprobadas = concurso.feedback | selectattr('accion', 'equalto', 'aprobada') | list %}
+  {% set descartadas = concurso.feedback | selectattr('accion', 'equalto', 'descartada') | list %}
+
+  <div style="display:flex; gap:1.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+    <div style="text-align:center;">
+      <div style="font-size:1.4rem; font-weight:700; color:#276749;">{{ aprobadas | length }}</div>
+      <div style="font-size:0.78rem; color:#4a5568;">Obs. validadas</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:1.4rem; font-weight:700; color:#c05621;">{{ descartadas | length }}</div>
+      <div style="font-size:0.78rem; color:#4a5568;">Obs. descartadas</div>
+    </div>
+  </div>
+
+  <div style="max-height:320px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;">
+    <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f7fafc; position:sticky; top:0;">
+          <th style="padding:0.5rem 0.75rem; text-align:left; border-bottom:1px solid var(--border);">Fecha</th>
+          <th style="padding:0.5rem 0.75rem; text-align:left; border-bottom:1px solid var(--border);">Tipo doc</th>
+          <th style="padding:0.5rem 0.75rem; text-align:left; border-bottom:1px solid var(--border);">Acción</th>
+          <th style="padding:0.5rem 0.75rem; text-align:left; border-bottom:1px solid var(--border);">Observación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fb in concurso.feedback | reverse %}
+        <tr style="border-bottom:1px solid #edf2f7;">
+          <td style="padding:0.4rem 0.75rem; white-space:nowrap; color:#718096;">
+            {{ fb.fecha[:10] if fb.fecha else '' }}
+          </td>
+          <td style="padding:0.4rem 0.75rem; white-space:nowrap;">
+            <code style="font-size:0.75rem; background:#edf2f7; padding:1px 5px; border-radius:3px;">
+              {{ fb.tipo_doc }}
+            </code>
+          </td>
+          <td style="padding:0.4rem 0.75rem;">
+            {% if fb.accion == 'aprobada' %}
+              <span style="color:#276749; font-weight:600;">✓ validada</span>
+            {% else %}
+              <span style="color:#c05621; font-weight:600;">✗ descartada</span>
+            {% endif %}
+          </td>
+          <td style="padding:0.4rem 0.75rem; color:#4a5568;">{{ fb.texto_obs[:120] }}{% if fb.texto_obs | length > 120 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

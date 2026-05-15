@@ -40,6 +40,36 @@
 
 </div>
 
+<!-- Banner bases del concurso -->
+{% if not concurso or not concurso.bases_texto %}
+<div style="background:#fffbeb; border:1px solid #f6ad55; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
+  <span style="font-size:1rem;">⚠️</span>
+  <span style="font-size:0.85rem; color:#92400e;">
+    El concurso <strong>{{ concurso_id }}</strong> no tiene bases cargadas.
+    Los análisis no podrán verificar el cumplimiento de bases específicas.
+  </span>
+  {% if user.rol == 'admin' %}
+  <a href="/admin/concursos/{{ concurso_id }}{% if not concurso %}?crear=1{% endif %}"
+     style="margin-left:auto; font-size:0.82rem; color:#c05621; text-decoration:underline; white-space:nowrap;">
+    Configurar bases →
+  </a>
+  {% endif %}
+</div>
+{% else %}
+<div style="background:#f0fff4; border:1px solid #68d391; border-radius:6px; padding:0.5rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+  <span style="font-size:0.85rem; color:#276749;">
+    ✅ Concurso <strong>{{ concurso_id }}</strong> — bases cargadas
+    ({{ concurso.bases_texto | length }} caracteres)
+  </span>
+  {% if user.rol == 'admin' %}
+  <a href="/admin/concursos/{{ concurso_id }}"
+     style="margin-left:auto; font-size:0.82rem; color:#276749; text-decoration:underline; white-space:nowrap;">
+    Editar bases →
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Subida ZIP -->
 <div class="card" style="border-left:4px solid #2b6cb0; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
   <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">

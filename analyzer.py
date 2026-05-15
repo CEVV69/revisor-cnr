@@ -65,39 +65,64 @@ Tienes acceso a la normativa técnica y legal oficial de la CNR:
 
 {NORMATIVA_CNR}
 
-Tu función es revisar documentos técnicos y administrativos presentados por postulantes
-e identificar observaciones concretas que deben ser subsanadas, basándote SIEMPRE en la
-normativa anterior.
+═══════════════════════════════════════════════════════
+CRITERIO DE REVISIÓN — LEE ESTO ANTES DE ANALIZAR
+═══════════════════════════════════════════════════════
+Eres un revisor con criterio técnico profesional, NO un auditor burocrático.
+Tu trabajo es identificar lo que REALMENTE importa para la admisión y buen
+funcionamiento del proyecto, no buscar defectos menores o de forma.
 
-REGLA CRÍTICA — NOTACIÓN NUMÉRICA CHILENA:
-Los documentos siguen la norma chilena donde:
-- La COMA (,) es separador decimal → "34,56" significa treinta y cuatro con cincuenta y seis centésimas
-- El PUNTO (.) es separador de miles → "1.234.567" significa un millón doscientos treinta y cuatro mil quinientos sesenta y siete
-Ejemplos: "0,4 l/s" = 0.4 litros/segundo; "34.560 m³" = treinta y cuatro mil quinientos sesenta metros cúbicos; "34,560 m³" = treinta y cuatro con cincuenta y seis metros cúbicos.
-Antes de marcar cualquier error de cálculo o unidades, interpreta los números con esta convención.
-Si el formato es ambiguo o inconsistente dentro del mismo documento, aplica criterio de contexto
-(orden de magnitud esperable para la magnitud física en cuestión) antes de generar observación.
+GENERA observación solo cuando:
+• El problema impide técnicamente el funcionamiento del sistema de riego
+• Hay incumplimiento explícito de normativa CNR o de las bases del concurso
+• El presupuesto tiene inconsistencias que afectan la viabilidad económica
+• Faltan antecedentes legales sin los cuales el proyecto no puede aprobarse
+• Los datos técnicos (caudales, superficies, eficiencias) están fuera de rango normativo
+• La información es contradictoria entre secciones del mismo documento
+
+NO GENERES observación cuando:
+• Es un asunto de formato, presentación o estética sin impacto técnico
+• La información puede deducirse razonablemente del contexto
+• Es una diferencia menor de nomenclatura cuando el contenido es correcto
+• El aspecto está cubierto en otros documentos del expediente
+• Se trata de una buena práctica recomendable pero sin base normativa obligatoria
+• Falta un detalle que no afecta ni la admisibilidad ni la ejecución del proyecto
+
+REGLA DE ORO: Si un revisor experimentado lo aprobaría sin observar ese punto, no lo marques.
+Prefiere NO generar una observación a generar una que el revisor va a descartar.
+
+═══════════════════════════════════════════════════════
+NOTACIÓN NUMÉRICA CHILENA — OBLIGATORIO RESPETAR
+═══════════════════════════════════════════════════════
+- La COMA (,) es separador decimal → "34,56" = 34.56
+- El PUNTO (.) es separador de miles → "1.234.567" = 1,234,567
+Ejemplos: "0,4 l/s" = 0.4 l/s; "34.560 m³" = 34,560 m³; "34,560 m³" = 34.56 m³
+Antes de marcar cualquier error de cálculo, interpreta los números con esta convención.
 NUNCA marques como error un número correctamente escrito en notación chilena.
 
-Al revisar debes verificar según el tipo de documento:
-
-REVISIÓN TÉCNICA:
+═══════════════════════════════════════════════════════
+CHECKLIST POR TIPO DE DOCUMENTO
+═══════════════════════════════════════════════════════
+REVISIÓN TÉCNICA (solo lo esencial):
 - Estudio hidrológico: caudales al 85% de seguridad, fuente (DT-01/DT-02), metodología
-- Demanda hídrica: ETP correcta, Kc dentro del rango permitido (DT-05), eficiencia ponderada (DT-04)
+- Demanda hídrica: ETP correcta, Kc en rango (DT-05), eficiencia ponderada (DT-04)
 - Diseño hidráulico: cumplimiento especificaciones técnicas (DT-06)
-- Estudio de suelos: capacidad de uso (DT-03), categoría riego, aptitud frutal si corresponde
-- Presupuesto: coherencia con obras, análisis de precios unitarios (DT-18)
-- Planos: escala, viñeta, curvas de nivel, obras señaladas
+- Estudio de suelos: capacidad de uso (DT-03), categoría riego
+- Presupuesto: coherencia con obras, APU (DT-18) — enfócate en ítems mayores
+- Planos: información mínima para ejecutar la obra
 
-REVISIÓN LEGAL:
-- Documentos de postulación: lista completa según IL-01
-- Estrato del postulante: correctamente declarado y respaldado (IL-10)
+REVISIÓN LEGAL (solo lo que bloquea admisión):
+- Documentos de postulación: lista según IL-01 — solo faltantes reales
+- Estrato del postulante: correctamente declarado (IL-10)
 - F22: verificación códigos SII (18, 36, 158, 305, 611)
-- Derechos de agua: vigencia, caudal suficiente, inscripción DGA
-- Títulos de dominio: vigentes y concordantes con el proyecto
+- Derechos de agua: vigencia y caudal suficiente para el proyecto
+- Títulos de dominio: vigentes y concordantes
 - OUA: acta asamblea, poder representante, listado beneficiarios (FL-07)
 - Consultor: habilitado en Registro MOP
 
+═══════════════════════════════════════════════════════
+FORMATO DE RESPUESTA
+═══════════════════════════════════════════════════════
 Responde SIEMPRE en formato JSON exacto:
 {{
   "observaciones": [
@@ -105,7 +130,7 @@ Responde SIEMPRE en formato JSON exacto:
       "numero": 1,
       "categoria": "técnica|legal|presupuesto|administrativa",
       "severidad": "mayor|menor|informativa",
-      "texto": "Descripción clara de qué falta o qué está incorrecto",
+      "texto": "Descripción clara de qué falta o qué está incorrecto y por qué importa",
       "referencia_normativa": "IL-01, DT-04, Art. X Ley 18.450, etc."
     }}
   ],
@@ -115,9 +140,9 @@ Responde SIEMPRE en formato JSON exacto:
 Severidades:
 - mayor: impide la admisión del proyecto, debe subsanarse obligatoriamente
 - menor: debe corregirse pero no impide la admisión
-- informativa: recomendación o advertencia sin impacto en admisión
+- informativa: recomendación sin impacto en admisión (úsala con moderación)
 
-Si el documento está correcto, devuelve lista vacía en observaciones."""
+Si el documento está correcto o cumple con lo esencial, devuelve lista vacía en observaciones."""
 
 
 TIPOS_DOC = {
@@ -182,9 +207,68 @@ CONTENIDO DE OTROS DOCUMENTOS YA ANALIZADOS (para detectar inconsistencias entre
     return contexto
 
 
+def _construir_bloque_bases(bases_texto: str, concurso_id: str) -> str:
+    """Construye el bloque de contexto con las bases del concurso."""
+    if not bases_texto or not bases_texto.strip():
+        return ""
+    return f"""
+{'═'*60}
+BASES DEL CONCURSO {concurso_id} — PRIORIDAD MÁXIMA
+{'═'*60}
+Las siguientes bases son específicas de este concurso y tienen PRIORIDAD sobre
+la normativa general. Verifica su cumplimiento en el documento analizado:
+
+{bases_texto.strip()}
+
+"""
+
+
+def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:
+    """
+    Construye el bloque de aprendizaje basado en decisiones reales de revisores.
+    Prioriza feedback del mismo tipo de documento, max 10 aprobadas + 10 descartadas.
+    """
+    if not feedback:
+        return ""
+
+    # Ordenar: mismo tipo_doc primero, luego por fecha más reciente
+    def prioridad(f):
+        es_mismo = f.get("tipo_doc") == tipo_doc_actual
+        return (0 if es_mismo else 1, f.get("fecha", ""))
+
+    feedback_ord = sorted(feedback, key=prioridad)
+
+    aprobadas = [f for f in feedback_ord if f.get("accion") == "aprobada"][:10]
+    descartadas = [f for f in feedback_ord if f.get("accion") == "descartada"][:10]
+
+    if not aprobadas and not descartadas:
+        return ""
+
+    bloque = f"\n{'═'*60}\nAPRENDIZAJE DE REVISIONES ANTERIORES EN ESTE CONCURSO\n{'═'*60}\n"
+    bloque += "(Decisiones reales de revisores — calibra tu criterio con esto)\n"
+
+    if aprobadas:
+        bloque += "\nOBSERVACIONES VALIDADAS POR EL REVISOR (eran correctas, comunícalas al postulante):\n"
+        for f in aprobadas:
+            tipo = f.get("tipo_doc", "")
+            bloque += f"  ✓ [{tipo}] {f.get('texto_obs', '')[:150]}\n"
+
+    if descartadas:
+        bloque += "\nOBSERVACIONES DESCARTADAS POR EL REVISOR (no eran relevantes — evita este tipo):\n"
+        for f in descartadas:
+            tipo = f.get("tipo_doc", "")
+            bloque += f"  ✗ [{tipo}] {f.get('texto_obs', '')[:150]}\n"
+
+    bloque += "\n"
+    return bloque
+
+
 async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre_doc: str,
                            filepath: str = None, doc_id: str = "",
-                           todos_documentos: list = None) -> list:
+                           todos_documentos: list = None,
+                           bases_texto: str = "",
+                           concurso_id: str = "",
+                           feedback_concurso: list = None) -> list:
     tipo_nombre = TIPOS_DOC.get(tipo_doc, tipo_doc)
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
     client = _get_client()
@@ -195,6 +279,8 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
     max_chars = MAX_CHARS_DOCUMENTO_COMPLEJO if tipo_doc in DOCS_COMPLEJOS else MAX_CHARS_DOCUMENTO
 
     contexto_expediente = _construir_contexto_expediente(todos_documentos or [], doc_id)
+    bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
+    bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], tipo_doc)
 
     system_con_cache = [
         {
@@ -216,14 +302,14 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
                 "referencia_normativa": ""
             }]
 
-        prompt_texto = f"""Revisa el siguiente documento escaneado presentado en el concurso CNR.
+        prompt_texto = f"""{bloque_bases}{bloque_feedback}Revisa el siguiente documento escaneado presentado en el concurso CNR.
 
 Tipo de documento: {tipo_nombre}
 Nombre del archivo: {nombre_doc}
 Tipo de revisión: Revisión {revision_nombre}
 {contexto_expediente}
 Lee el contenido completo de las imágenes y genera las observaciones que correspondan.
-Identifica todos los aspectos que el postulante debe subsanar según la normativa CNR."""
+Aplica criterio profesional: solo marca lo que realmente importa para este concurso."""
 
         content_blocks = [{"type": "text", "text": prompt_texto}]
         for img_b64 in imagenes:
@@ -242,7 +328,7 @@ Identifica todos los aspectos que el postulante debe subsanar según la normativ
 
     # ── PDF con texto o Word/Excel: análisis normal ───────────────────────────
     else:
-        prompt = f"""Revisa el siguiente documento presentado en el concurso CNR.
+        prompt = f"""{bloque_bases}{bloque_feedback}Revisa el siguiente documento presentado en el concurso CNR.
 
 Tipo de documento: {tipo_nombre}
 Nombre del archivo: {nombre_doc}
@@ -251,8 +337,8 @@ Tipo de revisión asignada: Revisión {revision_nombre}
 CONTENIDO DEL DOCUMENTO:
 {texto[:max_chars]}
 
-Identifica todas las observaciones que el postulante debe subsanar basándote
-en la normativa CNR que tienes disponible. Sé específico y cita la norma aplicable."""
+Aplica criterio profesional: solo marca lo que realmente impide la admisión
+o correcto funcionamiento del proyecto. Cita la norma aplicable."""
 
         response = client.messages.create(
             model=modelo,
