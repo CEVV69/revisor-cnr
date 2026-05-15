@@ -207,7 +207,7 @@ CONTENIDO DE OTROS DOCUMENTOS YA ANALIZADOS (para detectar inconsistencias entre
     return contexto
 
 
-MAX_CHARS_BASES = 20000   # ~5-6 páginas de bases — suficiente para requisitos clave
+MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
 
 def _construir_bloque_bases(bases_texto: str, concurso_id: str) -> str:
     """Construye el bloque de contexto con las bases del concurso."""
@@ -298,6 +298,15 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
             "cache_control": {"type": "ephemeral"}
         }
     ]
+    # Si hay bases, añadirlas como segundo bloque cacheado del system prompt
+    # Esto evita re-enviarlas completas en cada llamada (ahorro ~90% en ese bloque)
+    if bloque_bases.strip():
+        system_con_cache.append({
+            "type": "text",
+            "text": bloque_bases,
+            "cache_control": {"type": "ephemeral"}
+        })
+        bloque_bases = ""   # ya está en system, no repetir en el prompt de usuario
 
     # ── PDF escaneado: usar visión de Claude ──────────────────────────────────
     if es_escaneado and filepath and filepath.endswith(".pdf"):
