@@ -242,7 +242,7 @@ async def cambiar_estado_proyecto(
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    estados_validos = {"En revisión", "Revisado", "Observado", "Admitido", "Rechazado"}
+    estados_validos = {"En revisión", "Revisado", "Observado", "Rechazado"}
     if estado in estados_validos:
         proyecto["estado"] = estado
         proyecto["fecha_estado"] = datetime.now().isoformat()

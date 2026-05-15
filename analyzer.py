@@ -44,14 +44,19 @@ MAX_PAGINAS_ESCANEADO = 3     # Páginas a procesar en PDFs escaneados
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
 
+MAX_CHARS_POR_NORMATIVA = 4000   # ~1.000 tokens por archivo — parte más relevante va al inicio
+
 def cargar_normativa() -> str:
-    """Carga todos los documentos normativos disponibles en /normativa"""
+    """Carga los documentos normativos disponibles en /normativa, limitando por archivo."""
     textos = []
     if not NORMATIVA_DIR.exists():
         return ""
     for archivo in sorted(NORMATIVA_DIR.glob("*.txt")):
         contenido = archivo.read_text(encoding="utf-8")
-        textos.append(f"\n{'='*60}\n{archivo.stem}\n{'='*60}\n{contenido}")
+        truncado = len(contenido) > MAX_CHARS_POR_NORMATIVA
+        contenido = contenido[:MAX_CHARS_POR_NORMATIVA]
+        sufijo = "\n[...extracto — ver documento completo para detalles]" if truncado else ""
+        textos.append(f"\n{'='*60}\n{archivo.stem}\n{'='*60}\n{contenido}{sufijo}")
     return "\n".join(textos)
 
 NORMATIVA_CNR = cargar_normativa()
