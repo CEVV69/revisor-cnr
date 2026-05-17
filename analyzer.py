@@ -21,6 +21,9 @@ MODELO_HAIKU  = "claude-haiku-4-5"    # Documentos simples (~18× más barato qu
 # Tipos de documento que requieren mayor capacidad analítica
 DOCS_COMPLEJOS = {
     "diseno_hidraulico",       # Cálculos hidráulicos
+    "diseno_agronomico",       # Diseño agronómico / demanda hídrica
+    "diseno_fotovoltaico",     # Sistema fotovoltaico de bombeo
+    "reporte_explorador_solar",# Reporte explorador solar CNR
     "estudio_hidrologico",     # Metodología y caudales
     "estudio_suelos",          # Capacidad de uso, clasificación
     "presupuesto",             # APU, coherencia de cifras
@@ -37,9 +40,9 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
         return MODELO_SONNET
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 1500   # Documentos simples
-MAX_TOKENS_SONNET = 4000   # Documentos complejos — presupuestos y tablas Excel requieren más margen
-MAX_CHARS_DOCUMENTO        = 3000   # Documentos simples
-MAX_CHARS_DOCUMENTO_COMPLEJO = 8000   # Presupuestos y Excel con múltiples hojas
+MAX_TOKENS_SONNET = 6000   # Documentos complejos — diseños técnicos pueden generar muchas observaciones
+MAX_CHARS_DOCUMENTO          =  5000   # Documentos simples
+MAX_CHARS_DOCUMENTO_COMPLEJO = 30000   # Diseños hidráulicos, agronómicos, fotovoltaicos, presupuestos
 MAX_PAGINAS_ESCANEADO = 3     # Páginas a procesar en PDFs escaneados
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
@@ -126,8 +129,24 @@ REVISIÓN LEGAL (solo lo que bloquea admisión):
 - Consultor: habilitado en Registro MOP
 
 ═══════════════════════════════════════════════════════
+CHECKLIST ADICIONAL
+═══════════════════════════════════════════════════════
+- Diseño agronómico: módulo de riego, demanda neta y bruta, eficiencia de aplicación,
+  caudal de diseño, tiempo de riego, dotación por hectárea, concordancia con estudio de suelos
+- Diseño fotovoltaico: potencia requerida vs instalada, curva bomba vs curva sistema,
+  punto de operación, radiación usada, autonomía, protecciones eléctricas (SEC)
+- Reporte Explorador Solar: radiación en plano inclinado, PR (Performance Ratio),
+  energía generada vs demanda del sistema de bombeo, concordancia con diseño fotovoltaico
+
+═══════════════════════════════════════════════════════
 FORMATO DE RESPUESTA
 ═══════════════════════════════════════════════════════
+CRÍTICO — REGLA ABSOLUTA DEL FORMATO:
+Cada observación describe ÚNICAMENTE un incumplimiento, deficiencia o dato faltante.
+NUNCA menciones dentro del texto de una observación lo que sí cumple, lo que sí está
+correcto, ni hagas frases como "si bien X cumple, falta Y". Si un aspecto cumple,
+simplemente NO generes observación para ese aspecto. Cero validaciones positivas en observaciones.
+
 Responde SIEMPRE en formato JSON exacto:
 {{
   "observaciones": [
@@ -135,7 +154,7 @@ Responde SIEMPRE en formato JSON exacto:
       "numero": 1,
       "categoria": "técnica|legal|presupuesto|administrativa",
       "severidad": "mayor|menor|informativa",
-      "texto": "Descripción clara de qué falta o qué está incorrecto y por qué importa",
+      "texto": "Descripción directa de qué falta o qué está incorrecto y por qué importa",
       "referencia_normativa": "IL-01, DT-04, Art. X Ley 18.450, etc."
     }}
   ],
@@ -151,16 +170,20 @@ Si el documento está correcto o cumple con lo esencial, devuelve lista vacía e
 
 
 TIPOS_DOC = {
-    "memoria_explicativa": "Memoria explicativa del proyecto",
-    "estudio_hidrologico": "Estudio hidrológico",
-    "diseno_hidraulico": "Diseño hidráulico de obras",
-    "estudio_suelos": "Estudio de suelos y capacidad de uso",
-    "presupuesto": "Presupuesto y análisis de precios unitarios",
-    "planos": "Planos y especificaciones técnicas",
-    "evaluacion_social": "Evaluación socioeconómica",
-    "antecedentes_legales": "Antecedentes legales (derechos de agua, títulos)",
-    "lista_beneficiarios": "Lista de beneficiarios",
-    "otro": "Documento complementario"
+    "memoria_explicativa":    "Memoria explicativa del proyecto",
+    "estudio_hidrologico":    "Estudio hidrológico",
+    "diseno_hidraulico":      "Diseño hidráulico de obras",
+    "diseno_agronomico":      "Diseño agronómico",
+    "diseno_fotovoltaico":    "Diseño fotovoltaico",
+    "reporte_explorador_solar": "Reporte Explorador Solar CNR",
+    "estudio_suelos":         "Estudio de suelos y capacidad de uso",
+    "presupuesto":            "Presupuesto y análisis de precios unitarios",
+    "presupuesto_electrico":  "Presupuesto sistema eléctrico/fotovoltaico",
+    "planos":                 "Planos y especificaciones técnicas",
+    "evaluacion_social":      "Evaluación socioeconómica",
+    "antecedentes_legales":   "Antecedentes legales (derechos de agua, títulos)",
+    "lista_beneficiarios":    "Lista de beneficiarios",
+    "otro":                   "Documento complementario"
 }
 
 
