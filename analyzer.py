@@ -23,7 +23,7 @@ DOCS_COMPLEJOS = {
     "diseno_hidraulico",       # Cálculos hidráulicos
     "diseno_agronomico",       # Diseño agronómico / demanda hídrica
     "diseno_fotovoltaico",     # Sistema fotovoltaico de bombeo
-    "reporte_explorador_solar",# Reporte explorador solar CNR
+    # reporte_explorador_solar → Haiku (formato estandarizado CNR, no requiere Sonnet)
     "estudio_hidrologico",     # Metodología y caudales
     "estudio_suelos",          # Capacidad de uso, clasificación
     "presupuesto",             # APU, coherencia de cifras
@@ -39,11 +39,28 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
     if es_escaneado or tipo_doc in DOCS_COMPLEJOS:
         return MODELO_SONNET
     return MODELO_HAIKU
-MAX_TOKENS_HAIKU  = 1500   # Documentos simples
-MAX_TOKENS_SONNET = 6000   # Documentos complejos — diseños técnicos pueden generar muchas observaciones
-MAX_CHARS_DOCUMENTO          =  5000   # Documentos simples
-MAX_CHARS_DOCUMENTO_COMPLEJO = 30000   # Diseños hidráulicos, agronómicos, fotovoltaicos, presupuestos
-MAX_PAGINAS_ESCANEADO = 3     # Páginas a procesar en PDFs escaneados
+MAX_TOKENS_HAIKU  = 2000   # Documentos simples
+MAX_TOKENS_SONNET = 6000   # Documentos complejos
+MAX_PAGINAS_ESCANEADO = 5  # Páginas para PDFs escaneados / mapas satelitales
+MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
+
+# Límite de caracteres por tipo de documento (optimizados por costo/calidad)
+MAX_CHARS_POR_TIPO = {
+    "reporte_explorador_solar": 15000,  # Haiku — formato estandarizado CNR
+    "diseno_fotovoltaico":      20000,
+    "diseno_agronomico":        20000,
+    "diseno_hidraulico":        20000,
+    "estudio_hidrologico":      15000,
+    "estudio_suelos":           15000,
+    "presupuesto":              15000,
+    "presupuesto_electrico":    15000,
+    "evaluacion_social":        12000,
+    "memoria_superficies":      12000,
+    "pruebas_bombeo":           12000,
+    "estudios_complementarios": 12000,
+}
+MAX_CHARS_COMPLEJO_DEFAULT = 12000   # Sonnet para tipos complejos sin límite específico
+MAX_CHARS_SIMPLE           =  5000   # Haiku para tipos simples
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
 
@@ -96,8 +113,11 @@ NO GENERES observación cuando:
 • Se trata de una buena práctica recomendable pero sin base normativa obligatoria
 • Falta un detalle que no afecta ni la admisibilidad ni la ejecución del proyecto
 
-REGLA DE ORO: Si un revisor experimentado lo aprobaría sin observar ese punto, no lo marques.
-Prefiere NO generar una observación a generar una que el revisor va a descartar.
+REGLA DE ORO: Genera observaciones sobre todo lo que un revisor técnico experimentado
+esperaría que el postulante corrigiera o aclarara. No omitas incumplimientos normativos
+ni de bases por considerarlos "menores" — si algo no cumple, márcalo. Tampoco inventes
+observaciones de formato sin impacto técnico real. El objetivo es detectar todos los
+problemas reales, sin agregar ruido burocrático.
 
 ═══════════════════════════════════════════════════════
 NOTACIÓN NUMÉRICA CHILENA — OBLIGATORIO RESPETAR
@@ -237,6 +257,21 @@ CONTENIDO DE OTROS DOCUMENTOS YA ANALIZADOS (para detectar inconsistencias entre
 
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
 
+
+def _truncar_inteligente(texto: str, max_chars: int) -> str:
+    """
+    Para documentos largos: toma 75% del inicio + 25% del final.
+    Así captura tanto la introducción/metodología como las conclusiones/resultados.
+    """
+    if len(texto) <= max_chars:
+        return texto
+    inicio = int(max_chars * 0.75)
+    fin = max_chars - inicio
+    omitidos = len(texto) - max_chars
+    return (texto[:inicio]
+            + f"\n\n[... {omitidos:,} caracteres omitidos — documento muy largo ...]\n\n"
+            + texto[-fin:])
+
 def _construir_bloque_bases(bases_texto: str, concurso_id: str) -> str:
     """Construye el bloque de contexto con las bases del concurso."""
     if not bases_texto or not bases_texto.strip():
@@ -310,10 +345,20 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
     client = _get_client()
 
-    es_escaneado = texto.strip() == "__PDF_ESCANEADO__"
-    modelo = seleccionar_modelo(tipo_doc, es_escaneado)
+    # Detectar imagen/escaneado: marcador explícito O texto insuficiente en PDF
+    texto_limpio = texto.strip()
+    es_escaneado = (texto_limpio == "__PDF_ESCANEADO__" or
+                    (len(texto_limpio) < MIN_CHARS_TEXTO and
+                     filepath and filepath.endswith(".pdf")))
+    modelo    = seleccionar_modelo(tipo_doc, es_escaneado)
     max_tokens = MAX_TOKENS_SONNET if modelo == MODELO_SONNET else MAX_TOKENS_HAIKU
-    max_chars = MAX_CHARS_DOCUMENTO_COMPLEJO if tipo_doc in DOCS_COMPLEJOS else MAX_CHARS_DOCUMENTO
+    # Límite de caracteres según tipo de documento
+    if tipo_doc in MAX_CHARS_POR_TIPO:
+        max_chars = MAX_CHARS_POR_TIPO[tipo_doc]
+    elif tipo_doc in DOCS_COMPLEJOS:
+        max_chars = MAX_CHARS_COMPLEJO_DEFAULT
+    else:
+        max_chars = MAX_CHARS_SIMPLE
 
     contexto_expediente = _construir_contexto_expediente(todos_documentos or [], doc_id)
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
@@ -381,7 +426,7 @@ Nombre del archivo: {nombre_doc}
 Tipo de revisión asignada: Revisión {revision_nombre}
 {contexto_expediente}
 CONTENIDO DEL DOCUMENTO:
-{texto[:max_chars]}
+{_truncar_inteligente(texto, max_chars)}
 
 Aplica criterio profesional: solo marca lo que realmente impide la admisión
 o correcto funcionamiento del proyecto. Cita la norma aplicable."""
