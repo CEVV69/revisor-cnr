@@ -403,7 +403,9 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
         bloque_bases = ""   # ya está en system, no repetir en el prompt de usuario
 
     # ── PDF escaneado o con visión forzada: usar visión de Claude ────────────
-    if (es_escaneado or tipo_doc in DOCS_FORZAR_VISION) and filepath and filepath.endswith(".pdf"):
+    import os as _os
+    archivo_existe = filepath and filepath.endswith(".pdf") and _os.path.exists(filepath)
+    if (es_escaneado or tipo_doc in DOCS_FORZAR_VISION) and archivo_existe:
         from extractor import render_pdf_as_images
         max_pags = MAX_PAGINAS_POR_TIPO.get(tipo_doc, MAX_PAGINAS_ESCANEADO)
         imagenes = render_pdf_as_images(filepath, max_pages=max_pags)

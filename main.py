@@ -311,13 +311,24 @@ async def analizar_documento(request: Request, proyecto_id: str, doc_id: str):
     bases_texto       = concurso.get("bases_texto", "") if concurso else ""
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
 
+    # Si es re-análisis, eliminar observaciones anteriores de este documento
+    proyecto["observaciones"] = [
+        o for o in proyecto.get("observaciones", [])
+        if o.get("doc_id") != doc_id
+    ]
+    doc["analizado"] = False  # resetear para que quede True al terminar
+
+    # Filepath solo si el archivo existe físicamente (puede haberse perdido en redeploy)
+    filepath_local = UPLOAD_DIR / proyecto_id / doc["filename"]
+    filepath_str = str(filepath_local) if filepath_local.exists() else None
+
     # Analizar con Claude — incluye contexto de todos los documentos del proyecto
     observaciones = await analyze_document(
         texto=doc["texto_extraido"],
         tipo_doc=doc["tipo_doc"],
         tipo_revision=proyecto["tipo_revision"],
         nombre_doc=doc["nombre_original"],
-        filepath=str(UPLOAD_DIR / proyecto_id / doc["filename"]),
+        filepath=filepath_str,
         doc_id=doc_id,
         todos_documentos=proyecto.get("documentos", []),
         bases_texto=bases_texto,
