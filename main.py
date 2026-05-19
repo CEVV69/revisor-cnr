@@ -683,9 +683,7 @@ async def eliminar_proyecto(request: Request, proyecto_id: str):
         carpeta = UPLOAD_DIR / proyecto_id
         if carpeta.exists():
             shutil.rmtree(carpeta)
-        proyectos = db._load(db._proyectos_file())
-        proyectos.pop(proyecto_id, None)
-        db._save(db._proyectos_file(), proyectos)
+        db.delete_proyecto(proyecto_id)
     return RedirectResponse(url="/", status_code=302)
 
 

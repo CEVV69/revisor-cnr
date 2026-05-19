@@ -146,6 +146,11 @@ class Database:
         proyectos[proyecto["id"]] = proyecto
         self._save("proyectos", PROYECTOS_FILE, proyectos)
 
+    def delete_proyecto(self, proyecto_id: str):
+        proyectos = self._load("proyectos", PROYECTOS_FILE)
+        proyectos.pop(proyecto_id, None)
+        self._save("proyectos", PROYECTOS_FILE, proyectos)
+
     # ── Concursos ─────────────────────────────────────────────────────────────
 
     def get_concurso(self, concurso_id: str) -> dict:

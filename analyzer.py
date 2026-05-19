@@ -36,24 +36,37 @@ DOCS_COMPLEJOS = {
 
 def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
     """Elige el modelo según complejidad del documento."""
+    if tipo_doc in DOCS_FORZAR_HAIKU:
+        return MODELO_HAIKU   # Formato estandarizado — Haiku suficiente aunque sea imagen
     if es_escaneado or tipo_doc in DOCS_COMPLEJOS:
         return MODELO_SONNET
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 2000   # Documentos simples
 MAX_TOKENS_SONNET = 6000   # Documentos complejos
-MAX_PAGINAS_ESCANEADO = 5  # Páginas para PDFs escaneados / mapas satelitales
 MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
 
-# Límite de caracteres por tipo de documento (optimizados por costo/calidad)
+# Páginas máximas para visión (PDFs escaneados / con imágenes)
+MAX_PAGINAS_ESCANEADO = 5   # Mapas, planos, documentos generales
+MAX_PAGINAS_POR_TIPO = {
+    "reporte_explorador_solar": 15,  # 21 páginas — necesita más cobertura
+    "diseno_fotovoltaico":      8,
+    "diseno_hidraulico":        8,
+    "diseno_agronomico":        8,
+}
+
+# Tipos que usan Haiku incluso si son escaneados (formatos estandarizados)
+DOCS_FORZAR_HAIKU = {"reporte_explorador_solar"}
+
+# Límite de caracteres por tipo (optimizados por costo/calidad)
 MAX_CHARS_POR_TIPO = {
-    "reporte_explorador_solar": 15000,  # Haiku — formato estandarizado CNR
-    "diseno_fotovoltaico":      20000,
-    "diseno_agronomico":        20000,
-    "diseno_hidraulico":        20000,
+    "reporte_explorador_solar": 40000,  # Haiku — 21 págs, formato CNR estandarizado
+    "diseno_agronomico":        35000,  # Puede ser muy largo
+    "diseno_fotovoltaico":      25000,
+    "diseno_hidraulico":        25000,
+    "presupuesto":              30000,  # Excel con hasta 13 hojas
+    "presupuesto_electrico":    30000,
     "estudio_hidrologico":      15000,
     "estudio_suelos":           15000,
-    "presupuesto":              15000,
-    "presupuesto_electrico":    15000,
     "evaluacion_social":        12000,
     "memoria_superficies":      12000,
     "pruebas_bombeo":           12000,
@@ -107,11 +120,15 @@ GENERA observación solo cuando:
 
 NO GENERES observación cuando:
 • Es un asunto de formato, presentación o estética sin impacto técnico
-• La información puede deducirse razonablemente del contexto
+• La información puede deducirse razonablemente del contexto del mismo documento
 • Es una diferencia menor de nomenclatura cuando el contenido es correcto
-• El aspecto está cubierto en otros documentos del expediente
+• El aspecto está cubierto en otros documentos del expediente (ver lista de documentos)
 • Se trata de una buena práctica recomendable pero sin base normativa obligatoria
 • Falta un detalle que no afecta ni la admisibilidad ni la ejecución del proyecto
+• La observación sería de tipo "informativa" sobre algo que el revisor no va a exigir corregir
+
+PRIORIDAD: Una observación "mayor" real vale más que diez "informativas" irrelevantes.
+Genera pocas observaciones de alta certeza, no muchas de baja certeza.
 
 REGLA DE ORO: Genera observaciones sobre todo lo que un revisor técnico experimentado
 esperaría que el postulante corrigiera o aclarara. No omitas incumplimientos normativos
@@ -384,7 +401,8 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
     # ── PDF escaneado: usar visión de Claude ──────────────────────────────────
     if es_escaneado and filepath and filepath.endswith(".pdf"):
         from extractor import render_pdf_as_images
-        imagenes = render_pdf_as_images(filepath, max_pages=MAX_PAGINAS_ESCANEADO)
+        max_pags = MAX_PAGINAS_POR_TIPO.get(tipo_doc, MAX_PAGINAS_ESCANEADO)
+        imagenes = render_pdf_as_images(filepath, max_pages=max_pags)
 
         if not imagenes:
             return [{
@@ -399,8 +417,8 @@ Tipo de documento: {tipo_nombre}
 Nombre del archivo: {nombre_doc}
 Tipo de revisión: Revisión {revision_nombre}
 {contexto_expediente}
-Lee el contenido completo de las imágenes y genera las observaciones que correspondan.
-Aplica criterio profesional: solo marca lo que realmente importa para este concurso."""
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
+Lee el contenido completo de las imágenes y genera las observaciones que correspondan."""
 
         content_blocks = [{"type": "text", "text": prompt_texto}]
         for img_b64 in imagenes:
@@ -425,11 +443,11 @@ Tipo de documento: {tipo_nombre}
 Nombre del archivo: {nombre_doc}
 Tipo de revisión asignada: Revisión {revision_nombre}
 {contexto_expediente}
-CONTENIDO DEL DOCUMENTO:
-{_truncar_inteligente(texto, max_chars)}
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
+Interpreta TODOS los números con esta convención antes de cualquier análisis numérico.
 
-Aplica criterio profesional: solo marca lo que realmente impide la admisión
-o correcto funcionamiento del proyecto. Cita la norma aplicable."""
+CONTENIDO DEL DOCUMENTO:
+{_truncar_inteligente(texto, max_chars)}"""
 
         response = client.messages.create(
             model=modelo,
