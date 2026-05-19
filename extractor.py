@@ -139,10 +139,10 @@ def _from_pdf(filepath: str) -> str:
     return "__PDF_ESCANEADO__"
 
 
-def render_pdf_as_images(filepath: str, max_pages: int = 4) -> list:
+def render_pdf_as_images(filepath: str, max_pages: int = 4, zoom: float = 0.8) -> list:
     """
     Renderiza páginas de un PDF como imágenes base64 para visión de Claude.
-    Usa JPEG al 75% de calidad para mantener cada imagen bajo ~1 MB.
+    zoom=0.8 → ~58 dpi, suficiente para lectura de texto y tablas, menor costo en tokens.
     Límite API Claude: 5 MB por imagen.
     """
     import fitz
@@ -153,16 +153,13 @@ def render_pdf_as_images(filepath: str, max_pages: int = 4) -> list:
     for i, page in enumerate(doc):
         if i >= max_pages:
             break
-        # Zoom 1.0x (~72 dpi) — suficiente para lectura, mucho más liviano que 1.5x
-        mat = fitz.Matrix(1.0, 1.0)
+        mat = fitz.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=mat)
-        # JPEG al 75% → 5-10x más pequeño que PNG
-        img_bytes = pix.tobytes("jpeg", jpg_quality=75)
+        img_bytes = pix.tobytes("jpeg", jpg_quality=70)
         if len(img_bytes) > MAX_BYTES_POR_IMAGEN:
-            # Si aún excede, reducir zoom a 0.7x
-            mat2 = fitz.Matrix(0.7, 0.7)
+            mat2 = fitz.Matrix(0.6, 0.6)
             pix2 = page.get_pixmap(matrix=mat2)
-            img_bytes = pix2.tobytes("jpeg", jpg_quality=70)
+            img_bytes = pix2.tobytes("jpeg", jpg_quality=65)
         images.append(base64.standard_b64encode(img_bytes).decode("utf-8"))
     doc.close()
     return images
