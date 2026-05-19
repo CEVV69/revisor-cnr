@@ -57,6 +57,10 @@ MAX_PAGINAS_POR_TIPO = {
 # Tipos que usan Haiku incluso si son escaneados (formatos estandarizados)
 DOCS_FORZAR_HAIKU = {"reporte_explorador_solar"}
 
+# Tipos que SIEMPRE usan visión (aunque tengan texto extraíble)
+# porque su contenido clave está en gráficos/tablas como imágenes
+DOCS_FORZAR_VISION = {"reporte_explorador_solar"}
+
 # Límite de caracteres por tipo (optimizados por costo/calidad)
 MAX_CHARS_POR_TIPO = {
     "reporte_explorador_solar": 40000,  # Haiku — 21 págs, formato CNR estandarizado
@@ -398,8 +402,8 @@ async def analyze_document(texto: str, tipo_doc: str, tipo_revision: str, nombre
         })
         bloque_bases = ""   # ya está en system, no repetir en el prompt de usuario
 
-    # ── PDF escaneado: usar visión de Claude ──────────────────────────────────
-    if es_escaneado and filepath and filepath.endswith(".pdf"):
+    # ── PDF escaneado o con visión forzada: usar visión de Claude ────────────
+    if (es_escaneado or tipo_doc in DOCS_FORZAR_VISION) and filepath and filepath.endswith(".pdf"):
         from extractor import render_pdf_as_images
         max_pags = MAX_PAGINAS_POR_TIPO.get(tipo_doc, MAX_PAGINAS_ESCANEADO)
         imagenes = render_pdf_as_images(filepath, max_pages=max_pags)
