@@ -294,11 +294,12 @@ function actualizarEtiqueta(input) {
           {% endif %}
         </td>
         <td style="white-space:nowrap;">
-          {% if not doc.analizado %}
-          <form method="post" action="/proyecto/{{ proyecto.id }}/analizar/{{ doc.id }}" style="display:inline">
-            <button type="submit" class="btn btn-success btn-sm">Analizar IA</button>
+          <form method="post" action="/proyecto/{{ proyecto.id }}/analizar/{{ doc.id }}" style="display:inline"
+                {% if doc.analizado %}onsubmit="return confirm('¿Re-analizar este documento? Las observaciones anteriores serán reemplazadas.')"{% endif %}>
+            <button type="submit" class="btn btn-sm {% if doc.analizado %}btn-ghost{% else %}btn-success{% endif %}">
+              {% if doc.analizado %}↻ Re-analizar{% else %}Analizar IA{% endif %}
+            </button>
           </form>
-          {% endif %}
           <form method="post" action="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar"
                 style="display:inline"
                 onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
