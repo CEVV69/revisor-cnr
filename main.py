@@ -625,16 +625,22 @@ async def ficha_revision(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    obs_aprobadas = [o for o in proyecto.get("observaciones", [])
-                     if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
-    from datetime import date
-    return templates.TemplateResponse("ficha.html", {
-        "request": request,
-        "proyecto": proyecto,
-        "user": user,
-        "obs_aprobadas": obs_aprobadas,
-        "fecha_ficha": date.today().strftime("%d-%m-%Y")
-    })
+    try:
+        obs_aprobadas = [o for o in proyecto.get("observaciones", [])
+                         if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
+        from datetime import date
+        return templates.TemplateResponse("ficha.html", {
+            "request": request,
+            "proyecto": proyecto,
+            "user": user,
+            "obs_aprobadas": obs_aprobadas,
+            "fecha_ficha": date.today().strftime("%d-%m-%Y")
+        })
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en ficha {proyecto_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al generar ficha: {str(e)}")
 
 
 # ─── Consultas al expediente ─────────────────────────────────────────────────
