@@ -53,13 +53,6 @@
                padding: 6px 10px; margin-bottom: 0.8rem; font-size: 10.5px; }
     .resumen span { margin-right: 1.2rem; }
 
-    /* Firma */
-    .firma { margin-top: 2.5rem; display: flex; justify-content: space-between; }
-    .firma-bloque { text-align: center; width: 40%; }
-    .firma-linea { border-top: 1px solid #000; margin-bottom: 4px; }
-    .firma-nombre { font-weight: bold; font-size: 10.5px; }
-    .firma-cargo { font-size: 10px; color: #555; }
-
     /* Sin observaciones */
     .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
   </style>
@@ -67,7 +60,8 @@
 <body>
 
 <div class="no-print">
-  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  <button class="btn-print" onclick="descargarPDF()" style="background:#276749; margin-left:0.5rem;">⬇️ Descargar PDF</button>
 </div>
 
 <!-- Encabezado -->
@@ -155,19 +149,24 @@
   <p class="sin-obs">Sin observaciones registradas como aprobadas para este proyecto.</p>
 {% endif %}
 
-<!-- Firma -->
-<div class="firma">
-  <div class="firma-bloque">
-    <div class="firma-linea"></div>
-    <div class="firma-nombre">{{ proyecto.revisor_nombre }}</div>
-    <div class="firma-cargo">Revisor {{ "Técnico" if proyecto.tipo_revision == "tecnica" else "Legal" }} CNR</div>
-  </div>
-  <div class="firma-bloque">
-    <div class="firma-linea"></div>
-    <div class="firma-nombre">Jefe de Departamento</div>
-    <div class="firma-cargo">Comisión Nacional de Riego</div>
-  </div>
-</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function descargarPDF() {
+  var botones = document.querySelector('.no-print');
+  botones.style.display = 'none';
+  var nombre = 'Ficha_{{ proyecto.codigo_sep }}_{{ fecha_ficha }}.pdf'.replace(/\//g, '-');
+  var opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     nombre,
+    image:        { type: 'jpeg', quality: 0.97 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(document.body).save().then(function() {
+    botones.style.display = '';
+  });
+}
+</script>
 </body>
 </html>
