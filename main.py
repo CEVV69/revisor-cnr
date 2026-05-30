@@ -594,7 +594,24 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
         raise HTTPException(status_code=404)
     filepath = UPLOAD_DIR / proyecto_id / doc["filename"]
     if not filepath.exists():
-        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+        # Archivo no disponible en disco (se pierde entre deploys en Railway)
+        # Mostrar el texto extraído que sí persiste en PostgreSQL
+        texto = doc.get("texto_extraido", "")
+        if texto == "__PDF_ESCANEADO__":
+            texto = "(Documento escaneado — sin texto extraíble)"
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>{doc['nombre_original']}</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1d1d1f}}
+.aviso{{background:#fff8e6;border:1px solid #f6d860;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:0.9rem}}
+h1{{font-size:1.1rem;margin-bottom:0.3rem}}pre{{white-space:pre-wrap;font-size:0.85rem;line-height:1.6;background:#f5f5f7;padding:1rem;border-radius:8px}}</style>
+</head><body>
+<h1>📄 {doc['nombre_original']}</h1>
+<div class="aviso">⚠️ El archivo original no está disponible en el servidor (los archivos se pierden entre deploys en Railway).
+Se muestra el texto extraído que sí está guardado en la base de datos.
+Para ver el archivo original, vuelve a subirlo al proyecto.</div>
+<pre>{texto[:50000] if texto else '(Sin texto extraído)'}</pre>
+</body></html>"""
+        return HTMLResponse(content=html, status_code=200)
 
     ext = Path(doc["filename"]).suffix.lower()
     media_types = {
