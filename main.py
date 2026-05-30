@@ -706,6 +706,22 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
 
 # ─── Eliminar proyecto ────────────────────────────────────────────────────────
 
+@app.post("/proyecto/{proyecto_id}/limpiar-revision")
+async def limpiar_revision(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if proyecto:
+        proyecto["observaciones"] = []
+        proyecto["consultas"] = []
+        for doc in proyecto.get("documentos", []):
+            doc["analizado"] = False
+        proyecto["estado"] = "En revisión"
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+
+
 @app.post("/proyecto/{proyecto_id}/eliminar")
 async def eliminar_proyecto(request: Request, proyecto_id: str):
     user = get_current_user(request)

@@ -48,6 +48,10 @@
       </div>
     </div>
 
+    <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-revision"
+          onsubmit="return confirm('¿Limpiar la revisión? Se borrarán todas las observaciones y el estado de análisis de los documentos. Los archivos quedan intactos para re-analizar.')">
+      <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión</button>
+    </form>
     <form method="post" action="/proyecto/{{ proyecto.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este proyecto? Se borrarán todos sus documentos y observaciones.')">
       <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
