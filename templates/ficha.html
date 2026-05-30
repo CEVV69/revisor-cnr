@@ -5,7 +5,7 @@
   <title>Ficha de Revisión — {{ proyecto.codigo_sep }}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm; }
 
     /* Botón imprimir — solo en pantalla */
     .no-print { text-align: right; margin-bottom: 1rem; }
@@ -18,7 +18,7 @@
     .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
     .header-logo { width: 60px; }
     .header-titulo { flex: 1; }
-    .header-titulo h1 { font-size: 15px; color: #1a365d; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
+    .header-titulo h1 { font-size: 17px; color: #1a365d; letter-spacing: 1px; text-align: center; text-transform: uppercase; font-weight: bold; }
     .header-fecha { font-size: 10px; color: #555; text-align: right; }
 
     /* Tabla de datos del proyecto */
@@ -45,8 +45,6 @@
     .badge-administrativa { background: #e2e8f0; color: #4a5568; }
     .obs-texto { margin-top: 2px; line-height: 1.5; }
     .obs-ref { font-size: 9.5px; color: #555; margin-top: 3px; font-style: italic; }
-    .obs-respuesta { margin-top: 5px; border-top: 1px dashed #ccc; padding-top: 4px; min-height: 22px; }
-    .obs-respuesta-label { font-size: 9.5px; font-weight: bold; color: #276749; }
 
     /* Resumen contadores */
     .resumen { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px;
@@ -140,9 +138,6 @@
     {% if obs.referencia_normativa %}
     <div class="obs-ref">📋 Ref.: {{ obs.referencia_normativa }}</div>
     {% endif %}
-    <div class="obs-respuesta">
-      <span class="obs-respuesta-label">R)</span>
-    </div>
   </div>
   {% endfor %}
 {% else %}
