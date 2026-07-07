@@ -300,6 +300,7 @@ async def subir_documento(
     doc_id = str(uuid.uuid4())[:8]
     filename = f"{doc_id}{ext}"
     filepath = UPLOAD_DIR / proyecto_id / filename
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
     content = await archivo.read()
     with open(filepath, "wb") as f:
@@ -526,6 +527,7 @@ async def subir_multiple(
         doc_id = str(uuid.uuid4())[:8]
         filename = f"{doc_id}{ext}"
         filepath = UPLOAD_DIR / proyecto_id / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
 
         content = await archivo.read()
         with open(filepath, "wb") as f:
