@@ -781,6 +781,8 @@ async def limpiar_revision(request: Request, proyecto_id: str):
     if proyecto:
         proyecto["observaciones"] = []
         proyecto["consultas"] = []
+        proyecto["ejes_revisados"] = {}
+        proyecto["eje_chats"] = {}
         for doc in proyecto.get("documentos", []):
             doc["analizado"] = False
         proyecto["estado"] = "En revisión"
