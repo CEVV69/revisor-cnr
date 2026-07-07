@@ -439,6 +439,10 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
 
+    if not respuesta.strip():
+        respuesta = ("⚠️ La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
+                     "Intenta reformular la pregunta de forma más breve o vuelve a enviarla.")
+
     historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
     historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
     proyecto["eje_chats"][eje_key] = historial[-40:]   # conservar últimos 40 turnos

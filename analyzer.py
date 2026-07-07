@@ -636,12 +636,15 @@ fundamento normativo. Sé breve y concreto."""
 
     response = client.messages.create(
         model=MODELO_SONNET,
-        max_tokens=1200,
+        max_tokens=4000,
         system=system_con_cache,
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    return _texto_respuesta(response)
+    texto = _texto_respuesta(response)
+    if not texto:
+        print(f"⚠️ Chat eje '{eje_key}': respuesta vacía — stop_reason={response.stop_reason}")
+    return texto
 
 
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
