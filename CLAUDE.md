@@ -198,6 +198,20 @@ actuales + bases). Aún NO modifica observaciones automáticamente — el reviso
 
 **Pendiente:** consolidación de aprendizaje por eje (destilar feedback en criterios).
 
+**Bug conocido y resuelto — respuestas vacías por límite de tokens bajo (jul-2026):**
+Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamiento" (thinking)
+dentro de la misma respuesta, antes del texto final. Si el límite de tokens de la respuesta
+(`max_tokens`) era muy bajo, ese pensamiento consumía todo el cupo y el JSON de observaciones
+(o el texto del chat) llegaba vacío o cortado — y el parser lo tragaba en silencio, sin avisar
+error, devolviendo `observaciones: []` o una respuesta de chat vacía. Así se manifestó: 3 ejes
+seguidos con 0 observaciones (cobrando costo real) y el chat de eje sin mostrar respuesta.
+Arreglado subiendo los límites (`MAX_TOKENS_SONNET` en `analizar_eje`: 6000→12000; en
+`chatear_eje`: 1200→4000) y agregando logs de diagnóstico (`print`) cuando la respuesta viene
+vacía, con el `stop_reason` de la API, para detectarlo rápido si vuelve a pasar. En el chat,
+además, si la respuesta llega vacía se guarda un aviso explícito en vez de un mensaje en
+blanco. **Ojo:** `consultar_expediente` (consulta libre, `max_tokens=1500`) tiene el mismo
+riesgo latente y no se tocó — vigilar si se reporta el mismo síntoma ahí.
+
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
 |---|---|---|
@@ -225,6 +239,17 @@ propio que se afina con el uso.
 
 - **Archivos subidos NO persisten entre deploys** (Railway efímero). El `texto_extraido`
   sí persiste (PostgreSQL). Para re-análisis con visión hay que volver a subir el archivo.
+  Solo hace falta resubir los documentos que necesitan visión (escaneados o con muy poco
+  texto) — el resto ya tiene su texto guardado y no requiere el archivo físico. La tabla de
+  documentos en `proyecto.html` muestra por fila si el archivo sigue presente (🟢), si hay
+  que resubirlo (🔴, `doc.necesita_archivo` y no `doc.archivo_presente`) o si no hace falta
+  (⚪, calculado en `ver_proyecto()` de `main.py`).
+- **Bug resuelto — carpeta de subida faltante tras deploy:** las rutas `subir` y
+  `subir-multiple` en `main.py` intentaban guardar el archivo sin recrear la carpeta del
+  proyecto (`UPLOAD_DIR/{proyecto_id}`), que se borra en cada deploy. Al subir un documento
+  a un proyecto creado antes del último deploy, fallaba con "Error Interno del Servidor"
+  (`FileNotFoundError`). Arreglado agregando `filepath.parent.mkdir(parents=True,
+  exist_ok=True)` antes de escribir, igual que ya tenía `subir-zip`.
 - **Límite de imagen Claude API:** 5 MB. `render_pdf_as_images` usa JPEG con fallback.
 - **Sin hot-reload local:** reiniciar el server tras cambios en Python.
 - **Normativa estática:** `NORMATIVA_CNR` se carga al importar; agregar .txt requiere reinicio.
