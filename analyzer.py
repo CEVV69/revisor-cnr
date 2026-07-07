@@ -236,6 +236,244 @@ TIPOS_DOC = {
 }
 
 
+# ─── EJES DE REVISIÓN TEMÁTICA ─────────────────────────────────────────────────
+# Cada eje cruza varios documentos complementarios y los revisa en conjunto.
+# tipo_docs: qué documentos alimentan el eje. checklist: guía específica para el prompt.
+
+EJES_REVISION = {
+    "superficie": {
+        "nombre": "Superficie",
+        "emoji": "📐",
+        "tipo_docs": ["memoria_superficies", "identificacion_riego", "planos_tecnificacion",
+                      "planos_obras_civiles", "estudio_suelos", "antecedentes_legales"],
+        "checklist": """EJE SUPERFICIE — es la base de todo el proyecto.
+- Verifica coherencia entre la superficie declarada en la Memoria de Superficies, la
+  Identificación del área de riego y lo dibujado en los planos.
+- Distingue y valida: superficie física, superficie de riego ACTUAL, superficie de
+  NUEVO RIEGO, superficie tecnificada. Estas definen la escala y el monto bonificable.
+- La superficie de riego no puede exceder la capacidad de uso del suelo (estudio de suelos).
+- La superficie no puede exceder la superficie del título de dominio (antecedentes legales).
+- Si la superficie de nuevo riego o tecnificada no cuadra entre documentos, es observación mayor.""",
+    },
+    "agronomico": {
+        "nombre": "Diseño Agronómico",
+        "emoji": "🌱",
+        "tipo_docs": ["diseno_agronomico", "estudio_suelos", "memoria_superficies"],
+        "checklist": """EJE AGRONÓMICO.
+- Cultivos declarados coherentes con la zona y el estudio de suelos.
+- Kc en rango (DT-05), ETP correcta, demanda neta y bruta bien calculadas.
+- Eficiencia de aplicación y eficiencia ponderada (DT-04) razonables para el método de riego.
+- Módulo de riego, caudal de diseño, tiempo de riego y dotación por hectárea consistentes
+  con la superficie del eje Superficie.
+- La demanda hídrica resultante es el insumo del eje Hidráulico e Hidrológico: debe cerrar.""",
+    },
+    "hidrologico": {
+        "nombre": "Hidrológico",
+        "emoji": "💧",
+        "tipo_docs": ["estudio_hidrologico", "pruebas_bombeo", "antecedentes_legales"],
+        "checklist": """EJE HIDROLÓGICO.
+- Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02).
+- El derecho de agua (antecedentes legales) debe respaldar el caudal usado en el diseño.
+- La prueba de bombeo (si aplica) confirma el caudal y nivel dinámico del pozo.
+- El agua disponible debe cubrir la demanda hídrica del eje Agronómico. Si no la cubre,
+  el proyecto no es viable — observación mayor.""",
+    },
+    "hidraulico": {
+        "nombre": "Diseño Hidráulico",
+        "emoji": "🔧",
+        "tipo_docs": ["diseno_hidraulico", "planos_tecnificacion", "especificaciones_tecnicas",
+                      "pruebas_bombeo"],
+        "checklist": """EJE HIDRÁULICO.
+- Caudal de diseño coherente con la demanda del eje Agronómico.
+- Nodos, tuberías, diámetros, presiones y velocidades dentro de norma (DT-06).
+- Verifica que lo dibujado en los planos (nodos, trazado de tuberías) coincida con los
+  cálculos del diseño hidráulico.
+- Selección de bomba coherente con la prueba de bombeo y con la potencia del eje Energético.
+- Especificaciones técnicas respaldan los materiales del diseño.""",
+    },
+    "energetico": {
+        "nombre": "Energético / Fotovoltaico",
+        "emoji": "☀️",
+        "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar", "presupuesto_electrico",
+                      "diseno_hidraulico"],
+        "checklist": """EJE ENERGÉTICO / FOTOVOLTAICO.
+- Potencia requerida por la bomba (eje Hidráulico) vs potencia instalada del sistema FV.
+- Curva de la bomba vs curva del sistema, punto de operación.
+- Radiación del Explorador Solar coherente con el diseño FV; energía generada cubre la
+  demanda de bombeo.
+- Protecciones eléctricas y normativa SEC.
+- El presupuesto eléctrico corresponde a los equipos del diseño FV.""",
+    },
+    "obras_civiles": {
+        "nombre": "Obras Civiles",
+        "emoji": "🏗️",
+        "tipo_docs": ["planos_obras_civiles", "especificaciones_tecnicas", "cubicaciones"],
+        "checklist": """EJE OBRAS CIVILES.
+- Obras (bocatomas, acumuladores, revestimientos, cámaras) bien definidas y constructibles.
+- Las cubicaciones corresponden a las dimensiones de los planos de obras civiles.
+- Especificaciones técnicas respaldan los materiales y procedimientos.
+- Constructibilidad: ¿un contratista podría ejecutar con esta información?""",
+    },
+    "presupuesto": {
+        "nombre": "Presupuesto y Costos",
+        "emoji": "💰",
+        "tipo_docs": ["presupuesto", "presupuesto_electrico", "cubicaciones",
+                      "cotizaciones_facturas", "cotizaciones", "planos_tecnificacion",
+                      "planos_obras_civiles"],
+        "checklist": """EJE PRESUPUESTO Y COSTOS.
+- Las partidas del presupuesto corresponden a las obras dibujadas y cubicadas.
+- Cantidades del presupuesto cuadran con las cubicaciones.
+- Precios unitarios (APU, DT-18) razonables para el mercado chileno — detecta SOBREPRECIOS
+  y también precios anormalmente bajos.
+- Cotizaciones/facturas respaldan los ítems relevantes.
+- Costo por hectárea proporcional a la escala del proyecto. Nada injustificado ni desproporcionado.""",
+    },
+    "legal": {
+        "nombre": "Legal / Administrativo",
+        "emoji": "⚖️",
+        "tipo_docs": ["antecedentes_legales", "declaracion_iva", "lista_beneficiarios"],
+        "checklist": """EJE LEGAL / ADMINISTRATIVO.
+- Documentos de postulación según IL-01 — solo faltantes reales.
+- Derechos de agua vigentes y con caudal suficiente.
+- Títulos de dominio vigentes y concordantes con la superficie.
+- Estrato del postulante (IL-10), F22 con códigos SII correctos.
+- OUA: acta de asamblea, poder del representante, listado de beneficiarios (FL-07).
+- Consultor habilitado en Registro MOP.""",
+    },
+    "coherencia": {
+        "nombre": "Coherencia Global",
+        "emoji": "🔗",
+        "tipo_docs": [],   # usa TODOS los documentos del proyecto
+        "checklist": """EJE COHERENCIA GLOBAL — cierre transversal de todo el expediente.
+Este eje NO revisa un documento; verifica que TODO el proyecto sea internamente coherente:
+- Superficie ↔ demanda hídrica ↔ caudal disponible ↔ caudal de diseño ↔ presupuesto.
+- La superficie de la memoria coincide con la de los planos y la identificación de riego.
+- El caudal de diseño no excede el derecho de agua ni el caudal disponible al 85%.
+- La potencia del sistema FV cubre la bomba del diseño hidráulico.
+- El presupuesto corresponde a las obras dibujadas y cubicadas.
+- El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
+Marca cualquier CONTRADICCIÓN entre documentos. Este es el eje que atrapa los errores
+que se escapan al revisar documento por documento.""",
+    },
+}
+
+# Orden de presentación de los ejes
+EJES_ORDEN = ["superficie", "agronomico", "hidrologico", "hidraulico", "energetico",
+              "obras_civiles", "presupuesto", "legal", "coherencia"]
+
+# Presupuesto total de caracteres para el prompt combinado de un eje
+MAX_CHARS_EJE_TOTAL = 45000
+
+
+def _documentos_del_eje(eje_key: str, documentos: list) -> list:
+    """Retorna los documentos del proyecto que alimentan un eje."""
+    eje = EJES_REVISION.get(eje_key)
+    if not eje:
+        return []
+    # Coherencia global usa todos los documentos con texto
+    if eje_key == "coherencia":
+        return [d for d in documentos
+                if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    tipos = set(eje["tipo_docs"])
+    return [d for d in documentos if d.get("tipo_doc") in tipos]
+
+
+async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
+                       concurso_id: str = "", feedback_concurso: list = None,
+                       tipo_revision: str = "tecnica") -> dict:
+    """
+    Analiza un eje temático cruzando TODOS sus documentos en una sola llamada.
+    Retorna dict: {observaciones: [...], docs_incluidos: [...], sin_documentos: bool}.
+    """
+    eje = EJES_REVISION.get(eje_key)
+    if not eje:
+        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
+
+    docs_eje = _documentos_del_eje(eje_key, documentos)
+    docs_con_texto = [d for d in docs_eje
+                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+
+    if not docs_con_texto:
+        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
+
+    client = _get_client()
+
+    # Presupuesto de caracteres por documento (repartido)
+    budget_por_doc = max(3000, MAX_CHARS_EJE_TOTAL // len(docs_con_texto))
+
+    bloque_docs = ""
+    docs_incluidos = []
+    for d in docs_con_texto:
+        label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        texto = _truncar_inteligente(d.get("texto_extraido", ""), budget_por_doc)
+        bloque_docs += f"\n\n{'─'*55}\nDOCUMENTO: {label}  ({d.get('nombre_original','')})\n{'─'*55}\n{texto}"
+        docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
+                               "label": label})
+
+    bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
+    bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], eje_key)
+
+    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral"}}]
+    if bloque_bases.strip():
+        system_con_cache.append({"type": "text", "text": bloque_bases,
+                                 "cache_control": {"type": "ephemeral"}})
+        bloque_bases = ""
+
+    revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
+
+    prompt = f"""{bloque_bases}{bloque_feedback}Realiza una REVISIÓN POR EJE TEMÁTICO del expediente CNR.
+
+EJE A REVISAR: {eje['nombre']}
+Tipo de revisión: Revisión {revision_nombre}
+
+{eje['checklist']}
+
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
+Interpreta TODOS los números con esta convención.
+
+INSTRUCCIÓN CLAVE: Estás revisando VARIOS documentos complementarios juntos. Tu tarea es
+detectar problemas del eje considerando la RELACIÓN entre ellos, no cada uno por separado.
+Presta especial atención a incoherencias entre documentos. Aplica el criterio de las tres
+preguntas (¿funciona?, ¿precios razonables?, ¿diseño con lógica?) y la regla de oro
+(ante la duda, no observar; máx ~10-15 observaciones).
+
+DOCUMENTOS DEL EJE:
+{bloque_docs}"""
+
+    response = client.messages.create(
+        model=MODELO_SONNET,
+        max_tokens=MAX_TOKENS_SONNET,
+        system=system_con_cache,
+        messages=[{"role": "user", "content": prompt}],
+        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+    )
+
+    content = response.content[0].text
+    observaciones = []
+    try:
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        if start >= 0 and end > start:
+            data = json.loads(content[start:end])
+            obs = data.get("observaciones", [])
+            if isinstance(obs, list):
+                observaciones = obs
+    except json.JSONDecodeError:
+        # Reintento cerrando estructuras abiertas
+        try:
+            frag = content[content.find("{"):]
+            frag += "]" * (frag.count("[") - frag.count("]"))
+            frag += "}" * (frag.count("{") - frag.count("}"))
+            data = json.loads(frag)
+            observaciones = data.get("observaciones", []) or []
+        except Exception:
+            observaciones = []
+
+    return {"observaciones": observaciones, "docs_incluidos": docs_incluidos,
+            "sin_documentos": False}
+
+
 def _construir_contexto_expediente(otros_documentos: list, doc_id_actual: str) -> str:
     """
     Construye dos bloques de contexto:

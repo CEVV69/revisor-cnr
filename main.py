@@ -18,7 +18,8 @@ from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
-from analyzer import analyze_document, consultar_expediente, revisar_observaciones_previas
+from analyzer import (analyze_document, consultar_expediente, revisar_observaciones_previas,
+                      analizar_eje, EJES_REVISION, EJES_ORDEN, _documentos_del_eje)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -216,12 +217,28 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         proyecto.get("documentos", []),
         key=lambda d: TIPO_DOC_ORDEN.get(d.get("tipo_doc", "otro"), 50)
     )
+    # Construir info de ejes: cuántos documentos tiene disponible cada eje y si ya se revisó
+    ejes_revisados = proyecto.get("ejes_revisados", {})
+    ejes_info = []
+    for eje_key in EJES_ORDEN:
+        eje = EJES_REVISION[eje_key]
+        docs_disponibles = _documentos_del_eje(eje_key, proyecto["documentos"])
+        n_docs = len([d for d in docs_disponibles
+                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")])
+        ejes_info.append({
+            "key": eje_key,
+            "nombre": eje["nombre"],
+            "emoji": eje["emoji"],
+            "n_docs": n_docs,
+            "revisado": ejes_revisados.get(eje_key),
+        })
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
         "user": user,
         "proyecto": proyecto,
         "concurso": concurso,
         "concurso_id": concurso_id,
+        "ejes_info": ejes_info,
     })
 
 
@@ -367,6 +384,75 @@ async def analizar_documento(request: Request, proyecto_id: str, doc_id: str):
     db.save_proyecto(proyecto)
 
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+
+
+# ─── Revisión por eje temático ────────────────────────────────────────────────
+
+@app.post("/proyecto/{proyecto_id}/revisar-eje/{eje_key}")
+async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    if eje_key not in EJES_REVISION:
+        raise HTTPException(status_code=404, detail="Eje no válido")
+
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
+    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
+    feedback_concurso = concurso.get("feedback", [])   if concurso else []
+
+    try:
+        resultado = await analizar_eje(
+            eje_key=eje_key,
+            documentos=proyecto.get("documentos", []),
+            bases_texto=bases_texto,
+            concurso_id=concurso_id,
+            feedback_concurso=feedback_concurso,
+            tipo_revision=proyecto.get("tipo_revision", "tecnica"),
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en revisar_eje {eje_key}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al revisar eje: {str(e)}")
+
+    if resultado.get("sin_documentos"):
+        return RedirectResponse(
+            url=f"/proyecto/{proyecto_id}?eje_sin_docs={eje_key}", status_code=302)
+
+    # Reemplazar observaciones previas de este eje
+    proyecto["observaciones"] = [
+        o for o in proyecto.get("observaciones", []) if o.get("eje") != eje_key
+    ]
+
+    nombre_eje   = EJES_REVISION[eje_key]["nombre"]
+    docs_incluidos = resultado.get("docs_incluidos", [])
+    resumen_docs = ", ".join(d["label"] for d in docs_incluidos)
+    for obs in resultado.get("observaciones", []):
+        obs["id"] = str(uuid.uuid4())[:8]
+        obs["eje"] = eje_key
+        obs["eje_nombre"] = nombre_eje
+        obs["doc_id"] = ""
+        obs["doc_nombre"] = f"Eje {nombre_eje} ({resumen_docs})"
+        obs["fecha"] = datetime.now().isoformat()
+        obs["estado"] = "pendiente"
+        proyecto["observaciones"].append(obs)
+
+    # Registrar qué ejes se han revisado
+    proyecto.setdefault("ejes_revisados", {})
+    proyecto["ejes_revisados"][eje_key] = {
+        "fecha": datetime.now().isoformat(),
+        "n_obs": len(resultado.get("observaciones", [])),
+        "docs": [d["label"] for d in docs_incluidos],
+    }
+
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
 
 
 # ─── Subida ZIP ───────────────────────────────────────────────────────────────
@@ -767,12 +853,15 @@ async def actualizar_observacion(
     # ── Guardar feedback en el concurso para aprendizaje futuro ──────────────
     if obs_actualizada and estado in ("aprobada", "descartada"):
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        # Encontrar el tipo_doc del documento al que pertenece la observación
-        doc_de_obs = next(
-            (d for d in proyecto.get("documentos", [])
-             if d["id"] == obs_actualizada.get("doc_id")), None
-        )
-        tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
+        # Etiquetar el feedback: si la obs viene de un eje, usar el eje; si no, el tipo_doc
+        if obs_actualizada.get("eje"):
+            tipo_doc_obs = obs_actualizada["eje"]
+        else:
+            doc_de_obs = next(
+                (d for d in proyecto.get("documentos", [])
+                 if d["id"] == obs_actualizada.get("doc_id")), None
+            )
+            tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
         db.add_feedback_concurso(concurso_id, {
             "id":        obs_actualizada["id"],
             "fecha":     datetime.now().isoformat(),

@@ -317,6 +317,55 @@ function actualizarEtiqueta(input) {
 </div>
 {% endif %}
 
+<!-- Revisión por ejes temáticos -->
+{% if proyecto.documentos and ejes_info %}
+{% set eje_ok = request.query_params.get('eje_ok') %}
+{% set eje_sin_docs = request.query_params.get('eje_sin_docs') %}
+<div class="card">
+  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
+    <h2 style="margin:0; border:none; padding:0;">Revisión por ejes temáticos</h2>
+    <span style="font-size:0.8rem; color:var(--text-2);">Cada eje cruza los documentos relacionados y los revisa en conjunto</span>
+  </div>
+  {% if eje_ok and eje_ok in ejes_info|map(attribute='key')|list %}
+  <div class="alert alert-success" style="margin:0.5rem 0;">✅ Eje revisado. Revisa las observaciones generadas más abajo.</div>
+  {% endif %}
+  {% if eje_sin_docs %}
+  <div class="alert alert-error" style="margin:0.5rem 0;">⚠️ Ese eje no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
+  {% endif %}
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
+    {% for eje in ejes_info %}
+    <div id="eje-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                {% if eje.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:1.2rem;">{{ eje.emoji }}</span>
+        <strong style="font-size:0.9rem; flex:1;">{{ eje.nombre }}</strong>
+        {% if eje.revisado %}
+        <span class="badge badge-tecnica" title="Revisado">✓ {{ eje.revisado.n_obs }} obs</span>
+        {% endif %}
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        {% if eje.key == 'coherencia' %}
+          Cruza todos los documentos ({{ eje.n_docs }})
+        {% else %}
+          {{ eje.n_docs }} documento{{ 's' if eje.n_docs != 1 else '' }} disponible{{ 's' if eje.n_docs != 1 else '' }}
+        {% endif %}
+      </div>
+      <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-eje/{{ eje.key }}"
+            {% if eje.revisado %}onsubmit="return confirm('¿Re-revisar el eje {{ eje.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
+        <button type="submit"
+                class="btn btn-sm {% if eje.revisado %}btn-ghost{% else %}btn-primary{% endif %}"
+                style="width:100%;"
+                {% if eje.n_docs == 0 %}disabled title="Sin documentos para este eje"{% endif %}>
+          {% if eje.revisado %}↻ Re-revisar{% else %}Revisar eje{% endif %}
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Observaciones -->
 {% if proyecto.observaciones %}
 
