@@ -302,9 +302,6 @@ function actualizarEtiqueta(input) {
     <h2 style="margin:0; border:none; padding:0;">Revisión por ejes temáticos</h2>
     <span style="font-size:0.8rem; color:var(--text-2);">Cada eje cruza los documentos relacionados y los revisa en conjunto</span>
   </div>
-  {% if eje_ok and eje_ok in ejes_info|map(attribute='key')|list %}
-  <div class="alert alert-success" style="margin:0.5rem 0;">✅ Eje revisado. Revisa las observaciones generadas más abajo.</div>
-  {% endif %}
   {% if eje_sin_docs %}
   <div class="alert alert-error" style="margin:0.5rem 0;">⚠️ Ese eje no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
   {% endif %}
