@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
 from analyzer import (consultar_expediente, analizar_eje, chatear_eje, EJES_REVISION,
-                      EJES_ORDEN, _documentos_del_eje)
+                      EJES_ORDEN, _documentos_del_eje, MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -217,6 +217,16 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         proyecto.get("documentos", []),
         key=lambda d: TIPO_DOC_ORDEN.get(d.get("tipo_doc", "otro"), 50)
     )
+    # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
+    # Solo importa re-subir los que necesitan visión (escaneados/planos con poco texto);
+    # el resto ya tiene su texto extraído guardado y no requiere el archivo físico.
+    carpeta_proyecto = UPLOAD_DIR / proyecto_id
+    for doc in proyecto["documentos"]:
+        texto = doc.get("texto_extraido", "").strip()
+        doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO)
+        doc["archivo_presente"] = (carpeta_proyecto / doc.get("filename", "")).exists()
+    n_faltan_resubir = len([d for d in proyecto["documentos"]
+                            if d["necesita_archivo"] and not d["archivo_presente"]])
     # Construir info de ejes: cuántos documentos tiene disponible cada eje y si ya se revisó
     ejes_revisados = proyecto.get("ejes_revisados", {})
     eje_chats = proyecto.get("eje_chats", {})
@@ -241,6 +251,7 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         "concurso": concurso,
         "concurso_id": concurso_id,
         "ejes_info": ejes_info,
+        "n_faltan_resubir": n_faltan_resubir,
     })
 
 
