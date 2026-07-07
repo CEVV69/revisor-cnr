@@ -56,7 +56,7 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
         return MODELO_SONNET
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 2000   # Documentos simples
-MAX_TOKENS_SONNET = 6000   # Documentos complejos
+MAX_TOKENS_SONNET = 12000  # Documentos complejos — Sonnet 5 gasta parte del cupo en thinking
 MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
 
 # Páginas máximas para visión (PDFs escaneados / con imágenes)
@@ -559,6 +559,10 @@ DOCUMENTOS DEL EJE (texto):
             observaciones = data.get("observaciones", []) or []
         except Exception:
             observaciones = []
+
+    if not observaciones:
+        print(f"⚠️ Eje '{eje_key}': 0 observaciones — stop_reason={response.stop_reason}, "
+              f"content_len={len(content)}, preview={content[:200]!r}")
 
     return {"observaciones": observaciones, "docs_incluidos": docs_incluidos,
             "sin_documentos": False}
