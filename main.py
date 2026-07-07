@@ -340,6 +340,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
+            ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
     except Exception as e:
         import traceback

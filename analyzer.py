@@ -246,17 +246,32 @@ EJES_REVISION = {
         "emoji": "📐",
         "tipo_docs": ["memoria_superficies", "identificacion_riego", "planos_tecnificacion",
                       "planos_obras_civiles", "estudio_suelos", "antecedentes_legales"],
-        "checklist": """EJE SUPERFICIE — es la base de todo el proyecto.
-- Verifica coherencia entre la superficie declarada en la Memoria de Superficies, la
-  Identificación del área de riego y lo dibujado en los planos.
-- Distingue y valida: superficie física, superficie de riego ACTUAL, superficie de
-  NUEVO RIEGO, superficie tecnificada. Estas definen la escala y el monto bonificable.
-- La superficie de riego no puede exceder la capacidad de uso del suelo (estudio de suelos).
-- La superficie no puede exceder la superficie del título de dominio (antecedentes legales).
-- Si la superficie de nuevo riego o tecnificada no cuadra entre documentos, es observación mayor.
-- IMPORTANTE: si un antecedente (ej. título de dominio, regularización) está EN TRÁMITE y las
-  bases del concurso permiten postular en esa condición, NO es observación — es a lo sumo una
-  NOTA informativa recordando adjuntar el documento final. Revisa las bases antes de observar.""",
+        "checklist": """EJE SUPERFICIE — es la base técnica de todo el proyecto.
+El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Céntrate en:
+
+1. CÁLCULO DE LA SUPERFICIE (lo más importante):
+   - Revisa el método y los números de la Memoria de Cálculo de Superficies: cómo se obtuvo
+     cada superficie, coherencia geométrica (polígonos, coordenadas, sumatorias de cuarteles).
+   - Verifica que las sumas parciales cuadren con los totales declarados.
+   - La superficie de la memoria debe coincidir con la dibujada/acotada en los planos y con
+     la Identificación del área de riego.
+
+2. TIPOS DE SUPERFICIE — distíngue y valida cada una (son distintas y clave para el bono):
+   - Superficie física (predial total).
+   - Superficie de riego ACTUAL (la que ya se riega hoy).
+   - Superficie de NUEVO RIEGO (la que el proyecto incorpora) — revisa cómo se calculó, es
+     la que más incide en el monto bonificable.
+   - Superficie tecnificada / mejorada.
+   Si estos valores no cuadran entre memoria, planos e identificación de riego → observación mayor.
+
+3. CONSISTENCIA CON EL RESTO DEL PROYECTO:
+   - Esta superficie es el insumo del eje Agronómico (demanda) y del Presupuesto (costo/ha).
+   - La superficie de riego no debe exceder la capacidad de uso del suelo (estudio de suelos).
+
+4. TOPE LEGAL (verificación SECUNDARIA, no el foco):
+   - La superficie no debe exceder la del título de dominio. Si el título está EN TRÁMITE y las
+     bases lo permiten, NO es observación — a lo sumo una NOTA. No conviertas este eje en una
+     revisión legal; para eso está el eje Legal.""",
     },
     "agronomico": {
         "nombre": "Diseño Agronómico",
@@ -384,37 +399,76 @@ def _documentos_del_eje(eje_key: str, documentos: list) -> list:
     return [d for d in documentos if d.get("tipo_doc") in tipos]
 
 
+MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de eje, para controlar costo
+
+
 async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
                        concurso_id: str = "", feedback_concurso: list = None,
-                       tipo_revision: str = "tecnica") -> dict:
+                       tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Analiza un eje temático cruzando TODOS sus documentos en una sola llamada.
+    Usa texto extraído + VISIÓN para documentos escaneados/planos (si el archivo existe).
     Retorna dict: {observaciones: [...], docs_incluidos: [...], sin_documentos: bool}.
     """
+    import os as _os
     eje = EJES_REVISION.get(eje_key)
     if not eje:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     docs_eje = _documentos_del_eje(eje_key, documentos)
-    docs_con_texto = [d for d in docs_eje
-                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
 
-    if not docs_con_texto:
+    # Separar documentos con texto de documentos-imagen (escaneados / planos)
+    docs_texto  = []
+    docs_imagen = []   # (doc, filepath)
+    for d in docs_eje:
+        t = d.get("texto_extraido", "").strip()
+        es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
+        if (es_imagen and ruta_uploads and eje_key != "coherencia"
+                and d.get("filename", "").lower().endswith(".pdf")):
+            fp = _os.path.join(ruta_uploads, d["filename"])
+            if _os.path.exists(fp):
+                docs_imagen.append((d, fp))
+                continue
+        if t not in ("", "__PDF_ESCANEADO__"):
+            docs_texto.append(d)
+
+    if not docs_texto and not docs_imagen:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     client = _get_client()
 
-    # Presupuesto de caracteres por documento (repartido)
-    budget_por_doc = max(3000, MAX_CHARS_EJE_TOTAL // len(docs_con_texto))
-
+    # Bloque de texto de los documentos con texto (presupuesto repartido)
+    budget_por_doc = max(3000, MAX_CHARS_EJE_TOTAL // max(1, len(docs_texto)))
     bloque_docs = ""
     docs_incluidos = []
-    for d in docs_con_texto:
+    for d in docs_texto:
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
         texto = _truncar_inteligente(d.get("texto_extraido", ""), budget_por_doc)
         bloque_docs += f"\n\n{'─'*55}\nDOCUMENTO: {label}  ({d.get('nombre_original','')})\n{'─'*55}\n{texto}"
         docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
                                "label": label})
+
+    # Renderizar imágenes de los documentos escaneados/planos (con tope global)
+    from extractor import render_pdf_as_images
+    imagenes_por_doc = []
+    restante = MAX_IMG_EJE
+    for d, fp in docs_imagen:
+        if restante <= 0:
+            break
+        label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
+        try:
+            imgs = render_pdf_as_images(fp, max_pages=pags)
+        except Exception:
+            imgs = []
+        if imgs:
+            imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
+            restante -= len(imgs)
+            docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
+                                   "label": label + " (imagen)"})
+
+    if not bloque_docs and not imagenes_por_doc:
+        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
     bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], eje_key)
@@ -427,6 +481,12 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         bloque_bases = ""
 
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
+
+    nota_imagenes = ""
+    if imagenes_por_doc:
+        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
+        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
+                         f"(planos o escaneados) — analízalos visualmente: {nombres_img}")
 
     prompt = f"""{bloque_bases}{bloque_feedback}Realiza una REVISIÓN POR EJE TEMÁTICO del expediente CNR.
 
@@ -442,16 +502,26 @@ INSTRUCCIÓN CLAVE: Estás revisando VARIOS documentos complementarios juntos. T
 detectar problemas del eje considerando la RELACIÓN entre ellos, no cada uno por separado.
 Presta especial atención a incoherencias entre documentos. Aplica el criterio de las tres
 preguntas (¿funciona?, ¿precios razonables?, ¿diseño con lógica?) y la regla de oro
-(ante la duda, no observar; máx ~10-15 observaciones).
+(ante la duda, no observar; máx ~10-15 observaciones).{nota_imagenes}
 
-DOCUMENTOS DEL EJE:
-{bloque_docs}"""
+DOCUMENTOS DEL EJE (texto):
+{bloque_docs if bloque_docs else '(Los documentos de este eje se adjuntan como imágenes más abajo.)'}"""
+
+    # Construir contenido: texto + imágenes de los documentos escaneados/planos
+    content_blocks = [{"type": "text", "text": prompt}]
+    for label, nombre, imgs in imagenes_por_doc:
+        content_blocks.append({"type": "text",
+                               "text": f"\n═══ IMÁGENES: {label} ({nombre}) ═══"})
+        for b64 in imgs:
+            content_blocks.append({"type": "image",
+                                   "source": {"type": "base64", "media_type": "image/jpeg",
+                                              "data": b64}})
 
     response = client.messages.create(
         model=MODELO_SONNET,
         max_tokens=MAX_TOKENS_SONNET,
         system=system_con_cache,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content_blocks}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
 

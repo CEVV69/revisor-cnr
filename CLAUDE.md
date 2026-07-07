@@ -167,6 +167,12 @@ devuelve observaciones tageadas con `eje`. Ruta `POST /proyecto/{id}/revisar-eje
 UI: panel de 9 ejes en `proyecto.html` bajo la tabla de documentos. Las obs de eje se guardan
 con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
 
+**Visión en ejes:** `analizar_eje` usa texto extraído + IMÁGENES para documentos escaneados/planos
+(los que no tienen texto). Renderiza páginas con `render_pdf_as_images` (tope global `MAX_IMG_EJE=10`)
+y las envía como bloques de imagen. Requiere que el archivo físico exista (`ruta_uploads`); como los
+uploads NO persisten entre deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión
+actual. El eje Coherencia es solo texto (no visión, por costo).
+
 **Chat de refinamiento por eje (implementado):** `chatear_eje()` en `analyzer.py`, ruta
 `POST /proyecto/{id}/eje/{eje_key}/chat`. El historial se guarda en `proyecto["eje_chats"][eje_key]`
 (lista de `{rol: revisor|ia, texto, fecha}`, últimos 40 turnos). UI: sección "💬 Debatir con la IA"
