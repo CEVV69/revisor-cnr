@@ -18,8 +18,8 @@ from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
-from analyzer import (consultar_expediente, analizar_eje, EJES_REVISION, EJES_ORDEN,
-                      _documentos_del_eje)
+from analyzer import (consultar_expediente, analizar_eje, chatear_eje, EJES_REVISION,
+                      EJES_ORDEN, _documentos_del_eje)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -219,6 +219,7 @@ async def ver_proyecto(request: Request, proyecto_id: str):
     )
     # Construir info de ejes: cuántos documentos tiene disponible cada eje y si ya se revisó
     ejes_revisados = proyecto.get("ejes_revisados", {})
+    eje_chats = proyecto.get("eje_chats", {})
     ejes_info = []
     for eje_key in EJES_ORDEN:
         eje = EJES_REVISION[eje_key]
@@ -231,6 +232,7 @@ async def ver_proyecto(request: Request, proyecto_id: str):
             "emoji": eje["emoji"],
             "n_docs": n_docs,
             "revisado": ejes_revisados.get(eje_key),
+            "chat": eje_chats.get(eje_key, []),
         })
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
@@ -382,6 +384,54 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
     db.save_proyecto(proyecto)
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
+async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
+                   mensaje: str = Form(...)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    if eje_key not in EJES_REVISION:
+        raise HTTPException(status_code=404, detail="Eje no válido")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    mensaje = (mensaje or "").strip()
+    if not mensaje:
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
+
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
+    bases_texto = concurso.get("bases_texto", "") if concurso else ""
+
+    observaciones_eje = [o for o in proyecto.get("observaciones", []) if o.get("eje") == eje_key]
+    proyecto.setdefault("eje_chats", {})
+    historial = proyecto["eje_chats"].get(eje_key, [])
+
+    try:
+        respuesta = await chatear_eje(
+            eje_key=eje_key,
+            documentos=proyecto.get("documentos", []),
+            observaciones_eje=observaciones_eje,
+            historial=historial,
+            mensaje=mensaje,
+            bases_texto=bases_texto,
+            concurso_id=concurso_id,
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en chat_eje {eje_key}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
+
+    historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
+    historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
+    proyecto["eje_chats"][eje_key] = historial[-40:]   # conservar últimos 40 turnos
+    db.save_proyecto(proyecto)
+
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
 
 
 # ─── Subida ZIP ───────────────────────────────────────────────────────────────

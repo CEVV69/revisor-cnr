@@ -167,7 +167,13 @@ devuelve observaciones tageadas con `eje`. Ruta `POST /proyecto/{id}/revisar-eje
 UI: panel de 9 ejes en `proyecto.html` bajo la tabla de documentos. Las obs de eje se guardan
 con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
 
-**Pendiente:** (1) chat de refinamiento por eje; (2) consolidación de aprendizaje por eje.
+**Chat de refinamiento por eje (implementado):** `chatear_eje()` en `analyzer.py`, ruta
+`POST /proyecto/{id}/eje/{eje_key}/chat`. El historial se guarda en `proyecto["eje_chats"][eje_key]`
+(lista de `{rol: revisor|ia, texto, fecha}`, últimos 40 turnos). UI: sección "💬 Debatir con la IA"
+con un `<details>` por eje revisado. La IA responde con contexto del eje (documentos + observaciones
+actuales + bases). Aún NO modifica observaciones automáticamente — el revisor edita/descarta a mano.
+
+**Pendiente:** consolidación de aprendizaje por eje (destilar feedback en criterios).
 
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |

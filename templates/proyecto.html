@@ -340,6 +340,47 @@ function actualizarEtiqueta(input) {
     {% endfor %}
   </div>
 </div>
+
+<!-- Debate con la IA por eje -->
+{% set ejes_revisados_list = ejes_info|selectattr('revisado')|list %}
+{% if ejes_revisados_list %}
+<div class="card">
+  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">💬 Debatir con la IA</h2>
+  <p style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.75rem;">
+    Discute las observaciones de cada eje: aclara, corrige, o pídele reclasificar una
+    observación a nota. La IA responde con el contexto completo del eje.
+  </p>
+  {% for eje in ejes_revisados_list %}
+  <details id="chat-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if request.query_params.get('eje_ok') == eje.key %}open{% endif %}>
+    <summary style="cursor:pointer; padding:0.7rem 0.9rem; font-weight:600; font-size:0.9rem; user-select:none;">
+      {{ eje.emoji }} {{ eje.nombre }}
+      {% if eje.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (eje.chat|length / 2)|int }} mensaje{{ 's' if (eje.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
+    </summary>
+    <div style="padding:0 0.9rem 0.9rem;">
+      {% if eje.chat %}
+      <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem;">
+        {% for msg in eje.chat %}
+        <div style="max-width:85%; padding:0.55rem 0.75rem; border-radius:10px; font-size:0.86rem; line-height:1.5; white-space:pre-wrap;
+          {% if msg.rol == 'revisor' %}align-self:flex-end; background:var(--blue); color:#fff;
+          {% else %}align-self:flex-start; background:rgba(128,128,128,0.12); color:var(--text);{% endif %}">{{ msg.texto }}</div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="font-size:0.82rem; color:var(--text-2); margin:0.5rem 0 0.75rem;">
+        Aún no hay conversación en este eje. Escribe tu primera consulta.
+      </p>
+      {% endif %}
+      <form method="post" action="/proyecto/{{ proyecto.id }}/eje/{{ eje.key }}/chat"
+            style="display:flex; gap:0.5rem; align-items:flex-end;">
+        <textarea name="mensaje" rows="2" required placeholder="Ej: La observación 1 es sobre un título en trámite que las bases permiten. ¿No debería ser una nota?"
+          style="flex:1; padding:0.5rem 0.7rem; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-size:0.86rem; resize:vertical;"></textarea>
+        <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">Enviar</button>
+      </form>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
 {% endif %}
 
 <!-- Observaciones -->

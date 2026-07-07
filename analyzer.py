@@ -480,6 +480,82 @@ DOCUMENTOS DEL EJE:
             "sin_documentos": False}
 
 
+async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
+                      historial: list, mensaje: str, bases_texto: str = "",
+                      concurso_id: str = "") -> str:
+    """
+    Chat de refinamiento sobre un eje ya revisado. El revisor debate una observación
+    y la IA responde con el contexto completo del eje (documentos + observaciones + bases).
+    """
+    eje = EJES_REVISION.get(eje_key)
+    if not eje:
+        return "Eje no válido."
+
+    client = _get_client()
+
+    # Contexto de documentos del eje (presupuesto acotado para controlar costo)
+    docs_eje = _documentos_del_eje(eje_key, documentos)
+    docs_con_texto = [d for d in docs_eje
+                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    budget = max(2500, 25000 // max(1, len(docs_con_texto)))
+    bloque_docs = ""
+    for d in docs_con_texto:
+        label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        bloque_docs += f"\n\n--- {label} ({d.get('nombre_original','')}) ---\n{_truncar_inteligente(d.get('texto_extraido',''), budget)}"
+
+    # Observaciones actuales del eje
+    bloque_obs = ""
+    for i, o in enumerate(observaciones_eje, 1):
+        bloque_obs += f"\n[{i}] ({o.get('severidad','')}) {o.get('texto','')}"
+    if not bloque_obs:
+        bloque_obs = "\n(No hay observaciones registradas para este eje todavía.)"
+
+    bloque_bases = _construir_bloque_bases(bases_texto, concurso_id)
+    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral"}}]
+    if bloque_bases.strip():
+        system_con_cache.append({"type": "text", "text": bloque_bases,
+                                 "cache_control": {"type": "ephemeral"}})
+
+    # Reconstruir la conversación previa como turnos
+    mensajes = []
+    contexto_inicial = f"""Estás asistiendo a un revisor CNR en el eje de revisión "{eje['nombre']}".
+Ya realizaste una revisión de este eje. Ahora el revisor quiere DEBATIR contigo las
+observaciones: aclarar, corregir, reclasificar (ej. bajar una observación a nota si las
+bases lo permiten) o profundizar en un punto técnico.
+
+{eje['checklist']}
+
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles.
+
+DOCUMENTOS DEL EJE:{bloque_docs}
+
+OBSERVACIONES ACTUALES DEL EJE:{bloque_obs}
+
+Responde de forma directa y práctica. Si el revisor tiene razón (ej. un antecedente en
+trámite que las bases permiten), reconócelo y sugiere la acción concreta (descartar la
+observación, bajarla a nota, o editarla). Si mantienes tu criterio, explica por qué con
+fundamento normativo. Sé breve y concreto."""
+
+    mensajes.append({"role": "user", "content": contexto_inicial})
+    mensajes.append({"role": "assistant", "content": "Entendido. Dime qué observación quieres revisar o qué duda tienes sobre este eje."})
+
+    for turno in historial[-10:]:   # últimos 10 turnos para acotar tokens
+        rol = "user" if turno.get("rol") == "revisor" else "assistant"
+        mensajes.append({"role": rol, "content": turno.get("texto", "")})
+
+    mensajes.append({"role": "user", "content": mensaje})
+
+    response = client.messages.create(
+        model=MODELO_SONNET,
+        max_tokens=1200,
+        system=system_con_cache,
+        messages=mensajes,
+        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+    )
+    return response.content[0].text
+
+
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
 
 
