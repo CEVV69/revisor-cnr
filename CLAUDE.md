@@ -5,6 +5,23 @@ Guía para Claude (Claude Code, claude.ai/code o chat web) al trabajar en este r
 
 ---
 
+## ⚠️ SINCRONIZACIÓN — OBLIGATORIO (léelo primero)
+
+El usuario trabaja este proyecto desde DOS lugares (su Mac en casa y `claude.ai/code` en la
+oficina). Para que nunca se pierda ni se pise trabajo, TODA sesión de Claude debe:
+
+1. **AL EMPEZAR:** hacer `git pull` como primer paso, ANTES de leer o editar nada más.
+   Así se baja lo que haya hecho el otro entorno. (En `claude.ai/code` el repo suele venir
+   ya actualizado, pero igual verifica el último commit.)
+2. **AL TERMINAR cada cambio:** hacer `git add` + `git commit` + `git push` para subir todo
+   a GitHub. Nunca dejar cambios sin pushear al cerrar la sesión.
+
+El usuario NO ejecuta comandos git — los ejecuta Claude. El usuario no necesita pedirlo:
+es el comportamiento por defecto en cada sesión. Si hay decisiones de fondo, anótalas en
+este CLAUDE.md y súbelas, para que el otro entorno las lea.
+
+---
+
 ## Qué hace este proyecto
 
 **Revisor CNR** es una app web para los revisores de la Comisión Nacional de Riego (CNR)
