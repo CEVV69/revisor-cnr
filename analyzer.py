@@ -34,6 +34,20 @@ DOCS_COMPLEJOS = {
     "estudios_complementarios",# Variable — mejor Sonnet por precaución
 }
 
+def _texto_respuesta(response) -> str:
+    """
+    Extrae el texto de la respuesta de Claude. Sonnet 5 puede incluir bloques de
+    'thinking' antes del texto, así que no se puede asumir content[0].text.
+    """
+    partes = []
+    for bloque in response.content:
+        if getattr(bloque, "type", None) == "text":
+            partes.append(bloque.text)
+        elif hasattr(bloque, "text"):
+            partes.append(bloque.text)
+    return "\n".join(partes).strip()
+
+
 def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
     """Elige el modelo según complejidad del documento."""
     if tipo_doc in DOCS_FORZAR_HAIKU:
@@ -525,7 +539,7 @@ DOCUMENTOS DEL EJE (texto):
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
 
-    content = response.content[0].text
+    content = _texto_respuesta(response)
     observaciones = []
     try:
         start = content.find("{")
@@ -623,7 +637,7 @@ fundamento normativo. Sé breve y concreto."""
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    return response.content[0].text
+    return _texto_respuesta(response)
 
 
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
@@ -749,4 +763,4 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    return response.content[0].text
+    return _texto_respuesta(response)
