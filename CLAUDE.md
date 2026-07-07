@@ -139,9 +139,10 @@ Tres preguntas guía antes de observar:
 
 ## Funcionalidades implementadas ✅
 
-- Subida PDF/Word/Excel/ZIP → extracción → análisis → observaciones JSON
-- Re-análisis de un documento (limpia sus obs anteriores, verifica existencia del archivo)
-- **🗑 Limpiar revisión** — borra obs/notas/estado de análisis, conserva los archivos
+- Subida PDF/Word/Excel/ZIP → extracción → clasificación por anexo
+- **Revisión por EJES TEMÁTICOS** (método único — ver abajo). El análisis documento-por-documento
+  fue eliminado de raíz (ruta, funciones y UI removidas).
+- **🗑 Limpiar revisión** — borra obs/notas/estado, conserva los archivos
 - Bases del concurso (admin `/admin/concursos`): subir PDF → extrae texto → se cachea
 - Feedback del revisor (aprobar/descartar) → aprendizaje
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
@@ -153,16 +154,20 @@ Tres preguntas guía antes de observar:
 
 ---
 
-## 🚧 Rediseño en curso: revisión por EJES TEMÁTICOS
+## Revisión por EJES TEMÁTICOS (método único)
 
-**Problema que resuelve:** revisar documento por documento es erróneo porque los documentos
+**Problema que resuelve:** revisar documento por documento era erróneo porque los documentos
 son complementarios (el agronómico define la demanda que el hidráulico satisface; el plano
 debe reflejar el diseño; el presupuesto debe cuadrar con las obras). Evaluarlos aislados
-genera falsas observaciones.
+generaba falsas observaciones. Ese método fue **eliminado**.
 
-**Enfoque acordado:** rutas de revisión por eje (columna vertebral) + chat de refinamiento
-por eje (interacción humana). Cada eje cruza TODOS los documentos pertinentes con un
-checklist fijo, produce observaciones, y luego permite un chat para corregir/profundizar.
+**Implementado (backbone):** `EJES_REVISION` en `analyzer.py` define los 9 ejes (tipo_docs +
+checklist). `analizar_eje()` cruza TODOS los documentos del eje en UNA llamada a Sonnet y
+devuelve observaciones tageadas con `eje`. Ruta `POST /proyecto/{id}/revisar-eje/{eje_key}`.
+UI: panel de 9 ejes en `proyecto.html` bajo la tabla de documentos. Las obs de eje se guardan
+con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
+
+**Pendiente:** (1) chat de refinamiento por eje; (2) consolidación de aprendizaje por eje.
 
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |

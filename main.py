@@ -18,8 +18,8 @@ from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
-from analyzer import (analyze_document, consultar_expediente, revisar_observaciones_previas,
-                      analizar_eje, EJES_REVISION, EJES_ORDEN, _documentos_del_eje)
+from analyzer import (consultar_expediente, analizar_eje, EJES_REVISION, EJES_ORDEN,
+                      _documentos_del_eje)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -306,81 +306,6 @@ async def subir_documento(
     }
 
     proyecto["documentos"].append(doc)
-    db.save_proyecto(proyecto)
-
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
-
-
-@app.post("/proyecto/{proyecto_id}/analizar/{doc_id}")
-async def analizar_documento(request: Request, proyecto_id: str, doc_id: str):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
-
-    proyecto = db.get_proyecto(proyecto_id)
-    doc = next((d for d in proyecto["documentos"] if d["id"] == doc_id), None)
-    if not doc:
-        raise HTTPException(status_code=404)
-
-    # Cargar bases y feedback del concurso
-    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
-    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
-    feedback_concurso = concurso.get("feedback", [])   if concurso else []
-
-    # Si es re-análisis, eliminar observaciones anteriores de este documento
-    proyecto["observaciones"] = [
-        o for o in proyecto.get("observaciones", [])
-        if o.get("doc_id") != doc_id
-    ]
-    doc["analizado"] = False  # resetear para que quede True al terminar
-
-    # Filepath solo si el archivo existe físicamente (puede haberse perdido en redeploy)
-    filepath_local = UPLOAD_DIR / proyecto_id / doc["filename"]
-    filepath_str = str(filepath_local) if filepath_local.exists() else None
-
-    # Analizar con Claude — incluye contexto de todos los documentos del proyecto
-    observaciones = await analyze_document(
-        texto=doc["texto_extraido"],
-        tipo_doc=doc["tipo_doc"],
-        tipo_revision=proyecto["tipo_revision"],
-        nombre_doc=doc["nombre_original"],
-        filepath=filepath_str,
-        doc_id=doc_id,
-        todos_documentos=proyecto.get("documentos", []),
-        bases_texto=bases_texto,
-        concurso_id=concurso_id,
-        feedback_concurso=feedback_concurso,
-    )
-
-    # Guardar nuevas observaciones
-    for obs in observaciones:
-        obs["id"] = str(uuid.uuid4())[:8]
-        obs["doc_id"] = doc_id
-        obs["doc_nombre"] = doc["nombre_original"]
-        obs["fecha"] = datetime.now().isoformat()
-        obs["estado"] = "pendiente"
-        proyecto["observaciones"].append(obs)
-
-    doc["analizado"] = True
-
-    # Revisar si este documento invalida observaciones previas de otros documentos
-    obs_previas_pendientes = [
-        o for o in proyecto["observaciones"]
-        if o.get("estado") == "pendiente" and o.get("doc_id") != doc_id
-    ]
-    if obs_previas_pendientes:
-        ids_invalidadas = await revisar_observaciones_previas(
-            texto_nuevo=doc["texto_extraido"],
-            nombre_doc_nuevo=doc["nombre_original"],
-            tipo_doc_nuevo=doc["tipo_doc"],
-            observaciones_previas=obs_previas_pendientes
-        )
-        for obs in proyecto["observaciones"]:
-            if obs["id"] in ids_invalidadas:
-                obs["estado"] = "descartada"
-                obs["texto"] = obs["texto"] + f'\n\n[Auto-descartada: resuelta por {doc["nombre_original"]}]'
-
     db.save_proyecto(proyecto)
 
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)

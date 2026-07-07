@@ -220,17 +220,11 @@ function actualizarEtiqueta(input) {
 
 <!-- Documentos -->
 {% if proyecto.documentos %}
-{% set docs_analizados = proyecto.documentos|selectattr("analizado")|list %}
-{% set docs_pendientes = proyecto.documentos|rejectattr("analizado")|list %}
 <div class="card" style="overflow-x:auto;">
   <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem;">
     <h2 style="margin:0; border:none; padding:0;">Documentos del expediente</h2>
     <span style="font-size:0.82rem; color:var(--text-2);">
-      <strong style="color:var(--text);">{{ proyecto.documentos|length }}</strong> total
-      &nbsp;·&nbsp;
-      <strong style="color:#276749;">{{ docs_analizados|length }}</strong> analizados
-      &nbsp;·&nbsp;
-      <strong style="color:#c05621;">{{ docs_pendientes|length }}</strong> pendientes
+      <strong style="color:var(--text);">{{ proyecto.documentos|length }}</strong> documento{{ 's' if proyecto.documentos|length != 1 else '' }}
     </span>
   </div>
   <table style="min-width:600px; font-size:0.82rem;">
@@ -239,7 +233,6 @@ function actualizarEtiqueta(input) {
         <th>Archivo</th>
         <th>Anexo / Tipo</th>
         <th style="white-space:nowrap;">Fecha</th>
-        <th>Estado</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -252,9 +245,6 @@ function actualizarEtiqueta(input) {
              style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
         </td>
         <td style="max-width:200px;">
-          {% if doc.analizado %}
-            <span class="text-muted" style="font-size:0.8rem;">{{ doc.tipo_doc_label if doc.tipo_doc_label else doc.tipo_doc.replace('_',' ').title() }}</span>
-          {% else %}
             <select onchange="cambiarTipo('{{ proyecto.id }}','{{ doc.id }}',this)"
                     style="width:100%;font-size:0.76rem;padding:0.25rem 0.4rem;border-radius:6px;border:1px solid rgba(0,0,0,0.14);background:var(--surface);color:var(--text);font-family:inherit;">
               <optgroup label="Tecnificación — Anexos SEP">
@@ -287,23 +277,9 @@ function actualizarEtiqueta(input) {
                 <option value="otro" {% if doc.tipo_doc=='otro' %}selected{% endif %}>Otro documento</option>
               </optgroup>
             </select>
-          {% endif %}
         </td>
         <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida[8:10] }}-{{ doc.fecha_subida[5:7] }}-{{ doc.fecha_subida[:4] }}</td>
-        <td>
-          {% if doc.analizado %}
-            <span class="badge badge-tecnica">Analizado</span>
-          {% else %}
-            <span class="badge badge-administrativa">Pendiente</span>
-          {% endif %}
-        </td>
         <td style="white-space:nowrap;">
-          <form method="post" action="/proyecto/{{ proyecto.id }}/analizar/{{ doc.id }}" style="display:inline"
-                {% if doc.analizado %}onsubmit="return confirm('¿Re-analizar este documento? Las observaciones anteriores serán reemplazadas.')"{% endif %}>
-            <button type="submit" class="btn btn-sm {% if doc.analizado %}btn-ghost{% else %}btn-success{% endif %}">
-              {% if doc.analizado %}↻ Re-analizar{% else %}Analizar IA{% endif %}
-            </button>
-          </form>
           <form method="post" action="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar"
                 style="display:inline"
                 onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
