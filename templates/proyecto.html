@@ -317,7 +317,7 @@ function actualizarEtiqueta(input) {
         <span style="font-size:1.2rem;">{{ eje.emoji }}</span>
         <strong style="font-size:0.9rem; flex:1;">{{ eje.nombre }}</strong>
         {% if eje.revisado %}
-        <span class="badge badge-tecnica" title="Revisado">✓ {{ eje.revisado.n_obs }} obs</span>
+        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">✓ {{ eje.revisado.n_obs }} obs{% if eje.revisado.n_notas %} · {{ eje.revisado.n_notas }} nota{{ 's' if eje.revisado.n_notas != 1 else '' }}{% endif %}</span>
         {% endif %}
       </div>
       <div style="font-size:0.76rem; color:var(--text-2);">
@@ -385,9 +385,10 @@ function actualizarEtiqueta(input) {
     </div>
 
     <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
-      <textarea name="texto_editado" rows="3"
+      <textarea name="texto_editado" rows="3" class="auto-expand"
         style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
-               font-size:0.88rem; margin-bottom:0.5rem; box-sizing:border-box; resize:vertical;">{{ obs.texto }}</textarea>
+               font-size:0.88rem; line-height:1.5; margin-bottom:0.5rem; box-sizing:border-box;
+               resize:vertical; overflow:hidden;">{{ obs.texto }}</textarea>
       {% if obs.referencia_normativa %}
       <p class="text-muted" style="margin-bottom:0.5rem; font-size:0.82rem;">
         📋 Ref. normativa: {{ obs.referencia_normativa }}
@@ -408,7 +409,7 @@ function actualizarEtiqueta(input) {
 {% if obs_informativas %}
 <div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
   <h2 style="color:#2b6cb0;">💡 Notas para el revisor ({{ obs_informativas|length }})</h2>
-  <p class="text-muted" style="margin-bottom:0.75rem; font-size:0.85rem;">
+  <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#4a5568;">
     Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
     No se incluyen en la ficha de revisión oficial.
   </p>
@@ -418,12 +419,13 @@ function actualizarEtiqueta(input) {
     <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
       <span class="badge badge-informativa">informativa</span>
       <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
-      <span class="text-muted" style="font-size:0.78rem;">{{ obs.doc_nombre }}</span>
+      <span style="font-size:0.78rem; color:#4a5568;">{{ obs.doc_nombre }}</span>
     </div>
     <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
-      <textarea name="texto_editado" rows="2"
-        style="width:100%; padding:0.4rem 0.6rem; border:1px solid #bee3f8; border-radius:6px;
-               font-size:0.85rem; margin-bottom:0.4rem; box-sizing:border-box; resize:vertical; background:#f7faff;">{{ obs.texto }}</textarea>
+      <textarea name="texto_editado" rows="2" class="auto-expand"
+        style="width:100%; padding:0.5rem 0.6rem; border:1px solid #bee3f8; border-radius:6px;
+               font-size:0.85rem; line-height:1.5; margin-bottom:0.4rem; box-sizing:border-box;
+               resize:vertical; overflow:hidden; background:#ffffff; color:#1a365d;">{{ obs.texto }}</textarea>
       {% if obs.referencia_normativa %}
       <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">📋 {{ obs.referencia_normativa }}</p>
       {% endif %}
@@ -466,5 +468,17 @@ function cambiarTipo(proyectoId, docId, select) {
     })
     .catch(() => { select.style.borderColor = '#ff3b30'; });
 }
+
+// Auto-expandir textareas de observaciones/notas para mostrar el texto completo
+function autoExpand(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight + 2) + 'px';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('textarea.auto-expand').forEach(function(t) {
+    autoExpand(t);
+    t.addEventListener('input', function() { autoExpand(t); });
+  });
+});
 </script>
 {% endblock %}

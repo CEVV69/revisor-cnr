@@ -253,7 +253,10 @@ EJES_REVISION = {
   NUEVO RIEGO, superficie tecnificada. Estas definen la escala y el monto bonificable.
 - La superficie de riego no puede exceder la capacidad de uso del suelo (estudio de suelos).
 - La superficie no puede exceder la superficie del título de dominio (antecedentes legales).
-- Si la superficie de nuevo riego o tecnificada no cuadra entre documentos, es observación mayor.""",
+- Si la superficie de nuevo riego o tecnificada no cuadra entre documentos, es observación mayor.
+- IMPORTANTE: si un antecedente (ej. título de dominio, regularización) está EN TRÁMITE y las
+  bases del concurso permiten postular en esa condición, NO es observación — es a lo sumo una
+  NOTA informativa recordando adjuntar el documento final. Revisa las bases antes de observar.""",
     },
     "agronomico": {
         "nombre": "Diseño Agronómico",
@@ -338,7 +341,10 @@ EJES_REVISION = {
 - Títulos de dominio vigentes y concordantes con la superficie.
 - Estrato del postulante (IL-10), F22 con códigos SII correctos.
 - OUA: acta de asamblea, poder del representante, listado de beneficiarios (FL-07).
-- Consultor habilitado en Registro MOP.""",
+- Consultor habilitado en Registro MOP.
+- IMPORTANTE: documentos EN TRÁMITE (títulos, regularización de derechos, etc.) que las bases
+  del concurso permiten postular en esa condición NO son observación — a lo sumo NOTA informativa.
+  Verifica siempre lo que permiten las bases antes de marcar un antecedente en trámite.""",
     },
     "coherencia": {
         "nombre": "Coherencia Global",

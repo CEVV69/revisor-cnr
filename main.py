@@ -367,11 +367,15 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
         obs["estado"] = "pendiente"
         proyecto["observaciones"].append(obs)
 
-    # Registrar qué ejes se han revisado
+    # Registrar qué ejes se han revisado (contando obs y notas por separado)
+    obs_generadas = resultado.get("observaciones", [])
+    n_notas = len([o for o in obs_generadas if o.get("severidad") == "informativa"])
+    n_obs   = len(obs_generadas) - n_notas
     proyecto.setdefault("ejes_revisados", {})
     proyecto["ejes_revisados"][eje_key] = {
         "fecha": datetime.now().isoformat(),
-        "n_obs": len(resultado.get("observaciones", [])),
+        "n_obs": n_obs,
+        "n_notas": n_notas,
         "docs": [d["label"] for d in docs_incluidos],
     }
 
