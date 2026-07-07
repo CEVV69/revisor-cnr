@@ -15,8 +15,8 @@ NORMATIVA_DIR = BASE_DIR / "normativa"
 
 # ─── Modelo y configuración de costos ─────────────────────────────────────────
 # Modelos disponibles en esta cuenta (confirmado)
-MODELO_SONNET = "claude-sonnet-4-5"   # Análisis complejos (~5× más barato que Opus)
-MODELO_HAIKU  = "claude-haiku-4-5"    # Documentos simples (~18× más barato que Opus)
+MODELO_SONNET = "claude-sonnet-5"     # Revisión por ejes, chat y consultas (última generación)
+MODELO_HAIKU  = "claude-haiku-4-5"    # Reservado para tareas simples (actualmente sin uso activo)
 
 # Tipos de documento que requieren mayor capacidad analítica
 DOCS_COMPLEJOS = {
