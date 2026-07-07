@@ -226,11 +226,19 @@ function actualizarEtiqueta(input) {
     <span style="font-size:0.82rem; color:var(--text-2);">
       <strong style="color:var(--text);">{{ proyecto.documentos|length }}</strong> documento{{ 's' if proyecto.documentos|length != 1 else '' }}
     </span>
+    {% if n_faltan_resubir > 0 %}
+    <span style="font-size:0.82rem; color:#c0392b; font-weight:600;">
+      🔴 {{ n_faltan_resubir }} documento{{ 's' if n_faltan_resubir != 1 else '' }} necesita{{ 'n' if n_faltan_resubir != 1 else '' }} que lo resubas
+    </span>
+    {% else %}
+    <span style="font-size:0.82rem; color:#2e7d32;">🟢 No hace falta resubir nada</span>
+    {% endif %}
   </div>
   <table style="min-width:600px; font-size:0.82rem;">
     <thead>
       <tr>
         <th>Archivo</th>
+        <th style="white-space:nowrap;">¿Hay que resubir?</th>
         <th>Anexo / Tipo</th>
         <th style="white-space:nowrap;">Fecha</th>
         <th>Acciones</th>
@@ -243,6 +251,15 @@ function actualizarEtiqueta(input) {
           <a href="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/ver"
              target="_blank" title="Ver documento"
              style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
+        </td>
+        <td style="white-space:nowrap; font-size:0.78rem;">
+          {% if doc.archivo_presente %}
+            <span title="El archivo sigue en el servidor">🟢 Está</span>
+          {% elif doc.necesita_archivo %}
+            <span style="color:#c0392b; font-weight:600;" title="Es plano o escaneado: sin este archivo no se puede analizar visualmente">🔴 Sí, resubir</span>
+          {% else %}
+            <span class="text-muted" title="Ya tiene texto guardado: no hace falta resubirlo">⚪ No hace falta</span>
+          {% endif %}
         </td>
         <td style="max-width:200px;">
             <select onchange="cambiarTipo('{{ proyecto.id }}','{{ doc.id }}',this)"
