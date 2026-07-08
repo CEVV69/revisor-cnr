@@ -1,0 +1,58 @@
+CRITERIOS DE REVISIÓN — OBRAS DE TECNIFICACIÓN (Manual e Instructivo Técnico ITT, CNR)
+Base para revisar proyectos de tecnificación bajo la Ley 18.450. Complementa DT y demás normativa.
+
+1. EFICIENCIAS DE APLICACIÓN POR MÉTODO (ITT-02, Tabla 1)
+La eficiencia declarada en el diseño agronómico/hidráulico debe corresponder al método:
+- Goteo: 90 %
+- Microaspersión / Microjet: 85 %
+- Aspersión: 75 %
+- Borboteo: 70 %
+- Surcos: 45 %
+- Tendido: 30 %
+Si el proyecto declara una eficiencia distinta a la del método sin justificar, observar.
+
+2. LÍMITE DE GASTOS GENERALES E INDIRECTOS (ITT-04, §3.2)
+(Gastos Generales + Imprevistos + Estudio/Diseño + ITO) / Costo Total (sin IVA) ≤ 15 %.
+Si la suma de esos ítems supera el 15 % del costo total, observar (sobreprecio indirecto).
+
+3. HONORARIOS MÁXIMOS DEL CONSULTOR (ITT-04, §2.6-2.7)
+Verificar que los honorarios de diseño e instalación no excedan los topes:
+- Diseño goteo/microasp/microjet/cinta: $900.000 hasta 10 ha; + $90.000/ha sobre 10 ha.
+- Diseño aspersión móvil/cobertura total: $600.000 hasta 10 ha; + $60.000/ha sobre 10 ha.
+- Diseño máquinas de riego (pivote/avance frontal/carrete/side-roll): $800.000 fijo.
+- Tope absoluto de honorarios del consultor: $4.000.000 por proyecto.
+- Instalación goteo/microasp/microjet/cinta: $1.000.000 hasta 5 ha; + $200.000/ha sobre 5 ha.
+Montos en pesos chilenos. Si se exceden, observar.
+
+4. UNIDADES DE MEDIDA DEL PRESUPUESTO CNR (ITT-04, ejemplo presupuesto detallado)
+El presupuesto debe usar las unidades correctas por ítem:
+- Tuberías PVC/PE de conducción (red hidráulica): "Tiras 6 m" (no metros lineales).
+- Líneas de riego (goteo, cinta, polietileno): metros (m).
+- Fittings/accesorios grupales: Global (GL).
+- Válvulas individuales (bola, mariposa, retención, pie, aire): Unidad.
+- Programador/automatización, bomba, filtro, tablero, caudalímetro, equipo de fertirriego: Unidad.
+- Alambre eléctrico y conduit de FV: metros (m). Conduit matriz: Tiras 6 m.
+- Letrero CNR (IL-08): Global (ítem obligatorio en el presupuesto).
+- Instalación (mano de obra): Global.
+Unidades incoherentes o ítems obligatorios ausentes (ej. letrero IL-08): observar.
+
+5. SISTEMA FOTOVOLTAICO — ÍTEMS ESPERADOS EN EL PRESUPUESTO
+Paneles (U), Inversor/VFD (U), Cable DC (m), Cable AC (m), Estructura de montaje (Global),
+Tablero DC/combiner (U), DPS DC (U), DPS AC (U), Puesta a tierra (Global),
+Conduit + fittings (m), Instalación (Global). Si falta un componente esencial, observar.
+
+6. PRECIOS UNITARIOS DE EXCAVACIÓN DE ZANJAS (referencia DT-18, mín.–máx.)
+- Excavación a máquina (semi-duro): $3.208 – $3.686 /m³
+- Excavación a mano (semi-blando): $9.716 – $10.419 /m³
+- Excavación a mano (semi-duro): $17.490 – $18.753 /m³
+- Relleno común compactado: $5.849 – $6.339 /m³
+Precios fuera de estos rangos (sin justificación) sugieren sobreprecio o subvaloración.
+
+7. EVAPOTRANSPIRACIÓN DE REFERENCIA POR ZONA (FT-04 CNR/Agrimed) — orientativo
+ETo de los meses críticos (Dic/Ene/Feb) varía por zona (I a XVI). El diseño agronómico debe
+usar valores de ETo/ETp coherentes con la zona del proyecto; valores muy fuera de rango,
+observar y pedir justificación.
+
+NOTA: Estos criterios son un extracto destilado del Manual y del Instructivo Técnico de Obras
+de Tecnificación para guiar la revisión sin cargar los documentos completos. Ante discrepancia,
+prevalece el texto oficial del Manual/Instructivo y las bases del concurso.
