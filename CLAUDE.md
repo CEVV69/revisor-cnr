@@ -168,20 +168,25 @@ Tres preguntas guía antes de observar:
   (`grupo.obs`), NO `items` — `grupo.items` colisiona con el método `dict.items()` y rompe
   el render en runtime (bug ya sufrido). Nunca usar `items` como nombre de clave de grupo.
 
-## Dos métodos de revisión (ejes y ítems SEP) — pestañas
+## Cuatro PÁGINAS del proyecto (no pestañas) — navegación arriba
 
-`proyecto.html` está organizado en **pestañas** (CSS `.tab-pane` + JS `mostrarTab`), dejando
-intacta la parte de subida/gestión de documentos arriba:
-- **Pestaña "Revisión por Ejes":** los 9 ejes (`EJES_REVISION`/`EJES_ORDEN`) + chat + obs de eje.
-- **Pestaña "Revisión por Ítems SEP":** los 16 ítems (`ITEMS_SEP`/`ITEMS_ORDEN`) tal como se
-  ingresan al SEP + obs de ítem. Sin chat por ahora.
+`proyecto.html` es **una sola plantilla** que renderiza 4 páginas según la variable `pagina`,
+con una barra de navegación arriba (`.proj-nav`/`.proj-tab`). Son URLs reales (navegación de
+página completa, no toggle JS). El helper `_render_proyecto(request, id, pagina)` arma el
+contexto; hay una ruta GET por página:
+- `/proyecto/{id}` → redirige a `/resumen` (al abrir un proyecto se entra al Resumen).
+- `/proyecto/{id}/resumen` → ficha-formulario (ver sección Resumen).
+- `/proyecto/{id}/documentos` → subida + gestión + tabla de documentos.
+- `/proyecto/{id}/ejes` → 9 ejes (`EJES_REVISION`/`EJES_ORDEN`) + chat + obs de eje.
+- `/proyecto/{id}/items` → 16 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + obs de ítem. Sin chat.
 
-Ambos métodos **conviven** (no se elige uno u otro). El núcleo de análisis se unificó en
-`_analizar_grupo()` (analyzer.py); `analizar_eje()` y `analizar_item()` son envoltorios
-delgados. Las obs de eje llevan `obs.eje`/`obs.eje_nombre`; las de ítem `obs.item`/`obs.item_nombre`.
-Rutas: `POST /proyecto/{id}/revisar-eje/{key}` y `POST /proyecto/{id}/revisar-item/{key}`.
-Estados de avance en `proyecto["ejes_revisados"]` y `proyecto["items_revisados"]`.
-"Limpiar revisión" resetea ambos.
+Ambos métodos **conviven**. Núcleo unificado en `_analizar_grupo()`; `analizar_eje()`/
+`analizar_item()` son envoltorios. Obs de eje: `obs.eje`/`obs.eje_nombre`; de ítem:
+`obs.item`/`obs.item_nombre`. Rutas de análisis: `POST /proyecto/{id}/revisar-eje/{key}` y
+`.../revisar-item/{key}`. Avance en `proyecto["ejes_revisados"]` / `["items_revisados"]`.
+**Limpieza INDEPENDIENTE por sistema:** `POST /proyecto/{id}/limpiar-ejes` (borra solo obs de
+eje + ejes_revisados + eje_chats) y `.../limpiar-items` (solo obs de ítem + items_revisados).
+Los redirects de cada acción vuelven a su página (`_volver_a` usa el Referer para el estado).
 
 ## Resumen del proyecto (3ª pestaña, formulario)
 

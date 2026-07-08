@@ -11,16 +11,16 @@
   .chat-bubble.pensando { align-self:flex-start; background:rgba(128,128,128,0.12);
     color:var(--text-2); font-style:italic; }
 
-  /* Pestañas de revisión (ejes / ítems SEP) */
-  .tabs { display:flex; gap:0.4rem; margin:1.4rem 0 0.9rem; border-bottom:2px solid var(--border);
+  /* Navegación entre páginas del proyecto (Resumen / Documentos / Ejes / Ítems) */
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border);
     flex-wrap:wrap; }
-  .tab-btn { background:transparent; border:none; padding:0.65rem 1.1rem; font-size:0.95rem;
-    font-weight:600; color:var(--text-2); cursor:pointer; border-bottom:3px solid transparent;
-    margin-bottom:-2px; font-family:inherit; border-radius:8px 8px 0 0; }
-  .tab-btn:hover { color:var(--text); background:rgba(128,128,128,0.06); }
-  .tab-btn.activa { color:var(--blue); border-bottom-color:var(--blue); }
-  .tab-pane { display:none; }
-  .tab-pane.activa { display:block; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
+    padding:0 0.4rem; margin-left:0.15rem; }
 </style>
 
 {# ═══ Macros de observaciones (reutilizados por la pestaña de ejes y la de ítems) ═══ #}
@@ -162,10 +162,6 @@
       </div>
     </div>
 
-    <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-revision"
-          onsubmit="return confirm('¿Limpiar la revisión? Se borrarán todas las observaciones y el estado de análisis de los documentos. Los archivos quedan intactos para re-analizar.')">
-      <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión</button>
-    </form>
     <form method="post" action="/proyecto/{{ proyecto.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar este proyecto? Se borrarán todos sus documentos y observaciones.')">
       <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
@@ -216,6 +212,15 @@
 </div>
 {% endif %}
 
+<!-- Barra de navegación entre páginas del proyecto -->
+<nav class="proj-nav">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab {% if pagina == 'resumen' %}activa{% endif %}">📋 Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">📁 Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
+  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab {% if pagina == 'ejes' %}activa{% endif %}">🎯 Revisión por Ejes</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">📑 Revisión por Ítems SEP</a>
+</nav>
+
+{% if pagina == 'documentos' %}
 <!-- Subida ZIP -->
 <div class="card" style="border-left:4px solid #2b6cb0; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
   <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
@@ -423,22 +428,15 @@ function actualizarEtiqueta(input) {
   </table>
 </div>
 {% endif %}
+{% endif %}{# fin página documentos #}
 
-{# ═══════════ PESTAÑAS DE REVISIÓN (ejes / ítems SEP) ═══════════ #}
-{% if proyecto.documentos %}
 {% set eje_ok = request.query_params.get('eje_ok') %}
 {% set eje_sin_docs = request.query_params.get('eje_sin_docs') %}
 {% set item_ok = request.query_params.get('item_ok') %}
 {% set item_sin_docs = request.query_params.get('item_sin_docs') %}
 
-<div class="tabs">
-  <button class="tab-btn" data-tab="ejes" onclick="mostrarTab('ejes')">🎯 Revisión por Ejes</button>
-  <button class="tab-btn" data-tab="items" onclick="mostrarTab('items')">📑 Revisión por Ítems SEP</button>
-  <button class="tab-btn" data-tab="resumen" onclick="mostrarTab('resumen')">📋 Resumen del proyecto</button>
-</div>
-
-<!-- ══════════ PESTAÑA: REVISIÓN POR EJES ══════════ -->
-<div id="tab-ejes" class="tab-pane">
+<!-- ══════════ PÁGINA: REVISIÓN POR EJES ══════════ -->
+{% if pagina == 'ejes' %}
 {% if ejes_info %}
 <div class="card">
   <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
@@ -523,10 +521,16 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id) }}
 {{ bloque_notas(grupos_notas, proyecto.id) }}
-</div>{# fin tab-ejes #}
 
-<!-- ══════════ PESTAÑA: REVISIÓN POR ÍTEMS SEP ══════════ -->
-<div id="tab-items" class="tab-pane">
+<!-- Limpiar SOLO la revisión por ejes (no afecta ítems ni documentos) -->
+<form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-ejes" style="margin-top:0.5rem;"
+      onsubmit="return confirm('¿Limpiar la revisión por EJES? Se borran las observaciones, el estado y los chats de los ejes. NO afecta la revisión por ítems ni los documentos.')">
+  <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión por ejes</button>
+</form>
+{% endif %}{# fin página ejes #}
+
+<!-- ══════════ PÁGINA: REVISIÓN POR ÍTEMS SEP ══════════ -->
+{% if pagina == 'items' %}
 {% if items_info %}
 <div class="card">
   <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
@@ -568,10 +572,16 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id) }}
 {{ bloque_notas(grupos_notas_item, proyecto.id) }}
-</div>{# fin tab-items #}
 
-<!-- ══════════ PESTAÑA: RESUMEN DEL PROYECTO ══════════ -->
-<div id="tab-resumen" class="tab-pane">
+<!-- Limpiar SOLO la revisión por ítems (no afecta ejes ni documentos) -->
+<form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"
+      onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta la revisión por ejes ni los documentos.')">
+  <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión por ítems</button>
+</form>
+{% endif %}{# fin página items #}
+
+<!-- ══════════ PÁGINA: RESUMEN DEL PROYECTO ══════════ -->
+{% if pagina == 'resumen' %}
 <div class="card">
   <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
     <h2 style="margin:0; border:none; padding:0;">Resumen del proyecto</h2>
@@ -624,9 +634,7 @@ function actualizarEtiqueta(input) {
     </div>
   </form>
 </div>
-</div>{# fin tab-resumen #}
-
-{% endif %}
+{% endif %}{# fin página resumen #}
 
 <script>
 function toggleMenuEstado() {
@@ -722,17 +730,6 @@ function enviarChat(event, ejeKey) {
   return false;
 }
 
-// Pestañas de revisión (ejes / ítems SEP)
-function mostrarTab(tab) {
-  document.querySelectorAll('.tab-pane').forEach(function(p) {
-    p.classList.toggle('activa', p.id === 'tab-' + tab);
-  });
-  document.querySelectorAll('.tab-btn').forEach(function(b) {
-    b.classList.toggle('activa', b.dataset.tab === tab);
-  });
-  try { localStorage.setItem('revisor_tab', tab); } catch (e) {}
-}
-
 // Auto-expandir textareas de observaciones/notas para mostrar el texto completo
 function autoExpand(el) {
   el.style.height = 'auto';
@@ -743,20 +740,6 @@ document.addEventListener('DOMContentLoaded', function() {
     autoExpand(t);
     t.addEventListener('input', function() { autoExpand(t); });
   });
-  // Pestaña inicial: la que indique la URL (?tab / item_ok / item_sin_docs),
-  // si no la última usada, y por defecto la de ejes.
-  var params = new URLSearchParams(window.location.search);
-  var inicial = 'ejes';
-  if (['ejes', 'items', 'resumen'].indexOf(params.get('tab')) !== -1) {
-    inicial = params.get('tab');
-  } else if (params.get('item_ok') || params.get('item_sin_docs')) {
-    inicial = 'items';
-  } else if (params.get('eje_ok') || params.get('eje_sin_docs')) {
-    inicial = 'ejes';
-  } else {
-    try { inicial = localStorage.getItem('revisor_tab') || 'ejes'; } catch (e) {}
-  }
-  if (document.getElementById('tab-' + inicial)) mostrarTab(inicial);
 });
 </script>
 {% endblock %}

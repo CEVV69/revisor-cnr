@@ -58,6 +58,17 @@ def _consultor_de_proyecto(proyecto: dict) -> tuple:
     return (_consultor_key(nombre), nombre) if nombre else ("", "")
 
 
+def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> str:
+    """URL de la página del proyecto desde la que se envió el formulario (según Referer),
+    para volver a ella tras acciones del encabezado (estado). Si no se puede, usa `defecto`."""
+    ref = request.headers.get("referer", "") or ""
+    base = f"/proyecto/{proyecto_id}/"
+    for pag in ("resumen", "documentos", "ejes", "items"):
+        if base + pag in ref:
+            return base + pag
+    return base + defecto
+
+
 app = FastAPI(title="Revisor CNR")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -222,8 +233,9 @@ async def crear_proyecto(
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
 
 
-@app.get("/proyecto/{proyecto_id}", response_class=HTMLResponse)
-async def ver_proyecto(request: Request, proyecto_id: str):
+async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
+    """Renderiza una de las páginas del proyecto (resumen/documentos/ejes/items).
+    Todas comparten el mismo encabezado y barra de navegación; `pagina` decide qué se muestra."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
@@ -341,7 +353,35 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         # Resumen del proyecto (formulario)
         "resumen_secciones": RESUMEN_SECCIONES,
         "resumen": resumen,
+        # Página activa (resumen / documentos / ejes / items)
+        "pagina": pagina,
     })
+
+
+@app.get("/proyecto/{proyecto_id}", response_class=HTMLResponse)
+async def ver_proyecto(request: Request, proyecto_id: str):
+    # Al abrir un proyecto se entra al Resumen
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen")
+
+
+@app.get("/proyecto/{proyecto_id}/resumen", response_class=HTMLResponse)
+async def pagina_resumen(request: Request, proyecto_id: str):
+    return await _render_proyecto(request, proyecto_id, "resumen")
+
+
+@app.get("/proyecto/{proyecto_id}/documentos", response_class=HTMLResponse)
+async def pagina_documentos(request: Request, proyecto_id: str):
+    return await _render_proyecto(request, proyecto_id, "documentos")
+
+
+@app.get("/proyecto/{proyecto_id}/ejes", response_class=HTMLResponse)
+async def pagina_ejes(request: Request, proyecto_id: str):
+    return await _render_proyecto(request, proyecto_id, "ejes")
+
+
+@app.get("/proyecto/{proyecto_id}/items", response_class=HTMLResponse)
+async def pagina_items(request: Request, proyecto_id: str):
+    return await _render_proyecto(request, proyecto_id, "items")
 
 
 # ─── Cambiar estado del proyecto ─────────────────────────────────────────────
@@ -364,7 +404,7 @@ async def cambiar_estado_proyecto(
         proyecto["fecha_estado"] = datetime.now().isoformat()
         proyecto["estado_por"] = user["nombre"]
         db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+    return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
 
 
 # ─── Documentos ───────────────────────────────────────────────────────────────
@@ -411,7 +451,7 @@ async def subir_documento(
     proyecto["documentos"].append(doc)
     db.save_proyecto(proyecto)
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
 
 # ─── Revisión por eje temático ────────────────────────────────────────────────
@@ -457,7 +497,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
 
     if resultado.get("sin_documentos"):
         return RedirectResponse(
-            url=f"/proyecto/{proyecto_id}?eje_sin_docs={eje_key}", status_code=302)
+            url=f"/proyecto/{proyecto_id}/ejes?eje_sin_docs={eje_key}", status_code=302)
 
     # Reemplazar observaciones previas de este eje
     proyecto["observaciones"] = [
@@ -491,7 +531,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
 
     db.save_proyecto(proyecto)
     return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
+        url=f"/proyecto/{proyecto_id}/ejes?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/revisar-item/{item_key}")
@@ -535,7 +575,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
 
     if resultado.get("sin_documentos"):
         return RedirectResponse(
-            url=f"/proyecto/{proyecto_id}?item_sin_docs={item_key}#tab-items", status_code=302)
+            url=f"/proyecto/{proyecto_id}/items?item_sin_docs={item_key}", status_code=302)
 
     # Reemplazar observaciones previas de este ítem
     proyecto["observaciones"] = [
@@ -569,7 +609,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
 
     db.save_proyecto(proyecto)
     return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}?item_ok={item_key}#tab-items", status_code=302)
+        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
@@ -592,7 +632,7 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
     if not mensaje:
         if es_ajax:
             return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
-        return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/ejes#chat-{eje_key}", status_code=302)
 
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
     concurso = db.get_concurso(concurso_id)
@@ -682,7 +722,7 @@ async def subir_zip(
     zip_path.unlink(missing_ok=True)
 
     db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}?zip_ok={len(archivos)}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?zip_ok={len(archivos)}", status_code=302)
 
 
 # ─── Subida múltiple (archivos sueltos o carpeta) ─────────────────────────────
@@ -738,7 +778,7 @@ async def subir_multiple(
         registrados += 1
 
     db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}?multi_ok={registrados}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?multi_ok={registrados}", status_code=302)
 
 
 # ─── Eliminar documento ───────────────────────────────────────────────────────
@@ -760,7 +800,7 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
         db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
 
 # ─── Cambiar tipo de documento ───────────────────────────────────────────────
@@ -956,7 +996,7 @@ async def guardar_resumen(request: Request, proyecto_id: str):
         resumen[k] = (form.get(k) or "").strip()
     proyecto["resumen"] = resumen
     db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}?tab=resumen&resumen_ok=1#tab-resumen",
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen?resumen_ok=1",
                             status_code=302)
 
 
@@ -996,7 +1036,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     proyecto["resumen"] = resumen
     db.save_proyecto(proyecto)
     return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}?tab=resumen&auto_ok={completados}#tab-resumen",
+        url=f"/proyecto/{proyecto_id}/resumen?auto_ok={completados}",
         status_code=302)
 
 
@@ -1046,23 +1086,35 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
 
 # ─── Eliminar proyecto ────────────────────────────────────────────────────────
 
-@app.post("/proyecto/{proyecto_id}/limpiar-revision")
-async def limpiar_revision(request: Request, proyecto_id: str):
+@app.post("/proyecto/{proyecto_id}/limpiar-ejes")
+async def limpiar_ejes(request: Request, proyecto_id: str):
+    """Limpia SOLO la revisión por ejes (observaciones de eje, estado y chats). No toca ítems."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
     proyecto = db.get_proyecto(proyecto_id)
     if proyecto:
-        proyecto["observaciones"] = []
-        proyecto["consultas"] = []
+        # Conservar las observaciones de ítems; borrar solo las de ejes
+        proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if o.get("item")]
         proyecto["ejes_revisados"] = {}
         proyecto["eje_chats"] = {}
-        proyecto["items_revisados"] = {}
-        for doc in proyecto.get("documentos", []):
-            doc["analizado"] = False
-        proyecto["estado"] = "En revisión"
         db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/ejes", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/limpiar-items")
+async def limpiar_items(request: Request, proyecto_id: str):
+    """Limpia SOLO la revisión por ítems SEP. No toca los ejes."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if proyecto:
+        # Conservar las observaciones de ejes; borrar solo las de ítems
+        proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if not o.get("item")]
+        proyecto["items_revisados"] = {}
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/eliminar")
@@ -1135,7 +1187,9 @@ async def actualizar_observacion(
         if ckey:
             db.add_feedback_consultor(ckey, cnombre, entrada_fb)
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
+    # Volver a la página de revisión de origen (ítems o ejes) según el tipo de observación
+    destino = "items" if (obs_actualizada and obs_actualizada.get("item")) else "ejes"
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/{destino}", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────
