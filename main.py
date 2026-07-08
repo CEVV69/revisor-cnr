@@ -19,9 +19,9 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
 from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
-                      resumir_proyecto, consolidar_aprendizaje, EJES_REVISION, EJES_ORDEN,
-                      ITEMS_SEP, ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS,
-                      _documentos_del_eje, MIN_CHARS_TEXTO)
+                      resumir_proyecto, consolidar_aprendizaje, consolidar_perfil_consultor,
+                      EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN, RESUMEN_SECCIONES,
+                      RESUMEN_KEYS, _documentos_del_eje, MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -39,6 +39,24 @@ def _extraer_concurso_id(codigo_sep: str) -> str:
     if len(partes) >= 2:
         return f"{partes[0]}-{partes[1]}"
     return codigo_sep
+
+
+def _consultor_key(nombre: str) -> str:
+    """Normaliza el nombre del consultor a una clave estable (minúsculas, sin acentos ni
+    espacios extra), para agrupar sus proyectos aunque varíe la escritura."""
+    import unicodedata
+    n = (nombre or "").strip().lower()
+    n = "".join(c for c in unicodedata.normalize("NFD", n)
+                if unicodedata.category(c) != "Mn")   # quita acentos
+    n = " ".join(n.split())                            # colapsa espacios
+    return n
+
+
+def _consultor_de_proyecto(proyecto: dict) -> tuple:
+    """Devuelve (key, nombre_mostrado) del consultor del proyecto, tomado del resumen."""
+    nombre = (proyecto.get("resumen", {}) or {}).get("consultor", "").strip()
+    return (_consultor_key(nombre), nombre) if nombre else ("", "")
+
 
 app = FastAPI(title="Revisor CNR")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -416,6 +434,8 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
     criterios = (concurso.get("criterios_aprendidos", {}).get(eje_key, "")
                  if concurso else "")
+    ckey, _ = _consultor_de_proyecto(proyecto)
+    consultor = db.get_consultor(ckey) if ckey else None
 
     try:
         resultado = await analizar_eje(
@@ -425,6 +445,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
             criterios_aprendidos=criterios,
+            consultor=consultor,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -491,6 +512,8 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
     criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
                  if concurso else "")
+    ckey, _ = _consultor_de_proyecto(proyecto)
+    consultor = db.get_consultor(ckey) if ckey else None
 
     try:
         resultado = await analizar_item(
@@ -500,6 +523,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
             criterios_aprendidos=criterios,
+            consultor=consultor,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -1097,14 +1121,19 @@ async def actualizar_observacion(
                  if d["id"] == obs_actualizada.get("doc_id")), None
             )
             tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
-        db.add_feedback_concurso(concurso_id, {
+        entrada_fb = {
             "id":        obs_actualizada["id"],
             "fecha":     datetime.now().isoformat(),
             "tipo_doc":  tipo_doc_obs,
             "texto_obs": obs_actualizada["texto"][:300],
             "accion":    estado,   # "aprobada" o "descartada"
             "revisor":   user["username"],
-        })
+        }
+        db.add_feedback_concurso(concurso_id, entrada_fb)
+        # Acumular también por CONSULTOR (aprendizaje que cruza proyectos y concursos)
+        ckey, cnombre = _consultor_de_proyecto(proyecto)
+        if ckey:
+            db.add_feedback_consultor(ckey, cnombre, entrada_fb)
 
     return RedirectResponse(url=f"/proyecto/{proyecto_id}", status_code=302)
 
@@ -1179,11 +1208,22 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         if criterios.get("item_" + item_key):
             criterios_lista.append({"nombre": "Ítem SEP: " + ITEMS_SEP[item_key]["nombre"],
                                     "texto": criterios["item_" + item_key]})
+    # Consultores con historia/perfil aprendido (cruza concursos)
+    consultores_info = []
+    for c in db.get_all_consultores():
+        n_fb = len(c.get("feedback", []))
+        if n_fb > 0:
+            consultores_info.append({
+                "nombre": c.get("nombre", ""),
+                "n_feedback": n_fb,
+                "perfil": c.get("perfil", ""),
+            })
     return templates.TemplateResponse("admin_concurso_detalle.html", {
         "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
         "n_feedback": len(concurso.get("feedback", [])),
         "criterios_lista": criterios_lista,
         "criterios_fecha": concurso.get("criterios_fecha", ""),
+        "consultores_info": consultores_info,
     })
 
 
@@ -1210,6 +1250,14 @@ async def consolidar_concurso(request: Request, concurso_id: str):
             texto = await consolidar_aprendizaje(feedback, "item_" + item_key, ITEMS_SEP[item_key]["nombre"])
             if texto:
                 criterios["item_" + item_key] = texto
+                n += 1
+        # Perfiles de consultores (cruza proyectos/concursos): destila los que tengan historia
+        for c in db.get_all_consultores():
+            perfil = await consolidar_perfil_consultor(c.get("feedback", []), c.get("nombre", ""))
+            if perfil:
+                c["perfil"] = perfil
+                c["perfil_fecha"] = datetime.now().isoformat()
+                db.save_consultor(c)
                 n += 1
     except Exception as e:
         import traceback

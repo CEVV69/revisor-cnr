@@ -605,7 +605,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
-                          criterios_aprendidos: str = "",
+                          criterios_aprendidos: str = "", consultor: dict = None,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
@@ -678,6 +678,9 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     else:
         bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], feedback_key)
 
+    # Aprendizaje por consultor (patrones recurrentes de quien presenta el proyecto)
+    bloque_consultor = _construir_bloque_consultor(consultor)
+
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}]
     if bloque_bases.strip():
@@ -701,7 +704,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
                          f"(planos o escaneados) — analízalos visualmente: {nombres_img}")
 
-    prompt = f"""{bloque_bases}{bloque_feedback}Realiza una REVISIÓN POR {modo} del expediente CNR.
+    prompt = f"""{bloque_bases}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
@@ -776,7 +779,7 @@ DOCUMENTOS DEL GRUPO (texto):
 
 async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
                        concurso_id: str = "", feedback_concurso: list = None,
-                       criterios_aprendidos: str = "",
+                       criterios_aprendidos: str = "", consultor: dict = None,
                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo."""
     eje = EJES_REVISION.get(eje_key)
@@ -788,13 +791,13 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key=eje_key,
-        criterios_aprendidos=criterios_aprendidos,
+        criterios_aprendidos=criterios_aprendidos, consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
-                        criterios_aprendidos: str = "",
+                        criterios_aprendidos: str = "", consultor: dict = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo."""
     item = ITEMS_SEP.get(item_key)
@@ -807,7 +810,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         modo="ÍTEM DEL SEP", es_coherencia=False,
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
-        criterios_aprendidos=criterios_aprendidos,
+        criterios_aprendidos=criterios_aprendidos, consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
@@ -1049,6 +1052,77 @@ def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:
             bloque += f"  ✗ [{tipo}] {f.get('texto_obs', '')[:150]}\n"
 
     return bloque
+
+
+def _construir_bloque_consultor(consultor: dict) -> str:
+    """
+    Construye el bloque de aprendizaje POR CONSULTOR. Prefiere el perfil destilado; si no hay,
+    arma un resumen compacto del historial de decisiones del consultor (sus fallas recurrentes y
+    lo que no conviene observarle). Devuelve "" si el consultor no tiene historia suficiente.
+    """
+    if not consultor:
+        return ""
+    nombre = consultor.get("nombre", "")
+    perfil = (consultor.get("perfil", "") or "").strip()
+    if perfil:
+        return (f"\n{'═'*60}\nPERFIL DEL CONSULTOR: {nombre}\n{'═'*60}\n"
+                f"Patrones recurrentes de este consultor observados al revisar sus proyectos "
+                f"anteriores. Úsalos para revisar más rápido y consistente, SIN dejar de verificar:\n"
+                f"{perfil}\n")
+    fb = consultor.get("feedback", [])
+    if len(fb) < 3:
+        return ""   # aún no hay suficiente historia de este consultor
+    aprob = [f.get("texto_obs", "") for f in fb if f.get("accion") == "aprobada"][-8:]
+    desc  = [f.get("texto_obs", "") for f in fb if f.get("accion") == "descartada"][-8:]
+    if not aprob and not desc:
+        return ""
+    b = (f"\n{'═'*60}\nHISTORIAL DEL CONSULTOR: {nombre}\n{'═'*60}\n"
+         f"Decisiones tomadas en proyectos anteriores del MISMO consultor (patrones a considerar):\n")
+    if aprob:
+        b += "Observaciones que resultaron válidas (fallas recurrentes de este consultor):\n"
+        b += "".join(f"  ✓ {t[:150]}\n" for t in aprob)
+    if desc:
+        b += "Observaciones descartadas (no insistir en estas con este consultor):\n"
+        b += "".join(f"  ✗ {t[:150]}\n" for t in desc)
+    return b
+
+
+async def consolidar_perfil_consultor(feedback: list, nombre: str) -> str:
+    """
+    Destila el historial de decisiones de un consultor en un PERFIL breve: su metodología de
+    presentación, fortalezas y fallas recurrentes. Usa Haiku (barato). "" si <3 decisiones.
+    """
+    fb = feedback or []
+    if len(fb) < 3:
+        return ""
+    aprob = [f.get("texto_obs", "") for f in fb if f.get("accion") == "aprobada"][:40]
+    desc  = [f.get("texto_obs", "") for f in fb if f.get("accion") == "descartada"][:40]
+    lista = ""
+    if aprob:
+        lista += "\nOBSERVACIONES VÁLIDAS EN SUS PROYECTOS (fallas recurrentes):\n" + "\n".join(f"- {t}" for t in aprob)
+    if desc:
+        lista += "\nOBSERVACIONES DESCARTADAS (no eran relevantes):\n" + "\n".join(f"- {t}" for t in desc)
+
+    client = _get_client()
+    prompt = f"""A partir de las decisiones reales de un revisor CNR sobre los proyectos del
+consultor "{nombre}", destila un PERFIL breve (máximo 8 líneas, viñetas "-") que capture:
+- su metodología de presentación y fortalezas típicas,
+- sus FALLAS RECURRENTES (qué observar casi siempre en sus proyectos),
+- qué NO conviene observarle (lo que el revisor suele descartar).
+El objetivo es revisar más rápido y consistente sus proyectos siguientes.
+{lista}
+
+Responde SOLO el perfil, en viñetas con "-"."""
+
+    response = client.messages.create(
+        model=MODELO_HAIKU,
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    texto = _texto_respuesta(response).strip()
+    if not texto:
+        print(f"⚠️ consolidar_perfil_consultor '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
+    return texto
 
 
 async def consolidar_aprendizaje(feedback: list, clave: str, nombre: str) -> str:

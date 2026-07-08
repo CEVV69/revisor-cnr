@@ -251,6 +251,17 @@ observaciones + guía del eje) a bloques CACHEADOS del `system`, así en convers
 turnos no se reenvía ni reprocesa (más rápido y barato). `consultar_expediente` subió su límite
 a `max_tokens=4000` (evita el mismo corte por thinking) con aviso si llega vacía.
 
+**Aprendizaje por CONSULTOR (implementado):** colección `consultores` en `database.py`
+(`get_consultor`, `save_consultor`, `add_feedback_consultor`), keyed por nombre normalizado
+(`_consultor_key` en main.py: minúsculas, sin acentos). El consultor se toma de
+`proyecto["resumen"]["consultor"]` (el revisor debe llenar ese campo). Cada aprobar/descartar
+acumula feedback en el consultor además del concurso. En cada revisión, `_construir_bloque_consultor`
+inyecta el PERFIL destilado del consultor (o su historial crudo de decisiones si aún no se
+consolida) — patrones recurrentes para revisar más rápido sus proyectos siguientes.
+`consolidar_perfil_consultor()` (Haiku) destila ese historial; se dispara junto al botón
+"🧠 Consolidar aprendizaje" (que ahora también procesa consultores). La colección cruza
+proyectos y concursos. Perfiles visibles en `/admin/concursos/{id}`.
+
 **Bug conocido y resuelto — respuestas vacías por límite de tokens bajo (jul-2026):**
 Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamiento" (thinking)
 dentro de la misma respuesta, antes del texto final. Si el límite de tokens de la respuesta

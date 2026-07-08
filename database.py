@@ -9,9 +9,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")          # Railway lo inyecta automáti
 DATA_DIR     = Path(os.getenv("DATA_DIR", "data"))
 
 # Rutas legacy (solo se usan en modo JSON local)
-USERS_FILE     = DATA_DIR / "users.json"
-PROYECTOS_FILE = DATA_DIR / "proyectos.json"
-CONCURSOS_FILE = DATA_DIR / "concursos.json"
+USERS_FILE       = DATA_DIR / "users.json"
+PROYECTOS_FILE   = DATA_DIR / "proyectos.json"
+CONCURSOS_FILE   = DATA_DIR / "concursos.json"
+CONSULTORES_FILE = DATA_DIR / "consultores.json"
 
 # ── Backend PostgreSQL ─────────────────────────────────────────────────────────
 _pg_conn = None
@@ -176,6 +177,32 @@ class Database:
         concurso["feedback"].append(feedback_entry)
         concurso["feedback"] = concurso["feedback"][-200:]
         self.save_concurso(concurso)
+
+    # ── Consultores (aprendizaje por consultor, cruza concursos) ────────────────
+
+    def get_consultor(self, key: str) -> dict:
+        consultores = self._load("consultores", CONSULTORES_FILE)
+        return consultores.get(key)
+
+    def get_all_consultores(self) -> list:
+        consultores = self._load("consultores", CONSULTORES_FILE)
+        return sorted(consultores.values(), key=lambda c: c.get("nombre", ""))
+
+    def save_consultor(self, consultor: dict):
+        consultores = self._load("consultores", CONSULTORES_FILE)
+        consultores[consultor["key"]] = consultor
+        self._save("consultores", CONSULTORES_FILE, consultores)
+
+    def add_feedback_consultor(self, key: str, nombre: str, feedback_entry: dict):
+        """Acumula feedback por consultor (cruza proyectos y concursos, máx. 300)."""
+        consultores = self._load("consultores", CONSULTORES_FILE)
+        c = consultores.get(key) or {"key": key, "nombre": nombre, "feedback": [], "perfil": ""}
+        if nombre:
+            c["nombre"] = nombre
+        c.setdefault("feedback", []).append(feedback_entry)
+        c["feedback"] = c["feedback"][-300:]
+        consultores[key] = c
+        self._save("consultores", CONSULTORES_FILE, consultores)
 
 
 db = Database()
