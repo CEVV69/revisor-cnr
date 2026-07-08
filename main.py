@@ -19,8 +19,8 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
 from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
-                      EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN,
-                      _documentos_del_eje, MIN_CHARS_TEXTO)
+                      resumir_proyecto, EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN,
+                      RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje, MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -293,6 +293,15 @@ async def ver_proyecto(request: Request, proyecto_id: str):
                          if o.get("estado") not in ("pendiente", "aprobada")]),
         }
 
+    # Resumen del proyecto (formulario): valores guardados + auto-relleno de campos vacíos
+    # desde los datos que el proyecto ya tiene (código, postulante, nombre).
+    resumen = dict(proyecto.get("resumen", {}))
+    for sec in RESUMEN_SECCIONES:
+        for campo in sec["campos"]:
+            k = campo["key"]
+            if not resumen.get(k) and campo.get("auto"):
+                resumen[k] = proyecto.get(campo["auto"], "") or ""
+
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
         "user": user,
@@ -310,6 +319,9 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         "grupos_obs_item": _agrupar(prin_item, "item_nombre", orden_item),
         "grupos_notas_item": _agrupar(notas_item, "item_nombre", orden_item),
         "cont_item": _contadores(prin_item),
+        # Resumen del proyecto (formulario)
+        "resumen_secciones": RESUMEN_SECCIONES,
+        "resumen": resumen,
     })
 
 
@@ -894,6 +906,67 @@ async def ficha_revision(request: Request, proyecto_id: str):
         print(f"❌ ERROR en ficha {proyecto_id}: {e}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error al generar ficha: {str(e)}")
+
+
+# ─── Resumen del proyecto (formulario) ────────────────────────────────────────
+
+@app.post("/proyecto/{proyecto_id}/resumen")
+async def guardar_resumen(request: Request, proyecto_id: str):
+    """Guarda los campos del formulario de resumen editados por el revisor."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    form = await request.form()
+    resumen = dict(proyecto.get("resumen", {}))
+    for k in RESUMEN_KEYS:
+        resumen[k] = (form.get(k) or "").strip()
+    proyecto["resumen"] = resumen
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}?tab=resumen&resumen_ok=1#tab-resumen",
+                            status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/resumen/autocompletar")
+async def autocompletar_resumen(request: Request, proyecto_id: str):
+    """Autocompleta con la IA los campos vacíos del resumen a partir de los documentos."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
+    bases_texto = concurso.get("bases_texto", "") if concurso else ""
+
+    try:
+        datos = await resumir_proyecto(
+            documentos=proyecto.get("documentos", []),
+            bases_texto=bases_texto,
+            concurso_id=concurso_id,
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en autocompletar_resumen {proyecto_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al autocompletar: {str(e)}")
+
+    # Rellenar SOLO los campos que estén vacíos (no pisar lo que el revisor ya escribió)
+    resumen = dict(proyecto.get("resumen", {}))
+    completados = 0
+    for k in RESUMEN_KEYS:
+        if not resumen.get(k) and datos.get(k):
+            resumen[k] = datos[k]
+            completados += 1
+    proyecto["resumen"] = resumen
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}?tab=resumen&auto_ok={completados}#tab-resumen",
+        status_code=302)
 
 
 # ─── Consultas al expediente ─────────────────────────────────────────────────

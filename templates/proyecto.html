@@ -434,6 +434,7 @@ function actualizarEtiqueta(input) {
 <div class="tabs">
   <button class="tab-btn" data-tab="ejes" onclick="mostrarTab('ejes')">🎯 Revisión por Ejes</button>
   <button class="tab-btn" data-tab="items" onclick="mostrarTab('items')">📑 Revisión por Ítems SEP</button>
+  <button class="tab-btn" data-tab="resumen" onclick="mostrarTab('resumen')">📋 Resumen del proyecto</button>
 </div>
 
 <!-- ══════════ PESTAÑA: REVISIÓN POR EJES ══════════ -->
@@ -569,6 +570,62 @@ function actualizarEtiqueta(input) {
 {{ bloque_notas(grupos_notas_item, proyecto.id) }}
 </div>{# fin tab-items #}
 
+<!-- ══════════ PESTAÑA: RESUMEN DEL PROYECTO ══════════ -->
+<div id="tab-resumen" class="tab-pane">
+<div class="card">
+  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
+    <h2 style="margin:0; border:none; padding:0;">Resumen del proyecto</h2>
+    <span style="font-size:0.8rem; color:var(--text-2);">Ficha con los datos mínimos. Auto-completa con la IA y edita lo que falte.</span>
+  </div>
+
+  {% if request.query_params.get('resumen_ok') %}
+  <div class="alert" style="background:#f0fff4; border:1px solid #68d391; color:#276749; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">✅ Resumen guardado.</div>
+  {% endif %}
+  {% if request.query_params.get('auto_ok') %}
+  <div class="alert" style="background:#ebf8ff; border:1px solid #90cdf4; color:#2b6cb0; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">🤖 La IA completó {{ request.query_params.get('auto_ok') }} campo(s) que estaban vacíos. Revisa y edita lo que falte, luego Guarda.</div>
+  {% endif %}
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/resumen/autocompletar" style="margin:0.5rem 0 1rem;">
+    <button type="submit" class="btn btn-primary btn-sm"
+            onclick="this.disabled=true; this.textContent='Analizando…'; this.form.submit();">
+      🤖 Autocompletar con IA
+    </button>
+    <span class="text-muted" style="font-size:0.8rem; margin-left:0.5rem;">Lee los documentos y rellena los campos vacíos (no pisa lo que ya escribiste).</span>
+  </form>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/resumen">
+    {% for sec in resumen_secciones %}
+    <div style="margin:1.1rem 0 0.4rem; font-weight:700; color:#2b6cb0; font-size:0.9rem;
+                border-bottom:1px solid var(--border); padding-bottom:0.25rem;">{{ sec.titulo }}</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:0.7rem 1rem;">
+      {% for campo in sec.campos %}
+      <div style="{% if campo.tipo == 'textarea' %}grid-column:1/-1;{% endif %}">
+        <label style="display:block; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">{{ campo.label }}</label>
+        {% if campo.tipo == 'sino' %}
+          <select name="{{ campo.key }}"
+                  style="width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem;">
+            <option value="" {% if not resumen.get(campo.key) %}selected{% endif %}>—</option>
+            <option value="Sí" {% if resumen.get(campo.key) == 'Sí' %}selected{% endif %}>Sí</option>
+            <option value="No" {% if resumen.get(campo.key) == 'No' %}selected{% endif %}>No</option>
+          </select>
+        {% elif campo.tipo == 'textarea' %}
+          <textarea name="{{ campo.key }}" rows="2" class="auto-expand"
+                    style="width:100%; padding:0.45rem 0.55rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; resize:vertical; overflow:hidden;">{{ resumen.get(campo.key, '') }}</textarea>
+        {% else %}
+          <input type="text" name="{{ campo.key }}" value="{{ resumen.get(campo.key, '') }}"
+                 style="width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box;">
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <div style="margin-top:1.2rem;">
+      <button type="submit" class="btn btn-success btn-sm">💾 Guardar resumen</button>
+    </div>
+  </form>
+</div>
+</div>{# fin tab-resumen #}
+
 {% endif %}
 
 <script>
@@ -690,9 +747,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // si no la última usada, y por defecto la de ejes.
   var params = new URLSearchParams(window.location.search);
   var inicial = 'ejes';
-  if (params.get('tab') === 'items' || params.get('item_ok') || params.get('item_sin_docs')) {
+  if (['ejes', 'items', 'resumen'].indexOf(params.get('tab')) !== -1) {
+    inicial = params.get('tab');
+  } else if (params.get('item_ok') || params.get('item_sin_docs')) {
     inicial = 'items';
-  } else if (params.get('tab') === 'ejes' || params.get('eje_ok') || params.get('eje_sin_docs')) {
+  } else if (params.get('eje_ok') || params.get('eje_sin_docs')) {
     inicial = 'ejes';
   } else {
     try { inicial = localStorage.getItem('revisor_tab') || 'ejes'; } catch (e) {}

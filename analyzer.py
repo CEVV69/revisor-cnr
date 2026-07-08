@@ -525,6 +525,66 @@ ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "prueba
                "memoria_superficies", "estudio_suelos"]
 
 
+# ─── RESUMEN DEL PROYECTO (ficha tipo formulario) ──────────────────────────────
+# Campos mínimos según la ficha del revisor. La IA autocompleta lo que puede; el
+# revisor completa/edita el resto. tipo: "text" | "textarea" | "sino".
+RESUMEN_SECCIONES = [
+    {"titulo": "Identificación", "campos": [
+        {"key": "codigo",          "label": "Código proyecto",     "tipo": "text", "auto": "codigo_sep"},
+        {"key": "postulante",      "label": "Postulante",          "tipo": "text", "auto": "postulante"},
+        {"key": "comuna",          "label": "Comuna",              "tipo": "text"},
+        {"key": "consultor",       "label": "Consultor",           "tipo": "text"},
+        {"key": "nombre_proyecto", "label": "Nombre del proyecto", "tipo": "text", "auto": "nombre"},
+        {"key": "estrato",         "label": "Estrato",             "tipo": "text"},
+    ]},
+    {"titulo": "1. Proyecto / Legal", "campos": [
+        {"key": "servidumbres", "label": "Servidumbres", "tipo": "sino"},
+        {"key": "indap",        "label": "INDAP",        "tipo": "sino"},
+        {"key": "rut",          "label": "RUT",          "tipo": "text"},
+        {"key": "art4",         "label": "Art. 4°",      "tipo": "sino"},
+        {"key": "coord_e",      "label": "Coordenada E", "tipo": "text"},
+        {"key": "coord_n",      "label": "Coordenada N", "tipo": "text"},
+        {"key": "coord_h",      "label": "Huso (H)",     "tipo": "text"},
+    ]},
+    {"titulo": "2. Solicitante", "campos": [
+        {"key": "proyectos_asociados", "label": "Proyectos asociados", "tipo": "textarea"},
+    ]},
+    {"titulo": "3. Predios", "campos": [
+        {"key": "superficie_predial", "label": "Superficie", "tipo": "text"},
+        {"key": "rol",                "label": "Rol",        "tipo": "text"},
+        {"key": "clase",              "label": "Clase",      "tipo": "text"},
+        {"key": "predio_bonificado",  "label": "Predio bonificado", "tipo": "text"},
+        {"key": "tenencia",           "label": "Tenencia",   "tipo": "text"},
+    ]},
+    {"titulo": "4. Derechos de agua (DAA)", "campos": [
+        {"key": "daa", "label": "Derechos de aprovechamiento de aguas", "tipo": "textarea"},
+    ]},
+    {"titulo": "5. Uso actual del suelo", "campos": [
+        {"key": "uso_actual_suelo", "label": "Uso actual del suelo (revisar Rol)", "tipo": "textarea"},
+    ]},
+    {"titulo": "6. Obras", "campos": [
+        {"key": "obras", "label": "Obras del proyecto", "tipo": "textarea"},
+    ]},
+    {"titulo": "7. Cultivo y superficie", "campos": [
+        {"key": "cultivo_superficie", "label": "Cultivo y superficie", "tipo": "textarea"},
+    ]},
+    {"titulo": "Características de obras", "campos": [
+        {"key": "volumen_embalsado",   "label": "Volumen embalsado (m³)", "tipo": "text"},
+        {"key": "fv_kwp",              "label": "FV (KWp)",               "tipo": "text"},
+        {"key": "n_placas",            "label": "N° placas",              "tipo": "text"},
+        {"key": "electrificacion_kva", "label": "Electrificación (KVA)",  "tipo": "text"},
+        {"key": "generador_kva",       "label": "Generador (KVA)",        "tipo": "text"},
+        {"key": "q_extraccion",        "label": "Q extracción (l/s)",     "tipo": "text"},
+    ]},
+]
+
+# Campos Sí/No (para validar/normalizar lo que devuelva la IA)
+RESUMEN_CAMPOS_SINO = {c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]
+                       if c["tipo"] == "sino"}
+# Todas las claves válidas del resumen
+RESUMEN_KEYS = [c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]]
+
+
 def _documentos_del_eje(eje_key: str, documentos: list) -> list:
     """Retorna los documentos del proyecto que alimentan un eje."""
     eje = EJES_REVISION.get(eje_key)
@@ -816,6 +876,84 @@ fundamento normativo. Sé breve y concreto."""
     if not texto:
         print(f"⚠️ Chat eje '{eje_key}': respuesta vacía — stop_reason={response.stop_reason}")
     return texto
+
+
+async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id: str = "") -> dict:
+    """
+    Autocompleta el resumen del proyecto extrayendo datos de los documentos del expediente.
+    Devuelve un dict {key: valor} solo con las claves válidas de RESUMEN_KEYS. No inventa:
+    si un dato no aparece, devuelve "" para esa clave.
+    """
+    docs_texto = [d for d in documentos
+                  if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    if not docs_texto:
+        return {}
+
+    client = _get_client()
+    budget = max(2000, 40000 // max(1, len(docs_texto)))
+    bloque = ""
+    for d in docs_texto:
+        label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        bloque += f"\n\n--- {label} ---\n{_truncar_inteligente(d.get('texto_extraido', ''), budget)}"
+
+    campos_lista = "\n".join(
+        f'- {c["key"]}: {c["label"]}' + (" (responde \"Sí\" o \"No\")" if c["tipo"] == "sino" else "")
+        for sec in RESUMEN_SECCIONES for c in sec["campos"])
+
+    prompt = f"""Extrae del expediente CNR los datos para el RESUMEN del proyecto.
+Devuelve SOLO un objeto JSON con EXACTAMENTE estas claves. Usa "" (vacío) si el dato NO
+aparece en los documentos. NO inventes ni deduzcas datos que no estén escritos.
+
+CLAVES A COMPLETAR:
+{campos_lista}
+
+Para los campos Sí/No responde exactamente "Sí" o "No" (o "" si no consta).
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles.
+
+EXPEDIENTE:
+{bloque}
+
+Responde SOLO el JSON, sin texto adicional."""
+
+    response = client.messages.create(
+        model=MODELO_SONNET,
+        max_tokens=3000,
+        system=[{"type": "text",
+                 "text": "Eres un asistente que extrae datos de expedientes CNR y responde únicamente con JSON válido.",
+                 "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": prompt}],
+        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+    )
+
+    content = _texto_respuesta(response)
+    datos = {}
+    try:
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        if start >= 0 and end > start:
+            datos = json.loads(content[start:end])
+    except json.JSONDecodeError:
+        try:
+            frag = content[content.find("{"):]
+            frag += "}" * (frag.count("{") - frag.count("}"))
+            datos = json.loads(frag)
+        except Exception:
+            datos = {}
+
+    if not datos:
+        print(f"⚠️ resumir_proyecto: sin datos — stop_reason={response.stop_reason}, "
+              f"preview={content[:200]!r}")
+
+    # Quedarse solo con claves válidas y normalizar Sí/No
+    limpio = {}
+    for k in RESUMEN_KEYS:
+        v = datos.get(k, "")
+        v = "" if v is None else str(v).strip()
+        if k in RESUMEN_CAMPOS_SINO:
+            vl = v.lower()
+            v = "Sí" if vl in ("sí", "si", "true", "1") else ("No" if vl in ("no", "false", "0") else "")
+        limpio[k] = v
+    return limpio
 
 
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo

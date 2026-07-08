@@ -180,6 +180,17 @@ Rutas: `POST /proyecto/{id}/revisar-eje/{key}` y `POST /proyecto/{id}/revisar-it
 Estados de avance en `proyecto["ejes_revisados"]` y `proyecto["items_revisados"]`.
 "Limpiar revisión" resetea ambos.
 
+## Resumen del proyecto (3ª pestaña, formulario)
+
+Ficha tipo formulario con los datos mínimos del proyecto (`RESUMEN_SECCIONES` en analyzer.py:
+identificación, legal, predios, DAA, uso de suelo, obras, cultivo, características de obras).
+Campos `text` / `textarea` / `sino` (select Sí/No). Se guarda en `proyecto["resumen"]` (dict
+key→valor). Botón **Autocompletar con IA** → `resumir_proyecto()` (analyzer) lee los documentos
+y devuelve JSON con lo que encuentra (no inventa; "" si no consta); en el backend solo rellena
+campos VACÍOS (no pisa lo que el revisor escribió). Campos con `auto` (código, postulante,
+nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
+`POST /proyecto/{id}/resumen` (guardar) y `POST /proyecto/{id}/resumen/autocompletar`.
+
 ---
 
 ## Funcionalidades implementadas ✅
