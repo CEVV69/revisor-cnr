@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBearer
@@ -402,8 +402,12 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
 @app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
 async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
                    mensaje: str = Form(...)):
+    # ¿La petición vino por JavaScript (sin recargar página)? → responder en JSON
+    es_ajax = request.headers.get("x-requested-with") == "fetch"
     user = get_current_user(request)
     if not user:
+        if es_ajax:
+            return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
         return RedirectResponse(url="/login")
     if eje_key not in EJES_REVISION:
         raise HTTPException(status_code=404, detail="Eje no válido")
@@ -413,6 +417,8 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
 
     mensaje = (mensaje or "").strip()
     if not mensaje:
+        if es_ajax:
+            return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
         return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
 
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
@@ -437,6 +443,8 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
         import traceback
         print(f"❌ ERROR en chat_eje {eje_key}: {e}")
         print(traceback.format_exc())
+        if es_ajax:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
         raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
 
     if not respuesta.strip():
@@ -448,6 +456,8 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
     proyecto["eje_chats"][eje_key] = historial[-40:]   # conservar últimos 40 turnos
     db.save_proyecto(proyecto)
 
+    if es_ajax:
+        return JSONResponse({"ok": True, "mensaje": mensaje, "respuesta": respuesta})
     return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
 
 

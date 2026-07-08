@@ -132,7 +132,7 @@
       <span class="obs-num">{{ loop.index }})</span>
       <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad|upper }}</span>
       <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
-      <span class="obs-anexo">{{ obs.doc_nombre }}</span>
+      <span class="obs-anexo">{{ obs.eje_nombre or obs.doc_nombre }}</span>
     </div>
     <div class="obs-texto">{{ obs.texto }}</div>
     {% if obs.referencia_normativa %}

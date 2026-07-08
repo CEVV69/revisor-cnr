@@ -229,6 +229,16 @@ Severidades:
 - menor: debe corregirse pero no impide la admisión
 - informativa: recomendación sin impacto en admisión (úsala con moderación)
 
+REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO):
+- BREVE y DIRECTO: máximo 2-3 líneas. No relates antecedentes largos ni contexto;
+  ve directo a qué falta o qué está mal. Escribe como un revisor CNR redacta una
+  observación para el SEP, no como un informe.
+- CIERRE OBLIGATORIO: cada observación (mayor o menor) DEBE terminar con una de estas
+  dos instrucciones explícitas, según corresponda:
+    • "Debe aclarar."   → cuando se requiere precisar o resolver una discrepancia/ambigüedad.
+    • "Debe justificar." → cuando se requiere fundamento técnico o normativo adicional.
+  Las notas informativas no requieren este cierre.
+
 Si el documento está correcto o cumple con lo esencial, devuelve lista vacía en observaciones."""
 
 

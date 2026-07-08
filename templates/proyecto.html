@@ -2,6 +2,16 @@
 {% block title %}{{ proyecto.codigo_sep }} — Revisor CNR{% endblock %}
 {% block content %}
 
+<style>
+  .chat-msgs { display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem; }
+  .chat-bubble { max-width:85%; padding:0.55rem 0.75rem; border-radius:10px;
+    font-size:0.86rem; line-height:1.5; white-space:pre-wrap; }
+  .chat-bubble.rev { align-self:flex-end; background:var(--blue); color:#fff; }
+  .chat-bubble.ia  { align-self:flex-start; background:rgba(128,128,128,0.12); color:var(--text); }
+  .chat-bubble.pensando { align-self:flex-start; background:rgba(128,128,128,0.12);
+    color:var(--text-2); font-style:italic; }
+</style>
+
 <!-- Encabezado -->
 <div style="margin:1.4rem 0 1.2rem;">
 
@@ -371,20 +381,18 @@ function actualizarEtiqueta(input) {
       {% if eje.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (eje.chat|length / 2)|int }} mensaje{{ 's' if (eje.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
     </summary>
     <div style="padding:0 0.9rem 0.9rem;">
-      {% if eje.chat %}
-      <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem;">
+      <div class="chat-msgs" id="chat-msgs-{{ eje.key }}">
         {% for msg in eje.chat %}
-        <div style="max-width:85%; padding:0.55rem 0.75rem; border-radius:10px; font-size:0.86rem; line-height:1.5; white-space:pre-wrap;
-          {% if msg.rol == 'revisor' %}align-self:flex-end; background:var(--blue); color:#fff;
-          {% else %}align-self:flex-start; background:rgba(128,128,128,0.12); color:var(--text);{% endif %}">{{ msg.texto }}</div>
+        <div class="chat-bubble {{ 'rev' if msg.rol == 'revisor' else 'ia' }}">{{ msg.texto }}</div>
         {% endfor %}
+        {% if not eje.chat %}
+        <p class="chat-vacio" style="font-size:0.82rem; color:var(--text-2); margin:0.5rem 0;">
+          Aún no hay conversación en este eje. Escribe tu primera consulta.
+        </p>
+        {% endif %}
       </div>
-      {% else %}
-      <p style="font-size:0.82rem; color:var(--text-2); margin:0.5rem 0 0.75rem;">
-        Aún no hay conversación en este eje. Escribe tu primera consulta.
-      </p>
-      {% endif %}
       <form method="post" action="/proyecto/{{ proyecto.id }}/eje/{{ eje.key }}/chat"
+            onsubmit="return enviarChat(event, '{{ eje.key }}')"
             style="display:flex; gap:0.5rem; align-items:flex-end;">
         <textarea name="mensaje" rows="2" required placeholder="Ej: La observación 1 es sobre un título en trámite que las bases permiten. ¿No debería ser una nota?"
           style="flex:1; padding:0.5rem 0.7rem; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-size:0.86rem; resize:vertical;"></textarea>
@@ -428,12 +436,18 @@ function actualizarEtiqueta(input) {
     {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
     {% else %}border-left:4px solid #d69e2e;{% endif %}">
 
+    {% if obs.eje_nombre %}
+    <div style="font-weight:700; color:#2b6cb0; font-size:0.9rem; margin-bottom:0.5rem;
+                padding-bottom:0.35rem; border-bottom:1px solid #e2e8f0;">
+      🔹 {{ obs.eje_nombre }}
+    </div>
+    {% endif %}
+
     <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.6rem;">
       <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
         <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
         <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
         <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
-        <span class="text-muted" style="font-size:0.78rem; word-break:break-word;">{{ obs.doc_nombre }}</span>
       </div>
       <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
             style="white-space:nowrap;">{{ obs.estado }}</span>
@@ -471,10 +485,14 @@ function actualizarEtiqueta(input) {
   {% for obs in obs_informativas %}
   <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
     {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
+    {% if obs.eje_nombre %}
+    <div style="font-weight:700; color:#2b6cb0; font-size:0.86rem; margin-bottom:0.4rem;">
+      🔹 {{ obs.eje_nombre }}
+    </div>
+    {% endif %}
     <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
       <span class="badge badge-informativa">informativa</span>
       <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
-      <span style="font-size:0.78rem; color:#4a5568;">{{ obs.doc_nombre }}</span>
     </div>
     <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
       <textarea name="texto_editado" rows="2" class="auto-expand"
@@ -522,6 +540,70 @@ function cambiarTipo(proyectoId, docId, select) {
       }
     })
     .catch(() => { select.style.borderColor = '#ff3b30'; });
+}
+
+// Chat de eje: enviar y mostrar la respuesta SIN recargar la página
+// (evita el salto de pantalla, que se cierre el panel y la recarga completa)
+function enviarChat(event, ejeKey) {
+  event.preventDefault();
+  const form = event.target;
+  const textarea = form.querySelector('textarea[name="mensaje"]');
+  const boton = form.querySelector('button[type="submit"]');
+  const mensaje = (textarea.value || '').trim();
+  if (!mensaje) return false;
+
+  const cont = document.getElementById('chat-msgs-' + ejeKey);
+  const vacio = cont.querySelector('.chat-vacio');
+  if (vacio) vacio.remove();
+
+  // Burbuja del revisor (lo que acaba de escribir)
+  const burbujaRev = document.createElement('div');
+  burbujaRev.className = 'chat-bubble rev';
+  burbujaRev.textContent = mensaje;
+  cont.appendChild(burbujaRev);
+
+  // Burbuja "pensando..." mientras responde la IA
+  const pensando = document.createElement('div');
+  pensando.className = 'chat-bubble pensando';
+  pensando.textContent = 'La IA está pensando…';
+  cont.appendChild(pensando);
+
+  textarea.value = '';
+  textarea.disabled = true;
+  boton.disabled = true;
+  boton.textContent = 'Enviando…';
+
+  fetch(form.action, {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'fetch' },
+    body: new FormData(form)
+  })
+    .then(r => r.json())
+    .then(data => {
+      pensando.remove();
+      const burbujaIA = document.createElement('div');
+      burbujaIA.className = 'chat-bubble ia';
+      if (data.ok) {
+        burbujaIA.textContent = data.respuesta;
+      } else {
+        burbujaIA.textContent = '⚠️ No se pudo obtener respuesta. Intenta de nuevo.';
+      }
+      cont.appendChild(burbujaIA);
+    })
+    .catch(() => {
+      pensando.remove();
+      const burbujaIA = document.createElement('div');
+      burbujaIA.className = 'chat-bubble ia';
+      burbujaIA.textContent = '⚠️ Error de conexión. Intenta de nuevo.';
+      cont.appendChild(burbujaIA);
+    })
+    .finally(() => {
+      textarea.disabled = false;
+      boton.disabled = false;
+      boton.textContent = 'Enviar';
+      textarea.focus();
+    });
+  return false;
 }
 
 // Auto-expandir textareas de observaciones/notas para mostrar el texto completo
