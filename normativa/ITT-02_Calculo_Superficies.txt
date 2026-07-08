@@ -1,0 +1,36 @@
+CRITERIOS DE REVISIÓN — ITT-02 CÁLCULO DE SUPERFICIES (Tecnificación, Ley 18.450)
+
+La superficie con 85% de seguridad se obtiene de un BALANCE HÍDRICO entre el caudal disponible
+(Q85%) y la demanda diaria (l/s/ha), que depende de la evapotranspiración y la eficiencia.
+
+1. EVAPOTRANSPIRACIÓN DE REFERENCIA (ETo)
+- Se usa el estudio "Sistema Nacional de Referencia — Demandas de Agua en la Agricultura"
+  (Agrimed). La ETo debe ser coherente con la zona del proyecto.
+
+2. EFICIENCIA DE APLICACIÓN
+- Según el método de riego (Tabla N°1, ver criterios de tecnificación): Goteo 90%, Microasp 85%,
+  Aspersión 75%, Borboteo 70%, Surcos 45%, Tendido 30%.
+- Con varios métodos: usar eficiencia PONDERADA por superficie de cada método (DT-04):
+  Ef_pond = Σ(Ef_i × S_i) / S_total, con eficiencias como fracción (0<Ef<1).
+- La eficiencia actual debe ser consistente con el uso actual del suelo (verificable con fotos
+  satelitales y visitas a terreno).
+
+3. SUPERFICIES CLAVE (definen el monto bonificable)
+- Superficie de Riego ACTUAL (SRA): balance entre demanda de lo regado ANTES del proyecto (con
+  las eficiencias de los métodos actuales) y la disponibilidad antes del proyecto.
+      SRA = Q85% actual / Demanda (ETo / ef actual)
+- Superficie de Riego FUTURA (SRF): balance con el proyecto implementado (eficiencias nuevas).
+      SRF = Q85% futura / Demanda (ETo / ef futura)
+- AUMENTO de superficie regada con 85% de seguridad (nuevo riego) = SRF − SRA.
+- La superficie regada con 85% no puede superar la superficie regable máxima del/los predios
+  (punto 3 del Manual, identificación del área de riego).
+- Superficie de Riego por Caudal Excedentario (SRQex): si el mejoramiento de eficiencia genera
+  agua excedente, SRQex = Q85% excedente / Demanda (ETo / ef del método inicial).
+
+QUÉ OBSERVAR
+- Eficiencias que no corresponden al método, o eficiencia ponderada mal calculada. Debe justificar.
+- SRA/SRF/nuevo riego que no cuadran con el balance hídrico, o superficie que excede la regable
+  máxima o la del título de dominio. Debe aclarar.
+- La superficie de este cálculo debe coincidir con la memoria de superficies, los planos y la
+  identificación del área de riego; si no cuadran, observación mayor.
+- La demanda resultante es el insumo del diseño hidráulico y del presupuesto: debe cerrar.

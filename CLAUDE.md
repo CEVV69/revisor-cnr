@@ -86,6 +86,9 @@ extractor.py     Extracción de texto de PDF / Word / Excel / ZIP + clasificaci�
 database.py      Capa dual: PostgreSQL si hay DATABASE_URL, si no JSON local
 auth.py          bcrypt + JWT
 normativa/       *.txt de normativa CNR, cargados al inicio (máx 4.000 chars c/u)
+                 Incluye DT-*, IL-*, Manual_Supervision y criterios destilados de los
+                 Instructivos de Tecnificación (ITT-01 a ITT-04 + ITT_Criterios), extraídos
+                 del PDF oficial del Drive para guiar la revisión sin cargar el PDF completo.
 uploads/         Una subcarpeta por proyecto (NO persiste entre deploys)
 templates/       Jinja2 (base.html, proyecto.html, ficha.html, admin_concursos.html, …)
 ```

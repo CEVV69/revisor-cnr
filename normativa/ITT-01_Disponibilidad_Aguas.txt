@@ -1,0 +1,37 @@
+CRITERIOS DE REVISIÓN — ITT-01 DISPONIBILIDAD DE AGUAS (Tecnificación, Ley 18.450)
+
+Regla central: la disponibilidad de agua del proyecto debe demostrarse con 85% de
+probabilidad de excedencia (Q85%). Todo el respaldo (estadísticas, planos, cálculos) va en
+el Anexo 9.4 Análisis hidrológico del software Ley 18.450.
+
+1. DERECHOS DE APROVECHAMIENTO
+- Permanentes expresados en caudal (l/s, m³/temporada) e inscritos en el CBR sin equivalencia:
+  se asume que el derecho del título posee la seguridad exigida (Q85%).
+- Fuentes incluidas en el DT-01 (caudales con seguridad 85%): usar ese valor; ya está a nivel
+  predial, NO se descuentan pérdidas por conducción. Si la equivalencia es por acción de canal,
+  multiplicar por las acciones/derechos acreditados por el postulante.
+- Fuentes NO incluidas en DT-01: demostrar Q85% por, en orden de prevalencia: (a) estación
+  fluviométrica representativa del DT-02; (b) análisis de frecuencia; (c) estudio hidrológico.
+  Usar el promedio de los 3 meses de máxima evapotranspiración y ≥15 años consecutivos de
+  estadística anteriores a la postulación.
+- Métodos de modelación/transposición: aplicar un factor de seguridad de 0,5 sobre el caudal
+  disponible en la fuente.
+- Derechos EVENTUALES: el caudal disponible = caudal del derecho × 0,5. Deben expresarse en
+  caudal (volumen/tiempo).
+- Vertientes o lagos menores inscritos: el caudal disponible es el indicado expresamente en la
+  inscripción de dominio.
+- Sin estadística fluviométrica: relación precipitación-escorrentía (método racional o
+  Verni-King) con al menos 30 años de precipitaciones y la distribución que mejor ajuste.
+
+2. PÉRDIDAS POR CONDUCCIÓN (nivel predial)
+- Se calculan salvo: (a) caudales ya a nivel predial; (b) derechos de cuencas/canales con
+  equivalencia definida en el DT-01. Para el resto, estimar pérdidas por conducción entre
+  5% y 10% del caudal disponible en la obra de captación.
+
+QUÉ OBSERVAR
+- Q85% no demostrado, o demostrado con método de menor prevalencia sin justificar por qué no
+  aplica uno superior. Debe justificar.
+- Derecho eventual usado sin aplicar el factor 0,5, o pérdidas por conducción no consideradas
+  cuando corresponden. Debe aclarar.
+- El caudal disponible debe respaldar el caudal de diseño y cubrir la demanda del proyecto;
+  si no la cubre, el proyecto no es viable (observación mayor).

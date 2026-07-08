@@ -1,0 +1,49 @@
+CRITERIOS DE REVISIÓN — ITT-04 PRESUPUESTO DE OBRAS DE TECNIFICACIÓN (Ley 18.450)
+
+(Los topes numéricos —límite 15%, honorarios máximos, unidades de medida, ítems FV, DT-18
+excavación— están en el archivo "Criterios de Tecnificación". Aquí van las reglas de forma y
+procedimiento del presupuesto.)
+
+1. PRECIOS Y RESPALDOS
+- Los precios de elementos, equipos y máquinas de riego deben ser valores de mercado.
+- Cotizaciones o facturas proforma: con menos de 6 meses de antigüedad respecto de la fecha de
+  postulación, emitidas por proveedores con el giro respectivo, y desglosadas indicando si
+  incluyen o no IVA. Se suben al Anexo 9.10.4.
+- Los precios facturados deben incluirse en el presupuesto SIN alteración.
+- Obras civiles complementarias: precios unitarios según DT-18 (Precios Unitarios Mínimos y
+  Máximos). Partidas no descritas en DT-18: hacer análisis de precio unitario (APU), que se
+  ingresa en el Anexo 9.10.1.
+
+2. GASTOS GENERALES, IMPREVISTOS Y UTILIDAD
+- Si los gastos generales superan el 5% del costo total o son mayores a UF 150, se debe
+  presentar su detalle, con relación directa a las obras del proyecto.
+- Subcontrataciones (telemetría, ERNC, etc.): NO pueden incluir gastos generales NI utilidad
+  por ese concepto (ya vienen en el presupuesto del subcontratista).
+- La utilidad solo se puede solicitar sobre partidas de obras civiles u otras que requieran APU.
+- Imprevistos: deben quedar justificados y explicitados en el Libro de Obras.
+
+3. ESTUDIO, HONORARIOS E INSPECCIÓN
+- El costo de estudio incluye el diseño del sistema y los honorarios del consultor que presenta
+  el proyecto. Honorarios del consultor: tope $4.000.000 por proyecto, acordes a la complejidad
+  y calidad de la presentación.
+- El inspector/ITO debe estar inscrito en el Registro de Consultores de la CNR.
+- Zonas extremas: pueden presentar costos de estudio/instalación mayores, debidamente
+  justificados y respetando el límite del reglamento para estudio, supervisión y gastos generales.
+
+4. IVA
+- El presupuesto por el que se solicita bonificación NO considera IVA, salvo pequeños
+  productores INDAP sin inicio de actividades ante el SII, o que —teniendo inicio— demuestren
+  que no pueden usar el crédito fiscal. Indicar siempre en el software si el proyecto considera IVA.
+
+5. OTRAS PARTIDAS OBLIGATORIAS
+- Letrero CNR (IL-08): sus gastos se respaldan con cotización o APU; ítem obligatorio.
+- Proyecto eléctrico: presentado por profesional acreditado ante la SEC, con cubicación y
+  precios de postes, conductores, subestación, protecciones/medida y tramitación SEC.
+- Medidores volumétricos: obligatorios en centros de control fijos, pozos e impulsiones.
+
+QUÉ OBSERVAR
+- Cotizaciones con más de 6 meses, sin giro, o que no respaldan las partidas. Debe aclarar.
+- Gastos generales sobre 5%/UF150 sin detalle; utilidad o GG cobrados sobre subcontratos;
+  utilidad sobre partidas sin APU. Debe justificar.
+- IVA incluido sin cumplir la excepción INDAP; letrero IL-08 ausente; proyecto eléctrico sin
+  profesional SEC. Debe aclarar.

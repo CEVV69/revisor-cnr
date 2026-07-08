@@ -1,0 +1,43 @@
+CRITERIOS DE REVISIÓN — ITT-03 DISEÑO DE OBRAS DE TECNIFICACIÓN (Ley 18.450)
+
+El diseño debe demostrar que el sistema FUNCIONA hidráulicamente y es coherente con la demanda
+del cálculo de superficies (ITT-02) y el caudal disponible (ITT-01).
+
+1. DISEÑO HIDRÁULICO — debe presentar
+- Características de la red de tuberías: nodos, longitud por tramo, diámetro y presión.
+- Cálculo de pérdidas de carga.
+- Determinación de presión requerida, presión disponible y caudal.
+- Identificación en tuberías del diámetro, longitud y Presión Nominal (PN), con los tramos y
+  cambios de diámetro claramente marcados (también en los planos).
+- Datos de los emisores: marco/espaciamiento (m) y caudal del emisor (l/hr).
+
+2. MÉTODO DE RIEGO
+- Goteo/microaspersión: espaciamiento y caudal de emisores, diámetro y espesor de la línea.
+- Aspersión móvil/semimóvil no automatizada: el tiempo de riego diario máximo debe considerar
+  la capacidad operativa de la mano de obra para los cambios de postura.
+- Aspersión y gravitacional (tendido, surcos, bordes) con aducción californiano: fundamentar la
+  frecuencia de riego con características físicas del suelo (Capacidad de Campo, Punto de
+  Marchitez Permanente, Densidad Aparente, Profundidad Efectiva, Textura), espaciamiento,
+  forma y largo de surcos/paños/bordes, caudal máximo no erosivo, caudal reducido, tiempo de
+  riego y plano topográfico. En californiano, ubicar en plano cámaras, válvulas alfalfa/beta,
+  cámaras reguladoras o rompecarga, campanas de distribución, zanja de limpieza, etc.
+
+3. EQUIPOS Y COMPONENTES
+- Centros de control fijos, pozos e impulsiones: OBLIGATORIO proveer e instalar medidores
+  volumétricos que registren el agua utilizada en riego.
+- Adjuntar catálogos legibles al menos de bombas, filtros, emisores y máquinas de riego.
+- Equipos de fertirriego: incluir sus componentes mínimos.
+- Selección del filtro: la presión a la entrada debe estar en el rango recomendado por el
+  fabricante, para asegurar limpieza y funcionamiento correctos.
+
+4. MOVIMIENTO DE TIERRA
+- Se acepta un volumen máximo de hasta 450 m³ en promedio por hectárea efectivamente nivelada.
+
+QUÉ OBSERVAR
+- Falta de cálculo de pérdidas de carga, o presión disponible < requerida (el sistema no
+  funciona). Debe justificar / observación mayor.
+- Caudal de diseño que no coincide con la demanda del ITT-02, o incoherencia entre planos y
+  cálculos (nodos, diámetros, PN). Debe aclarar.
+- Ausencia de medidor volumétrico donde es obligatorio, o falta de catálogos de bombas/filtros/
+  emisores. Debe aclarar.
+- Movimiento de tierra sobre 450 m³/ha nivelada sin justificación. Debe justificar.
