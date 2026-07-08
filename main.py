@@ -244,6 +244,24 @@ async def ver_proyecto(request: Request, proyecto_id: str):
             "revisado": ejes_revisados.get(eje_key),
             "chat": eje_chats.get(eje_key, []),
         })
+    # Agrupar observaciones bajo un solo título por eje, en el orden lógico de los ejes.
+    orden_eje = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+
+    def _agrupar_por_eje(observaciones):
+        grupos = {}
+        for o in observaciones:
+            nombre = o.get("eje_nombre") or "Otras observaciones"
+            grupos.setdefault(nombre, []).append(o)
+        return [{"nombre": n, "items": items}
+                for n, items in sorted(grupos.items(),
+                                       key=lambda kv: orden_eje.get(kv[0], 999))]
+
+    todas_obs   = proyecto.get("observaciones", [])
+    principales = [o for o in todas_obs if o.get("severidad") != "informativa"]
+    informativas = [o for o in todas_obs if o.get("severidad") == "informativa"]
+    grupos_obs   = _agrupar_por_eje(principales)
+    grupos_notas = _agrupar_por_eje(informativas)
+
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
         "user": user,
@@ -252,6 +270,13 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         "concurso_id": concurso_id,
         "ejes_info": ejes_info,
         "n_faltan_resubir": n_faltan_resubir,
+        "grupos_obs": grupos_obs,
+        "grupos_notas": grupos_notas,
+        "n_principales": len(principales),
+        "n_pendientes": len([o for o in principales if o.get("estado") == "pendiente"]),
+        "n_aprobadas": len([o for o in principales if o.get("estado") == "aprobada"]),
+        "n_descartadas": len([o for o in principales
+                              if o.get("estado") not in ("pendiente", "aprobada")]),
     })
 
 
@@ -738,12 +763,22 @@ async def ficha_revision(request: Request, proyecto_id: str):
     try:
         obs_aprobadas = [o for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
+        # Agrupar por eje en el orden lógico, para la ficha oficial (ingreso al SEP)
+        orden_eje = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+        grupos = {}
+        for o in obs_aprobadas:
+            nombre = o.get("eje_nombre") or "Otras observaciones"
+            grupos.setdefault(nombre, []).append(o)
+        grupos_ficha = [{"nombre": n, "items": items}
+                        for n, items in sorted(grupos.items(),
+                                               key=lambda kv: orden_eje.get(kv[0], 999))]
         from datetime import date
         return templates.TemplateResponse("ficha.html", {
             "request": request,
             "proyecto": proyecto,
             "user": user,
             "obs_aprobadas": obs_aprobadas,
+            "grupos_ficha": grupos_ficha,
             "fecha_ficha": date.today().strftime("%d-%m-%Y")
         })
     except Exception as e:

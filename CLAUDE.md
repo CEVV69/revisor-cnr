@@ -151,6 +151,17 @@ Tres preguntas guía antes de observar:
 - Observaciones describen **solo incumplimientos** — nunca mencionan lo que sí cumple.
 - **Notación chilena** reforzada en cada prompt: coma = decimal, punto = miles.
 - Criterio de ingeniero: ¿puede construirse?, ¿ejecutable en terreno?, ¿precios de mercado?
+- **Redacción de la observación (`texto`):** breve y directa (máx 2-3 líneas), sin relatar
+  antecedentes largos. Cada obs mayor/menor cierra con una frase explícita:
+  `"Debe aclarar."` (precisar/resolver ambigüedad), `"Debe justificar."` (falta fundamento
+  técnico/normativo) o `"Se sugiere declarar no admitido."` (falta un documento obligatorio
+  exigido por las bases). Las notas informativas no llevan cierre.
+- **Documentos obligatorios:** `analizar_eje` inyecta un manifiesto de TODOS los tipos de
+  documento presentes en el expediente para que la IA detecte faltantes obligatorios.
+- **Observaciones agrupadas por eje:** en `proyecto.html` y en la ficha, las obs se muestran
+  bajo UN solo título por eje (no un encabezado por observación), en el orden de `EJES_ORDEN`.
+  El agrupamiento se arma en `ver_proyecto()` / `ficha_revision()` (`grupos_obs`,
+  `grupos_notas`, `grupos_ficha`), no en la plantilla.
 
 ---
 

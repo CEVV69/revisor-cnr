@@ -234,9 +234,11 @@ REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO):
   ve directo a qué falta o qué está mal. Escribe como un revisor CNR redacta una
   observación para el SEP, no como un informe.
 - CIERRE OBLIGATORIO: cada observación (mayor o menor) DEBE terminar con una de estas
-  dos instrucciones explícitas, según corresponda:
+  instrucciones explícitas, según corresponda:
     • "Debe aclarar."   → cuando se requiere precisar o resolver una discrepancia/ambigüedad.
     • "Debe justificar." → cuando se requiere fundamento técnico o normativo adicional.
+    • "Se sugiere declarar no admitido." → SOLO cuando falta un documento obligatorio
+      exigido por las bases como imprescindible para postular.
   Las notas informativas no requieren este cierre.
 
 Si el documento está correcto o cumple con lo esencial, devuelve lista vacía en observaciones."""
@@ -506,6 +508,14 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
 
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
 
+    # Manifiesto de TODOS los documentos presentes en el expediente (no solo los del eje).
+    # Permite a la IA detectar si falta un documento obligatorio exigido por las bases.
+    labels_presentes = sorted({
+        (d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", "")))
+        for d in documentos if d.get("tipo_doc")
+    })
+    manifiesto = "\n".join(f"• {l}" for l in labels_presentes if l) or "(sin documentos)"
+
     nota_imagenes = ""
     if imagenes_por_doc:
         nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
@@ -527,6 +537,14 @@ detectar problemas del eje considerando la RELACIÓN entre ellos, no cada uno po
 Presta especial atención a incoherencias entre documentos. Aplica el criterio de las tres
 preguntas (¿funciona?, ¿precios razonables?, ¿diseño con lógica?) y la regla de oro
 (ante la duda, no observar; máx ~10-15 observaciones).{nota_imagenes}
+
+DOCUMENTOS PRESENTES EN EL EXPEDIENTE COMPLETO (para verificar faltantes obligatorios):
+{manifiesto}
+
+DOCUMENTOS OBLIGATORIOS: Antes de observar, ten claro qué documentos exigen las bases del
+concurso como IMPRESCINDIBLES para postular. Si un documento obligatorio de este eje NO
+aparece en el listado de arriba (no fue ingresado al expediente), genera una observación
+mayor y termínala con la frase exacta: "Se sugiere declarar no admitido."
 
 DOCUMENTOS DEL EJE (texto):
 {bloque_docs if bloque_docs else '(Los documentos de este eje se adjuntan como imágenes más abajo.)'}"""

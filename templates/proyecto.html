@@ -408,40 +408,35 @@ function actualizarEtiqueta(input) {
 <!-- Observaciones -->
 {% if proyecto.observaciones %}
 
-{% set obs_principales = proyecto.observaciones|rejectattr("severidad","eq","informativa")|list %}
-{% set obs_informativas = proyecto.observaciones|selectattr("severidad","eq","informativa")|list %}
-{% set pendientes = obs_principales|selectattr("estado","eq","pendiente")|list %}
-{% set aprobadas = obs_principales|selectattr("estado","eq","aprobada")|list %}
-{% set descartadas = obs_principales|rejectattr("estado","eq","pendiente")|rejectattr("estado","eq","aprobada")|list %}
-
-<!-- Observaciones principales (mayor / menor) -->
-{% if obs_principales %}
+<!-- Observaciones principales (mayor / menor), agrupadas por eje -->
+{% if grupos_obs %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
-    <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ obs_principales|length }})</h2>
+    <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ n_principales }})</h2>
     <a href="/proyecto/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
       📄 Generar Ficha de Revisión
     </a>
   </div>
 
   <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
-    <strong>{{ pendientes|length }}</strong> pendientes &nbsp;·&nbsp;
-    <strong>{{ aprobadas|length }}</strong> aprobadas &nbsp;·&nbsp;
-    <strong>{{ descartadas|length }}</strong> descartadas
+    <strong>{{ n_pendientes }}</strong> pendientes &nbsp;·&nbsp;
+    <strong>{{ n_aprobadas }}</strong> aprobadas &nbsp;·&nbsp;
+    <strong>{{ n_descartadas }}</strong> descartadas
   </p>
 
-  {% for obs in obs_principales %}
+  {% for grupo in grupos_obs %}
+  <!-- Título del eje/ítem: un solo encabezado para todas sus observaciones -->
+  <div style="margin:1.2rem 0 0.6rem; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
+              font-weight:700; color:#2b6cb0; font-size:0.95rem;">
+    🔹 {{ grupo.nombre }}
+    <span style="font-weight:400; color:#4a5568; font-size:0.82rem;">· {{ grupo.items|length }} observación{{ 'es' if grupo.items|length != 1 else '' }}</span>
+  </div>
+
+  {% for obs in grupo.items %}
   <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
     {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
     {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
     {% else %}border-left:4px solid #d69e2e;{% endif %}">
-
-    {% if obs.eje_nombre %}
-    <div style="font-weight:700; color:#2b6cb0; font-size:0.9rem; margin-bottom:0.5rem;
-                padding-bottom:0.35rem; border-bottom:1px solid #e2e8f0;">
-      🔹 {{ obs.eje_nombre }}
-    </div>
-    {% endif %}
 
     <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.6rem;">
       <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
@@ -471,25 +466,25 @@ function actualizarEtiqueta(input) {
     </form>
   </div>
   {% endfor %}
+  {% endfor %}
 </div>
 {% endif %}
 
-<!-- Notas para el revisor (informativas) -->
-{% if obs_informativas %}
+<!-- Notas para el revisor (informativas), agrupadas por eje -->
+{% if grupos_notas %}
 <div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
-  <h2 style="color:#2b6cb0;">💡 Notas para el revisor ({{ obs_informativas|length }})</h2>
+  <h2 style="color:#2b6cb0;">💡 Notas para el revisor</h2>
   <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#4a5568;">
     Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
     No se incluyen en la ficha de revisión oficial.
   </p>
-  {% for obs in obs_informativas %}
+  {% for grupo in grupos_notas %}
+  <div style="margin:1rem 0 0.5rem; font-weight:700; color:#2b6cb0; font-size:0.88rem;">
+    🔹 {{ grupo.nombre }}
+  </div>
+  {% for obs in grupo.items %}
   <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
     {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
-    {% if obs.eje_nombre %}
-    <div style="font-weight:700; color:#2b6cb0; font-size:0.86rem; margin-bottom:0.4rem;">
-      🔹 {{ obs.eje_nombre }}
-    </div>
-    {% endif %}
     <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
       <span class="badge badge-informativa">informativa</span>
       <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
@@ -506,6 +501,7 @@ function actualizarEtiqueta(input) {
               style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
     </form>
   </div>
+  {% endfor %}
   {% endfor %}
 </div>
 {% endif %}
