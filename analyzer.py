@@ -605,6 +605,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
+                          criterios_aprendidos: str = "",
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
@@ -668,7 +669,14 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
-    bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], feedback_key)
+    # Aprendizaje: si hay criterios ya destilados de este eje/ítem, se usan (más compactos y
+    # generalizables). Si no, se cae a los ejemplos crudos de feedback.
+    if criterios_aprendidos and criterios_aprendidos.strip():
+        bloque_feedback = (f"\n{'═'*60}\nCRITERIOS APRENDIDOS EN ESTE CONCURSO "
+                           f"(destilados de las decisiones del revisor)\n{'═'*60}\n"
+                           f"{criterios_aprendidos.strip()}\n")
+    else:
+        bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], feedback_key)
 
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}]
@@ -768,6 +776,7 @@ DOCUMENTOS DEL GRUPO (texto):
 
 async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
                        concurso_id: str = "", feedback_concurso: list = None,
+                       criterios_aprendidos: str = "",
                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo."""
     eje = EJES_REVISION.get(eje_key)
@@ -779,11 +788,13 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key=eje_key,
+        criterios_aprendidos=criterios_aprendidos,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
+                        criterios_aprendidos: str = "",
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo."""
     item = ITEMS_SEP.get(item_key)
@@ -796,6 +807,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         modo="ÍTEM DEL SEP", es_coherencia=False,
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
+        criterios_aprendidos=criterios_aprendidos,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
@@ -830,15 +842,11 @@ async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
         bloque_obs = "\n(No hay observaciones registradas para este eje todavía.)"
 
     bloque_bases = _construir_bloque_bases(bases_texto, concurso_id)
-    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
-                         "cache_control": {"type": "ephemeral"}}]
-    if bloque_bases.strip():
-        system_con_cache.append({"type": "text", "text": bloque_bases,
-                                 "cache_control": {"type": "ephemeral"}})
 
-    # Reconstruir la conversación previa como turnos
-    mensajes = []
-    contexto_inicial = f"""Estás asistiendo a un revisor CNR en el eje de revisión "{eje['nombre']}".
+    # Contexto del eje (documentos + observaciones + guía). Se pone como bloque CACHEADO del
+    # system para que en una conversación de varios turnos NO se reenvíe ni reprocese cada vez
+    # (más rápido y más barato). Solo cambia si cambia el eje o sus observaciones.
+    contexto_eje = f"""Estás asistiendo a un revisor CNR en el eje de revisión "{eje['nombre']}".
 Ya realizaste una revisión de este eje. Ahora el revisor quiere DEBATIR contigo las
 observaciones: aclarar, corregir, reclasificar (ej. bajar una observación a nota si las
 bases lo permiten) o profundizar en un punto técnico.
@@ -856,9 +864,17 @@ trámite que las bases permiten), reconócelo y sugiere la acción concreta (des
 observación, bajarla a nota, o editarla). Si mantienes tu criterio, explica por qué con
 fundamento normativo. Sé breve y concreto."""
 
-    mensajes.append({"role": "user", "content": contexto_inicial})
-    mensajes.append({"role": "assistant", "content": "Entendido. Dime qué observación quieres revisar o qué duda tienes sobre este eje."})
+    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral"}}]
+    if bloque_bases.strip():
+        system_con_cache.append({"type": "text", "text": bloque_bases,
+                                 "cache_control": {"type": "ephemeral"}})
+    system_con_cache.append({"type": "text", "text": contexto_eje,
+                             "cache_control": {"type": "ephemeral"}})
 
+    # Solo la conversación va en messages (historial + mensaje nuevo): es lo único que cambia
+    # turno a turno, así el contexto pesado queda cacheado.
+    mensajes = []
     for turno in historial[-10:]:   # últimos 10 turnos para acotar tokens
         rol = "user" if turno.get("rol") == "revisor" else "assistant"
         mensajes.append({"role": rol, "content": turno.get("texto", "")})
@@ -1032,8 +1048,47 @@ def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:
             tipo = f.get("tipo_doc", "")
             bloque += f"  ✗ [{tipo}] {f.get('texto_obs', '')[:150]}\n"
 
-    bloque += "\n"
     return bloque
+
+
+async def consolidar_aprendizaje(feedback: list, clave: str, nombre: str) -> str:
+    """
+    Destila el feedback (decisiones reales de aprobar/descartar) de un eje o ítem en un
+    conjunto BREVE de CRITERIOS APRENDIDOS (reglas concretas). Usa Haiku (barato) porque es una
+    tarea de resumen. Devuelve el texto de las reglas, o "" si no hay feedback suficiente.
+    `clave` es la etiqueta del feedback: el eje_key, o "item_<item_key>" para ítems.
+    """
+    relevantes = [f for f in (feedback or []) if f.get("tipo_doc") == clave]
+    if len(relevantes) < 3:
+        return ""   # con muy pocos ejemplos no vale la pena destilar
+
+    aprob = [f.get("texto_obs", "") for f in relevantes if f.get("accion") == "aprobada"][:30]
+    desc  = [f.get("texto_obs", "") for f in relevantes if f.get("accion") == "descartada"][:30]
+    lista = ""
+    if aprob:
+        lista += "\nOBSERVACIONES QUE EL REVISOR VALIDÓ (eran correctas):\n" + "\n".join(f"- {t}" for t in aprob)
+    if desc:
+        lista += "\nOBSERVACIONES QUE EL REVISOR DESCARTÓ (no eran relevantes):\n" + "\n".join(f"- {t}" for t in desc)
+
+    client = _get_client()
+    prompt = f"""A partir de las decisiones reales de un revisor CNR en "{nombre}", destila un
+conjunto BREVE de CRITERIOS APRENDIDOS (máximo 8 reglas, una línea cada una) que resuman:
+- qué tipo de observaciones SÍ conviene generar (según las que el revisor validó), y
+- qué tipo de observaciones NO conviene generar (según las que descartó).
+Escribe reglas concretas y accionables; NO repitas los ejemplos textualmente.
+{lista}
+
+Responde SOLO las reglas, en viñetas con "-"."""
+
+    response = client.messages.create(
+        model=MODELO_HAIKU,
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    texto = _texto_respuesta(response).strip()
+    if not texto:
+        print(f"⚠️ consolidar_aprendizaje '{clave}': respuesta vacía — stop_reason={response.stop_reason}")
+    return texto
 
 
 # ─── Consulta libre sobre el expediente ───────────────────────────────────────
@@ -1070,7 +1125,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
 
     response = client.messages.create(
         model=MODELO_SONNET,
-        max_tokens=1500,
+        max_tokens=4000,
         system=[{
             "type": "text",
             "text": SYSTEM_PROMPT,
@@ -1079,4 +1134,9 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    return _texto_respuesta(response)
+    texto = _texto_respuesta(response)
+    if not texto:
+        print(f"⚠️ consultar_expediente: respuesta vacía — stop_reason={response.stop_reason}")
+        texto = ("⚠️ La IA no devolvió respuesta (posible corte). Intenta reformular la "
+                 "consulta de forma más breve o vuelve a intentar.")
+    return texto

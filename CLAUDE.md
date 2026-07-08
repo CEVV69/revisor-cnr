@@ -238,7 +238,18 @@ actual. El eje Coherencia es solo texto (no visión, por costo).
 con un `<details>` por eje revisado. La IA responde con contexto del eje (documentos + observaciones
 actuales + bases). Aún NO modifica observaciones automáticamente — el revisor edita/descarta a mano.
 
-**Pendiente:** consolidación de aprendizaje por eje (destilar feedback en criterios).
+**Aprendizaje por eje/ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku)
+destila el `feedback[]` de un eje/ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
+`concurso["criterios_aprendidos"][clave]` (clave = eje_key o "item_"+item_key). Se dispara desde
+`/admin/concursos/{id}` con el botón "🧠 Consolidar aprendizaje" (ruta POST `/consolidar`; requiere
+≥3 decisiones por grupo). En cada revisión, `_analizar_grupo` inyecta esos criterios destilados
+en vez de los ejemplos crudos (más compacto y generalizable). El feedback se etiqueta por eje,
+por ítem ("item_"+key) o por tipo_doc según el origen de la observación.
+
+**Optimización de velocidad:** el chat (`chatear_eje`) mueve el contexto pesado (documentos +
+observaciones + guía del eje) a bloques CACHEADOS del `system`, así en conversaciones de varios
+turnos no se reenvía ni reprocesa (más rápido y barato). `consultar_expediente` subió su límite
+a `max_tokens=4000` (evita el mismo corte por thinking) con aviso si llega vacía.
 
 **Bug conocido y resuelto — respuestas vacías por límite de tokens bajo (jul-2026):**
 Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamiento" (thinking)

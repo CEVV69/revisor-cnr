@@ -19,8 +19,9 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
 from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
-                      resumir_proyecto, EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN,
-                      RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje, MIN_CHARS_TEXTO)
+                      resumir_proyecto, consolidar_aprendizaje, EJES_REVISION, EJES_ORDEN,
+                      ITEMS_SEP, ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS,
+                      _documentos_del_eje, MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -413,6 +414,8 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
     concurso = db.get_concurso(concurso_id)
     bases_texto       = concurso.get("bases_texto", "") if concurso else ""
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
+    criterios = (concurso.get("criterios_aprendidos", {}).get(eje_key, "")
+                 if concurso else "")
 
     try:
         resultado = await analizar_eje(
@@ -421,6 +424,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
             bases_texto=bases_texto,
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
+            criterios_aprendidos=criterios,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -485,6 +489,8 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     concurso = db.get_concurso(concurso_id)
     bases_texto       = concurso.get("bases_texto", "") if concurso else ""
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
+    criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
+                 if concurso else "")
 
     try:
         resultado = await analizar_item(
@@ -493,6 +499,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             bases_texto=bases_texto,
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
+            criterios_aprendidos=criterios,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -1079,9 +1086,11 @@ async def actualizar_observacion(
     # ── Guardar feedback en el concurso para aprendizaje futuro ──────────────
     if obs_actualizada and estado in ("aprobada", "descartada"):
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        # Etiquetar el feedback: si la obs viene de un eje, usar el eje; si no, el tipo_doc
+        # Etiquetar el feedback: por eje, por ítem, o por tipo_doc (según el origen de la obs)
         if obs_actualizada.get("eje"):
             tipo_doc_obs = obs_actualizada["eje"]
+        elif obs_actualizada.get("item"):
+            tipo_doc_obs = "item_" + obs_actualizada["item"]
         else:
             doc_de_obs = next(
                 (d for d in proyecto.get("documentos", [])
@@ -1159,9 +1168,59 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         raise HTTPException(status_code=404, detail="Concurso no encontrado")
     else:
         msg_ok = request.query_params.get("ok")
+    # Resumen de criterios aprendidos (para mostrarlos y saber qué se puede consolidar)
+    criterios = concurso.get("criterios_aprendidos", {})
+    criterios_lista = []
+    for eje_key in EJES_ORDEN:
+        if criterios.get(eje_key):
+            criterios_lista.append({"nombre": "Eje: " + EJES_REVISION[eje_key]["nombre"],
+                                    "texto": criterios[eje_key]})
+    for item_key in ITEMS_ORDEN:
+        if criterios.get("item_" + item_key):
+            criterios_lista.append({"nombre": "Ítem SEP: " + ITEMS_SEP[item_key]["nombre"],
+                                    "texto": criterios["item_" + item_key]})
     return templates.TemplateResponse("admin_concurso_detalle.html", {
-        "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok
+        "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
+        "n_feedback": len(concurso.get("feedback", [])),
+        "criterios_lista": criterios_lista,
+        "criterios_fecha": concurso.get("criterios_fecha", ""),
     })
+
+
+@app.post("/admin/concursos/{concurso_id}/consolidar")
+async def consolidar_concurso(request: Request, concurso_id: str):
+    """Destila el feedback acumulado en criterios aprendidos por eje y por ítem."""
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+
+    feedback = concurso.get("feedback", [])
+    criterios = dict(concurso.get("criterios_aprendidos", {}))
+    n = 0
+    try:
+        for eje_key in EJES_ORDEN:
+            texto = await consolidar_aprendizaje(feedback, eje_key, EJES_REVISION[eje_key]["nombre"])
+            if texto:
+                criterios[eje_key] = texto
+                n += 1
+        for item_key in ITEMS_ORDEN:
+            texto = await consolidar_aprendizaje(feedback, "item_" + item_key, ITEMS_SEP[item_key]["nombre"])
+            if texto:
+                criterios["item_" + item_key] = texto
+                n += 1
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en consolidar_concurso {concurso_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al consolidar aprendizaje: {str(e)}")
+
+    concurso["criterios_aprendidos"] = criterios
+    concurso["criterios_fecha"] = datetime.now().isoformat()
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=consolidado_{n}", status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/bases")

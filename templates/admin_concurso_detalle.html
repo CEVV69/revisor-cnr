@@ -14,6 +14,7 @@
   {% if msg_ok == 'creado' %}✅ Concurso creado. Ahora carga las bases.
   {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
   {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído. Revisa el contenido y guarda.
+  {% elif msg_ok and msg_ok.startswith('consolidado_') %}🧠 Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
   {% else %}✅ Guardado.{% endif %}
 </div>
 {% endif %}
@@ -154,5 +155,39 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Aprendizaje del "revisor experto": destilar el feedback en criterios -->
+<div class="card" style="margin-top:1.5rem; border-left:4px solid #6b46c1;">
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">🧠 Aprendizaje por eje / ítem</h2>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+    Destila las {{ n_feedback }} decisiones del revisor (aprobar/descartar) en un conjunto de
+    <strong>criterios aprendidos</strong> por eje y por ítem, que se inyectan en el prompt de
+    cada revisión (más compactos y generalizables que los ejemplos crudos). Requiere al menos
+    3 decisiones por grupo.
+  </p>
+  <form method="post" action="/admin/concursos/{{ concurso.id }}/consolidar"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Consolidando…'; this.submit();">
+    <button type="submit" class="btn btn-sm" style="background:#6b46c1; color:white;"
+            {% if n_feedback < 3 %}disabled title="Se necesitan al menos 3 decisiones"{% endif %}>
+      🧠 Consolidar aprendizaje
+    </button>
+    {% if criterios_fecha %}
+    <span class="text-muted" style="font-size:0.78rem; margin-left:0.5rem;">
+      Última consolidación: {{ criterios_fecha[:16].replace('T', ' ') }}
+    </span>
+    {% endif %}
+  </form>
+
+  {% if criterios_lista %}
+  <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.6rem;">
+    {% for c in criterios_lista %}
+    <details style="border:1px solid var(--border); border-radius:8px;">
+      <summary style="cursor:pointer; padding:0.55rem 0.8rem; font-weight:600; font-size:0.86rem;">{{ c.nombre }}</summary>
+      <pre style="white-space:pre-wrap; font-size:0.82rem; line-height:1.5; padding:0 0.8rem 0.8rem; margin:0; font-family:inherit; color:#4a5568;">{{ c.texto }}</pre>
+    </details>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
 
 {% endblock %}
