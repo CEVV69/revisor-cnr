@@ -130,7 +130,7 @@
 {% if grupos_ficha %}
   {% for grupo in grupos_ficha %}
   <div class="grupo-eje">🔹 {{ grupo.nombre }}</div>
-    {% for obs in grupo.items %}
+    {% for obs in grupo.obs %}
     <div class="obs-item">
       <div class="obs-header">
         <span class="obs-num">{{ loop.index }})</span>

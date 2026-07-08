@@ -158,10 +158,27 @@ Tres preguntas guía antes de observar:
   exigido por las bases). Las notas informativas no llevan cierre.
 - **Documentos obligatorios:** `analizar_eje` inyecta un manifiesto de TODOS los tipos de
   documento presentes en el expediente para que la IA detecte faltantes obligatorios.
-- **Observaciones agrupadas por eje:** en `proyecto.html` y en la ficha, las obs se muestran
-  bajo UN solo título por eje (no un encabezado por observación), en el orden de `EJES_ORDEN`.
-  El agrupamiento se arma en `ver_proyecto()` / `ficha_revision()` (`grupos_obs`,
-  `grupos_notas`, `grupos_ficha`), no en la plantilla.
+- **Observaciones agrupadas por eje/ítem:** en `proyecto.html` y en la ficha, las obs se
+  muestran bajo UN solo título por eje/ítem (no un encabezado por observación). El
+  agrupamiento se arma en `ver_proyecto()` / `ficha_revision()` y se pasa a la plantilla.
+  **OJO Jinja:** la clave de la lista de observaciones dentro de cada grupo es `obs`
+  (`grupo.obs`), NO `items` — `grupo.items` colisiona con el método `dict.items()` y rompe
+  el render en runtime (bug ya sufrido). Nunca usar `items` como nombre de clave de grupo.
+
+## Dos métodos de revisión (ejes y ítems SEP) — pestañas
+
+`proyecto.html` está organizado en **pestañas** (CSS `.tab-pane` + JS `mostrarTab`), dejando
+intacta la parte de subida/gestión de documentos arriba:
+- **Pestaña "Revisión por Ejes":** los 9 ejes (`EJES_REVISION`/`EJES_ORDEN`) + chat + obs de eje.
+- **Pestaña "Revisión por Ítems SEP":** los 16 ítems (`ITEMS_SEP`/`ITEMS_ORDEN`) tal como se
+  ingresan al SEP + obs de ítem. Sin chat por ahora.
+
+Ambos métodos **conviven** (no se elige uno u otro). El núcleo de análisis se unificó en
+`_analizar_grupo()` (analyzer.py); `analizar_eje()` y `analizar_item()` son envoltorios
+delgados. Las obs de eje llevan `obs.eje`/`obs.eje_nombre`; las de ítem `obs.item`/`obs.item_nombre`.
+Rutas: `POST /proyecto/{id}/revisar-eje/{key}` y `POST /proyecto/{id}/revisar-item/{key}`.
+Estados de avance en `proyecto["ejes_revisados"]` y `proyecto["items_revisados"]`.
+"Limpiar revisión" resetea ambos.
 
 ---
 

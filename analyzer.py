@@ -412,6 +412,119 @@ EJES_ORDEN = ["superficie", "agronomico", "hidrologico", "hidraulico", "energeti
 MAX_CHARS_EJE_TOTAL = 45000
 
 
+# ─── ÍTEMS DEL SEP ─────────────────────────────────────────────────────────────
+# Método de revisión alternativo: por los ítems tal como se ingresan al Sistema
+# Electrónico de Postulación (SEP), que coinciden con el agrupamiento de archivos que
+# hace el consultor. Cada ítem revisa su(s) documento(s) y produce observaciones tageadas
+# con el ítem, para facilitar el ingreso al SEP. Convive con el método por ejes.
+ITEMS_SEP = {
+    "plano_ubicacion": {
+        "nombre": "Plano de ubicación del proyecto", "emoji": "📍",
+        "tipo_docs": ["plano_ubicacion"],
+        "checklist": "Verifica que el plano ubique el predio con coordenadas, comuna y acceso, "
+                     "coherente con los demás antecedentes del expediente.",
+    },
+    "identificacion_riego": {
+        "nombre": "Identificación del área de riego", "emoji": "🗺️",
+        "tipo_docs": ["identificacion_riego"],
+        "checklist": "Verifica que delimite el área de riego actual y de nuevo riego, con "
+                     "superficies coherentes con la memoria de cálculo y los planos.",
+    },
+    "hidrologico": {
+        "nombre": "Análisis Hidrológico", "emoji": "💧",
+        "tipo_docs": ["estudio_hidrologico"],
+        "checklist": "Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02). "
+                     "Debe respaldar el caudal usado en el diseño y cubrir la demanda hídrica.",
+    },
+    "pruebas_bombeo": {
+        "nombre": "Pruebas de Bombeo", "emoji": "⛲",
+        "tipo_docs": ["pruebas_bombeo"],
+        "checklist": "Caudal, nivel dinámico y eficiencia del pozo. Debe respaldar el caudal y "
+                     "la selección de bomba del diseño hidráulico.",
+    },
+    "diseno_hidraulico": {
+        "nombre": "Diseño y cálculos hidráulicos", "emoji": "🔧",
+        "tipo_docs": ["diseno_hidraulico", "diseno_agronomico", "diseno_fotovoltaico",
+                      "reporte_explorador_solar"],
+        "checklist": "Demanda agronómica, caudal de diseño, diámetros, presiones y velocidades "
+                     "en norma (DT-04/05/06). Sistema FV coherente con la potencia de la bomba.",
+    },
+    "estudios_complementarios": {
+        "nombre": "Estudios y diseños complementarios", "emoji": "📚",
+        "tipo_docs": ["estudios_complementarios"],
+        "checklist": "Verifica pertinencia y consistencia técnica de los estudios complementarios "
+                     "con el resto del proyecto.",
+    },
+    "especificaciones_tecnicas": {
+        "nombre": "Especificaciones técnicas de construcción e instalación", "emoji": "📋",
+        "tipo_docs": ["especificaciones_tecnicas"],
+        "checklist": "Deben respaldar los materiales y procedimientos del diseño y las obras "
+                     "civiles. Sin especificaciones no hay respaldo constructivo.",
+    },
+    "cronograma": {
+        "nombre": "Cronograma", "emoji": "📅",
+        "tipo_docs": ["cronograma"],
+        "checklist": "Plazos coherentes con la magnitud de las obras y con el período de "
+                     "ejecución que permiten las bases.",
+    },
+    "presupuesto": {
+        "nombre": "Presupuesto detallado de obras", "emoji": "💰",
+        "tipo_docs": ["presupuesto"],
+        "checklist": "Partidas corresponden a las obras cubicadas; precios unitarios (APU, DT-18) "
+                     "de mercado, sin sobreprecios ni valores anormalmente bajos.",
+    },
+    "presupuesto_electrico": {
+        "nombre": "Presupuesto detallado electrificación", "emoji": "🔌",
+        "tipo_docs": ["presupuesto_electrico"],
+        "checklist": "Corresponde a los equipos del diseño eléctrico/FV; precios razonables y "
+                     "cantidades consistentes con el diseño.",
+    },
+    "cotizaciones_facturas": {
+        "nombre": "Cotizaciones y Facturas", "emoji": "🧾",
+        "tipo_docs": ["cotizaciones_facturas", "cotizaciones"],
+        "checklist": "Respaldan los ítems relevantes del presupuesto; vigentes y coherentes con "
+                     "los precios usados.",
+    },
+    "declaracion_iva": {
+        "nombre": "Declaración No Contribuyente IVA", "emoji": "📄",
+        "tipo_docs": ["declaracion_iva"],
+        "checklist": "Verifica que la declaración corresponda al postulante y sea coherente con "
+                     "el tratamiento del IVA en el presupuesto.",
+    },
+    "planos_tecnificacion": {
+        "nombre": "Planos Proyecto tecnificación", "emoji": "📐",
+        "tipo_docs": ["planos_tecnificacion"],
+        "checklist": "Trazado de redes, nodos y equipos coherente con el diseño hidráulico y las "
+                     "superficies. Analiza el plano visualmente.",
+    },
+    "planos_obras_civiles": {
+        "nombre": "Planos Obras Civiles proy. de tecnificación", "emoji": "🏗️",
+        "tipo_docs": ["planos_obras_civiles"],
+        "checklist": "Caseta, electrificación, embalses/estanques bien definidos y acotados, "
+                     "coherentes con cubicaciones y presupuesto. Analiza el plano visualmente.",
+    },
+    "memoria_superficies": {
+        "nombre": "Memoria de cálculo de superficies", "emoji": "📏",
+        "tipo_docs": ["memoria_superficies"],
+        "checklist": "Método y números del cálculo de superficies; sumas parciales cuadran con "
+                     "totales; coincide con planos e identificación del área de riego.",
+    },
+    "estudio_suelos": {
+        "nombre": "Estudio de suelo - Informe de asimilación", "emoji": "🌱",
+        "tipo_docs": ["estudio_suelos"],
+        "checklist": "Clasificación y capacidad de uso (DT-03); la superficie de riego no debe "
+                     "exceder la capacidad de uso del suelo.",
+    },
+}
+
+# Orden de presentación de los ítems SEP (tal como se ingresan en el sistema)
+ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "pruebas_bombeo",
+               "diseno_hidraulico", "estudios_complementarios", "especificaciones_tecnicas",
+               "cronograma", "presupuesto", "presupuesto_electrico", "cotizaciones_facturas",
+               "declaracion_iva", "planos_tecnificacion", "planos_obras_civiles",
+               "memoria_superficies", "estudio_suelos"]
+
+
 def _documentos_del_eje(eje_key: str, documentos: list) -> list:
     """Retorna los documentos del proyecto que alimentan un eje."""
     eje = EJES_REVISION.get(eje_key)
@@ -428,28 +541,26 @@ def _documentos_del_eje(eje_key: str, documentos: list) -> list:
 MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de eje, para controlar costo
 
 
-async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
-                       concurso_id: str = "", feedback_concurso: list = None,
-                       tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
+async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documentos: list, *,
+                          modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
+                          bases_texto: str = "", concurso_id: str = "",
+                          feedback_concurso: list = None, feedback_key: str = "",
+                          tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
-    Analiza un eje temático cruzando TODOS sus documentos en una sola llamada.
-    Usa texto extraído + VISIÓN para documentos escaneados/planos (si el archivo existe).
+    Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
+    Cruza los documentos del grupo en UNA llamada; usa texto extraído + VISIÓN para
+    documentos escaneados/planos (si el archivo físico existe y no es coherencia global).
     Retorna dict: {observaciones: [...], docs_incluidos: [...], sin_documentos: bool}.
     """
     import os as _os
-    eje = EJES_REVISION.get(eje_key)
-    if not eje:
-        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
-
-    docs_eje = _documentos_del_eje(eje_key, documentos)
 
     # Separar documentos con texto de documentos-imagen (escaneados / planos)
     docs_texto  = []
     docs_imagen = []   # (doc, filepath)
-    for d in docs_eje:
+    for d in docs_grupo:
         t = d.get("texto_extraido", "").strip()
         es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
-        if (es_imagen and ruta_uploads and eje_key != "coherencia"
+        if (es_imagen and ruta_uploads and not es_coherencia
                 and d.get("filename", "").lower().endswith(".pdf")):
             fp = _os.path.join(ruta_uploads, d["filename"])
             if _os.path.exists(fp):
@@ -497,7 +608,7 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
-    bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], eje_key)
+    bloque_feedback = _construir_bloque_feedback(feedback_concurso or [], feedback_key)
 
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}]
@@ -508,7 +619,7 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
 
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
 
-    # Manifiesto de TODOS los documentos presentes en el expediente (no solo los del eje).
+    # Manifiesto de TODOS los documentos presentes en el expediente (no solo los del grupo).
     # Permite a la IA detectar si falta un documento obligatorio exigido por las bases.
     labels_presentes = sorted({
         (d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", "")))
@@ -522,38 +633,37 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
                          f"(planos o escaneados) — analízalos visualmente: {nombres_img}")
 
-    prompt = f"""{bloque_bases}{bloque_feedback}Realiza una REVISIÓN POR EJE TEMÁTICO del expediente CNR.
+    prompt = f"""{bloque_bases}{bloque_feedback}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
-EJE A REVISAR: {eje['nombre']}
+GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
 
-{eje['checklist']}
+{checklist}
 
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
 Interpreta TODOS los números con esta convención.
 
-INSTRUCCIÓN CLAVE: Estás revisando VARIOS documentos complementarios juntos. Tu tarea es
-detectar problemas del eje considerando la RELACIÓN entre ellos, no cada uno por separado.
-Presta especial atención a incoherencias entre documentos. Aplica el criterio de las tres
-preguntas (¿funciona?, ¿precios razonables?, ¿diseño con lógica?) y la regla de oro
+INSTRUCCIÓN CLAVE: Detecta problemas considerando la RELACIÓN entre los documentos, no cada
+uno por separado. Presta atención a incoherencias entre documentos. Aplica el criterio de las
+tres preguntas (¿funciona?, ¿precios razonables?, ¿diseño con lógica?) y la regla de oro
 (ante la duda, no observar; máx ~10-15 observaciones).{nota_imagenes}
 
 DOCUMENTOS PRESENTES EN EL EXPEDIENTE COMPLETO (para verificar faltantes obligatorios):
 {manifiesto}
 
-DOCUMENTOS OBLIGATORIOS: Antes de observar, ten claro qué documentos exigen las bases del
-concurso como IMPRESCINDIBLES para postular. Si un documento obligatorio de este eje NO
-aparece en el listado de arriba (no fue ingresado al expediente), genera una observación
-mayor y termínala con la frase exacta: "Se sugiere declarar no admitido."
+ANTECEDENTES OBLIGATORIOS: Las bases del concurso definen qué antecedentes son IMPRESCINDIBLES
+para postular. Antes de observar, ten claro cuáles exige. Si un documento obligatorio de este
+grupo NO aparece en el listado de arriba (no fue ingresado al expediente), genera una
+observación mayor y termínala con la frase exacta: "Se sugiere declarar no admitido."
 
-DOCUMENTOS DEL EJE (texto):
-{bloque_docs if bloque_docs else '(Los documentos de este eje se adjuntan como imágenes más abajo.)'}"""
+DOCUMENTOS DEL GRUPO (texto):
+{bloque_docs if bloque_docs else '(Los documentos de este grupo se adjuntan como imágenes más abajo.)'}"""
 
     # Construir contenido: texto + imágenes de los documentos escaneados/planos
     content_blocks = [{"type": "text", "text": prompt}]
-    for label, nombre, imgs in imagenes_por_doc:
+    for label, nombre_img, imgs in imagenes_por_doc:
         content_blocks.append({"type": "text",
-                               "text": f"\n═══ IMÁGENES: {label} ({nombre}) ═══"})
+                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
         for b64 in imgs:
             content_blocks.append({"type": "image",
                                    "source": {"type": "base64", "media_type": "image/jpeg",
@@ -589,11 +699,44 @@ DOCUMENTOS DEL EJE (texto):
             observaciones = []
 
     if not observaciones:
-        print(f"⚠️ Eje '{eje_key}': 0 observaciones — stop_reason={response.stop_reason}, "
+        print(f"⚠️ Grupo '{nombre}': 0 observaciones — stop_reason={response.stop_reason}, "
               f"content_len={len(content)}, preview={content[:200]!r}")
 
     return {"observaciones": observaciones, "docs_incluidos": docs_incluidos,
             "sin_documentos": False}
+
+
+async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
+                       concurso_id: str = "", feedback_concurso: list = None,
+                       tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
+    """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo."""
+    eje = EJES_REVISION.get(eje_key)
+    if not eje:
+        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
+    docs_grupo = _documentos_del_eje(eje_key, documentos)
+    return await _analizar_grupo(
+        eje["nombre"], eje["checklist"], docs_grupo, documentos,
+        modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
+        bases_texto=bases_texto, concurso_id=concurso_id,
+        feedback_concurso=feedback_concurso, feedback_key=eje_key,
+        tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
+
+
+async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
+                        concurso_id: str = "", feedback_concurso: list = None,
+                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
+    """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo."""
+    item = ITEMS_SEP.get(item_key)
+    if not item:
+        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
+    tipos = set(item["tipo_docs"])
+    docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    return await _analizar_grupo(
+        item["nombre"], item["checklist"], docs_grupo, documentos,
+        modo="ÍTEM DEL SEP", es_coherencia=False,
+        bases_texto=bases_texto, concurso_id=concurso_id,
+        feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
+        tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
 async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,

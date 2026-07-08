@@ -18,8 +18,9 @@ from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
-from analyzer import (consultar_expediente, analizar_eje, chatear_eje, EJES_REVISION,
-                      EJES_ORDEN, _documentos_del_eje, MIN_CHARS_TEXTO)
+from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
+                      EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN,
+                      _documentos_del_eje, MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -244,23 +245,53 @@ async def ver_proyecto(request: Request, proyecto_id: str):
             "revisado": ejes_revisados.get(eje_key),
             "chat": eje_chats.get(eje_key, []),
         })
-    # Agrupar observaciones bajo un solo título por eje, en el orden lógico de los ejes.
-    orden_eje = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+    # Construir info de ítems SEP (método de revisión alternativo, mismo estilo que los ejes)
+    items_revisados = proyecto.get("items_revisados", {})
+    items_info = []
+    for item_key in ITEMS_ORDEN:
+        item = ITEMS_SEP[item_key]
+        tipos = set(item["tipo_docs"])
+        n_docs = len([d for d in proyecto["documentos"]
+                      if d.get("tipo_doc") in tipos
+                      and d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")])
+        items_info.append({
+            "key": item_key,
+            "nombre": item["nombre"],
+            "emoji": item["emoji"],
+            "n_docs": n_docs,
+            "revisado": items_revisados.get(item_key),
+        })
 
-    def _agrupar_por_eje(observaciones):
+    # Agrupar observaciones bajo un solo título por eje/ítem, en su orden lógico.
+    orden_eje  = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+    orden_item = {ITEMS_SEP[k]["nombre"]: i for i, k in enumerate(ITEMS_ORDEN)}
+
+    def _agrupar(observaciones, campo_nombre, orden):
         grupos = {}
         for o in observaciones:
-            nombre = o.get("eje_nombre") or "Otras observaciones"
+            nombre = o.get(campo_nombre) or "Otras observaciones"
             grupos.setdefault(nombre, []).append(o)
-        return [{"nombre": n, "items": items}
-                for n, items in sorted(grupos.items(),
-                                       key=lambda kv: orden_eje.get(kv[0], 999))]
+        return [{"nombre": n, "obs": its}
+                for n, its in sorted(grupos.items(), key=lambda kv: orden.get(kv[0], 999))]
 
-    todas_obs   = proyecto.get("observaciones", [])
-    principales = [o for o in todas_obs if o.get("severidad") != "informativa"]
-    informativas = [o for o in todas_obs if o.get("severidad") == "informativa"]
-    grupos_obs   = _agrupar_por_eje(principales)
-    grupos_notas = _agrupar_por_eje(informativas)
+    todas_obs    = proyecto.get("observaciones", [])
+    # Observaciones del método por EJES (no tienen tag de ítem)
+    obs_eje      = [o for o in todas_obs if not o.get("item")]
+    prin_eje     = [o for o in obs_eje if o.get("severidad") != "informativa"]
+    notas_eje    = [o for o in obs_eje if o.get("severidad") == "informativa"]
+    # Observaciones del método por ÍTEMS SEP
+    obs_item     = [o for o in todas_obs if o.get("item")]
+    prin_item    = [o for o in obs_item if o.get("severidad") != "informativa"]
+    notas_item   = [o for o in obs_item if o.get("severidad") == "informativa"]
+
+    def _contadores(principales):
+        return {
+            "n": len(principales),
+            "pend": len([o for o in principales if o.get("estado") == "pendiente"]),
+            "aprob": len([o for o in principales if o.get("estado") == "aprobada"]),
+            "desc": len([o for o in principales
+                         if o.get("estado") not in ("pendiente", "aprobada")]),
+        }
 
     return templates.TemplateResponse("proyecto.html", {
         "request": request,
@@ -269,14 +300,16 @@ async def ver_proyecto(request: Request, proyecto_id: str):
         "concurso": concurso,
         "concurso_id": concurso_id,
         "ejes_info": ejes_info,
+        "items_info": items_info,
         "n_faltan_resubir": n_faltan_resubir,
-        "grupos_obs": grupos_obs,
-        "grupos_notas": grupos_notas,
-        "n_principales": len(principales),
-        "n_pendientes": len([o for o in principales if o.get("estado") == "pendiente"]),
-        "n_aprobadas": len([o for o in principales if o.get("estado") == "aprobada"]),
-        "n_descartadas": len([o for o in principales
-                              if o.get("estado") not in ("pendiente", "aprobada")]),
+        # Método por ejes
+        "grupos_obs": _agrupar(prin_eje, "eje_nombre", orden_eje),
+        "grupos_notas": _agrupar(notas_eje, "eje_nombre", orden_eje),
+        "cont_eje": _contadores(prin_eje),
+        # Método por ítems SEP
+        "grupos_obs_item": _agrupar(prin_item, "item_nombre", orden_item),
+        "grupos_notas_item": _agrupar(notas_item, "item_nombre", orden_item),
+        "cont_item": _contadores(prin_item),
     })
 
 
@@ -422,6 +455,78 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
     db.save_proyecto(proyecto)
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/revisar-item/{item_key}")
+async def revisar_item(request: Request, proyecto_id: str, item_key: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    if item_key not in ITEMS_SEP:
+        raise HTTPException(status_code=404, detail="Ítem no válido")
+
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id)
+    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
+    feedback_concurso = concurso.get("feedback", [])   if concurso else []
+
+    try:
+        resultado = await analizar_item(
+            item_key=item_key,
+            documentos=proyecto.get("documentos", []),
+            bases_texto=bases_texto,
+            concurso_id=concurso_id,
+            feedback_concurso=feedback_concurso,
+            tipo_revision=proyecto.get("tipo_revision", "tecnica"),
+            ruta_uploads=str(UPLOAD_DIR / proyecto_id),
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en revisar_item {item_key}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al revisar ítem: {str(e)}")
+
+    if resultado.get("sin_documentos"):
+        return RedirectResponse(
+            url=f"/proyecto/{proyecto_id}?item_sin_docs={item_key}#tab-items", status_code=302)
+
+    # Reemplazar observaciones previas de este ítem
+    proyecto["observaciones"] = [
+        o for o in proyecto.get("observaciones", []) if o.get("item") != item_key
+    ]
+
+    nombre_item  = ITEMS_SEP[item_key]["nombre"]
+    docs_incluidos = resultado.get("docs_incluidos", [])
+    resumen_docs = ", ".join(d["label"] for d in docs_incluidos)
+    for obs in resultado.get("observaciones", []):
+        obs["id"] = str(uuid.uuid4())[:8]
+        obs["item"] = item_key
+        obs["item_nombre"] = nombre_item
+        obs["doc_id"] = ""
+        obs["doc_nombre"] = f"Ítem SEP: {nombre_item} ({resumen_docs})"
+        obs["fecha"] = datetime.now().isoformat()
+        obs["estado"] = "pendiente"
+        proyecto["observaciones"].append(obs)
+
+    # Registrar qué ítems se han revisado
+    obs_generadas = resultado.get("observaciones", [])
+    n_notas = len([o for o in obs_generadas if o.get("severidad") == "informativa"])
+    n_obs   = len(obs_generadas) - n_notas
+    proyecto.setdefault("items_revisados", {})
+    proyecto["items_revisados"][item_key] = {
+        "fecha": datetime.now().isoformat(),
+        "n_obs": n_obs,
+        "n_notas": n_notas,
+        "docs": [d["label"] for d in docs_incluidos],
+    }
+
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}?item_ok={item_key}#tab-items", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
@@ -763,15 +868,18 @@ async def ficha_revision(request: Request, proyecto_id: str):
     try:
         obs_aprobadas = [o for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
-        # Agrupar por eje en el orden lógico, para la ficha oficial (ingreso al SEP)
-        orden_eje = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+        # Agrupar por eje o ítem en su orden lógico, para la ficha oficial (ingreso al SEP).
+        # Los ítems se ubican después de los ejes.
+        n_ejes = len(EJES_ORDEN)
+        orden = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+        orden.update({ITEMS_SEP[k]["nombre"]: n_ejes + i for i, k in enumerate(ITEMS_ORDEN)})
         grupos = {}
         for o in obs_aprobadas:
-            nombre = o.get("eje_nombre") or "Otras observaciones"
+            nombre = o.get("item_nombre") or o.get("eje_nombre") or "Otras observaciones"
             grupos.setdefault(nombre, []).append(o)
-        grupos_ficha = [{"nombre": n, "items": items}
+        grupos_ficha = [{"nombre": n, "obs": items}
                         for n, items in sorted(grupos.items(),
-                                               key=lambda kv: orden_eje.get(kv[0], 999))]
+                                               key=lambda kv: orden.get(kv[0], 999))]
         from datetime import date
         return templates.TemplateResponse("ficha.html", {
             "request": request,
@@ -845,6 +953,7 @@ async def limpiar_revision(request: Request, proyecto_id: str):
         proyecto["consultas"] = []
         proyecto["ejes_revisados"] = {}
         proyecto["eje_chats"] = {}
+        proyecto["items_revisados"] = {}
         for doc in proyecto.get("documentos", []):
             doc["analizado"] = False
         proyecto["estado"] = "En revisión"

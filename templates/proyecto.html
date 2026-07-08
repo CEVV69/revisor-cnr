@@ -10,7 +10,111 @@
   .chat-bubble.ia  { align-self:flex-start; background:rgba(128,128,128,0.12); color:var(--text); }
   .chat-bubble.pensando { align-self:flex-start; background:rgba(128,128,128,0.12);
     color:var(--text-2); font-style:italic; }
+
+  /* Pestañas de revisión (ejes / ítems SEP) */
+  .tabs { display:flex; gap:0.4rem; margin:1.4rem 0 0.9rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .tab-btn { background:transparent; border:none; padding:0.65rem 1.1rem; font-size:0.95rem;
+    font-weight:600; color:var(--text-2); cursor:pointer; border-bottom:3px solid transparent;
+    margin-bottom:-2px; font-family:inherit; border-radius:8px 8px 0 0; }
+  .tab-btn:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .tab-btn.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .tab-pane { display:none; }
+  .tab-pane.activa { display:block; }
 </style>
+
+{# ═══ Macros de observaciones (reutilizados por la pestaña de ejes y la de ítems) ═══ #}
+{% macro bloque_observaciones(grupos, cont, proyecto_id) %}
+{% if grupos %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+    <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ cont.n }})</h2>
+    <a href="/proyecto/{{ proyecto_id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
+      📄 Generar Ficha de Revisión
+    </a>
+  </div>
+  <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
+    <strong>{{ cont.pend }}</strong> pendientes &nbsp;·&nbsp;
+    <strong>{{ cont.aprob }}</strong> aprobadas &nbsp;·&nbsp;
+    <strong>{{ cont.desc }}</strong> descartadas
+  </p>
+  {% for grupo in grupos %}
+  <div style="margin:1.2rem 0 0.6rem; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
+              font-weight:700; color:#2b6cb0; font-size:0.95rem;">
+    🔹 {{ grupo.nombre }}
+    <span style="font-weight:400; color:#4a5568; font-size:0.82rem;">· {{ grupo.obs|length }} observación{{ 'es' if grupo.obs|length != 1 else '' }}</span>
+  </div>
+  {% for obs in grupo.obs %}
+  <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
+    {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
+    {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
+    {% else %}border-left:4px solid #d69e2e;{% endif %}">
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.6rem;">
+      <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
+        <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
+        <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+        <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
+      </div>
+      <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
+            style="white-space:nowrap;">{{ obs.estado }}</span>
+    </div>
+    <form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
+      <textarea name="texto_editado" rows="3" class="auto-expand"
+        style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
+               font-size:0.88rem; line-height:1.5; margin-bottom:0.5rem; box-sizing:border-box;
+               resize:vertical; overflow:hidden;">{{ obs.texto }}</textarea>
+      {% if obs.referencia_normativa %}
+      <p class="text-muted" style="margin-bottom:0.5rem; font-size:0.82rem;">
+        📋 Ref. normativa: {{ obs.referencia_normativa }}
+      </p>
+      {% endif %}
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">✓ Aprobar</button>
+        <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">✗ Descartar</button>
+        <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm">↺ Pendiente</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro bloque_notas(grupos, proyecto_id) %}
+{% if grupos %}
+<div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
+  <h2 style="color:#2b6cb0;">💡 Notas para el revisor</h2>
+  <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#4a5568;">
+    Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
+    No se incluyen en la ficha de revisión oficial.
+  </p>
+  {% for grupo in grupos %}
+  <div style="margin:1rem 0 0.5rem; font-weight:700; color:#2b6cb0; font-size:0.88rem;">🔹 {{ grupo.nombre }}</div>
+  {% for obs in grupo.obs %}
+  <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
+    {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
+    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
+      <span class="badge badge-informativa">informativa</span>
+      <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+    </div>
+    <form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
+      <textarea name="texto_editado" rows="2" class="auto-expand"
+        style="width:100%; padding:0.5rem 0.6rem; border:1px solid #bee3f8; border-radius:6px;
+               font-size:0.85rem; line-height:1.5; margin-bottom:0.4rem; box-sizing:border-box;
+               resize:vertical; overflow:hidden; background:#ffffff; color:#1a365d;">{{ obs.texto }}</textarea>
+      {% if obs.referencia_normativa %}
+      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">📋 {{ obs.referencia_normativa }}</p>
+      {% endif %}
+      <button type="submit" name="estado" value="descartada" class="btn btn-sm"
+              style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
 
 <!-- Encabezado -->
 <div style="margin:1.4rem 0 1.2rem;">
@@ -320,10 +424,21 @@ function actualizarEtiqueta(input) {
 </div>
 {% endif %}
 
-<!-- Revisión por ejes temáticos -->
-{% if proyecto.documentos and ejes_info %}
+{# ═══════════ PESTAÑAS DE REVISIÓN (ejes / ítems SEP) ═══════════ #}
+{% if proyecto.documentos %}
 {% set eje_ok = request.query_params.get('eje_ok') %}
 {% set eje_sin_docs = request.query_params.get('eje_sin_docs') %}
+{% set item_ok = request.query_params.get('item_ok') %}
+{% set item_sin_docs = request.query_params.get('item_sin_docs') %}
+
+<div class="tabs">
+  <button class="tab-btn" data-tab="ejes" onclick="mostrarTab('ejes')">🎯 Revisión por Ejes</button>
+  <button class="tab-btn" data-tab="items" onclick="mostrarTab('items')">📑 Revisión por Ítems SEP</button>
+</div>
+
+<!-- ══════════ PESTAÑA: REVISIÓN POR EJES ══════════ -->
+<div id="tab-ejes" class="tab-pane">
+{% if ejes_info %}
 <div class="card">
   <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
     <h2 style="margin:0; border:none; padding:0;">Revisión por ejes temáticos</h2>
@@ -375,7 +490,7 @@ function actualizarEtiqueta(input) {
     observación a nota. La IA responde con el contexto completo del eje.
   </p>
   {% for eje in ejes_revisados_list %}
-  <details id="chat-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if request.query_params.get('eje_ok') == eje.key %}open{% endif %}>
+  <details id="chat-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if eje_ok == eje.key %}open{% endif %}>
     <summary style="cursor:pointer; padding:0.7rem 0.9rem; font-weight:600; font-size:0.9rem; user-select:none;">
       {{ eje.emoji }} {{ eje.nombre }}
       {% if eje.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (eje.chat|length / 2)|int }} mensaje{{ 's' if (eje.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
@@ -405,106 +520,54 @@ function actualizarEtiqueta(input) {
 {% endif %}
 {% endif %}
 
-<!-- Observaciones -->
-{% if proyecto.observaciones %}
+{{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id) }}
+{{ bloque_notas(grupos_notas, proyecto.id) }}
+</div>{# fin tab-ejes #}
 
-<!-- Observaciones principales (mayor / menor), agrupadas por eje -->
-{% if grupos_obs %}
+<!-- ══════════ PESTAÑA: REVISIÓN POR ÍTEMS SEP ══════════ -->
+<div id="tab-items" class="tab-pane">
+{% if items_info %}
 <div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
-    <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ n_principales }})</h2>
-    <a href="/proyecto/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
-      📄 Generar Ficha de Revisión
-    </a>
+  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
+    <h2 style="margin:0; border:none; padding:0;">Revisión por ítems del SEP</h2>
+    <span style="font-size:0.8rem; color:var(--text-2);">Cada ítem revisa su documento tal como se ingresa al Sistema Electrónico de Postulación</span>
   </div>
+  {% if item_sin_docs %}
+  <div class="alert alert-error" style="margin:0.5rem 0;">⚠️ Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
+  {% endif %}
 
-  <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
-    <strong>{{ n_pendientes }}</strong> pendientes &nbsp;·&nbsp;
-    <strong>{{ n_aprobadas }}</strong> aprobadas &nbsp;·&nbsp;
-    <strong>{{ n_descartadas }}</strong> descartadas
-  </p>
-
-  {% for grupo in grupos_obs %}
-  <!-- Título del eje/ítem: un solo encabezado para todas sus observaciones -->
-  <div style="margin:1.2rem 0 0.6rem; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
-              font-weight:700; color:#2b6cb0; font-size:0.95rem;">
-    🔹 {{ grupo.nombre }}
-    <span style="font-weight:400; color:#4a5568; font-size:0.82rem;">· {{ grupo.items|length }} observación{{ 'es' if grupo.items|length != 1 else '' }}</span>
-  </div>
-
-  {% for obs in grupo.items %}
-  <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
-    {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
-    {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
-    {% else %}border-left:4px solid #d69e2e;{% endif %}">
-
-    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.6rem;">
-      <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
-        <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
-        <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
-        <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
+    {% for item in items_info %}
+    <div style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                {% if item.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:1.2rem;">{{ item.emoji }}</span>
+        <strong style="font-size:0.86rem; flex:1;">{{ item.nombre }}</strong>
+        {% if item.revisado %}
+        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">✓ {{ item.revisado.n_obs }} obs{% if item.revisado.n_notas %} · {{ item.revisado.n_notas }} nota{{ 's' if item.revisado.n_notas != 1 else '' }}{% endif %}</span>
+        {% endif %}
       </div>
-      <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
-            style="white-space:nowrap;">{{ obs.estado }}</span>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        {{ item.n_docs }} documento{{ 's' if item.n_docs != 1 else '' }} disponible{{ 's' if item.n_docs != 1 else '' }}
+      </div>
+      <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-item/{{ item.key }}"
+            {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
+        <button type="submit"
+                class="btn btn-sm {% if item.revisado %}btn-ghost{% else %}btn-primary{% endif %}"
+                style="width:100%;"
+                {% if item.n_docs == 0 %}disabled title="Sin documentos para este ítem"{% endif %}>
+          {% if item.revisado %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
+        </button>
+      </form>
     </div>
-
-    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
-      <textarea name="texto_editado" rows="3" class="auto-expand"
-        style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
-               font-size:0.88rem; line-height:1.5; margin-bottom:0.5rem; box-sizing:border-box;
-               resize:vertical; overflow:hidden;">{{ obs.texto }}</textarea>
-      {% if obs.referencia_normativa %}
-      <p class="text-muted" style="margin-bottom:0.5rem; font-size:0.82rem;">
-        📋 Ref. normativa: {{ obs.referencia_normativa }}
-      </p>
-      {% endif %}
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">✓ Aprobar</button>
-        <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">✗ Descartar</button>
-        <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm">↺ Pendiente</button>
-      </div>
-    </form>
+    {% endfor %}
   </div>
-  {% endfor %}
-  {% endfor %}
 </div>
 {% endif %}
 
-<!-- Notas para el revisor (informativas), agrupadas por eje -->
-{% if grupos_notas %}
-<div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
-  <h2 style="color:#2b6cb0;">💡 Notas para el revisor</h2>
-  <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#4a5568;">
-    Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
-    No se incluyen en la ficha de revisión oficial.
-  </p>
-  {% for grupo in grupos_notas %}
-  <div style="margin:1rem 0 0.5rem; font-weight:700; color:#2b6cb0; font-size:0.88rem;">
-    🔹 {{ grupo.nombre }}
-  </div>
-  {% for obs in grupo.items %}
-  <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
-    {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
-    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
-      <span class="badge badge-informativa">informativa</span>
-      <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
-    </div>
-    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
-      <textarea name="texto_editado" rows="2" class="auto-expand"
-        style="width:100%; padding:0.5rem 0.6rem; border:1px solid #bee3f8; border-radius:6px;
-               font-size:0.85rem; line-height:1.5; margin-bottom:0.4rem; box-sizing:border-box;
-               resize:vertical; overflow:hidden; background:#ffffff; color:#1a365d;">{{ obs.texto }}</textarea>
-      {% if obs.referencia_normativa %}
-      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">📋 {{ obs.referencia_normativa }}</p>
-      {% endif %}
-      <button type="submit" name="estado" value="descartada" class="btn btn-sm"
-              style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
-    </form>
-  </div>
-  {% endfor %}
-  {% endfor %}
-</div>
-{% endif %}
+{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id) }}
+{{ bloque_notas(grupos_notas_item, proyecto.id) }}
+</div>{# fin tab-items #}
 
 {% endif %}
 
@@ -602,6 +665,17 @@ function enviarChat(event, ejeKey) {
   return false;
 }
 
+// Pestañas de revisión (ejes / ítems SEP)
+function mostrarTab(tab) {
+  document.querySelectorAll('.tab-pane').forEach(function(p) {
+    p.classList.toggle('activa', p.id === 'tab-' + tab);
+  });
+  document.querySelectorAll('.tab-btn').forEach(function(b) {
+    b.classList.toggle('activa', b.dataset.tab === tab);
+  });
+  try { localStorage.setItem('revisor_tab', tab); } catch (e) {}
+}
+
 // Auto-expandir textareas de observaciones/notas para mostrar el texto completo
 function autoExpand(el) {
   el.style.height = 'auto';
@@ -612,6 +686,18 @@ document.addEventListener('DOMContentLoaded', function() {
     autoExpand(t);
     t.addEventListener('input', function() { autoExpand(t); });
   });
+  // Pestaña inicial: la que indique la URL (?tab / item_ok / item_sin_docs),
+  // si no la última usada, y por defecto la de ejes.
+  var params = new URLSearchParams(window.location.search);
+  var inicial = 'ejes';
+  if (params.get('tab') === 'items' || params.get('item_ok') || params.get('item_sin_docs')) {
+    inicial = 'items';
+  } else if (params.get('tab') === 'ejes' || params.get('eje_ok') || params.get('eje_sin_docs')) {
+    inicial = 'ejes';
+  } else {
+    try { inicial = localStorage.getItem('revisor_tab') || 'ejes'; } catch (e) {}
+  }
+  if (document.getElementById('tab-' + inicial)) mostrarTab(inicial);
 });
 </script>
 {% endblock %}
