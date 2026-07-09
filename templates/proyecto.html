@@ -116,6 +116,46 @@
 {% endif %}
 {% endmacro %}
 
+{% macro bloque_chat(lista, tipo, ok_actual, proyecto_id) %}
+{% set revisados = lista|selectattr('revisado')|list %}
+{% if revisados %}
+<div class="card">
+  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">💬 Debatir con la IA</h2>
+  <p style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.75rem;">
+    Discute las observaciones: aclara, corrige, o pídele reclasificar una a nota o descartarla
+    — si la IA está de acuerdo, aplica el cambio directamente sobre la observación.
+  </p>
+  {% for g in revisados %}
+  <details id="chat-{{ tipo }}-{{ g.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if ok_actual == g.key %}open{% endif %}>
+    <summary style="cursor:pointer; padding:0.7rem 0.9rem; font-weight:600; font-size:0.9rem; user-select:none;">
+      {{ g.emoji }} {{ g.nombre }}
+      {% if g.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (g.chat|length / 2)|int }} mensaje{{ 's' if (g.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
+    </summary>
+    <div style="padding:0 0.9rem 0.9rem;">
+      <div class="chat-msgs" id="chat-msgs-{{ tipo }}-{{ g.key }}">
+        {% for msg in g.chat %}
+        <div class="chat-bubble {{ 'rev' if msg.rol == 'revisor' else 'ia' }}">{{ msg.texto }}</div>
+        {% endfor %}
+        {% if not g.chat %}
+        <p class="chat-vacio" style="font-size:0.82rem; color:var(--text-2); margin:0.5rem 0;">
+          Aún no hay conversación aquí. Escribe tu primera consulta.
+        </p>
+        {% endif %}
+      </div>
+      <form method="post" action="/proyecto/{{ proyecto_id }}/{{ tipo }}/{{ g.key }}/chat"
+            onsubmit="return enviarChat(event, '{{ tipo }}', '{{ g.key }}')"
+            style="display:flex; gap:0.5rem; align-items:flex-end;">
+        <textarea name="mensaje" rows="2" required placeholder="Ej: La observación 1 es sobre un título en trámite que las bases permiten. Bájala a nota."
+          style="flex:1; padding:0.5rem 0.7rem; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-size:0.86rem; resize:vertical;"></textarea>
+        <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">Enviar</button>
+      </form>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
 <!-- Encabezado -->
 <div style="margin:1.4rem 0 1.2rem;">
 
@@ -479,45 +519,9 @@ function actualizarEtiqueta(input) {
   </div>
 </div>
 
-<!-- Debate con la IA por eje -->
-{% set ejes_revisados_list = ejes_info|selectattr('revisado')|list %}
-{% if ejes_revisados_list %}
-<div class="card">
-  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">💬 Debatir con la IA</h2>
-  <p style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.75rem;">
-    Discute las observaciones de cada eje: aclara, corrige, o pídele reclasificar una
-    observación a nota. La IA responde con el contexto completo del eje.
-  </p>
-  {% for eje in ejes_revisados_list %}
-  <details id="chat-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if eje_ok == eje.key %}open{% endif %}>
-    <summary style="cursor:pointer; padding:0.7rem 0.9rem; font-weight:600; font-size:0.9rem; user-select:none;">
-      {{ eje.emoji }} {{ eje.nombre }}
-      {% if eje.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (eje.chat|length / 2)|int }} mensaje{{ 's' if (eje.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
-    </summary>
-    <div style="padding:0 0.9rem 0.9rem;">
-      <div class="chat-msgs" id="chat-msgs-{{ eje.key }}">
-        {% for msg in eje.chat %}
-        <div class="chat-bubble {{ 'rev' if msg.rol == 'revisor' else 'ia' }}">{{ msg.texto }}</div>
-        {% endfor %}
-        {% if not eje.chat %}
-        <p class="chat-vacio" style="font-size:0.82rem; color:var(--text-2); margin:0.5rem 0;">
-          Aún no hay conversación en este eje. Escribe tu primera consulta.
-        </p>
-        {% endif %}
-      </div>
-      <form method="post" action="/proyecto/{{ proyecto.id }}/eje/{{ eje.key }}/chat"
-            onsubmit="return enviarChat(event, '{{ eje.key }}')"
-            style="display:flex; gap:0.5rem; align-items:flex-end;">
-        <textarea name="mensaje" rows="2" required placeholder="Ej: La observación 1 es sobre un título en trámite que las bases permiten. ¿No debería ser una nota?"
-          style="flex:1; padding:0.5rem 0.7rem; border-radius:8px; border:1px solid var(--border); font-family:inherit; font-size:0.86rem; resize:vertical;"></textarea>
-        <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">Enviar</button>
-      </form>
-    </div>
-  </details>
-  {% endfor %}
-</div>
 {% endif %}
-{% endif %}
+
+{{ bloque_chat(ejes_info, 'eje', eje_ok, proyecto.id) }}
 
 {{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id) }}
 {{ bloque_notas(grupos_notas, proyecto.id) }}
@@ -569,6 +573,8 @@ function actualizarEtiqueta(input) {
   </div>
 </div>
 {% endif %}
+
+{{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
 
 {{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id) }}
 {{ bloque_notas(grupos_notas_item, proyecto.id) }}
@@ -666,9 +672,11 @@ function cambiarTipo(proyectoId, docId, select) {
     .catch(() => { select.style.borderColor = '#ff3b30'; });
 }
 
-// Chat de eje: enviar y mostrar la respuesta SIN recargar la página
-// (evita el salto de pantalla, que se cierre el panel y la recarga completa)
-function enviarChat(event, ejeKey) {
+// Chat de eje/ítem: enviar y mostrar la respuesta SIN recargar la página
+// (evita el salto de pantalla, que se cierre el panel y la recarga completa).
+// Si la IA modificó una observación (descartar/reclasificar/editar), sí recargamos
+// la página al final, porque esa observación puede moverse de sección o cambiar contadores.
+function enviarChat(event, tipo, key) {
   event.preventDefault();
   const form = event.target;
   const textarea = form.querySelector('textarea[name="mensaje"]');
@@ -676,7 +684,7 @@ function enviarChat(event, ejeKey) {
   const mensaje = (textarea.value || '').trim();
   if (!mensaje) return false;
 
-  const cont = document.getElementById('chat-msgs-' + ejeKey);
+  const cont = document.getElementById('chat-msgs-' + tipo + '-' + key);
   const vacio = cont.querySelector('.chat-vacio');
   if (vacio) vacio.remove();
 
@@ -707,12 +715,26 @@ function enviarChat(event, ejeKey) {
       pensando.remove();
       const burbujaIA = document.createElement('div');
       burbujaIA.className = 'chat-bubble ia';
-      if (data.ok) {
-        burbujaIA.textContent = data.respuesta;
-      } else {
-        burbujaIA.textContent = '⚠️ No se pudo obtener respuesta. Intenta de nuevo.';
-      }
+      burbujaIA.textContent = data.ok ? data.respuesta : '⚠️ No se pudo obtener respuesta. Intenta de nuevo.';
       cont.appendChild(burbujaIA);
+
+      if (data.ok && data.modificado) {
+        const nota = document.createElement('div');
+        nota.className = 'chat-bubble ia';
+        nota.style.fontStyle = 'italic';
+        nota.style.opacity = '0.75';
+        nota.textContent = '🔄 Se actualizó la observación. Recargando para reflejar el cambio…';
+        cont.appendChild(nota);
+        const param = tipo + '_ok=' + encodeURIComponent(key);
+        setTimeout(function() {
+          window.location.href = window.location.pathname + '?' + param + '#chat-' + tipo + '-' + key;
+        }, 1100);
+        return;   // no reactivar el formulario, la página va a recargar
+      }
+      textarea.disabled = false;
+      boton.disabled = false;
+      boton.textContent = 'Enviar';
+      textarea.focus();
     })
     .catch(() => {
       pensando.remove();
@@ -720,8 +742,6 @@ function enviarChat(event, ejeKey) {
       burbujaIA.className = 'chat-bubble ia';
       burbujaIA.textContent = '⚠️ Error de conexión. Intenta de nuevo.';
       cont.appendChild(burbujaIA);
-    })
-    .finally(() => {
       textarea.disabled = false;
       boton.disabled = false;
       boton.textContent = 'Enviar';

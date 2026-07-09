@@ -225,7 +225,9 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
   cruza proyectos/concursos). Se consolida desde `/admin/concursos/{id}`.
 - **Normativa de tecnificación** destilada (ITT-01 a ITT-04) guía cada análisis.
 - Bases del concurso (admin `/admin/concursos`): subir PDF → extrae texto → se cachea
-- Chat de refinamiento por eje (AJAX, sin recargar) · Consulta libre al expediente
+- Chat de refinamiento por eje E ÍTEM (AJAX, sin recargar) — la IA puede modificar la
+  observación (descartar/reclasificar a nota/editar) directamente desde la conversación
+- Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
 - Estados del proyecto: En revisión / Revisado / Observado / Rechazado
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
@@ -254,11 +256,22 @@ y las envía como bloques de imagen. Requiere que el archivo físico exista (`ru
 uploads NO persisten entre deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión
 actual. El eje Coherencia es solo texto (no visión, por costo).
 
-**Chat de refinamiento por eje (implementado):** `chatear_eje()` en `analyzer.py`, ruta
-`POST /proyecto/{id}/eje/{eje_key}/chat`. El historial se guarda en `proyecto["eje_chats"][eje_key]`
-(lista de `{rol: revisor|ia, texto, fecha}`, últimos 40 turnos). UI: sección "💬 Debatir con la IA"
-con un `<details>` por eje revisado. La IA responde con contexto del eje (documentos + observaciones
-actuales + bases). Aún NO modifica observaciones automáticamente — el revisor edita/descarta a mano.
+**Chat de refinamiento — eje E ÍTEM (implementado):** núcleo unificado `_chatear_grupo()` en
+`analyzer.py`; `chatear_eje()`/`chatear_item()` son envoltorios (mismo patrón que
+`_analizar_grupo`). Rutas `POST /proyecto/{id}/eje/{eje_key}/chat` y `.../item/{item_key}/chat`
+(comparten `_manejar_chat()` en main.py). Historial en `proyecto["eje_chats"][key]` /
+`["item_chats"][key]` (últimos 40 turnos). UI: macro `bloque_chat()` en `proyecto.html`,
+reusado en ambas páginas.
+
+**La IA SÍ puede modificar la observación desde el chat:** si el revisor pide un cambio
+concreto (descartar, bajar a nota, corregir texto) y la IA está de acuerdo, agrega al final de
+su respuesta un marcador oculto `ACCION_JSON: {"id","accion","texto_nuevo"}` (accion:
+descartar|reclasificar_nota|editar|mantener). `_extraer_accion()` lo separa del texto que ve
+el revisor; `_aplicar_accion_chat()` en main.py aplica el cambio real a la observación (por
+`id`, no por número — el bloque de observaciones del prompt incluye `[id:...]` de cada una) y
+registra feedback (concurso + consultor) si fue descartar/reclasificar. El frontend detecta
+`modificado: true` en la respuesta AJAX y recarga la página (único caso en que el chat SÍ
+recarga, porque la observación puede cambiar de sección o mover contadores).
 
 **Aprendizaje por eje/ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku)
 destila el `feedback[]` de un eje/ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en

@@ -19,9 +19,10 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
 from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
-                      resumir_proyecto, consolidar_aprendizaje, consolidar_perfil_consultor,
-                      EJES_REVISION, EJES_ORDEN, ITEMS_SEP, ITEMS_ORDEN, RESUMEN_SECCIONES,
-                      RESUMEN_KEYS, _documentos_del_eje, MIN_CHARS_TEXTO)
+                      chatear_item, resumir_proyecto, consolidar_aprendizaje,
+                      consolidar_perfil_consultor, EJES_REVISION, EJES_ORDEN, ITEMS_SEP,
+                      ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje,
+                      MIN_CHARS_TEXTO)
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -67,6 +68,62 @@ def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> s
         if base + pag in ref:
             return base + pag
     return base + defecto
+
+
+def _registrar_feedback_obs(proyecto: dict, obs: dict, accion: str, user: dict):
+    """Registra en el concurso y en el consultor la decisión tomada sobre una observación
+    (aprobada/descartada), para alimentar el aprendizaje por eje/ítem/consultor."""
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    if obs.get("eje"):
+        tipo_doc_obs = obs["eje"]
+    elif obs.get("item"):
+        tipo_doc_obs = "item_" + obs["item"]
+    else:
+        doc_de_obs = next(
+            (d for d in proyecto.get("documentos", []) if d["id"] == obs.get("doc_id")), None
+        )
+        tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
+    entrada_fb = {
+        "id":        obs["id"],
+        "fecha":     datetime.now().isoformat(),
+        "tipo_doc":  tipo_doc_obs,
+        "texto_obs": obs["texto"][:300],
+        "accion":    accion,
+        "revisor":   user["username"],
+    }
+    db.add_feedback_concurso(concurso_id, entrada_fb)
+    ckey, cnombre = _consultor_de_proyecto(proyecto)
+    if ckey:
+        db.add_feedback_consultor(ckey, cnombre, entrada_fb)
+
+
+def _aplicar_accion_chat(proyecto: dict, accion: dict, user: dict) -> bool:
+    """Aplica sobre la observación real el cambio que la IA decidió en el chat (descartar,
+    reclasificar a nota, o editar el texto). Devuelve True si se modificó algo, para que el
+    llamador sepa que debe refrescar la vista de observaciones."""
+    obs = next((o for o in proyecto.get("observaciones", [])
+               if o.get("id") == accion.get("id")), None)
+    if not obs:
+        return False
+    tipo = accion.get("accion")
+    texto_nuevo = (accion.get("texto_nuevo") or "").strip()
+    if tipo == "descartar":
+        obs["estado"] = "descartada"
+        obs["revisado_por"] = user["nombre"]
+        _registrar_feedback_obs(proyecto, obs, "descartada", user)
+    elif tipo == "reclasificar_nota":
+        obs["severidad"] = "informativa"
+        if texto_nuevo:
+            obs["texto"] = texto_nuevo
+        obs["revisado_por"] = user["nombre"]
+        _registrar_feedback_obs(proyecto, obs, "descartada", user)
+    elif tipo == "editar":
+        if texto_nuevo:
+            obs["texto"] = texto_nuevo
+        obs["revisado_por"] = user["nombre"]
+    else:
+        return False
+    return True
 
 
 app = FastAPI(title="Revisor CNR")
@@ -278,6 +335,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         })
     # Construir info de ítems SEP (método de revisión alternativo, mismo estilo que los ejes)
     items_revisados = proyecto.get("items_revisados", {})
+    item_chats = proyecto.get("item_chats", {})
     items_info = []
     for item_key in ITEMS_ORDEN:
         item = ITEMS_SEP[item_key]
@@ -291,6 +349,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             "emoji": item["emoji"],
             "n_docs": n_docs,
             "revisado": items_revisados.get(item_key),
+            "chat": item_chats.get(item_key, []),
         })
 
     # Agrupar observaciones bajo un solo título por eje/ítem, en su orden lógico.
@@ -612,66 +671,95 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
 
 
-@app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
-async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
-                   mensaje: str = Form(...)):
-    # ¿La petición vino por JavaScript (sin recargar página)? → responder en JSON
+async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str, mensaje: str):
+    """Lógica compartida del chat de refinamiento, para eje (tipo='eje') e ítem (tipo='item').
+    Si la IA decide aplicar un cambio a la observación (descartar/reclasificar/editar), lo
+    aplica y avisa al frontend con "modificado": true para que refresque la página."""
     es_ajax = request.headers.get("x-requested-with") == "fetch"
     user = get_current_user(request)
     if not user:
         if es_ajax:
             return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
         return RedirectResponse(url="/login")
-    if eje_key not in EJES_REVISION:
-        raise HTTPException(status_code=404, detail="Eje no válido")
+
+    catalogo = EJES_REVISION if tipo == "eje" else ITEMS_SEP
+    if key not in catalogo:
+        raise HTTPException(status_code=404, detail="No válido")
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
 
+    pagina = "ejes" if tipo == "eje" else "items"
     mensaje = (mensaje or "").strip()
     if not mensaje:
         if es_ajax:
             return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
-        return RedirectResponse(url=f"/proyecto/{proyecto_id}/ejes#chat-{eje_key}", status_code=302)
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}",
+                                status_code=302)
 
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
     concurso = db.get_concurso(concurso_id)
     bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
-    observaciones_eje = [o for o in proyecto.get("observaciones", []) if o.get("eje") == eje_key]
-    proyecto.setdefault("eje_chats", {})
-    historial = proyecto["eje_chats"].get(eje_key, [])
+    campo_obs = tipo   # "eje" o "item"
+    observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get(campo_obs) == key]
+    campo_chats = "eje_chats" if tipo == "eje" else "item_chats"
+    proyecto.setdefault(campo_chats, {})
+    historial = proyecto[campo_chats].get(key, [])
 
     try:
-        respuesta = await chatear_eje(
-            eje_key=eje_key,
-            documentos=proyecto.get("documentos", []),
-            observaciones_eje=observaciones_eje,
-            historial=historial,
-            mensaje=mensaje,
-            bases_texto=bases_texto,
-            concurso_id=concurso_id,
-        )
+        if tipo == "eje":
+            resultado = await chatear_eje(
+                eje_key=key, documentos=proyecto.get("documentos", []),
+                observaciones_eje=observaciones_grupo, historial=historial,
+                mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
+            )
+        else:
+            resultado = await chatear_item(
+                item_key=key, documentos=proyecto.get("documentos", []),
+                observaciones_item=observaciones_grupo, historial=historial,
+                mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
+            )
     except Exception as e:
         import traceback
-        print(f"❌ ERROR en chat_eje {eje_key}: {e}")
+        print(f"❌ ERROR en chat {tipo} {key}: {e}")
         print(traceback.format_exc())
         if es_ajax:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
         raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
 
+    respuesta = resultado.get("texto", "")
     if not respuesta.strip():
         respuesta = ("⚠️ La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
                      "Intenta reformular la pregunta de forma más breve o vuelve a enviarla.")
 
+    # Si la IA decidió aplicar un cambio concreto a la observación, aplicarlo de verdad.
+    modificado = False
+    accion = resultado.get("accion")
+    if accion:
+        modificado = _aplicar_accion_chat(proyecto, accion, user)
+
     historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
     historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
-    proyecto["eje_chats"][eje_key] = historial[-40:]   # conservar últimos 40 turnos
+    proyecto[campo_chats][key] = historial[-40:]   # conservar últimos 40 turnos
     db.save_proyecto(proyecto)
 
     if es_ajax:
-        return JSONResponse({"ok": True, "mensaje": mensaje, "respuesta": respuesta})
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}#chat-{eje_key}", status_code=302)
+        return JSONResponse({"ok": True, "mensaje": mensaje, "respuesta": respuesta,
+                            "modificado": modificado})
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
+async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
+                   mensaje: str = Form(...)):
+    return await _manejar_chat(request, proyecto_id, "eje", eje_key, mensaje)
+
+
+@app.post("/proyecto/{proyecto_id}/item/{item_key}/chat")
+async def chat_item(request: Request, proyecto_id: str, item_key: str,
+                    mensaje: str = Form(...)):
+    return await _manejar_chat(request, proyecto_id, "item", item_key, mensaje)
 
 
 # ─── Subida ZIP ───────────────────────────────────────────────────────────────
@@ -1113,6 +1201,7 @@ async def limpiar_items(request: Request, proyecto_id: str):
         # Conservar las observaciones de ejes; borrar solo las de ítems
         proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if not o.get("item")]
         proyecto["items_revisados"] = {}
+        proyecto["item_chats"] = {}
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
@@ -1159,33 +1248,9 @@ async def actualizar_observacion(
 
     db.save_proyecto(proyecto)
 
-    # ── Guardar feedback en el concurso para aprendizaje futuro ──────────────
+    # ── Guardar feedback en el concurso/consultor para aprendizaje futuro ────
     if obs_actualizada and estado in ("aprobada", "descartada"):
-        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        # Etiquetar el feedback: por eje, por ítem, o por tipo_doc (según el origen de la obs)
-        if obs_actualizada.get("eje"):
-            tipo_doc_obs = obs_actualizada["eje"]
-        elif obs_actualizada.get("item"):
-            tipo_doc_obs = "item_" + obs_actualizada["item"]
-        else:
-            doc_de_obs = next(
-                (d for d in proyecto.get("documentos", [])
-                 if d["id"] == obs_actualizada.get("doc_id")), None
-            )
-            tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
-        entrada_fb = {
-            "id":        obs_actualizada["id"],
-            "fecha":     datetime.now().isoformat(),
-            "tipo_doc":  tipo_doc_obs,
-            "texto_obs": obs_actualizada["texto"][:300],
-            "accion":    estado,   # "aprobada" o "descartada"
-            "revisor":   user["username"],
-        }
-        db.add_feedback_concurso(concurso_id, entrada_fb)
-        # Acumular también por CONSULTOR (aprendizaje que cruza proyectos y concursos)
-        ckey, cnombre = _consultor_de_proyecto(proyecto)
-        if ckey:
-            db.add_feedback_consultor(ckey, cnombre, entrada_fb)
+        _registrar_feedback_obs(proyecto, obs_actualizada, estado, user)
 
     # Volver a la página de revisión de origen (ítems o ejes) según el tipo de observación
     destino = "items" if (obs_actualizada and obs_actualizada.get("item")) else "ejes"

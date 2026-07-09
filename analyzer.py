@@ -1,6 +1,7 @@
 """Análisis de documentos con Claude API según normativa CNR Ley 18.450"""
 import os
 import json
+import re
 from pathlib import Path
 import anthropic
 
@@ -814,22 +815,48 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
-async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
-                      historial: list, mensaje: str, bases_texto: str = "",
-                      concurso_id: str = "") -> str:
-    """
-    Chat de refinamiento sobre un eje ya revisado. El revisor debate una observación
-    y la IA responde con el contexto completo del eje (documentos + observaciones + bases).
-    """
-    eje = EJES_REVISION.get(eje_key)
-    if not eje:
-        return "Eje no válido."
+ACCIONES_CHAT_VALIDAS = {"descartar", "reclasificar_nota", "editar", "mantener"}
 
+
+def _extraer_accion(texto: str) -> tuple:
+    """
+    Busca al final de la respuesta del chat el marcador ACCION_JSON: {...} y lo separa del
+    texto conversacional (que es lo único que ve el revisor). Devuelve (texto_limpio, accion|None).
+    `accion` es un dict {id, accion, texto_nuevo} o None si no hay cambio o no se pudo parsear.
+    """
+    marca = texto.find("ACCION_JSON:")
+    if marca < 0:
+        return texto.strip(), None
+    texto_limpio = texto[:marca].strip()
+    resto = texto[marca + len("ACCION_JSON:"):]
+    try:
+        start = resto.find("{")
+        end = resto.rfind("}") + 1
+        if start < 0 or end <= start:
+            return texto_limpio, None
+        accion = json.loads(resto[start:end])
+    except json.JSONDecodeError:
+        return texto_limpio, None
+    if not isinstance(accion, dict) or not accion.get("id"):
+        return texto_limpio, None
+    if accion.get("accion") not in ACCIONES_CHAT_VALIDAS:
+        return texto_limpio, None
+    return texto_limpio, accion
+
+
+async def _chatear_grupo(nombre: str, checklist: str, docs_grupo: list, observaciones_grupo: list,
+                         historial: list, mensaje: str, bases_texto: str = "",
+                         concurso_id: str = "") -> dict:
+    """
+    Chat de refinamiento sobre un eje/ítem ya revisado. El revisor debate una observación y la
+    IA responde con el contexto completo del grupo (documentos + observaciones + bases).
+    Si el revisor pide un cambio concreto y la IA está de acuerdo, puede APLICARLO: devuelve
+    {"texto": str, "accion": {"id","accion","texto_nuevo"} | None}. `accion` en
+    descartar|reclasificar_nota|editar|mantener; el llamador aplica el cambio a la observación.
+    """
     client = _get_client()
 
-    # Contexto de documentos del eje (presupuesto acotado para controlar costo)
-    docs_eje = _documentos_del_eje(eje_key, documentos)
-    docs_con_texto = [d for d in docs_eje
+    docs_con_texto = [d for d in docs_grupo
                       if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
     budget = max(2500, 25000 // max(1, len(docs_con_texto)))
     bloque_docs = ""
@@ -837,42 +864,59 @@ async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
         bloque_docs += f"\n\n--- {label} ({d.get('nombre_original','')}) ---\n{_truncar_inteligente(d.get('texto_extraido',''), budget)}"
 
-    # Observaciones actuales del eje
+    # Observaciones actuales del grupo, con su id real (para que la IA pueda referenciarlas
+    # sin ambigüedad si el revisor le pide aplicar un cambio).
     bloque_obs = ""
-    for i, o in enumerate(observaciones_eje, 1):
-        bloque_obs += f"\n[{i}] ({o.get('severidad','')}) {o.get('texto','')}"
+    for o in observaciones_grupo:
+        bloque_obs += (f"\n[id:{o.get('id')}] Obs.{o.get('numero')} "
+                       f"({o.get('severidad','')}) {o.get('texto','')}")
     if not bloque_obs:
-        bloque_obs = "\n(No hay observaciones registradas para este eje todavía.)"
+        bloque_obs = "\n(No hay observaciones registradas todavía.)"
 
     bloque_bases = _construir_bloque_bases(bases_texto, concurso_id)
 
-    # Contexto del eje (documentos + observaciones + guía). Se pone como bloque CACHEADO del
+    # Contexto del grupo (documentos + observaciones + guía). Se pone como bloque CACHEADO del
     # system para que en una conversación de varios turnos NO se reenvíe ni reprocese cada vez
-    # (más rápido y más barato). Solo cambia si cambia el eje o sus observaciones.
-    contexto_eje = f"""Estás asistiendo a un revisor CNR en el eje de revisión "{eje['nombre']}".
-Ya realizaste una revisión de este eje. Ahora el revisor quiere DEBATIR contigo las
-observaciones: aclarar, corregir, reclasificar (ej. bajar una observación a nota si las
-bases lo permiten) o profundizar en un punto técnico.
+    # (más rápido y más barato). Solo cambia si cambian el grupo o sus observaciones.
+    contexto_grupo = f"""Estás asistiendo a un revisor CNR en "{nombre}".
+Ya realizaste una revisión de este grupo de documentos. Ahora el revisor quiere DEBATIR
+contigo las observaciones: aclarar, corregir, reclasificar (ej. bajar una observación a nota
+si las bases lo permiten), descartarla, o profundizar en un punto técnico.
 
-{eje['checklist']}
+{checklist}
 
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles.
 
-DOCUMENTOS DEL EJE:{bloque_docs}
+DOCUMENTOS:{bloque_docs}
 
-OBSERVACIONES ACTUALES DEL EJE:{bloque_obs}
+OBSERVACIONES ACTUALES (cada una con su [id:...] — úsalo para aplicar cambios):{bloque_obs}
 
-Responde de forma directa y práctica. Si el revisor tiene razón (ej. un antecedente en
-trámite que las bases permiten), reconócelo y sugiere la acción concreta (descartar la
-observación, bajarla a nota, o editarla). Si mantienes tu criterio, explica por qué con
-fundamento normativo. Sé breve y concreto."""
+Responde de forma directa y práctica, breve y concreta. Si mantienes tu criterio, explica por
+qué con fundamento normativo.
+
+APLICAR UN CAMBIO (IMPORTANTE): si el revisor pide un cambio CONCRETO sobre UNA observación
+(descartarla, bajarla a nota, corregir su texto) y estás de acuerdo, DEBES aplicarlo de verdad,
+no solo sugerirlo. Para eso, agrega al FINAL de tu respuesta, en una línea aparte, exactamente
+este marcador (el revisor no lo ve, se procesa automáticamente):
+
+ACCION_JSON: {{"id": "<el id de la observación entre [id:...]>", "accion": "descartar|reclasificar_nota|editar|mantener", "texto_nuevo": "<solo si el texto cambia, si no ''>"}}
+
+Reglas del marcador:
+- "descartar": la observación no era válida, se descarta.
+- "reclasificar_nota": se mantiene pero como nota informativa; si reescribes el texto, quita
+  la frase de cierre ("Debe aclarar."/"Debe justificar."), las notas no la llevan.
+- "editar": se corrige el texto en "texto_nuevo" pero sigue siendo observación; mantén el
+  mismo estilo breve (máx 2-3 líneas) y su frase de cierre.
+- Solo incluye el marcador si el revisor pidió explícitamente un cambio y tú lo aceptas. Si
+  solo pregunta, pide una aclaración, o mantienes tu criterio sin ceder, NO incluyas el marcador.
+- Actúa sobre UNA sola observación por respuesta."""
 
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}]
     if bloque_bases.strip():
         system_con_cache.append({"type": "text", "text": bloque_bases,
                                  "cache_control": {"type": "ephemeral"}})
-    system_con_cache.append({"type": "text", "text": contexto_eje,
+    system_con_cache.append({"type": "text", "text": contexto_grupo,
                              "cache_control": {"type": "ephemeral"}})
 
     # Solo la conversación va en messages (historial + mensaje nuevo): es lo único que cambia
@@ -891,10 +935,40 @@ fundamento normativo. Sé breve y concreto."""
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    texto = _texto_respuesta(response)
-    if not texto:
-        print(f"⚠️ Chat eje '{eje_key}': respuesta vacía — stop_reason={response.stop_reason}")
-    return texto
+    texto_crudo = _texto_respuesta(response)
+    if not texto_crudo:
+        print(f"⚠️ Chat '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
+        return {"texto": "", "accion": None}
+
+    texto, accion = _extraer_accion(texto_crudo)
+    if accion and accion.get("accion") == "mantener":
+        accion = None   # "mantener" no requiere que el llamador haga nada
+    return {"texto": texto, "accion": accion}
+
+
+async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
+                      historial: list, mensaje: str, bases_texto: str = "",
+                      concurso_id: str = "") -> dict:
+    """Chat de refinamiento sobre un EJE. Envoltorio de _chatear_grupo."""
+    eje = EJES_REVISION.get(eje_key)
+    if not eje:
+        return {"texto": "Eje no válido.", "accion": None}
+    docs_grupo = _documentos_del_eje(eje_key, documentos)
+    return await _chatear_grupo(eje["nombre"], eje["checklist"], docs_grupo, observaciones_eje,
+                                historial, mensaje, bases_texto=bases_texto, concurso_id=concurso_id)
+
+
+async def chatear_item(item_key: str, documentos: list, observaciones_item: list,
+                       historial: list, mensaje: str, bases_texto: str = "",
+                       concurso_id: str = "") -> dict:
+    """Chat de refinamiento sobre un ÍTEM del SEP. Envoltorio de _chatear_grupo."""
+    item = ITEMS_SEP.get(item_key)
+    if not item:
+        return {"texto": "Ítem no válido.", "accion": None}
+    tipos = set(item["tipo_docs"])
+    docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    return await _chatear_grupo(item["nombre"], item["checklist"], docs_grupo, observaciones_item,
+                                historial, mensaje, bases_texto=bases_texto, concurso_id=concurso_id)
 
 
 async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id: str = "") -> dict:
