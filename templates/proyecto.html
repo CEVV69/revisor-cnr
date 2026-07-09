@@ -539,6 +539,16 @@ function actualizarEtiqueta(input) {
           {{ eje.n_docs }} documento{{ 's' if eje.n_docs != 1 else '' }} disponible{{ 's' if eje.n_docs != 1 else '' }}
         {% endif %}
       </div>
+      {% if eje.revisado and eje.revisado.docs %}
+      <details style="font-size:0.74rem;">
+        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">📄 Ver los {{ eje.revisado.docs|length }} archivo{{ 's' if eje.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
+        <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
+          {% for d in eje.revisado.docs %}
+          <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-eje/{{ eje.key }}"
             {% if eje.revisado %}onsubmit="return confirm('¿Re-revisar el eje {{ eje.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
         <button type="submit"
@@ -595,6 +605,16 @@ function actualizarEtiqueta(input) {
       <div style="font-size:0.76rem; color:var(--text-2);">
         {{ item.n_docs }} documento{{ 's' if item.n_docs != 1 else '' }} disponible{{ 's' if item.n_docs != 1 else '' }}
       </div>
+      {% if item.revisado and item.revisado.docs %}
+      <details style="font-size:0.74rem;">
+        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">📄 Ver los {{ item.revisado.docs|length }} archivo{{ 's' if item.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
+        <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
+          {% for d in item.revisado.docs %}
+          <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-item/{{ item.key }}"
             {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
         <button type="submit"

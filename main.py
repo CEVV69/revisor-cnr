@@ -617,7 +617,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
         "fecha": datetime.now().isoformat(),
         "n_obs": n_obs,
         "n_notas": n_notas,
-        "docs": [d["label"] for d in docs_incluidos],
+        "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
     }
 
     db.save_proyecto(proyecto)
@@ -695,7 +695,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         "fecha": datetime.now().isoformat(),
         "n_obs": n_obs,
         "n_notas": n_notas,
-        "docs": [d["label"] for d in docs_incluidos],
+        "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
     }
 
     db.save_proyecto(proyecto)

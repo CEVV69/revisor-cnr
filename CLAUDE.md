@@ -213,6 +213,22 @@ muestra una tarjeta verde "✅ Cumple con la normativa" listando esos ejes/ítem
 `_render_proyecto()`: `ejes_cumplen`/`items_cumplen`, filtrando `revisados[key].n_obs==0 and
 n_notas==0`).
 
+**Ver qué archivos reales se usaron en cada análisis:** cada tarjeta de eje/ítem ya revisado
+tiene un `<details>` "📄 Ver los N archivos usados en este análisis" con el nombre real de cada
+archivo (`nombre_original`, no solo el tipo/label) — para que el revisor pueda comprobar que
+la asignación de documentos a cada eje/ítem fue correcta. Antes `ejes_revisados[key]["docs"]`
+/ `items_revisados[key]["docs"]` solo guardaba `d["label"]` (el tipo, ej. "Estudio
+hidrológico"), perdiendo el nombre real del archivo — si dos documentos comparten `tipo_doc`
+(ej. 2 archivos clasificados como "Análisis Hidrológico"), no se podía distinguir cuál se usó.
+Ahora se guarda `docs_incluidos` completo (`{id, nombre, label}` por documento, ya devuelto por
+`_analizar_grupo()` pero antes descartado al persistir). La plantilla soporta ambos formatos
+(`{% if d is mapping %}`) para no romper con proyectos que ya tenían el formato viejo (lista de
+strings) guardado antes de este cambio.
+**Si un eje/ítem "solo declara 1" documento existiendo 2 clasificados con ese tipo_doc:**
+revisar en la página Documentos si el que falta tiene el indicador 🔴 "necesita resubir" — un
+documento escaneado/con poco texto cuyo archivo físico ya no existe (post-deploy) se descarta
+en silencio en `_analizar_grupo` (ni texto ni imagen disponible). Solución: resubirlo.
+
 ## Resumen del proyecto (página, formulario)
 
 Ficha tipo formulario con los datos mínimos del proyecto (`RESUMEN_SECCIONES` en analyzer.py:
@@ -223,6 +239,8 @@ y devuelve JSON con lo que encuentra (no inventa; "" si no consta); en el backen
 campos VACÍOS (no pisa lo que el revisor escribió). Campos con `auto` (código, postulante,
 nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 `POST /proyecto/{id}/resumen` (guardar) y `POST /proyecto/{id}/resumen/autocompletar`.
+`nombre_proyecto` es `tipo: "textarea"` (no "text") — un `<input>` de una línea no muestra
+nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 
 ---
 

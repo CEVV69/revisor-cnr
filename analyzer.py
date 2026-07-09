@@ -535,7 +535,7 @@ RESUMEN_SECCIONES = [
         {"key": "postulante",      "label": "Postulante",          "tipo": "text", "auto": "postulante"},
         {"key": "comuna",          "label": "Comuna",              "tipo": "text"},
         {"key": "consultor",       "label": "Consultor",           "tipo": "text"},
-        {"key": "nombre_proyecto", "label": "Nombre del proyecto", "tipo": "text", "auto": "nombre"},
+        {"key": "nombre_proyecto", "label": "Nombre del proyecto", "tipo": "textarea", "auto": "nombre"},
         {"key": "estrato",         "label": "Estrato",             "tipo": "text"},
     ]},
     {"titulo": "1. Proyecto / Legal", "campos": [
