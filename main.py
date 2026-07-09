@@ -682,36 +682,36 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
             return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
         return RedirectResponse(url="/login")
 
-    catalogo = EJES_REVISION if tipo == "eje" else ITEMS_SEP
-    if key not in catalogo:
-        if es_ajax:
-            return JSONResponse({"ok": False, "error": f"'{key}' no es un {tipo} válido"}, status_code=404)
-        raise HTTPException(status_code=404, detail="No válido")
-    proyecto = db.get_proyecto(proyecto_id)
-    if not proyecto:
-        if es_ajax:
-            return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
-        raise HTTPException(status_code=404)
-
     pagina = "ejes" if tipo == "eje" else "items"
-    mensaje = (mensaje or "").strip()
-    if not mensaje:
-        if es_ajax:
-            return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
-        return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}",
-                                status_code=302)
 
-    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
-    bases_texto = concurso.get("bases_texto", "") if concurso else ""
-
-    campo_obs = tipo   # "eje" o "item"
-    observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get(campo_obs) == key]
-    campo_chats = "eje_chats" if tipo == "eje" else "item_chats"
-    proyecto.setdefault(campo_chats, {})
-    historial = proyecto[campo_chats].get(key, [])
-
+    # A partir de aquí, TODO queda envuelto en un solo try/except: si una petición AJAX
+    # entra aquí, SIEMPRE debe salir como JSON (nunca como HTMLException/texto plano que el
+    # frontend no pueda interpretar — eso es lo que producía el mensaje genérico sin motivo).
     try:
+        catalogo = EJES_REVISION if tipo == "eje" else ITEMS_SEP
+        if key not in catalogo:
+            raise ValueError(f"'{key}' no es un {tipo} válido")
+        proyecto = db.get_proyecto(proyecto_id)
+        if not proyecto:
+            raise ValueError("proyecto no encontrado")
+
+        mensaje = (mensaje or "").strip()
+        if not mensaje:
+            if es_ajax:
+                return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
+            return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}",
+                                    status_code=302)
+
+        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+        concurso = db.get_concurso(concurso_id)
+        bases_texto = concurso.get("bases_texto", "") if concurso else ""
+
+        campo_obs = tipo   # "eje" o "item"
+        observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get(campo_obs) == key]
+        campo_chats = "eje_chats" if tipo == "eje" else "item_chats"
+        proyecto.setdefault(campo_chats, {})
+        historial = proyecto[campo_chats].get(key, [])
+
         if tipo == "eje":
             resultado = await chatear_eje(
                 eje_key=key, documentos=proyecto.get("documentos", []),
@@ -724,29 +724,30 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
                 observaciones_item=observaciones_grupo, historial=historial,
                 mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
             )
+
+        respuesta = resultado.get("texto", "")
+        if not respuesta.strip():
+            respuesta = ("⚠️ La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
+                         "Intenta reformular la pregunta de forma más breve o vuelve a enviarla.")
+
+        # Si la IA decidió aplicar un cambio concreto a la observación, aplicarlo de verdad.
+        modificado = False
+        accion = resultado.get("accion")
+        if accion:
+            modificado = _aplicar_accion_chat(proyecto, accion, user)
+
+        historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
+        historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
+        proyecto[campo_chats][key] = historial[-40:]   # conservar últimos 40 turnos
+        db.save_proyecto(proyecto)
     except Exception as e:
         import traceback
-        print(f"❌ ERROR en chat {tipo} {key}: {e}")
+        print(f"❌ ERROR en chat {tipo} {key}: {type(e).__name__}: {e}")
         print(traceback.format_exc())
+        mensaje_error = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
         if es_ajax:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-        raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
-
-    respuesta = resultado.get("texto", "")
-    if not respuesta.strip():
-        respuesta = ("⚠️ La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
-                     "Intenta reformular la pregunta de forma más breve o vuelve a enviarla.")
-
-    # Si la IA decidió aplicar un cambio concreto a la observación, aplicarlo de verdad.
-    modificado = False
-    accion = resultado.get("accion")
-    if accion:
-        modificado = _aplicar_accion_chat(proyecto, accion, user)
-
-    historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
-    historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
-    proyecto[campo_chats][key] = historial[-40:]   # conservar últimos 40 turnos
-    db.save_proyecto(proyecto)
+            return JSONResponse({"ok": False, "error": mensaje_error}, status_code=500)
+        raise HTTPException(status_code=500, detail=f"Error en el chat: {mensaje_error}")
 
     if es_ajax:
         return JSONResponse({"ok": True, "mensaje": mensaje, "respuesta": respuesta,

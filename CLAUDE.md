@@ -349,6 +349,16 @@ observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id
   a un proyecto creado antes del último deploy, fallaba con "Error Interno del Servidor"
   (`FileNotFoundError`). Arreglado agregando `filepath.parent.mkdir(parents=True,
   exist_ok=True)` antes de escribir, igual que ya tenía `subir-zip`.
+- **Bug conocido (jul-2026, en investigación) — chat de eje/ítem con error genérico sin
+  motivo:** el revisor reportó "⚠️ No se pudo obtener respuesta" sin ningún detalle, dos veces
+  seguidas. Se detectó que `_manejar_chat()` solo envolvía en try/except la llamada a la IA,
+  no el resto (aplicar acción de la observación, guardar) — cualquier excepción ahí se escapaba
+  sin convertirse en JSON, y el frontend no podía interpretarla (mostraba el mensaje genérico).
+  Arreglado ampliando el try/except a toda la función y garantizando que el mensaje de error
+  nunca quede vacío (`f"{type(e).__name__}: {e}"`, con fallback al nombre de la excepción si
+  `str(e)` es vacío — ej. AssertionError sin mensaje). El frontend ahora muestra `data.error`
+  si viene. **Si el problema persiste tras esto, el próximo mensaje de error debería traer el
+  detalle real — revisar ese texto antes de seguir adivinando.**
 - **Límite de imagen Claude API:** 5 MB. `render_pdf_as_images` usa JPEG con fallback.
 - **Sin hot-reload local:** reiniciar el server tras cambios en Python.
 - **Normativa estática:** `NORMATIVA_CNR` se carga al importar; agregar .txt requiere reinicio.
