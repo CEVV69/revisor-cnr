@@ -683,10 +683,10 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     bloque_consultor = _construir_bloque_consultor(consultor)
 
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
-                         "cache_control": {"type": "ephemeral"}}]
+                         "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
     if bloque_bases.strip():
         system_con_cache.append({"type": "text", "text": bloque_bases,
-                                 "cache_control": {"type": "ephemeral"}})
+                                 "cache_control": {"type": "ephemeral", "ttl": "1h"}})
         bloque_bases = ""
 
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
@@ -931,12 +931,12 @@ Reglas del marcador:
 - Actúa sobre UNA sola observación por respuesta."""
 
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
-                         "cache_control": {"type": "ephemeral"}}]
+                         "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
     if bloque_bases.strip():
         system_con_cache.append({"type": "text", "text": bloque_bases,
-                                 "cache_control": {"type": "ephemeral"}})
+                                 "cache_control": {"type": "ephemeral", "ttl": "1h"}})
     system_con_cache.append({"type": "text", "text": contexto_grupo,
-                             "cache_control": {"type": "ephemeral"}})
+                             "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
     # Solo la conversación va en messages (historial + mensaje nuevo): es lo único que cambia
     # turno a turno, así el contexto pesado queda cacheado.
@@ -1296,7 +1296,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         system=[{
             "type": "text",
             "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"}
+            "cache_control": {"type": "ephemeral", "ttl": "1h"}
         }],
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
