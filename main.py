@@ -684,9 +684,13 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
 
     catalogo = EJES_REVISION if tipo == "eje" else ITEMS_SEP
     if key not in catalogo:
+        if es_ajax:
+            return JSONResponse({"ok": False, "error": f"'{key}' no es un {tipo} válido"}, status_code=404)
         raise HTTPException(status_code=404, detail="No válido")
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
+        if es_ajax:
+            return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
         raise HTTPException(status_code=404)
 
     pagina = "ejes" if tipo == "eje" else "items"

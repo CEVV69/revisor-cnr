@@ -715,7 +715,8 @@ function enviarChat(event, tipo, key) {
       pensando.remove();
       const burbujaIA = document.createElement('div');
       burbujaIA.className = 'chat-bubble ia';
-      burbujaIA.textContent = data.ok ? data.respuesta : '⚠️ No se pudo obtener respuesta. Intenta de nuevo.';
+      burbujaIA.textContent = data.ok ? data.respuesta
+        : ('⚠️ No se pudo obtener respuesta' + (data.error ? (': ' + data.error) : '.') + ' Intenta de nuevo.');
       cont.appendChild(burbujaIA);
 
       if (data.ok && data.modificado) {
