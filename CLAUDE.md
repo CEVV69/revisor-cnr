@@ -349,16 +349,17 @@ observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id
   a un proyecto creado antes del último deploy, fallaba con "Error Interno del Servidor"
   (`FileNotFoundError`). Arreglado agregando `filepath.parent.mkdir(parents=True,
   exist_ok=True)` antes de escribir, igual que ya tenía `subir-zip`.
-- **Bug conocido (jul-2026, en investigación) — chat de eje/ítem con error genérico sin
-  motivo:** el revisor reportó "⚠️ No se pudo obtener respuesta" sin ningún detalle, dos veces
-  seguidas. Se detectó que `_manejar_chat()` solo envolvía en try/except la llamada a la IA,
-  no el resto (aplicar acción de la observación, guardar) — cualquier excepción ahí se escapaba
-  sin convertirse en JSON, y el frontend no podía interpretarla (mostraba el mensaje genérico).
-  Arreglado ampliando el try/except a toda la función y garantizando que el mensaje de error
-  nunca quede vacío (`f"{type(e).__name__}: {e}"`, con fallback al nombre de la excepción si
-  `str(e)` es vacío — ej. AssertionError sin mensaje). El frontend ahora muestra `data.error`
-  si viene. **Si el problema persiste tras esto, el próximo mensaje de error debería traer el
-  detalle real — revisar ese texto antes de seguir adivinando.**
+- **Bug resuelto — chat de eje/ítem "siempre fallaba" con error genérico:** causa raíz real:
+  en `enviarChat()` (proyecto.html) se hacía `textarea.value = ''` y RECIÉN DESPUÉS
+  `new FormData(form)` — como `FormData(form)` lee el valor actual del campo en ese momento,
+  el mensaje viajaba **vacío** al servidor en cada envío (sin importar lo que el revisor
+  escribiera). El backend respondía correctamente `{"ok": false, "error": "vacio"}`, pero
+  el revisor nunca veía su mensaje real procesado. Arreglado: se arma `FormData` con el
+  mensaje ya capturado ANTES de limpiar el textarea. Antes de encontrar esto se reforzó
+  también el manejo de errores en `_manejar_chat()` (try/except ahora cubre toda la función,
+  no solo la llamada a la IA) — cambio válido igual, pero no era la causa de este síntoma.
+  **Lección:** con un bug de "siempre igual, sin importar el input", sospechar primero de
+  que el input nunca llega, antes de asumir que es un fallo del backend.
 - **Límite de imagen Claude API:** 5 MB. `render_pdf_as_images` usa JPEG con fallback.
 - **Sin hot-reload local:** reiniciar el server tras cambios en Python.
 - **Normativa estática:** `NORMATIVA_CNR` se carga al importar; agregar .txt requiere reinicio.

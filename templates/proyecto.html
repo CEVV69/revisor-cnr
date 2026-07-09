@@ -700,6 +700,12 @@ function enviarChat(event, tipo, key) {
   pensando.textContent = 'La IA está pensando…';
   cont.appendChild(pensando);
 
+  // Construir el envío ANTES de vaciar el textarea: FormData(form) lee el valor
+  // ACTUAL del campo en ese momento, así que si se arma después de limpiar el
+  // textarea, el mensaje viaja vacío al servidor (bug: el chat "siempre fallaba").
+  const datos = new FormData();
+  datos.append('mensaje', mensaje);
+
   textarea.value = '';
   textarea.disabled = true;
   boton.disabled = true;
@@ -708,7 +714,7 @@ function enviarChat(event, tipo, key) {
   fetch(form.action, {
     method: 'POST',
     headers: { 'X-Requested-With': 'fetch' },
-    body: new FormData(form)
+    body: datos
   })
     .then(r => r.json())
     .then(data => {
