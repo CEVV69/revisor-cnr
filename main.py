@@ -362,13 +362,14 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     orden_eje  = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
     orden_item = {ITEMS_SEP[k]["nombre"]: i for i, k in enumerate(ITEMS_ORDEN)}
 
-    def _agrupar(observaciones, campo_nombre, orden):
+    def _agrupar(observaciones, campo_nombre, campo_key, orden):
         grupos = {}
         for o in observaciones:
             nombre = o.get(campo_nombre) or "Otras observaciones"
-            grupos.setdefault(nombre, []).append(o)
-        return [{"nombre": n, "obs": its}
-                for n, its in sorted(grupos.items(), key=lambda kv: orden.get(kv[0], 999))]
+            grupos.setdefault(nombre, {"key": o.get(campo_key, ""), "obs": []})
+            grupos[nombre]["obs"].append(o)
+        return [{"nombre": n, "key": g["key"], "obs": g["obs"]}
+                for n, g in sorted(grupos.items(), key=lambda kv: orden.get(kv[0], 999))]
 
     todas_obs    = proyecto.get("observaciones", [])
     # Observaciones del método por EJES (no tienen tag de ítem)
@@ -389,6 +390,27 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
                          if o.get("estado") not in ("pendiente", "aprobada")]),
         }
 
+    # Grupo revisado más recientemente (por fecha), para abrirlo desplegado por defecto y
+    # dejar los demás contraídos — así la lista no obliga a bajar tanto en cada revisión nueva.
+    def _mas_reciente(revisados: dict) -> str:
+        if not revisados:
+            return ""
+        return max(revisados.items(), key=lambda kv: kv[1].get("fecha", ""))[0]
+
+    eje_reciente = _mas_reciente(ejes_revisados)
+    item_reciente = _mas_reciente(items_revisados)
+
+    # Ejes/ítems revisados SIN observaciones ni notas: cumplen con la normativa — mostrar un
+    # mensaje positivo en vez de dejar la sección vacía y ambigua.
+    ejes_cumplen = [{"key": k, "nombre": EJES_REVISION[k]["nombre"], "emoji": EJES_REVISION[k]["emoji"]}
+                    for k in EJES_ORDEN
+                    if ejes_revisados.get(k) and ejes_revisados[k].get("n_obs", 0) == 0
+                    and ejes_revisados[k].get("n_notas", 0) == 0]
+    items_cumplen = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"], "emoji": ITEMS_SEP[k]["emoji"]}
+                     for k in ITEMS_ORDEN
+                     if items_revisados.get(k) and items_revisados[k].get("n_obs", 0) == 0
+                     and items_revisados[k].get("n_notas", 0) == 0]
+
     # Resumen del proyecto (formulario): valores guardados + auto-relleno de campos vacíos
     # desde los datos que el proyecto ya tiene (código, postulante, nombre).
     resumen = dict(proyecto.get("resumen", {}))
@@ -408,13 +430,17 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "items_info": items_info,
         "n_faltan_resubir": n_faltan_resubir,
         # Método por ejes
-        "grupos_obs": _agrupar(prin_eje, "eje_nombre", orden_eje),
-        "grupos_notas": _agrupar(notas_eje, "eje_nombre", orden_eje),
+        "grupos_obs": _agrupar(prin_eje, "eje_nombre", "eje", orden_eje),
+        "grupos_notas": _agrupar(notas_eje, "eje_nombre", "eje", orden_eje),
         "cont_eje": _contadores(prin_eje),
+        "eje_reciente": eje_reciente,
+        "ejes_cumplen": ejes_cumplen,
         # Método por ítems SEP
-        "grupos_obs_item": _agrupar(prin_item, "item_nombre", orden_item),
-        "grupos_notas_item": _agrupar(notas_item, "item_nombre", orden_item),
+        "grupos_obs_item": _agrupar(prin_item, "item_nombre", "item", orden_item),
+        "grupos_notas_item": _agrupar(notas_item, "item_nombre", "item", orden_item),
         "cont_item": _contadores(prin_item),
+        "item_reciente": item_reciente,
+        "items_cumplen": items_cumplen,
         # Resumen del proyecto (formulario)
         "resumen_secciones": RESUMEN_SECCIONES,
         "resumen": resumen,

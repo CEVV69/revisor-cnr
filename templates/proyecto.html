@@ -24,7 +24,7 @@
 </style>
 
 {# ═══ Macros de observaciones (reutilizados por la pestaña de ejes y la de ítems) ═══ #}
-{% macro bloque_observaciones(grupos, cont, proyecto_id) %}
+{% macro bloque_observaciones(grupos, cont, proyecto_id, abrir_key) %}
 {% if grupos %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
@@ -39,11 +39,13 @@
     <strong>{{ cont.desc }}</strong> descartadas
   </p>
   {% for grupo in grupos %}
-  <div style="margin:1.2rem 0 0.6rem; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
-              font-weight:700; color:#2b6cb0; font-size:0.95rem;">
+  <details {% if grupo.key == abrir_key or (not abrir_key and loop.first) %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
+  <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
+              font-weight:700; color:#2b6cb0; font-size:0.95rem; user-select:none;">
     🔹 {{ grupo.nombre }}
     <span style="font-weight:400; color:#4a5568; font-size:0.82rem;">· {{ grupo.obs|length }} observación{{ 'es' if grupo.obs|length != 1 else '' }}</span>
-  </div>
+  </summary>
+  <div style="padding-top:0.6rem;">
   {% for obs in grupo.obs %}
   <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
     {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
@@ -80,12 +82,14 @@
           style="display:none;"></form>
   </div>
   {% endfor %}
+  </div>
+  </details>
   {% endfor %}
 </div>
 {% endif %}
 {% endmacro %}
 
-{% macro bloque_notas(grupos, proyecto_id) %}
+{% macro bloque_notas(grupos, proyecto_id, abrir_key) %}
 {% if grupos %}
 <div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
   <h2 style="color:#2b6cb0;">💡 Notas para el revisor</h2>
@@ -94,7 +98,9 @@
     No se incluyen en la ficha de revisión oficial.
   </p>
   {% for grupo in grupos %}
-  <div style="margin:1rem 0 0.5rem; font-weight:700; color:#2b6cb0; font-size:0.88rem;">🔹 {{ grupo.nombre }}</div>
+  <details {% if grupo.key == abrir_key %}open{% endif %} style="margin:1rem 0 0.5rem; border-radius:8px; overflow:hidden;">
+  <summary style="cursor:pointer; font-weight:700; color:#2b6cb0; font-size:0.88rem; user-select:none;">🔹 {{ grupo.nombre }}</summary>
+  <div style="padding-top:0.5rem;">
   {% for obs in grupo.obs %}
   <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
     {% if obs.estado == 'descartada' %}opacity:0.45;{% endif %}">
@@ -120,7 +126,26 @@
           style="display:none;"></form>
   </div>
   {% endfor %}
+  </div>
+  </details>
   {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro bloque_cumplimiento(lista, tipo) %}
+{% if lista %}
+<div class="card" style="border-left:4px solid #276749; background:#f0fff4;">
+  <h2 style="color:#276749; margin:0 0 0.5rem; border:none; padding:0;">✅ Cumple con la normativa</h2>
+  <p style="font-size:0.85rem; color:#4a5568; margin-bottom:0.75rem;">
+    {{ 'Estos ejes fueron' if tipo == 'eje' else 'Estos ítems fueron' }} revisados y no
+    presentan observaciones: cumplen con la normativa CNR, los manuales e instructivos vigentes.
+  </p>
+  <ul style="margin:0; padding-left:1.3rem; font-size:0.88rem; color:#276749; line-height:1.8;">
+    {% for g in lista %}
+    <li>{{ g.emoji }} <strong>{{ g.nombre }}</strong></li>
+    {% endfor %}
+  </ul>
 </div>
 {% endif %}
 {% endmacro %}
@@ -532,8 +557,10 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_chat(ejes_info, 'eje', eje_ok, proyecto.id) }}
 
-{{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id) }}
-{{ bloque_notas(grupos_notas, proyecto.id) }}
+{% set abrir_eje = eje_ok or eje_reciente %}
+{{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id, abrir_eje) }}
+{{ bloque_notas(grupos_notas, proyecto.id, abrir_eje) }}
+{{ bloque_cumplimiento(ejes_cumplen, 'eje') }}
 
 <!-- Limpiar SOLO la revisión por ejes (no afecta ítems ni documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-ejes" style="margin-top:0.5rem;"
@@ -585,8 +612,10 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
 
-{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id) }}
-{{ bloque_notas(grupos_notas_item, proyecto.id) }}
+{% set abrir_item = item_ok or item_reciente %}
+{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, abrir_item) }}
+{{ bloque_notas(grupos_notas_item, proyecto.id, abrir_item) }}
+{{ bloque_cumplimiento(items_cumplen, 'item') }}
 
 <!-- Limpiar SOLO la revisión por ítems (no afecta ejes ni documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"

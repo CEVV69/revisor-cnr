@@ -199,6 +199,20 @@ Ambos métodos **conviven**. Núcleo unificado en `_analizar_grupo()`; `analizar
 eje + ejes_revisados + eje_chats) y `.../limpiar-items` (solo obs de ítem + items_revisados).
 Los redirects de cada acción vuelven a su página (`_volver_a` usa el Referer para el estado).
 
+**Grupos de observaciones desplegables (`<details>`):** en `bloque_observaciones()`/
+`bloque_notas()` (proyecto.html), cada grupo (eje/ítem) es un `<details>` — evita tener que
+bajar cada vez más al ir sumando revisiones. Se abre automáticamente el grupo recién analizado
+(`eje_ok`/`item_ok`, el query param del redirect) o si no hay ninguno en la URL, el más
+reciente por fecha (`eje_reciente`/`item_reciente`, calculado en `_render_proyecto()` con
+`max(revisados.items(), key=fecha)`); el resto queda contraído pero expandible a mano. El
+grupo se identifica por `grupo.key` (eje_key o item_key), agregado en `_agrupar()`.
+
+**Mensaje de cumplimiento cuando no hay observaciones:** si un eje/ítem fue revisado y no
+generó ninguna observación ni nota, antes no aparecía nada — ahora `bloque_cumplimiento()`
+muestra una tarjeta verde "✅ Cumple con la normativa" listando esos ejes/ítems (calculado en
+`_render_proyecto()`: `ejes_cumplen`/`items_cumplen`, filtrando `revisados[key].n_obs==0 and
+n_notas==0`).
+
 ## Resumen del proyecto (página, formulario)
 
 Ficha tipo formulario con los datos mínimos del proyecto (`RESUMEN_SECCIONES` en analyzer.py:
