@@ -61,7 +61,8 @@ El push automático ya está configurado por SSH (no pide credenciales).
 
 - **Backend:** FastAPI + Jinja2 (renderizado server-side, sin framework JS)
 - **Base de datos:** PostgreSQL en Railway (persiste). En local sin `DATABASE_URL` usa JSON.
-- **IA:** Anthropic API — Claude Haiku 4.5 (simples) / Sonnet 4.5 (complejos)
+- **IA:** Anthropic API — Claude **Sonnet 5** (revisión por ejes/ítems, chat y consultas) ·
+  Haiku 4.5 (tareas de resumen: autocompletar resumen, destilar aprendizaje)
 - **Auth:** JWT (HS256, 8 h, en cookie) + bcrypt
 - **Extracción:** PyMuPDF (fitz), python-docx, openpyxl, xlrd
 
@@ -94,44 +95,54 @@ templates/       Jinja2 (base.html, proyecto.html, ficha.html, admin_concursos.h
 ```
 
 ### Modelo de datos (PostgreSQL: tabla `storage (key TEXT, value TEXT)`)
-Tres colecciones guardadas como JSON bajo las claves `users`, `proyectos`, `concursos`.
+CUATRO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consultores`.
 
 - **proyectos** → dict keyed por UUID: `id, nombre, codigo_sep, postulante, tipo_revision,
-  revisor, revisor_nombre, estado, documentos[], observaciones[], consultas[]`.
-  - `documentos[]`: `id, nombre_original, filename, tipo_doc, label, texto_extraido,
+  revisor, revisor_nombre, estado, documentos[], observaciones[], consultas[]`, y además
+  `resumen{}` (ficha-formulario), `ejes_revisados{}`, `items_revisados{}`, `eje_chats{}`.
+  - `documentos[]`: `id, nombre_original, filename, tipo_doc, tipo_doc_label, texto_extraido,
     analizado (bool), fecha_subida`.
-  - `observaciones[]`: `id, doc_id, doc_nombre, texto, categoria, severidad
-    (mayor|menor|informativa), referencia_normativa, estado (pendiente|aprobada|descartada),
-    fecha`.
-- **concursos** → `id (ej "204-2026"), nombre, bases_texto, feedback[], fecha_*`.
+  - `observaciones[]`: `id, texto, categoria, severidad (mayor|menor|informativa),
+    referencia_normativa, estado (pendiente|aprobada|descartada), numero, fecha`. Las de EJE
+    llevan `eje`+`eje_nombre`; las de ÍTEM SEP llevan `item`+`item_nombre`.
+- **concursos** → `id (ej "204-2026"), nombre, bases_texto, feedback[], fecha_*`, más
+  `criterios_aprendidos{}` (clave eje_key o "item_"+item_key → texto destilado) y `criterios_fecha`.
   - `feedback[]`: decisiones reales del revisor (`accion: aprobada|descartada, tipo_doc,
-    texto_obs, fecha`) — alimenta el aprendizaje. Máx 200 por concurso.
+    texto_obs, fecha`). `tipo_doc` = eje_key, "item_"+item_key o tipo_doc real. Máx 200.
+- **consultores** → keyed por nombre normalizado (`_consultor_key`): `key, nombre, feedback[]
+  (máx 300, cruza concursos), perfil (texto destilado), perfil_fecha`.
 
 `database.py` lee/escribe la colección completa en cada llamada (sin transacciones).
 Suficiente para uso mono-usuario.
 
 ---
 
-## Flujo de análisis IA (`analyzer.py`)
+## Flujo de análisis IA (`analyzer.py`) — núcleo `_analizar_grupo()`
 
-1. **Selección de modelo** — `seleccionar_modelo(tipo_doc, es_escaneado)`:
-   - `DOCS_FORZAR_HAIKU` (ej. `reporte_explorador_solar`) → Haiku aunque sea imagen
-   - `DOCS_COMPLEJOS` o escaneado → Sonnet
-   - resto → Haiku
-2. **Detección de imagen** — PDF con < `MIN_CHARS_TEXTO` (300) de texto → se trata como
-   escaneado y se procesa con **visión**. `DOCS_FORZAR_VISION` (solar) siempre usa visión.
-3. **Visión** — `render_pdf_as_images()` (JPEG 70%, zoom 0.8×). Páginas máx por tipo en
-   `MAX_PAGINAS_POR_TIPO` (solar=15, FV/hidráulico/agronómico=8, resto=5).
-4. **Límite de caracteres por tipo** — `MAX_CHARS_POR_TIPO` (solar 40k, agronómico 35k,
-   presupuesto 30k, FV/hidráulico 25k, …). Truncación inteligente: 75% inicio + 25% final.
-5. **Contexto del expediente** — `_construir_contexto_expediente()` inyecta el manifiesto
-   de todos los documentos + extractos de los ya analizados, para evitar falsos "falta X".
-6. **Bases del concurso** — se inyectan como 2º bloque cacheado del system prompt.
-7. **Feedback** — `_construir_bloque_feedback()` mete ejemplos reales aprobados/descartados.
-8. **Prompt caching** — normativa + bases con `cache_control: ephemeral` (header beta).
-9. **Auto-invalidación** — `revisar_observaciones_previas()` descarta obs de otros
-   documentos que este nuevo documento resuelve.
-10. **Parser JSON** — dos intentos; el 2º cierra llaves/corchetes abiertos si se truncó.
+El análisis documento-por-documento fue **eliminado**. Hoy todo pasa por `_analizar_grupo()`,
+que revisa un GRUPO de documentos (un eje temático o un ítem del SEP) en UNA llamada a Sonnet 5.
+`analizar_eje()` y `analizar_item()` son envoltorios delgados sobre él.
+
+1. **Selección de documentos** — el envoltorio pasa los documentos del grupo (`_documentos_del_eje`
+   para ejes; filtro por `tipo_docs` para ítems). Coherencia global usa todos los con texto.
+2. **Texto vs imagen** — docs con `texto_extraido` van como texto; escaneados/planos (texto
+   `< MIN_CHARS_TEXTO` = 300, o `__PDF_ESCANEADO__`) van por **visión** si el archivo físico
+   existe (`render_pdf_as_images`, JPEG, tope global `MAX_IMG_EJE=10`). Coherencia NO usa visión.
+3. **Presupuesto de caracteres** — `MAX_CHARS_EJE_TOTAL=45000` repartido entre los docs del
+   grupo (`_truncar_inteligente`).
+4. **Manifiesto del expediente** — se inyecta la lista de TODOS los tipos de documento presentes,
+   para que la IA detecte faltantes obligatorios ("Se sugiere declarar no admitido.").
+5. **System cacheado** — `SYSTEM_PROMPT` (normativa) + bases del concurso, con
+   `cache_control: ephemeral` (header beta de prompt caching).
+6. **Aprendizaje** — si el concurso tiene `criterios_aprendidos` del grupo, se inyectan (compactos);
+   si no, `_construir_bloque_feedback` mete ejemplos crudos. Además `_construir_bloque_consultor`
+   inyecta el perfil/historial del consultor del proyecto.
+7. **max_tokens** — `MAX_TOKENS_SONNET=12000` (Sonnet 5 gasta parte en *thinking*, ver bug abajo).
+8. **Parser JSON** — dos intentos; el 2º cierra llaves/corchetes si se truncó. Si vuelve vacío,
+   loguea `stop_reason` + preview.
+
+`seleccionar_modelo`, `MAX_CHARS_POR_TIPO`, `MAX_PAGINAS_POR_TIPO`, `DOCS_FORZAR_*` siguen
+definidos pero eran del flujo viejo; hoy el análisis por grupo usa siempre Sonnet 5.
 
 ### Tipos de documento (`TIPOS_DOC` / `TIPO_DOC_ORDEN` / `TIPO_DOC_LABELS`)
 Plano ubicación · Identificación área riego · Análisis hidrológico · Prueba de bombeo ·
@@ -159,7 +170,7 @@ Tres preguntas guía antes de observar:
   `"Debe aclarar."` (precisar/resolver ambigüedad), `"Debe justificar."` (falta fundamento
   técnico/normativo) o `"Se sugiere declarar no admitido."` (falta un documento obligatorio
   exigido por las bases). Las notas informativas no llevan cierre.
-- **Documentos obligatorios:** `analizar_eje` inyecta un manifiesto de TODOS los tipos de
+- **Documentos obligatorios:** `_analizar_grupo` inyecta un manifiesto de TODOS los tipos de
   documento presentes en el expediente para que la IA detecte faltantes obligatorios.
 - **Observaciones agrupadas por eje/ítem:** en `proyecto.html` y en la ficha, las obs se
   muestran bajo UN solo título por eje/ítem (no un encabezado por observación). El
@@ -188,7 +199,7 @@ Ambos métodos **conviven**. Núcleo unificado en `_analizar_grupo()`; `analizar
 eje + ejes_revisados + eje_chats) y `.../limpiar-items` (solo obs de ítem + items_revisados).
 Los redirects de cada acción vuelven a su página (`_volver_a` usa el Referer para el estado).
 
-## Resumen del proyecto (3ª pestaña, formulario)
+## Resumen del proyecto (página, formulario)
 
 Ficha tipo formulario con los datos mínimos del proyecto (`RESUMEN_SECCIONES` en analyzer.py:
 identificación, legal, predios, DAA, uso de suelo, obras, cultivo, características de obras).
@@ -204,32 +215,38 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 ## Funcionalidades implementadas ✅
 
 - Subida PDF/Word/Excel/ZIP → extracción → clasificación por anexo
-- **Revisión por EJES TEMÁTICOS** (método único — ver abajo). El análisis documento-por-documento
-  fue eliminado de raíz (ruta, funciones y UI removidas).
-- **🗑 Limpiar revisión** — borra obs/notas/estado, conserva los archivos
+- **Proyecto en 4 páginas** (Resumen / Documentos / Revisión por Ejes / Revisión por Ítems SEP),
+  navegación arriba — ver sección "Cuatro PÁGINAS del proyecto".
+- **DOS métodos de revisión que conviven:** por 9 EJES temáticos y por 16 ÍTEMS del SEP. El
+  análisis documento-por-documento fue eliminado de raíz.
+- **Resumen del proyecto** tipo formulario, autocompletable con IA y editable (campos Sí/No).
+- **🗑 Limpieza INDEPENDIENTE** por sistema: limpiar ejes no toca ítems y viceversa.
+- **Aprendizaje**: por eje/ítem (criterios destilados del feedback) y por CONSULTOR (perfil que
+  cruza proyectos/concursos). Se consolida desde `/admin/concursos/{id}`.
+- **Normativa de tecnificación** destilada (ITT-01 a ITT-04) guía cada análisis.
 - Bases del concurso (admin `/admin/concursos`): subir PDF → extrae texto → se cachea
-- Feedback del revisor (aprobar/descartar) → aprendizaje
+- Chat de refinamiento por eje (AJAX, sin recargar) · Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
 - Estados del proyecto: En revisión / Revisado / Observado / Rechazado
-- Documentos ordenados por tipo · conteo analizados/pendientes
+- Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
-  (html2pdf.js), letra 13px, título centrado, sin firmas ni "R)"
+  (html2pdf.js), obs agrupadas por eje/ítem, sin firmas ni "R)"
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 
 ---
 
-## Revisión por EJES TEMÁTICOS (método único)
+## Revisión por EJES TEMÁTICOS (uno de los dos métodos)
 
 **Problema que resuelve:** revisar documento por documento era erróneo porque los documentos
 son complementarios (el agronómico define la demanda que el hidráulico satisface; el plano
 debe reflejar el diseño; el presupuesto debe cuadrar con las obras). Evaluarlos aislados
-generaba falsas observaciones. Ese método fue **eliminado**.
+generaba falsas observaciones. Ese método fue **eliminado**; hoy conviven ejes + ítems SEP.
 
 **Implementado (backbone):** `EJES_REVISION` en `analyzer.py` define los 9 ejes (tipo_docs +
 checklist). `analizar_eje()` cruza TODOS los documentos del eje en UNA llamada a Sonnet y
 devuelve observaciones tageadas con `eje`. Ruta `POST /proyecto/{id}/revisar-eje/{eje_key}`.
-UI: panel de 9 ejes en `proyecto.html` bajo la tabla de documentos. Las obs de eje se guardan
-con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
+UI: panel de 9 ejes en la **página "Revisión por Ejes"** (`/proyecto/{id}/ejes`). Las obs de eje
+se guardan con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
 
 **Visión en ejes:** `analizar_eje` usa texto extraído + IMÁGENES para documentos escaneados/planos
 (los que no tienen texto). Renderiza páginas con `render_pdf_as_images` (tope global `MAX_IMG_EJE=10`)
@@ -278,8 +295,9 @@ Arreglado subiendo los límites (`MAX_TOKENS_SONNET` en `analizar_eje`: 6000→1
 `chatear_eje`: 1200→4000) y agregando logs de diagnóstico (`print`) cuando la respuesta viene
 vacía, con el `stop_reason` de la API, para detectarlo rápido si vuelve a pasar. En el chat,
 además, si la respuesta llega vacía se guarda un aviso explícito en vez de un mensaje en
-blanco. **Ojo:** `consultar_expediente` (consulta libre, `max_tokens=1500`) tiene el mismo
-riesgo latente y no se tocó — vigilar si se reporta el mismo síntoma ahí.
+blanco. `consultar_expediente` también se subió a `max_tokens=4000` con el mismo aviso.
+**Regla general:** cualquier llamada a Sonnet 5 necesita `max_tokens` holgado (≥4000) por el
+thinking; si una respuesta llega vacía, loguear `stop_reason` en vez de tragarlo en silencio.
 
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
@@ -297,10 +315,9 @@ riesgo latente y no se tocó — vigilar si se reporta el mismo síntoma ahí.
 Eje 1 (Superficie) es la base: define demanda, escala, presupuesto y monto bonificable.
 Eje 9 (Coherencia global) es el cierre que atrapa los errores entre documentos.
 
-**Plan de aprendizaje ("revisor experto"):** consolidar periódicamente el `feedback[]` de
-cada concurso en un documento de **criterios aprendidos por eje** (reglas concretas), que
-se inyecta en el prompt. Deja de ser ejemplos sueltos y pasa a ser un manual de criterio
-propio que se afina con el uso.
+Los **16 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) son el segundo método: cada uno revisa
+su(s) documento(s) tal como se ingresan al Sistema Electrónico de Postulación, para copiar las
+observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id}/items`).
 
 ---
 
@@ -312,7 +329,7 @@ propio que se afina con el uso.
   texto) — el resto ya tiene su texto guardado y no requiere el archivo físico. La tabla de
   documentos en `proyecto.html` muestra por fila si el archivo sigue presente (🟢), si hay
   que resubirlo (🔴, `doc.necesita_archivo` y no `doc.archivo_presente`) o si no hace falta
-  (⚪, calculado en `ver_proyecto()` de `main.py`).
+  (⚪, calculado en `_render_proyecto()` de `main.py`).
 - **Bug resuelto — carpeta de subida faltante tras deploy:** las rutas `subir` y
   `subir-multiple` en `main.py` intentaban guardar el archivo sin recrear la carpeta del
   proyecto (`UPLOAD_DIR/{proyecto_id}`), que se borra en cada deploy. Al subir un documento
