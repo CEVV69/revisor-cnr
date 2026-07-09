@@ -823,20 +823,35 @@ def _extraer_accion(texto: str) -> tuple:
     Busca al final de la respuesta del chat el marcador ACCION_JSON: {...} y lo separa del
     texto conversacional (que es lo único que ve el revisor). Devuelve (texto_limpio, accion|None).
     `accion` es un dict {id, accion, texto_nuevo} o None si no hay cambio o no se pudo parsear.
+    Tolera respuestas cortadas a mitad del JSON (mismo reintento que el parser de observaciones).
     """
     marca = texto.find("ACCION_JSON:")
     if marca < 0:
         return texto.strip(), None
     texto_limpio = texto[:marca].strip()
     resto = texto[marca + len("ACCION_JSON:"):]
-    try:
-        start = resto.find("{")
-        end = resto.rfind("}") + 1
-        if start < 0 or end <= start:
-            return texto_limpio, None
-        accion = json.loads(resto[start:end])
-    except json.JSONDecodeError:
+    start = resto.find("{")
+    if start < 0:
         return texto_limpio, None
+
+    accion = None
+    end = resto.rfind("}") + 1
+    if end > start:
+        try:
+            accion = json.loads(resto[start:end])
+        except json.JSONDecodeError:
+            accion = None
+    if accion is None:
+        # Reintento: puede haberse cortado a mitad del JSON (el thinking se comió el cupo
+        # de tokens antes de terminar de escribirlo) — cerrar llaves/corchetes abiertos.
+        try:
+            frag = resto[start:]
+            frag += "]" * (frag.count("[") - frag.count("]"))
+            frag += "}" * (frag.count("{") - frag.count("}"))
+            accion = json.loads(frag)
+        except Exception:
+            print(f"⚠️ ACCION_JSON presente pero no se pudo parsear (posible corte): {resto[:200]!r}")
+            return texto_limpio, None
     if not isinstance(accion, dict) or not accion.get("id"):
         return texto_limpio, None
     if accion.get("accion") not in ACCIONES_CHAT_VALIDAS:
@@ -934,7 +949,7 @@ Reglas del marcador:
 
     response = client.messages.create(
         model=MODELO_SONNET,
-        max_tokens=4000,
+        max_tokens=8000,   # holgado: el chat ahora también debe escribir el marcador ACCION_JSON
         system=system_con_cache,
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}

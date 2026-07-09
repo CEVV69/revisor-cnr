@@ -283,6 +283,19 @@ reversible. La IA solo usa "eliminar" si el revisor lo pide explícitamente ("el
 prompt). Además del chat, hay botón manual "🗑 Eliminar" en cada observación/nota
 (`POST /proyecto/{id}/observacion/{obs_id}/eliminar`), con `confirm()` en el frontend.
 
+**Bug resuelto — chat decía que aplicó un cambio pero no lo aplicaba (jul-2026):** al agregar
+el marcador ACCION_JSON, `max_tokens=4000` del chat volvió a ser insuficiente (mismo patrón
+del bug de thinking ya documentado): el modelo a veces terminaba la respuesta conversacional
+pero el JSON quedaba cortado a mitad (o directamente la respuesta llegaba vacía). Síntomas
+reportados: "eliminar" que decía haberse aplicado pero la observación seguía ahí; funcionaba
+con una observación pendiente pero no con una ya descartada; y el error conocido "La IA no
+devolvió una respuesta" al pedir explícitamente eliminar. Arreglado: `max_tokens` del chat
+4000→8000, y `_extraer_accion()` ahora reintenta cerrando llaves/corchetes abiertos si el
+JSON quedó cortado (mismo patrón que el parser de `_analizar_grupo`), con log de diagnóstico
+si aun así no se puede parsear. **Si el patrón "dice que lo hizo pero no pasó" persiste
+después de esto** (sin el error de respuesta vacía), ya no sería un problema de tokens sino
+de que el modelo no está incluyendo el marcador pese a la instrucción — reforzar el prompt.
+
 **Aprendizaje por eje/ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku)
 destila el `feedback[]` de un eje/ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
 `concurso["criterios_aprendidos"][clave]` (clave = eje_key o "item_"+item_key). Se dispara desde
