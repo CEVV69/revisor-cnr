@@ -72,8 +72,12 @@
         <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">✓ Aprobar</button>
         <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">✗ Descartar</button>
         <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm">↺ Pendiente</button>
+        <button type="submit" form="elim-{{ obs.id }}" class="btn btn-ghost btn-sm" style="color:#c0392b;">🗑 Eliminar</button>
       </div>
     </form>
+    <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar esta observación por completo? A diferencia de Descartar, no queda ningún registro y no se puede deshacer.')"
+          style="display:none;"></form>
   </div>
   {% endfor %}
   {% endfor %}
@@ -108,7 +112,12 @@
       {% endif %}
       <button type="submit" name="estado" value="descartada" class="btn btn-sm"
               style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
+      <button type="submit" form="elim-{{ obs.id }}" class="btn btn-sm"
+              style="background:transparent; color:#c0392b; font-size:0.78rem;">🗑 Eliminar</button>
     </form>
+    <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar esta nota por completo? No se puede deshacer.')"
+          style="display:none;"></form>
   </div>
   {% endfor %}
   {% endfor %}

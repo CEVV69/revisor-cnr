@@ -121,6 +121,12 @@ def _aplicar_accion_chat(proyecto: dict, accion: dict, user: dict) -> bool:
         if texto_nuevo:
             obs["texto"] = texto_nuevo
         obs["revisado_por"] = user["nombre"]
+    elif tipo == "eliminar":
+        # Igual señal de aprendizaje que "descartar" (no es válida), pero no reversible:
+        # se borra el registro por completo en vez de solo marcarla como descartada.
+        _registrar_feedback_obs(proyecto, obs, "descartada", user)
+        proyecto["observaciones"] = [o for o in proyecto.get("observaciones", [])
+                                     if o.get("id") != obs["id"]]
     else:
         return False
     return True
@@ -1259,6 +1265,28 @@ async def actualizar_observacion(
 
     # Volver a la página de revisión de origen (ítems o ejes) según el tipo de observación
     destino = "items" if (obs_actualizada and obs_actualizada.get("item")) else "ejes"
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/{destino}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/eliminar")
+async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
+    """Elimina una observación por completo (no reversible), a diferencia de Descartar que
+    solo la marca como descartada conservando el registro."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+    destino = "items" if (obs and obs.get("item")) else "ejes"
+    if obs:
+        # Misma señal de aprendizaje que descartar (no era válida) antes de borrarla.
+        _registrar_feedback_obs(proyecto, obs, "descartada", user)
+        proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o["id"] != obs_id]
+        db.save_proyecto(proyecto)
+
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/{destino}", status_code=302)
 
 

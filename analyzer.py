@@ -815,7 +815,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
-ACCIONES_CHAT_VALIDAS = {"descartar", "reclasificar_nota", "editar", "mantener"}
+ACCIONES_CHAT_VALIDAS = {"descartar", "reclasificar_nota", "editar", "eliminar", "mantener"}
 
 
 def _extraer_accion(texto: str) -> tuple:
@@ -895,18 +895,22 @@ Responde de forma directa y práctica, breve y concreta. Si mantienes tu criteri
 qué con fundamento normativo.
 
 APLICAR UN CAMBIO (IMPORTANTE): si el revisor pide un cambio CONCRETO sobre UNA observación
-(descartarla, bajarla a nota, corregir su texto) y estás de acuerdo, DEBES aplicarlo de verdad,
-no solo sugerirlo. Para eso, agrega al FINAL de tu respuesta, en una línea aparte, exactamente
-este marcador (el revisor no lo ve, se procesa automáticamente):
+(descartarla, eliminarla, bajarla a nota, corregir su texto) y estás de acuerdo, DEBES
+aplicarlo de verdad, no solo sugerirlo. Para eso, agrega al FINAL de tu respuesta, en una
+línea aparte, exactamente este marcador (el revisor no lo ve, se procesa automáticamente):
 
-ACCION_JSON: {{"id": "<el id de la observación entre [id:...]>", "accion": "descartar|reclasificar_nota|editar|mantener", "texto_nuevo": "<solo si el texto cambia, si no ''>"}}
+ACCION_JSON: {{"id": "<el id de la observación entre [id:...]>", "accion": "descartar|reclasificar_nota|editar|eliminar|mantener", "texto_nuevo": "<solo si el texto cambia, si no ''>"}}
 
 Reglas del marcador:
-- "descartar": la observación no era válida, se descarta.
+- "descartar": la observación no era válida, se descarta (queda registrada como descartada,
+  reversible — el revisor la puede volver a poner pendiente a mano si se equivocó).
 - "reclasificar_nota": se mantiene pero como nota informativa; si reescribes el texto, quita
   la frase de cierre ("Debe aclarar."/"Debe justificar."), las notas no la llevan.
 - "editar": se corrige el texto en "texto_nuevo" pero sigue siendo observación; mantén el
   mismo estilo breve (máx 2-3 líneas) y su frase de cierre.
+- "eliminar": borra la observación POR COMPLETO, sin dejar ningún registro (NO reversible).
+  Úsala SOLO si el revisor pide explícitamente "elimínala" o "bórrala" (no solo "descártala").
+  Ante la duda entre descartar y eliminar, usa SIEMPRE "descartar" — es la opción reversible.
 - Solo incluye el marcador si el revisor pidió explícitamente un cambio y tú lo aceptas. Si
   solo pregunta, pide una aclaración, o mantienes tu criterio sin ceder, NO incluyas el marcador.
 - Actúa sobre UNA sola observación por respuesta."""

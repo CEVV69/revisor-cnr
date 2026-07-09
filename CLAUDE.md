@@ -264,14 +264,24 @@ actual. El eje Coherencia es solo texto (no visión, por costo).
 reusado en ambas páginas.
 
 **La IA SÍ puede modificar la observación desde el chat:** si el revisor pide un cambio
-concreto (descartar, bajar a nota, corregir texto) y la IA está de acuerdo, agrega al final de
-su respuesta un marcador oculto `ACCION_JSON: {"id","accion","texto_nuevo"}` (accion:
-descartar|reclasificar_nota|editar|mantener). `_extraer_accion()` lo separa del texto que ve
-el revisor; `_aplicar_accion_chat()` en main.py aplica el cambio real a la observación (por
-`id`, no por número — el bloque de observaciones del prompt incluye `[id:...]` de cada una) y
-registra feedback (concurso + consultor) si fue descartar/reclasificar. El frontend detecta
+concreto (descartar, bajar a nota, corregir texto, ELIMINAR) y la IA está de acuerdo, agrega
+al final de su respuesta un marcador oculto `ACCION_JSON: {"id","accion","texto_nuevo"}`
+(accion: descartar|reclasificar_nota|editar|eliminar|mantener). `_extraer_accion()` lo separa
+del texto que ve el revisor; `_aplicar_accion_chat()` en main.py aplica el cambio real a la
+observación (por `id`, no por número — el bloque de observaciones del prompt incluye
+`[id:...]` de cada una) y registra feedback (concurso + consultor) con `accion="descartada"`
+si fue descartar/reclasificar/**eliminar** (misma señal de aprendizaje: "esta observación no
+era válida"; solo cambia si el registro se conserva marcado o se borra). El frontend detecta
 `modificado: true` en la respuesta AJAX y recarga la página (único caso en que el chat SÍ
 recarga, porque la observación puede cambiar de sección o mover contadores).
+
+**Descartar vs Eliminar:** "descartar" es reversible (queda con `estado="descartada"`, el
+revisor puede volver a marcarla pendiente a mano) y sirve de registro/auditoría. "eliminar"
+borra la observación de `proyecto["observaciones"]` por completo, sin dejar rastro — NO
+reversible. La IA solo usa "eliminar" si el revisor lo pide explícitamente ("elimínala"/
+"bórrala"), y por defecto prefiere "descartar" ante la duda (instrucción explícita en el
+prompt). Además del chat, hay botón manual "🗑 Eliminar" en cada observación/nota
+(`POST /proyecto/{id}/observacion/{obs_id}/eliminar`), con `confirm()` en el frontend.
 
 **Aprendizaje por eje/ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku)
 destila el `feedback[]` de un eje/ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
