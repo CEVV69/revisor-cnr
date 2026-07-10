@@ -22,7 +22,8 @@ from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear
                       chatear_item, resumir_proyecto, consolidar_aprendizaje,
                       consolidar_perfil_consultor, EJES_REVISION, EJES_ORDEN, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje,
-                      MIN_CHARS_TEXTO)
+                      MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos)
+import calculos_riego
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -604,6 +605,10 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
                if concurso else "")
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
+    # Si el revisor ya validó/corrigió los datos en "🧮 Chequeo de Cálculos", se usan tal cual
+    # en vez de volver a extraerlos automáticamente — la extracción puede fallar en algunos casos.
+    verif_eje = proyecto.get("verificacion_calculos", {}).get(eje_key)
+    datos_verificacion = verif_eje if verif_eje and verif_eje.get("validado") else None
 
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
@@ -617,6 +622,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
             criterios_aprendidos=criterios,
             criterios_enfasis=enfasis,
             consultor=consultor,
+            datos_verificacion=datos_verificacion,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -842,6 +848,175 @@ async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
 async def chat_item(request: Request, proyecto_id: str, item_key: str,
                     mensaje: str = Form(...)):
     return await _manejar_chat(request, proyecto_id, "item", item_key, mensaje)
+
+
+# ─── Chequeo de Cálculos (verificación numérica hidráulica y agronómica) ──────
+# Página aparte donde el revisor puede ver/corregir los datos que la IA extrajo de los
+# documentos, y "validarlos" — desde ahí en adelante esos datos (no la extracción automática)
+# se usan para la comparación en el análisis del eje. Cubre solo Hidráulico (Hazen-Williams,
+# tramos de tubería) y Agronómico (cadena ETo→ETc→AD→Dn→Fr→Db) por ahora — fotovoltaico,
+# carrete y microaspersión quedan pendientes para una siguiente iteración.
+
+N_TRAMOS_HIDRAULICOS = 6
+
+
+def _num_form(form, campo: str):
+    v = (form.get(campo) or "").strip()
+    if not v:
+        return None
+    try:
+        return float(v.replace(",", "."))
+    except ValueError:
+        return None
+
+
+def _tramos_con_calculo(tramos: list) -> list:
+    """Adjunta a cada tramo su resultado recalculado (Hazen-Williams), para mostrarlo en la UI."""
+    out = []
+    for t in tramos:
+        t = dict(t)
+        q, d = t.get("caudal_ls"), t.get("diametro_mm")
+        if q and d:
+            c = calculos_riego.C_HAZEN_WILLIAMS.get((t.get("material") or "").lower())
+            t["calculo"] = calculos_riego.evaluar_tramo(q, d, t.get("longitud_m"), c)
+        else:
+            t["calculo"] = None
+        out.append(t)
+    return out
+
+
+def _agronomico_calculo(datos: dict):
+    campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
+              "factor_agotamiento_pct", "eficiencia_pct"]
+    if datos and all(datos.get(k) not in (None, "") for k in campos):
+        return calculos_riego.cadena_agronomica(*[datos[k] for k in campos])
+    return None
+
+
+@app.get("/proyecto/{proyecto_id}/calculos", response_class=HTMLResponse)
+async def pagina_calculos(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    hid = verif.get("hidraulico", {})
+    tramos = list(hid.get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
+    while len(tramos) < N_TRAMOS_HIDRAULICOS:
+        tramos.append({})
+    agro = verif.get("agronomico", {})
+
+    return templates.TemplateResponse("calculos.html", {
+        "request": request, "user": user, "proyecto": proyecto,
+        "tramos": _tramos_con_calculo(tramos),
+        "hid_validado": hid.get("validado"), "hid_fecha": hid.get("fecha_validado"),
+        "hid_por": hid.get("validado_por"),
+        "agro": agro, "agro_calc": _agronomico_calculo(agro),
+        "agro_validado": agro.get("validado"), "agro_fecha": agro.get("fecha_validado"),
+        "agro_por": agro.get("validado_por"),
+    })
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/hidraulico/extraer")
+async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    docs_grupo = _documentos_del_eje("hidraulico", proyecto.get("documentos", []))
+    datos = await _extraer_datos_hidraulicos(docs_grupo)
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["hidraulico"] = {
+        "tramos": datos.get("tramos", []), "validado": False,
+    }
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/hidraulico/guardar")
+async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    form = await request.form()
+    tramos = []
+    for i in range(N_TRAMOS_HIDRAULICOS):
+        nombre = (form.get(f"t{i}_nombre") or "").strip()
+        q = _num_form(form, f"t{i}_caudal")
+        d = _num_form(form, f"t{i}_diametro")
+        if not nombre and not q and not d:
+            continue
+        tramos.append({
+            "nombre": nombre or f"Tramo {i+1}",
+            "caudal_ls": q, "diametro_mm": d,
+            "longitud_m": _num_form(form, f"t{i}_longitud"),
+            "material": (form.get(f"t{i}_material") or "").strip() or None,
+            "velocidad_declarada_ms": _num_form(form, f"t{i}_vel_declarada"),
+        })
+
+    validado = form.get("validar") == "on"
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["hidraulico"] = {
+        "tramos": tramos, "validado": validado,
+        "fecha_validado": datetime.now().isoformat() if validado else None,
+        "validado_por": user["nombre"] if validado else None,
+    }
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/agronomico/extraer")
+async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    docs_grupo = _documentos_del_eje("agronomico", proyecto.get("documentos", []))
+    datos = await _extraer_datos_agronomicos(docs_grupo)
+    datos["validado"] = False
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["agronomico"] = datos
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/agronomico/guardar")
+async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    form = await request.form()
+    campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
+              "factor_agotamiento_pct", "eficiencia_pct"]
+    datos = {c: _num_form(form, c) for c in campos}
+    datos["declarado"] = {
+        "dn_mm": _num_form(form, "decl_dn"),
+        "fr_dias": _num_form(form, "decl_fr"),
+        "db_mm": _num_form(form, "decl_db"),
+    }
+    validado = form.get("validar") == "on"
+    datos["validado"] = validado
+    datos["fecha_validado"] = datetime.now().isoformat() if validado else None
+    datos["validado_por"] = user["nombre"] if validado else None
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["agronomico"] = datos
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
 # ─── Subida ZIP ───────────────────────────────────────────────────────────────

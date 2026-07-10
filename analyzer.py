@@ -975,9 +975,13 @@ DOCUMENTOS DEL GRUPO (texto):
 async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
                        concurso_id: str = "", feedback_concurso: list = None,
                        criterios_aprendidos: str = "", criterios_enfasis: str = "",
-                       consultor: dict = None,
+                       consultor: dict = None, datos_verificacion: dict = None,
                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
-    """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo."""
+    """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo.
+
+    `datos_verificacion`: si se entrega (datos que el revisor ya revisó/corrigió a mano en la
+    página "🧮 Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
+    Haiku — evita depender de una extracción automática que puede fallar en algunos casos."""
     eje = EJES_REVISION.get(eje_key)
     if not eje:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
@@ -989,10 +993,12 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
     bloque_verificacion = ""
     try:
         if eje_key == "hidraulico":
-            datos = await _extraer_datos_hidraulicos(docs_grupo)
+            datos = datos_verificacion if datos_verificacion is not None \
+                else await _extraer_datos_hidraulicos(docs_grupo)
             bloque_verificacion = _bloque_verificacion_hidraulica(datos)
         elif eje_key == "agronomico":
-            datos = await _extraer_datos_agronomicos(docs_grupo)
+            datos = datos_verificacion if datos_verificacion is not None \
+                else await _extraer_datos_agronomicos(docs_grupo)
             bloque_verificacion = _bloque_verificacion_agronomica(datos)
     except Exception as e:
         print(f"⚠️ Verificación numérica '{eje_key}' falló, se omite: {e}")

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Cálculos — {{ proyecto.codigo_sep }} — Revisor CNR{% endblock %}
+{% block content %}
+
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+
+  .calc-tbl { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .calc-tbl th { text-align:left; font-weight:600; color:var(--text-2); padding:0.3rem 0.4rem;
+    border-bottom:1px solid var(--border); white-space:nowrap; }
+  .calc-tbl td { padding:0.3rem 0.4rem; vertical-align:middle; }
+  .calc-tbl input, .calc-tbl select { width:100%; padding:0.3rem 0.35rem; border-radius:5px;
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    font-family:inherit; font-size:0.8rem; box-sizing:border-box; }
+  .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:nowrap; }
+  .calc-resultado b { color:var(--text); }
+  .calc-alerta { color:#c0392b; font-weight:600; }
+  .badge-validado { display:inline-flex; align-items:center; gap:0.3rem; background:#f0fff4;
+    border:1px solid #68d391; color:#276749; padding:0.25rem 0.6rem; border-radius:20px;
+    font-size:0.78rem; font-weight:600; }
+  .agro-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+    gap:0.6rem 0.9rem; margin-bottom:0.9rem; }
+  .agro-grid label { display:block; font-size:0.78rem; color:var(--text-2); margin-bottom:0.2rem; }
+  .agro-grid input { width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; }
+</style>
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
+  <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Chequeo de Cálculos</h1>
+</div>
+
+<nav class="proj-nav">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">📋 Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">📁 Documentos</a>
+  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab">🎯 Revisión por Ejes</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">📑 Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab activa">🧮 Chequeo de Cálculos</a>
+</nav>
+
+<div class="card" style="border-left:4px solid #2b6cb0;">
+  <p class="text-muted" style="font-size:0.85rem; margin:0;">
+    Aquí puedes ver y <strong>corregir a mano</strong> los datos numéricos que la IA extrajo de
+    los documentos, antes de que se usen para comparar contra lo declarado por el consultor.
+    La extracción automática puede fallar en algunos casos — mientras un grupo no esté
+    <strong>validado</strong>, el análisis del eje sigue extrayendo los datos de nuevo cada vez
+    (comportamiento automático de siempre). Una vez que marcas "Validado", esos datos corregidos
+    se usan tal cual en cada revisión futura de ese eje, sin volver a depender de la extracción.
+  </p>
+</div>
+
+<!-- ══════════ HIDRÁULICO ══════════ -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+    <h2 style="margin:0; border:none; padding:0;">🔧 Diseño Hidráulico — Tramos de tubería</h2>
+    {% if hid_validado %}
+    <span class="badge-validado">✅ Validado por {{ hid_por }}{% if hid_fecha %} · {{ hid_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    {% endif %}
+  </div>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
+    Recalcula velocidad y pérdida de carga con Hazen-Williams
+    (<code>Hf = 10,67 × L × Q¹·⁸⁵² / (C¹·⁸⁵² × D⁴·⁸⁷)</code>) — misma fórmula del Diseñador de
+    Riego. Rango recomendado de velocidad: 0,5–2,0 m/s.
+  </p>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/extraer"
+        style="margin-bottom:0.9rem;"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
+    <button type="submit" class="btn btn-outline btn-sm">🤖 Extraer de los documentos</button>
+    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los tramos de abajo con lo que encuentre la IA en el Diseño Hidráulico / planos.</span>
+  </form>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar">
+    <div style="overflow-x:auto;">
+      <table class="calc-tbl">
+        <tr>
+          <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
+          <th>V declarada (m/s)</th><th>Resultado recalculado</th>
+        </tr>
+        {% for t in tramos %}
+        <tr>
+          <td><input type="text" name="t{{ loop.index0 }}_nombre" value="{{ t.nombre or '' }}" placeholder="Ej: Matriz"></td>
+          <td><input type="number" step="0.01" name="t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
+          <td><input type="number" step="0.1" name="t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
+          <td><input type="number" step="0.1" name="t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
+          <td>
+            <select name="t{{ loop.index0 }}_material">
+              <option value="" {% if not t.material %}selected{% endif %}>—</option>
+              <option value="pvc" {% if t.material == 'pvc' %}selected{% endif %}>PVC (C=150)</option>
+              <option value="pe" {% if t.material == 'pe' %}selected{% endif %}>PE/PEAD (C=120)</option>
+              <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
+            </select>
+          </td>
+          <td><input type="number" step="0.01" name="t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
+          <td class="calc-resultado">
+            {% if t.calculo %}
+              V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
+              {% if t.calculo.hf_mca is not none %} · Hf=<b>{{ t.calculo.hf_mca }}</b> mca{% endif %}
+              · Ø sug.={{ t.calculo.diametro_sugerido_mm }} mm
+              {% if t.calculo.alerta %}<br><span class="calc-alerta">⚠ {{ t.calculo.alerta }}</span>{% endif %}
+            {% else %}
+              <span class="text-muted">— completa Q y Ø —</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <label style="display:flex; align-items:center; gap:0.4rem; margin:0.9rem 0; font-size:0.85rem;">
+      <input type="checkbox" name="validar" {% if hid_validado %}checked{% endif %}>
+      Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)
+    </label>
+    <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
+  </form>
+</div>
+
+<!-- ══════════ AGRONÓMICO ══════════ -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+    <h2 style="margin:0; border:none; padding:0;">🌱 Diseño Agronómico — Cadena de demanda</h2>
+    {% if agro_validado %}
+    <span class="badge-validado">✅ Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    {% endif %}
+  </div>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
+    Recalcula ETc = ETo×Kc · AD = (CC−PMP)/100×Da×Prof(m)×1000 · Dn = AD×fa · Fr = Dn/ETc ·
+    Db = Dn_adj/Ef — misma cadena del Diseñador de Riego.
+  </p>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
+        style="margin-bottom:0.9rem;"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
+    <button type="submit" class="btn btn-outline btn-sm">🤖 Extraer de los documentos</button>
+    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio de suelos.</span>
+  </form>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar">
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
+    <div class="agro-grid">
+      <div><label>CC (%)</label><input type="number" step="0.1" name="cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
+      <div><label>PMP (%)</label><input type="number" step="0.1" name="pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
+      <div><label>Da (g/cc)</label><input type="number" step="0.01" name="da" value="{{ agro.da if agro.da is not none else '' }}"></div>
+      <div><label>Prof. radicular (cm)</label><input type="number" step="1" name="prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+      <div><label>Kc</label><input type="number" step="0.01" name="kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
+      <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" name="eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
+      <div><label>Factor agotamiento (%)</label><input type="number" step="1" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+      <div><label>Eficiencia sistema (%)</label><input type="number" step="1" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
+    </div>
+
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
+    <div class="agro-grid" style="margin-bottom:0.4rem;">
+      <div><label>Dn declarada (mm)</label><input type="number" step="0.01" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></div>
+      <div><label>Fr declarada (días)</label><input type="number" step="1" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></div>
+      <div><label>Db declarada (mm)</label><input type="number" step="0.01" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></div>
+    </div>
+
+    {% if agro_calc %}
+    <div class="calc-resultado" style="background:rgba(43,108,176,0.06); border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.82rem;">
+      Recalculado → ETc=<b>{{ agro_calc.etc_mm_dia }}</b> mm/día · AD=<b>{{ agro_calc.ad_mm }}</b> mm ·
+      Dn=<b>{{ agro_calc.dn_mm }}</b> mm · Fr=<b>{{ agro_calc.fr_adj_dias }}</b> días ·
+      Db=<b>{{ agro_calc.db_mm }}</b> mm/día
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa todos los datos base para ver el recálculo.</p>
+    {% endif %}
+
+    <label style="display:flex; align-items:center; gap:0.4rem; margin:0.9rem 0; font-size:0.85rem;">
+      <input type="checkbox" name="validar" {% if agro_validado %}checked{% endif %}>
+      Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)
+    </label>
+    <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
+  </form>
+</div>
+
+<div class="card" style="background:rgba(128,128,128,0.05); border:none;">
+  <p class="text-muted" style="font-size:0.8rem; margin:0;">
+    ℹ️ Por ahora esta verificación cubre Hidráulico (Hazen-Williams) y Agronómico (cadena de
+    demanda). Fotovoltaico, carrete de avance frontal y microaspersión todavía no tienen
+    verificación numérica — quedan para una próxima iteración.
+  </p>
+</div>
+
+{% endblock %}

@@ -292,6 +292,7 @@
   <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">📁 Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
   <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab {% if pagina == 'ejes' %}activa{% endif %}">🎯 Revisión por Ejes</a>
   <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">📑 Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">🧮 Chequeo de Cálculos</a>
 </nav>
 
 {% if pagina == 'documentos' %}

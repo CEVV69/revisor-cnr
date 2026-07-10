@@ -423,8 +423,32 @@ Dn/Db agronómica — deliberadamente NO se portó la cadena completa de CDT/pot
 (necesita más campos por extraer: succión, elevación, pérdidas menores, margen de seguridad —
 mayor riesgo de extracción errónea). Tampoco se portaron aún las fórmulas de carrete/pivote
 (INIA-Carillanca) ni el dimensionamiento fotovoltaico — quedan para una siguiente iteración,
-mismo patrón. **Pendiente:** mostrar el bloque de verificación en la UI para auditoría (hoy solo
-se ve indirectamente si generó una observación con los números citados).
+mismo patrón (el 80% de los proyectos reales de esta cuenta usan goteo/aspersión + FV; carrete
+y microaspersión son ~20% — priorizar FV antes que carrete/pivote en la siguiente iteración).
+
+**Página "🧮 Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
+(`templates/calculos.html`), quinta página del proyecto — mismo estilo de navegación arriba
+que las otras 4, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no
+cargar ese contexto pesado). Resuelve el riesgo de que la extracción automática (Haiku) se
+equivoque: el revisor ve los datos extraídos (tramos de tubería para Hidráulico, cadena
+agronómica para Agronómico) en un formulario editable, con el recálculo mostrado al lado de
+cada campo, y puede corregirlos a mano antes de darlos por buenos.
+- Botón **"🤖 Extraer de los documentos"** (`POST .../calculos/{eje}/extraer`) — corre la
+  misma extracción de `analyzer.py` bajo demanda y sobrescribe el formulario. NO marca como
+  validado.
+- Botón **"💾 Guardar"** + checkbox **"Ya revisé estos datos"** (`POST .../calculos/{eje}/guardar`)
+  — guarda lo que haya en el formulario (editado o no) en `proyecto["verificacion_calculos"][eje]`;
+  si el checkbox está marcado, `validado=True` + `fecha_validado` + `validado_por`.
+- Hidráulico: hasta `N_TRAMOS_HIDRAULICOS=6` tramos fijos (tabla server-rendered, sin JS de
+  agregar/quitar filas — suficiente para el tamaño típico de estos proyectos). Agronómico: un
+  solo formulario con los 8 campos base + los 3 valores declarados por el consultor (Dn/Fr/Db).
+- **Efecto en el análisis:** en `revisar_eje()` (main.py), si `verificacion_calculos[eje_key]
+  ["validado"]` es `True`, esos datos (ya revisados por el humano) se pasan a `analizar_eje()`
+  como `datos_verificacion` y se usan DIRECTO, sin volver a llamar a Haiku para extraer — la
+  supervisión humana reemplaza la extracción automática. Si no está validado, sigue
+  extrayendo automáticamente en cada revisión (comportamiento de siempre, sin cambios).
+Cubre solo Hidráulico y Agronómico — igual que el módulo de cálculo. Fotovoltaico/carrete/
+microaspersión no tienen todavía ni fórmula ni página.
 
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
