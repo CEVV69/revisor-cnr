@@ -59,6 +59,20 @@ def _consultor_de_proyecto(proyecto: dict) -> tuple:
     return (_consultor_key(nombre), nombre) if nombre else ("", "")
 
 
+def _doc_disponible_analisis(d: dict, permite_vision: bool = True) -> bool:
+    """Un documento está disponible para el análisis si tiene texto usable, o si es un PDF
+    escaneado/plano cuyo archivo físico existe (disco o base) y el grupo admite visión (todos
+    menos Coherencia global). Debe reflejar exactamente lo que usa `_analizar_grupo()` en
+    analyzer.py, para que el contador de documentos de cada eje/ítem no subestime lo que
+    realmente se analiza."""
+    texto = d.get("texto_extraido", "").strip()
+    if texto not in ("", "__PDF_ESCANEADO__"):
+        return True
+    if not permite_vision:
+        return False
+    return bool(d.get("archivo_presente")) and d.get("filename", "").lower().endswith(".pdf")
+
+
 def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
     """Si el archivo físico de un documento que necesita visión (escaneado/con poco texto) se
     perdió tras un redeploy de Railway, lo recupera desde PostgreSQL antes de analizar — así
@@ -351,7 +365,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         eje = EJES_REVISION[eje_key]
         docs_disponibles = _documentos_del_eje(eje_key, proyecto["documentos"])
         n_docs = len([d for d in docs_disponibles
-                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")])
+                      if _doc_disponible_analisis(d, permite_vision=(eje_key != "coherencia"))])
         ejes_info.append({
             "key": eje_key,
             "nombre": eje["nombre"],
@@ -368,8 +382,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         item = ITEMS_SEP[item_key]
         tipos = set(item["tipo_docs"])
         n_docs = len([d for d in proyecto["documentos"]
-                      if d.get("tipo_doc") in tipos
-                      and d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")])
+                      if d.get("tipo_doc") in tipos and _doc_disponible_analisis(d)])
         items_info.append({
             "key": item_key,
             "nombre": item["nombre"],
