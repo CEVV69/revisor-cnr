@@ -17,33 +17,43 @@ CONSULTORES_FILE = DATA_DIR / "consultores.json"
 # ── Backend PostgreSQL ─────────────────────────────────────────────────────────
 _pg_conn = None
 
+def _crear_tablas(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS storage (
+                key     TEXT PRIMARY KEY,
+                value   TEXT NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        # Archivos físicos (PDF/Word/Excel) guardados en la base para que sobrevivan a un
+        # redeploy de Railway (el disco local es efímero). Uno por documento del proyecto.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS archivos (
+                proyecto_id TEXT NOT NULL,
+                doc_id      TEXT NOT NULL,
+                filename    TEXT NOT NULL,
+                contenido   BYTEA NOT NULL,
+                tamano      INTEGER NOT NULL,
+                fecha       TIMESTAMPTZ DEFAULT NOW(),
+                PRIMARY KEY (proyecto_id, doc_id)
+            )
+        """)
+
+
 def _get_pg():
     """Retorna conexión PostgreSQL (singleton, reconecta si cayó)."""
     global _pg_conn
-    import psycopg2, psycopg2.extras
+    import psycopg2
     try:
         if _pg_conn is None or _pg_conn.closed:
             _pg_conn = psycopg2.connect(DATABASE_URL)
             _pg_conn.autocommit = True
-            with _pg_conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS storage (
-                        key     TEXT PRIMARY KEY,
-                        value   TEXT NOT NULL,
-                        updated_at TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
+            _crear_tablas(_pg_conn)
     except Exception:
         _pg_conn = psycopg2.connect(DATABASE_URL)
         _pg_conn.autocommit = True
-        with _pg_conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS storage (
-                    key     TEXT PRIMARY KEY,
-                    value   TEXT NOT NULL,
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """)
+        _crear_tablas(_pg_conn)
     return _pg_conn
 
 
@@ -203,6 +213,74 @@ class Database:
         c["feedback"] = c["feedback"][-300:]
         consultores[key] = c
         self._save("consultores", CONSULTORES_FILE, consultores)
+
+    # ── Archivos físicos (persistencia contra deploys efímeros de Railway) ──────
+    # Solo aplica en modo PostgreSQL: en modo JSON local el disco ya persiste entre
+    # ejecuciones, así que estos métodos son no-op.
+
+    def guardar_archivo(self, proyecto_id: str, doc_id: str, filename: str, contenido: bytes):
+        if not self._use_pg:
+            return
+        import psycopg2
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO archivos (proyecto_id, doc_id, filename, contenido, tamano)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (proyecto_id, doc_id) DO UPDATE
+                    SET filename = EXCLUDED.filename, contenido = EXCLUDED.contenido,
+                        tamano = EXCLUDED.tamano, fecha = NOW()
+            """, (proyecto_id, doc_id, filename, psycopg2.Binary(contenido), len(contenido)))
+
+    def obtener_archivo(self, proyecto_id: str, doc_id: str) -> bytes:
+        if not self._use_pg:
+            return None
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("SELECT contenido FROM archivos WHERE proyecto_id=%s AND doc_id=%s",
+                        (proyecto_id, doc_id))
+            row = cur.fetchone()
+            return bytes(row[0]) if row else None
+
+    def ids_con_archivo(self, proyecto_id: str) -> set:
+        """IDs de documentos con archivo guardado en la base (chequeo en lote, evita N
+        consultas al armar la tabla de documentos de un proyecto)."""
+        if not self._use_pg:
+            return set()
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("SELECT doc_id FROM archivos WHERE proyecto_id=%s", (proyecto_id,))
+            return {r[0] for r in cur.fetchall()}
+
+    def eliminar_archivo(self, proyecto_id: str, doc_id: str):
+        if not self._use_pg:
+            return
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM archivos WHERE proyecto_id=%s AND doc_id=%s",
+                        (proyecto_id, doc_id))
+
+    def eliminar_archivos_proyectos(self, proyecto_ids: list):
+        """Borra TODOS los archivos guardados de una lista de proyectos (ej. al dar por
+        terminado un concurso). No toca texto_extraido/observaciones — solo libera espacio."""
+        if not self._use_pg or not proyecto_ids:
+            return
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM archivos WHERE proyecto_id = ANY(%s)", (list(proyecto_ids),))
+
+    def resumen_archivos(self, proyecto_ids: list) -> dict:
+        """Cantidad y peso total de los archivos guardados para una lista de proyectos."""
+        if not self._use_pg or not proyecto_ids:
+            return {"n": 0, "bytes": 0}
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*), COALESCE(SUM(tamano), 0) FROM archivos
+                WHERE proyecto_id = ANY(%s)
+            """, (list(proyecto_ids),))
+            n, total = cur.fetchone()
+            return {"n": n, "bytes": total}
 
 
 db = Database()

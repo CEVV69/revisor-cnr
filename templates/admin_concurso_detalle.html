@@ -15,6 +15,7 @@
   {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
   {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído. Revisa el contenido y guarda.
   {% elif msg_ok and msg_ok.startswith('consolidado_') %}🧠 Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
+  {% elif msg_ok == 'archivos_liberados' %}🗑 Archivos liberados. El análisis y las observaciones quedan intactos.
   {% else %}✅ Guardado.{% endif %}
 </div>
 {% endif %}
@@ -24,6 +25,36 @@
   {% if msg_err == 'escaneado' %}⚠️ El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital.
   {% elif msg_err == 'formato' %}⚠️ Formato no soportado. Sube un PDF, DOC o DOCX.
   {% else %}⚠️ Error: {{ msg_err }}{% endif %}
+</div>
+{% endif %}
+
+<!-- Archivos guardados del concurso: liberar espacio al terminar de revisarlo -->
+{% if resumen_archivos and resumen_archivos.n > 0 %}
+<div class="card" style="margin-bottom:1.2rem; border-left:4px solid #c05621;">
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">🗄 Archivos guardados de este concurso</h2>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+    {{ resumen_archivos.n }} archivo{{ 's' if resumen_archivos.n != 1 else '' }} de
+    {{ n_proyectos_concurso }} proyecto{{ 's' if n_proyectos_concurso != 1 else '' }}
+    ({{ (resumen_archivos.bytes / 1048576) | round(1) }} MB) guardados en la base de datos para
+    que sobrevivan a los redeploys. Cuando termines de revisar este concurso, libéralos para
+    dejar espacio al próximo — el análisis ya hecho (observaciones, ficha, texto extraído de
+    cada documento) NO se pierde, solo el archivo original; si más adelante necesitas volver a
+    analizar visualmente un documento escaneado, habría que resubirlo.
+  </p>
+  <form method="post" action="/admin/concursos/{{ concurso.id }}/liberar-archivos"
+        onsubmit="return confirm('¿Dar por terminado este concurso y liberar sus archivos guardados?\n\nEl análisis y las observaciones NO se pierden, solo los archivos originales.');">
+    <button type="submit" class="btn btn-sm" style="background:#c05621; color:white;">
+      🗑 Dar por terminado — liberar archivos
+    </button>
+  </form>
+</div>
+{% elif concurso.archivos_liberados %}
+<div class="card" style="margin-bottom:1.2rem;">
+  <p class="text-muted" style="font-size:0.82rem; margin:0;">
+    🗄 Archivos de este concurso liberados{% if concurso.fecha_archivos_liberados %} el
+    {{ concurso.fecha_archivos_liberados[:16].replace('T', ' ') }}{% endif %}. Los nuevos
+    documentos que subas (de este u otro concurso) se vuelven a guardar automáticamente.
+  </p>
 </div>
 {% endif %}
 

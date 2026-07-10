@@ -74,7 +74,9 @@ DATA_DIR            → /storage/data     (solo fallback JSON local)
 UPLOAD_DIR          → /storage/uploads
 ```
 > **Los volúmenes de Railway NO funcionan** en esta cuenta (no montan). La persistencia
-> se resolvió con **PostgreSQL**. Ignorar cualquier volumen que aparezca en el dashboard.
+> se resolvió con **PostgreSQL** — datos (`storage`) y, desde jul-2026, también los
+> **archivos subidos** (tabla `archivos`, ver sección "Restricciones y gotchas" más abajo).
+> Ignorar cualquier volumen que aparezca en el dashboard.
 
 ---
 
@@ -90,7 +92,9 @@ normativa/       *.txt de normativa CNR, cargados al inicio (máx 4.000 chars c/
                  Incluye DT-*, IL-*, Manual_Supervision y criterios destilados de los
                  Instructivos de Tecnificación (ITT-01 a ITT-04 + ITT_Criterios), extraídos
                  del PDF oficial del Drive para guiar la revisión sin cargar el PDF completo.
-uploads/         Una subcarpeta por proyecto (NO persiste entre deploys)
+uploads/         Una subcarpeta por proyecto. El disco NO persiste entre deploys, pero cada
+                 archivo se respalda también en Postgres (tabla `archivos`) y se restaura
+                 solo cuando hace falta — ver "Restricciones y gotchas".
 templates/       Jinja2 (base.html, proyecto.html, ficha.html, admin_concursos.html, …)
 ```
 
@@ -391,13 +395,37 @@ observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id
 
 ## Restricciones y gotchas
 
-- **Archivos subidos NO persisten entre deploys** (Railway efímero). El `texto_extraido`
-  sí persiste (PostgreSQL). Para re-análisis con visión hay que volver a subir el archivo.
-  Solo hace falta resubir los documentos que necesitan visión (escaneados o con muy poco
-  texto) — el resto ya tiene su texto guardado y no requiere el archivo físico. La tabla de
-  documentos en `proyecto.html` muestra por fila si el archivo sigue presente (🟢), si hay
-  que resubirlo (🔴, `doc.necesita_archivo` y no `doc.archivo_presente`) o si no hace falta
-  (⚪, calculado en `_render_proyecto()` de `main.py`).
+- **Archivos subidos: persistencia solucionada vía PostgreSQL (jul-2026).** El disco de
+  Railway sigue siendo efímero (se borra en cada deploy), pero ahora cada archivo subido
+  (PDF/Word/Excel) se guarda también como `bytea` en una tabla nueva de Postgres, `archivos`
+  (`proyecto_id, doc_id, filename, contenido, tamano, fecha` — ver `database.py`:
+  `guardar_archivo/obtener_archivo/ids_con_archivo/eliminar_archivo/eliminar_archivos_proyectos/
+  resumen_archivos`). Se guarda al subir (`subir`, `subir-multiple`, `subir-zip` en `main.py`)
+  y se recupera solo. **En modo JSON local estos métodos son no-op** (el disco del Mac ya
+  persiste entre ejecuciones, no hace falta duplicar en la base).
+  - `ver_documento()`: si el archivo no está en disco, lo sirve directo desde el `bytea`
+    guardado (sin tocar el disco) antes de caer al fallback de solo-texto.
+  - `revisar_eje`/`revisar_item`: antes de analizar, `_restaurar_archivos_necesarios()`
+    reescribe a disco (desde Postgres) los archivos que necesitan VISIÓN (escaneados/poco
+    texto) que se hayan perdido tras un redeploy — así el análisis con imágenes sigue
+    funcionando sin que el revisor tenga que resubir nada, mientras el archivo siga
+    guardado en la base.
+  - `doc.archivo_presente` (tabla de documentos en `proyecto.html`) ahora es `True` si el
+    archivo está en disco **O** en la base (`db.ids_con_archivo()`), calculado en
+    `_render_proyecto()`. El indicador 🔴 "necesita resubir" solo aparece si de verdad no
+    hay ninguna copia en ningún lado (ej. documentos subidos antes de este cambio).
+  - **Liberar archivos al terminar un concurso:** en `/admin/concursos/{id}` hay un botón
+    "🗑 Dar por terminado — liberar archivos" (ruta `POST .../liberar-archivos`) que borra
+    de Postgres y del disco los archivos de TODOS los proyectos de ese concurso (identificados
+    por `_extraer_concurso_id(codigo_sep)`), para no acumular espacio indefinidamente. Solo
+    borra el archivo original — `texto_extraido`, observaciones, ficha y todo el resto del
+    análisis quedan intactos (mismo estado que si el archivo se hubiera perdido en un deploy).
+    No hace falta ninguna acción para "empezar a guardar" el próximo concurso — el guardado es
+    automático por proyecto/documento, no exclusivo de un concurso a la vez.
+  - Solo hace falta resubir a mano un documento si nunca se guardó en la base (subido antes
+    de este cambio) o si ya se liberó a propósito. La tabla de documentos en `proyecto.html`
+    muestra por fila si el archivo sigue disponible (🟢), si hay que resubirlo (🔴,
+    `doc.necesita_archivo` y no `doc.archivo_presente`) o si no hace falta (⚪).
 - **Bug resuelto — carpeta de subida faltante tras deploy:** las rutas `subir` y
   `subir-multiple` en `main.py` intentaban guardar el archivo sin recrear la carpeta del
   proyecto (`UPLOAD_DIR/{proyecto_id}`), que se borra en cada deploy. Al subir un documento

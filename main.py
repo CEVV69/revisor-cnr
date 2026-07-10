@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBearer
@@ -57,6 +57,25 @@ def _consultor_de_proyecto(proyecto: dict) -> tuple:
     """Devuelve (key, nombre_mostrado) del consultor del proyecto, tomado del resumen."""
     nombre = (proyecto.get("resumen", {}) or {}).get("consultor", "").strip()
     return (_consultor_key(nombre), nombre) if nombre else ("", "")
+
+
+def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
+    """Si el archivo físico de un documento que necesita visión (escaneado/con poco texto) se
+    perdió tras un redeploy de Railway, lo recupera desde PostgreSQL antes de analizar — así
+    no hay que resubirlo a mano mientras siga guardado en la base."""
+    carpeta = UPLOAD_DIR / proyecto_id
+    for d in documentos:
+        texto = d.get("texto_extraido", "").strip()
+        necesita_vision = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO)
+        if not necesita_vision:
+            continue
+        filepath = carpeta / d.get("filename", "")
+        if filepath.exists():
+            continue
+        contenido = db.obtener_archivo(proyecto_id, d["id"])
+        if contenido:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(contenido)
 
 
 def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> str:
@@ -316,10 +335,12 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     # Solo importa re-subir los que necesitan visión (escaneados/planos con poco texto);
     # el resto ya tiene su texto extraído guardado y no requiere el archivo físico.
     carpeta_proyecto = UPLOAD_DIR / proyecto_id
+    ids_guardados_db = db.ids_con_archivo(proyecto_id)
     for doc in proyecto["documentos"]:
         texto = doc.get("texto_extraido", "").strip()
         doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO)
-        doc["archivo_presente"] = (carpeta_proyecto / doc.get("filename", "")).exists()
+        doc["archivo_presente"] = ((carpeta_proyecto / doc.get("filename", "")).exists()
+                                    or doc["id"] in ids_guardados_db)
     n_faltan_resubir = len([d for d in proyecto["documentos"]
                             if d["necesita_archivo"] and not d["archivo_presente"]])
     # Construir info de ejes: cuántos documentos tiene disponible cada eje y si ya se revisó
@@ -525,6 +546,7 @@ async def subir_documento(
     content = await archivo.read()
     with open(filepath, "wb") as f:
         f.write(content)
+    db.guardar_archivo(proyecto_id, doc_id, filename, content)
 
     # Extraer texto
     texto = extract_text(str(filepath), ext)
@@ -567,6 +589,8 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
                  if concurso else "")
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
+
+    _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
         resultado = await analizar_eje(
@@ -645,6 +669,8 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
                  if concurso else "")
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
+
+    _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
         resultado = await analizar_item(
@@ -830,8 +856,9 @@ async def subir_zip(
 
     # Registrar cada archivo como documento del proyecto
     for arch in archivos:
+        doc_id = str(uuid.uuid4())[:8]
         doc = {
-            "id": str(uuid.uuid4())[:8],
+            "id": doc_id,
             "nombre_original": arch["nombre_original"],
             "filename": arch["filename"],
             "tipo_doc": arch["tipo_doc"],
@@ -842,6 +869,9 @@ async def subir_zip(
             "origen": "zip"
         }
         proyecto["documentos"].append(doc)
+        archivo_extraido = UPLOAD_DIR / proyecto_id / arch["filename"]
+        if archivo_extraido.exists():
+            db.guardar_archivo(proyecto_id, doc_id, arch["filename"], archivo_extraido.read_bytes())
 
     # Eliminar ZIP temporal
     zip_path.unlink(missing_ok=True)
@@ -884,6 +914,7 @@ async def subir_multiple(
         content = await archivo.read()
         with open(filepath, "wb") as f:
             f.write(content)
+        db.guardar_archivo(proyecto_id, doc_id, filename, content)
 
         tipo_doc, label = detectar_anexo(nombre)
         texto = extract_text(str(filepath), ext)
@@ -922,6 +953,7 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         filepath = UPLOAD_DIR / proyecto_id / doc["filename"]
         if filepath.exists():
             filepath.unlink()
+        db.eliminar_archivo(proyecto_id, doc_id)
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
         db.save_proyecto(proyecto)
@@ -1024,26 +1056,6 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
     if not doc:
         raise HTTPException(status_code=404)
     filepath = UPLOAD_DIR / proyecto_id / doc["filename"]
-    if not filepath.exists():
-        # Archivo no disponible en disco (se pierde entre deploys en Railway)
-        # Mostrar el texto extraído que sí persiste en PostgreSQL
-        texto = doc.get("texto_extraido", "")
-        if texto == "__PDF_ESCANEADO__":
-            texto = "(Documento escaneado — sin texto extraíble)"
-        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>{doc['nombre_original']}</title>
-<style>body{{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1d1d1f}}
-.aviso{{background:#fff8e6;border:1px solid #f6d860;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:0.9rem}}
-h1{{font-size:1.1rem;margin-bottom:0.3rem}}pre{{white-space:pre-wrap;font-size:0.85rem;line-height:1.6;background:#f5f5f7;padding:1rem;border-radius:8px}}</style>
-</head><body>
-<h1>📄 {doc['nombre_original']}</h1>
-<div class="aviso">⚠️ El archivo original no está disponible en el servidor (los archivos se pierden entre deploys en Railway).
-Se muestra el texto extraído que sí está guardado en la base de datos.
-Para ver el archivo original, vuelve a subirlo al proyecto.</div>
-<pre>{texto[:50000] if texto else '(Sin texto extraído)'}</pre>
-</body></html>"""
-        return HTMLResponse(content=html, status_code=200)
-
     ext = Path(doc["filename"]).suffix.lower()
     media_types = {
         ".pdf":  "application/pdf",
@@ -1055,6 +1067,34 @@ Para ver el archivo original, vuelve a subirlo al proyecto.</div>
     media_type = media_types.get(ext, "application/octet-stream")
     # PDFs se abren inline en el navegador; el resto se descarga
     disposition = "inline" if ext == ".pdf" else "attachment"
+
+    if not filepath.exists():
+        # No está en disco (se pierde entre deploys en Railway) — probar la copia guardada
+        # en PostgreSQL antes de resignarse a mostrar solo el texto extraído.
+        contenido = db.obtener_archivo(proyecto_id, doc_id)
+        if contenido:
+            return Response(
+                content=contenido,
+                media_type=media_type,
+                headers={"Content-Disposition": f'{disposition}; filename="{doc["nombre_original"]}"'}
+            )
+        texto = doc.get("texto_extraido", "")
+        if texto == "__PDF_ESCANEADO__":
+            texto = "(Documento escaneado — sin texto extraíble)"
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>{doc['nombre_original']}</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1d1d1f}}
+.aviso{{background:#fff8e6;border:1px solid #f6d860;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:0.9rem}}
+h1{{font-size:1.1rem;margin-bottom:0.3rem}}pre{{white-space:pre-wrap;font-size:0.85rem;line-height:1.6;background:#f5f5f7;padding:1rem;border-radius:8px}}</style>
+</head><body>
+<h1>📄 {doc['nombre_original']}</h1>
+<div class="aviso">⚠️ El archivo original no está disponible en el servidor.
+Se muestra el texto extraído que sí está guardado en la base de datos.
+Para ver el archivo original, vuelve a subirlo al proyecto.</div>
+<pre>{texto[:50000] if texto else '(Sin texto extraído)'}</pre>
+</body></html>"""
+        return HTMLResponse(content=html, status_code=200)
+
     return FileResponse(
         path=str(filepath),
         media_type=media_type,
@@ -1254,6 +1294,7 @@ async def eliminar_proyecto(request: Request, proyecto_id: str):
         carpeta = UPLOAD_DIR / proyecto_id
         if carpeta.exists():
             shutil.rmtree(carpeta)
+        db.eliminar_archivos_proyectos([proyecto_id])
         db.delete_proyecto(proyecto_id)
     return RedirectResponse(url="/", status_code=302)
 
@@ -1396,12 +1437,19 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
                 "n_feedback": n_fb,
                 "perfil": c.get("perfil", ""),
             })
+    # Archivos guardados en la base para los proyectos de este concurso (para poder
+    # "dar por terminado" el concurso y liberar ese espacio sin perder el análisis ya hecho).
+    proyectos_concurso = [p for p in db.get_proyectos()
+                          if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
+    resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
     return templates.TemplateResponse("admin_concurso_detalle.html", {
         "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
         "n_feedback": len(concurso.get("feedback", [])),
         "criterios_lista": criterios_lista,
         "criterios_fecha": concurso.get("criterios_fecha", ""),
         "consultores_info": consultores_info,
+        "n_proyectos_concurso": len(proyectos_concurso),
+        "resumen_archivos": resumen_archivos,
     })
 
 
@@ -1509,6 +1557,35 @@ async def admin_subir_bases_pdf(
     concurso["fecha_actualizacion"] = datetime.now().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=pdf_cargado", status_code=302)
+
+
+@app.post("/admin/concursos/{concurso_id}/liberar-archivos")
+async def liberar_archivos_concurso(request: Request, concurso_id: str):
+    """Dar por terminado un concurso: borra los archivos físicos guardados (disco + base de
+    datos) de todos sus proyectos, para liberar espacio. NO toca texto_extraido, observaciones
+    ni el resto del análisis ya hecho — solo el archivo original, igual que si se hubiera
+    perdido tras un redeploy (ya manejado en el resto de la app: se puede resubir si hiciera
+    falta reanalizar con visión)."""
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+
+    proyecto_ids = [p["id"] for p in db.get_proyectos()
+                    if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
+    db.eliminar_archivos_proyectos(proyecto_ids)
+    import shutil
+    for pid in proyecto_ids:
+        carpeta = UPLOAD_DIR / pid
+        if carpeta.exists():
+            shutil.rmtree(carpeta, ignore_errors=True)
+
+    concurso["archivos_liberados"] = True
+    concurso["fecha_archivos_liberados"] = datetime.now().isoformat()
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=archivos_liberados", status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/eliminar")
