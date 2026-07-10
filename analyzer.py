@@ -606,7 +606,8 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
-                          criterios_aprendidos: str = "", consultor: dict = None,
+                          criterios_aprendidos: str = "", criterios_enfasis: str = "",
+                          consultor: dict = None,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
@@ -705,12 +706,18 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
                          f"(planos o escaneados) — analízalos visualmente: {nombres_img}")
 
+    bloque_enfasis = ""
+    if criterios_enfasis and criterios_enfasis.strip():
+        bloque_enfasis = (f"\n\n{'═'*60}\nCRITERIOS DE ÉNFASIS DEFINIDOS POR EL REVISOR PARA "
+                          f"ESTE GRUPO EN ESTE CONCURSO — verifícalos SIEMPRE, tienen prioridad "
+                          f"sobre el resto de la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
+
     prompt = f"""{bloque_bases}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
 
-{checklist}
+{checklist}{bloque_enfasis}
 
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
 Interpreta TODOS los números con esta convención.
@@ -741,15 +748,27 @@ DOCUMENTOS DEL GRUPO (texto):
                                    "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": b64}})
 
-    response = client.messages.create(
-        model=MODELO_SONNET,
-        max_tokens=MAX_TOKENS_SONNET,
-        system=system_con_cache,
-        messages=[{"role": "user", "content": content_blocks}],
-        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
-    )
+    def _llamar(max_tokens):
+        return client.messages.create(
+            model=MODELO_SONNET,
+            max_tokens=max_tokens,
+            system=system_con_cache,
+            messages=[{"role": "user", "content": content_blocks}],
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+        )
 
+    response = _llamar(MAX_TOKENS_SONNET)
     content = _texto_respuesta(response)
+
+    # El "thinking" de Sonnet 5 a veces se come todo el cupo antes de escribir el JSON,
+    # sobre todo en grupos con imágenes (más que razonar). Si la respuesta llega vacía y
+    # cortada por límite de tokens, reintenta una vez con más cupo antes de rendirse.
+    if not content.strip() and response.stop_reason == "max_tokens":
+        print(f"⚠️ Grupo '{nombre}': respuesta vacía por max_tokens ({MAX_TOKENS_SONNET}) — "
+              f"reintentando con más cupo…")
+        response = _llamar(MAX_TOKENS_SONNET + 8000)
+        content = _texto_respuesta(response)
+
     observaciones = []
     try:
         start = content.find("{")
@@ -780,7 +799,8 @@ DOCUMENTOS DEL GRUPO (texto):
 
 async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
                        concurso_id: str = "", feedback_concurso: list = None,
-                       criterios_aprendidos: str = "", consultor: dict = None,
+                       criterios_aprendidos: str = "", criterios_enfasis: str = "",
+                       consultor: dict = None,
                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo."""
     eje = EJES_REVISION.get(eje_key)
@@ -792,13 +812,15 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key=eje_key,
-        criterios_aprendidos=criterios_aprendidos, consultor=consultor,
+        criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
+        consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
-                        criterios_aprendidos: str = "", consultor: dict = None,
+                        criterios_aprendidos: str = "", criterios_enfasis: str = "",
+                        consultor: dict = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo."""
     item = ITEMS_SEP.get(item_key)
@@ -811,7 +833,8 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         modo="ÍTEM DEL SEP", es_coherencia=False,
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
-        criterios_aprendidos=criterios_aprendidos, consultor=consultor,
+        criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
+        consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 

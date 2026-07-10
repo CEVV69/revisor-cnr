@@ -600,6 +600,8 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
     criterios = (concurso.get("criterios_aprendidos", {}).get(eje_key, "")
                  if concurso else "")
+    enfasis = (concurso.get("criterios_enfasis", {}).get(eje_key, "")
+               if concurso else "")
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
 
@@ -613,6 +615,7 @@ async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
             criterios_aprendidos=criterios,
+            criterios_enfasis=enfasis,
             consultor=consultor,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
@@ -680,6 +683,8 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
     criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
                  if concurso else "")
+    enfasis = (concurso.get("criterios_enfasis", {}).get("item_" + item_key, "")
+               if concurso else "")
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
 
@@ -693,6 +698,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
             criterios_aprendidos=criterios,
+            criterios_enfasis=enfasis,
             consultor=consultor,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
@@ -1455,6 +1461,23 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
     proyectos_concurso = [p for p in db.get_proyectos()
                           if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
     resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
+    # Criterios de énfasis: a diferencia de criterios_aprendidos (se destila solo del
+    # feedback aprobada/descartada), esto lo escribe y edita el revisor directamente — su
+    # supervisión explícita sobre qué debe verificar la IA en cada eje/ítem de ESTE concurso.
+    enfasis_guardados = concurso.get("criterios_enfasis", {})
+    grupos_enfasis = []
+    for eje_key in EJES_ORDEN:
+        grupos_enfasis.append({
+            "key": eje_key, "tipo": "Eje",
+            "nombre": EJES_REVISION[eje_key]["nombre"],
+            "texto": enfasis_guardados.get(eje_key, ""),
+        })
+    for item_key in ITEMS_ORDEN:
+        grupos_enfasis.append({
+            "key": "item_" + item_key, "tipo": "Ítem SEP",
+            "nombre": ITEMS_SEP[item_key]["nombre"],
+            "texto": enfasis_guardados.get("item_" + item_key, ""),
+        })
     return templates.TemplateResponse("admin_concurso_detalle.html", {
         "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
         "n_feedback": len(concurso.get("feedback", [])),
@@ -1463,7 +1486,36 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         "consultores_info": consultores_info,
         "n_proyectos_concurso": len(proyectos_concurso),
         "resumen_archivos": resumen_archivos,
+        "grupos_enfasis": grupos_enfasis,
     })
+
+
+@app.post("/admin/concursos/{concurso_id}/criterios-enfasis")
+async def guardar_criterios_enfasis(request: Request, concurso_id: str):
+    """Guarda los criterios de énfasis por eje/ítem escritos a mano por el revisor — a
+    diferencia de criterios_aprendidos (se destila solo de aprobar/descartar observaciones),
+    esto es supervisión directa del revisor y nunca se sobrescribe automáticamente."""
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+
+    form = await request.form()
+    criterios_enfasis = dict(concurso.get("criterios_enfasis", {}))
+    for campo, valor in form.items():
+        if not campo.startswith("enfasis__"):
+            continue
+        grupo_key = campo[len("enfasis__"):]
+        texto = (valor or "").strip()
+        if texto:
+            criterios_enfasis[grupo_key] = texto
+        else:
+            criterios_enfasis.pop(grupo_key, None)
+    concurso["criterios_enfasis"] = criterios_enfasis
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=enfasis_guardado", status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/consolidar")

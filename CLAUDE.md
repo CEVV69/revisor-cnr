@@ -371,6 +371,31 @@ blanco. `consultar_expediente` también se subió a `max_tokens=4000` con el mis
 **Regla general:** cualquier llamada a Sonnet 5 necesita `max_tokens` holgado (≥4000) por el
 thinking; si una respuesta llega vacía, loguear `stop_reason` en vez de tragarlo en silencio.
 
+**Reintento automático cuando `max_tokens` corta la respuesta a 0 (jul-2026):** el bug anterior
+seguía dándose puntualmente en grupos con imágenes (planos/escaneados) — el thinking extra que
+implica "mirar" una imagen a veces se comía TODO el cupo de `MAX_TOKENS_SONNET` (12000) y la
+respuesta llegaba con `stop_reason=max_tokens` y `content_len=0`. Detectado en producción con
+"Memoria de cálculo de superficies" (justo el eje que define superficie/demanda/monto
+bonificable — el más grave para perder en silencio). Arreglado en `_analizar_grupo`: si la
+respuesta viene vacía Y `stop_reason == "max_tokens"`, reintenta una vez automáticamente con
+`MAX_TOKENS_SONNET + 8000`. Sigue logueando el mismo aviso de diagnóstico si tras el reintento
+igual quedan 0 observaciones (puede ser un resultado legítimo — ver criterios de énfasis abajo
+para cómo confirmarlo).
+
+**Criterios de énfasis por eje/ítem (implementado, jul-2026):** distinto del "aprendizaje"
+automático de abajo. Es un campo `concurso["criterios_enfasis"][clave]` (misma clave que
+`criterios_aprendidos`: eje_key o "item_"+item_key) que el revisor **escribe y edita a mano**
+en `/admin/concursos/{id}` (card "🎯 Criterios de énfasis por eje/ítem", un `<textarea>` por
+grupo, ruta `POST .../criterios-enfasis`). Se inyecta en `_analizar_grupo` con prioridad
+explícita sobre el resto del prompt ("verifícalos SIEMPRE, tienen prioridad"). A diferencia de
+`criterios_aprendidos` (que `consolidar_aprendizaje()` puede sobrescribir cada vez que se
+consolida el feedback), este campo **nunca se toca automáticamente** — es la supervisión
+humana explícita que decide qué debe aprender la IA como "revisor experto", útil desde el
+primer proyecto de un concurso (no hace falta esperar ≥3 decisiones de feedback como con el
+aprendizaje automático). Ejemplos reales que motivaron esto (cruces que la IA no captaba sola):
+"el cronograma debe incluir instalación del sistema fotovoltaico si el proyecto lo contempla",
+"tratar el pozo como embalse según ITT-02 al calcular superficie".
+
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
 |---|---|---|

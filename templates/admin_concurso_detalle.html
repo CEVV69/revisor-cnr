@@ -16,6 +16,7 @@
   {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído. Revisa el contenido y guarda.
   {% elif msg_ok and msg_ok.startswith('consolidado_') %}🧠 Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
   {% elif msg_ok == 'archivos_liberados' %}🗑 Archivos liberados. El análisis y las observaciones quedan intactos.
+  {% elif msg_ok == 'enfasis_guardado' %}🎯 Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada eje/ítem.
   {% else %}✅ Guardado.{% endif %}
 </div>
 {% endif %}
@@ -186,6 +187,40 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Criterios de énfasis: los escribe y edita el revisor a mano, con prioridad en el prompt -->
+<form method="post" action="/admin/concursos/{{ concurso.id }}/criterios-enfasis">
+  <div class="card" style="margin-top:1.5rem; border-left:4px solid #2f855a;">
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">🎯 Criterios de énfasis por eje / ítem</h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Escribe aquí, con tus palabras, qué debe verificar la IA en cada eje/ítem de <strong>este
+      concurso</strong> — cruces entre documentos, normativa específica (ej. ITT-02), o cosas
+      que viste en una revisión real y que la IA no captó sola. Se inyecta siempre en el prompt
+      de ese eje/ítem, con prioridad sobre el resto de la guía. A diferencia del "aprendizaje"
+      de abajo (que se destila solo del historial de aprobar/descartar), esto lo escribes y
+      editas tú directamente y nunca se sobrescribe solo — es tu supervisión explícita para que
+      la IA se acerque a un revisor experto.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:0.5rem;">
+      {% for g in grupos_enfasis %}
+      <details style="border:1px solid var(--border); border-radius:8px;" {% if g.texto %}open{% endif %}>
+        <summary style="cursor:pointer; padding:0.5rem 0.75rem; font-weight:600; font-size:0.85rem;">
+          {{ g.tipo }}: {{ g.nombre }}{% if g.texto %} <span style="color:#2f855a;">●</span>{% endif %}
+        </summary>
+        <div style="padding:0 0.75rem 0.75rem;">
+          <textarea name="enfasis__{{ g.key }}" rows="3"
+                    placeholder="Ej: el cronograma debe incluir la instalación del sistema fotovoltaico si el proyecto lo contempla."
+                    style="width:100%; font-size:0.82rem; font-family:inherit; padding:0.5rem;
+                           border:1px solid var(--border); border-radius:6px; resize:vertical;">{{ g.texto }}</textarea>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-sm" style="background:#2f855a; color:white; margin-top:0.85rem;">
+      Guardar criterios de énfasis
+    </button>
+  </div>
+</form>
 
 <!-- Aprendizaje del "revisor experto": destilar el feedback en criterios -->
 <div class="card" style="margin-top:1.5rem; border-left:4px solid #6b46c1;">
