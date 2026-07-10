@@ -396,6 +396,36 @@ aprendizaje automático). Ejemplos reales que motivaron esto (cruces que la IA n
 "el cronograma debe incluir instalación del sistema fotovoltaico si el proyecto lo contempla",
 "tratar el pozo como embalse según ITT-02 al calcular superficie".
 
+**Verificación numérica determinística — hidráulica y agronómica (implementado, jul-2026):**
+`calculos_riego.py` (módulo nuevo, funciones puras sin dependencias) porta las fórmulas del
+**Diseñador de Riego** (app hermana del mismo usuario, misma fuente normativa: Manuales e
+Instructivos CNR en Drive) — Hazen-Williams (`hazen_williams`, `velocidad_tuberia`,
+`diametro_sugerido_mm`, `factor_christiansen`) y la cadena agronómica ETo→ETc→AD→Dn→Fr→Db
+(`cadena_agronomica`). La idea: en vez de que la IA haga la matemática de memoria a partir de
+texto libre (poco confiable para números), se **recalcula con las mismas fórmulas** que usa el
+propio diseñador de proyectos y se compara contra lo declarado por el consultor.
+Flujo en `analizar_eje()` (analyzer.py), solo para `eje_key in ("hidraulico", "agronomico")`:
+1. `_extraer_datos_hidraulicos()` / `_extraer_datos_agronomicos()` — llamada barata a Haiku que
+   extrae SOLO datos numéricos explícitos del expediente (tramos de tubería: caudal/diámetro/
+   longitud/material; o cadena agronómica: CC/PMP/Da/profundidad/Kc/ETo/factor agotamiento/
+   eficiencia + los resultados declarados Dn/Fr/Db). Nunca inventa — usa `null` si no aparece.
+2. `_bloque_verificacion_hidraulica()` / `_bloque_verificacion_agronomica()` — con esos datos,
+   llama a `calculos_riego` y arma un bloque de texto con el recálculo y, si corresponde, las
+   discrepancias con lo declarado (tolerancia 10-15%, y rango de velocidad 0,5-2,0 m/s).
+3. El bloque se inyecta en `_analizar_grupo` como `bloque_verificacion` (nuevo parámetro),
+   etiquetado explícitamente como "cálculo determinístico, no estimación de la IA" — con
+   instrucción de citar los números exactos si hay discrepancia, y de NO mencionar nada si
+   todo cuadra (evita ruido/falsos positivos cuando no hay datos suficientes para comparar).
+Si la extracción no encuentra datos (documento sin esos números, o no es un PDF con texto), el
+bloque queda vacío y el análisis sigue igual que antes — no rompe nada, es puramente aditivo.
+**Alcance actual (v1):** solo velocidad/pérdida de carga por tramo (Hazen-Williams) y la cadena
+Dn/Db agronómica — deliberadamente NO se portó la cadena completa de CDT/potencia de bomba
+(necesita más campos por extraer: succión, elevación, pérdidas menores, margen de seguridad —
+mayor riesgo de extracción errónea). Tampoco se portaron aún las fórmulas de carrete/pivote
+(INIA-Carillanca) ni el dimensionamiento fotovoltaico — quedan para una siguiente iteración,
+mismo patrón. **Pendiente:** mostrar el bloque de verificación en la UI para auditoría (hoy solo
+se ve indirectamente si generó una observación con los números citados).
+
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
 |---|---|---|

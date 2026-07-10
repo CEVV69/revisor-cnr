@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 import anthropic
+import calculos_riego
 
 def _get_client():
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip().strip('"').strip("'")
@@ -17,7 +18,7 @@ NORMATIVA_DIR = BASE_DIR / "normativa"
 # ─── Modelo y configuración de costos ─────────────────────────────────────────
 # Modelos disponibles en esta cuenta (confirmado)
 MODELO_SONNET = "claude-sonnet-5"     # Revisión por ejes, chat y consultas (última generación)
-MODELO_HAIKU  = "claude-haiku-4-5"    # Reservado para tareas simples (actualmente sin uso activo)
+MODELO_HAIKU  = "claude-haiku-4-5"    # Extracción de datos numéricos para verificación (barato)
 
 # Tipos de documento que requieren mayor capacidad analítica
 DOCS_COMPLEJOS = {
@@ -602,11 +603,185 @@ def _documentos_del_eje(eje_key: str, documentos: list) -> list:
 MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de eje, para controlar costo
 
 
+# ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
+# En vez de que la IA haga la matemática de memoria a partir de texto libre, se extraen los
+# datos numéricos declarados por el consultor (Haiku, extracción barata) y se recalculan con
+# las mismas fórmulas del Diseñador de Riego (calculos_riego.py) — Hazen-Williams y la cadena
+# agronómica ETo→ETc→AD→Dn→Fr→Db. El resultado se inyecta como bloque de alta confianza en el
+# prompt de _analizar_grupo, distinto de "criterios de énfasis" (eso es criterio; esto es cálculo).
+
+MAX_TOKENS_EXTRACCION = 1500
+
+
+def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 20000) -> str:
+    partes = []
+    restante = max_chars
+    for d in docs_grupo:
+        t = d.get("texto_extraido", "").strip()
+        if t in ("", "__PDF_ESCANEADO__") or restante <= 0:
+            continue
+        t = t[:restante]
+        label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
+        partes.append(f"--- {label} ({d.get('nombre_original','')}) ---\n{t}")
+        restante -= len(t)
+    return "\n\n".join(partes)
+
+
+def _extraer_json_simple(content: str) -> dict:
+    try:
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        if start >= 0 and end > start:
+            return json.loads(content[start:end])
+    except json.JSONDecodeError:
+        pass
+    return {}
+
+
+async def _extraer_datos_hidraulicos(docs_grupo: list) -> dict:
+    """Extrae los tramos de tubería (caudal, diámetro, longitud, material) declarados en el
+    diseño hidráulico. Nunca inventa: usa null si un dato no aparece en el texto."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    prompt = f"""Extrae del siguiente expediente los TRAMOS de tubería del diseño hidráulico
+(matriz, terciaria, lateral, succión, etc.) con sus datos numéricos declarados.
+NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+Responde SOLO este JSON, sin texto adicional:
+{{"tramos": [{{"nombre": "ej: Matriz / Lateral crítico", "caudal_ls": number|null,
+"diametro_mm": number|null, "longitud_m": number|null,
+"material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null}}]}}
+
+EXPEDIENTE:
+{texto}"""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return _extraer_json_simple(_texto_respuesta(response))
+    except Exception as e:
+        print(f"⚠️ _extraer_datos_hidraulicos: {e}")
+        return {}
+
+
+async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
+    """Extrae los datos de la cadena de demanda agronómica declarados en el diseño. Nunca
+    inventa: usa null si un dato no aparece en el texto."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    prompt = f"""Extrae del siguiente expediente los datos del cálculo de demanda agronómica
+(capacidad de campo, punto de marchitez, densidad aparente, profundidad radicular, Kc,
+evapotranspiración del mes crítico, factor de agotamiento, eficiencia del sistema, y los
+resultados finales que el consultor declara: lámina neta, frecuencia de riego, demanda bruta).
+NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+Responde SOLO este JSON, sin texto adicional:
+{{"cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
+"prof_radicular_cm": number|null, "kc": number|null, "eto_dia_mm": number|null,
+"factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
+"declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null}}}}
+
+EXPEDIENTE:
+{texto}"""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return _extraer_json_simple(_texto_respuesta(response))
+    except Exception as e:
+        print(f"⚠️ _extraer_datos_agronomicos: {e}")
+        return {}
+
+
+def _diferencia_relevante(calculado: float, declarado: float, tolerancia_pct: float = 10) -> bool:
+    if not calculado or declarado is None:
+        return False
+    return abs(calculado - declarado) / calculado * 100 > tolerancia_pct
+
+
+def _bloque_verificacion_hidraulica(datos: dict) -> str:
+    """Recalcula velocidad/pérdida de carga por tramo (Hazen-Williams) y arma el bloque para
+    inyectar en el prompt. Solo compara lo que efectivamente se pudo extraer."""
+    tramos = datos.get("tramos") or []
+    lineas = []
+    for t in tramos:
+        q = t.get("caudal_ls")
+        d = t.get("diametro_mm")
+        if not q or not d:
+            continue
+        c = calculos_riego.C_HAZEN_WILLIAMS.get((t.get("material") or "").lower())
+        r = calculos_riego.evaluar_tramo(q, d, t.get("longitud_m"), c)
+        nombre = t.get("nombre") or "Tramo"
+        linea = (f"- {nombre}: Q={q} l/s, Ø={d} mm → V recalculada = {r['velocidad_ms']} m/s "
+                 f"(Ø sugerido para V≤1,5 m/s: {r['diametro_sugerido_mm']} mm)")
+        if r["hf_mca"] is not None:
+            linea += f", Hf = {r['hf_mca']} mca (Hazen-Williams, C={c})"
+        if r["alerta"]:
+            linea += f" ⚠️ {r['alerta']}"
+        vel_decl = t.get("velocidad_declarada_ms")
+        if vel_decl is not None and _diferencia_relevante(r["velocidad_ms"], vel_decl, 15):
+            linea += (f" — el expediente declara V={vel_decl} m/s, no coincide con el "
+                      f"cálculo (revisar el dato base o la fórmula usada por el consultor).")
+        lineas.append(linea)
+    if not lineas:
+        return ""
+    return ("\n\nVERIFICACIÓN HIDRÁULICA (cálculo determinístico con Hazen-Williams, misma "
+            "fórmula normativa del Diseñador de Riego — no es una estimación de la IA, es un "
+            "recálculo exacto a partir del caudal y diámetro que declara el expediente):\n"
+            + "\n".join(lineas) +
+            "\n\nSi hay una alerta de velocidad fuera de rango (0,5–2,0 m/s) o una diferencia "
+            "relevante con lo declarado, genera una observación citando los números exactos "
+            "de este cálculo. Si todo está dentro de rango, NO lo menciones como observación.")
+
+
+def _bloque_verificacion_agronomica(datos: dict) -> str:
+    """Recalcula la cadena ETo→ETc→AD→Dn→Fr→Db y arma el bloque para inyectar en el prompt.
+    Solo calcula si TODOS los datos base están presentes (evita comparar con supuestos)."""
+    if not datos:
+        return ""
+    base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
+            "factor_agotamiento_pct", "eficiencia_pct"]
+    if any(datos.get(k) is None for k in base):
+        return ""
+    r = calculos_riego.cadena_agronomica(*[datos[k] for k in base])
+    declarado = datos.get("declarado") or {}
+    lineas = [
+        f"ETc = ETo × Kc = {datos['eto_dia_mm']} × {datos['kc']} = {r['etc_mm_dia']} mm/día",
+        f"AD (agua disponible) = {r['ad_mm']} mm",
+        f"Dn (lámina neta) recalculada = {r['dn_mm']} mm",
+        f"Fr (frecuencia de riego) recalculada = {r['fr_adj_dias']} días",
+        f"Db (demanda bruta) recalculada = {r['db_mm']} mm/día",
+    ]
+    comparaciones = []
+    if declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_adj_mm"], declarado["dn_mm"]):
+        comparaciones.append(f"Dn declarada = {declarado['dn_mm']} mm — no coincide con el recálculo ({r['dn_adj_mm']} mm).")
+    if declarado.get("fr_dias") is not None and declarado["fr_dias"] != r["fr_adj_dias"]:
+        comparaciones.append(f"Fr declarada = {declarado['fr_dias']} días — no coincide con el recálculo ({r['fr_adj_dias']} días).")
+    if declarado.get("db_mm") is not None and _diferencia_relevante(r["db_mm"], declarado["db_mm"]):
+        comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
+    texto = ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico con la cadena ETo→ETc→AD→Dn→"
+            "Fr→Db, misma fórmula normativa del Diseñador de Riego — no es una estimación de "
+            "la IA, es un recálculo exacto a partir de los datos base que declara el "
+            f"expediente):\n" + "\n".join(f"- {l}" for l in lineas))
+    if comparaciones:
+        texto += ("\n\nDISCREPANCIAS con lo declarado en el expediente:\n"
+                  + "\n".join(f"- {c}" for c in comparaciones) +
+                  "\nGenera una observación citando estos números exactos.")
+    else:
+        texto += "\n\nSin datos declarados para comparar, o coinciden con el recálculo — no lo menciones como observación."
+    return texto
+
+
 async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documentos: list, *,
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
                           criterios_aprendidos: str = "", criterios_enfasis: str = "",
+                          bloque_verificacion: str = "",
                           consultor: dict = None,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
@@ -717,7 +892,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
 
-{checklist}{bloque_enfasis}
+{checklist}{bloque_enfasis}{bloque_verificacion}
 
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
 Interpreta TODOS los números con esta convención.
@@ -807,12 +982,28 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
     if not eje:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
     docs_grupo = _documentos_del_eje(eje_key, documentos)
+
+    # Verificación numérica determinística (Hazen-Williams / cadena agronómica): solo en los
+    # ejes donde hay fórmula normativa aplicable. Si la extracción no encuentra datos, el
+    # bloque queda vacío y no afecta el resto del análisis.
+    bloque_verificacion = ""
+    try:
+        if eje_key == "hidraulico":
+            datos = await _extraer_datos_hidraulicos(docs_grupo)
+            bloque_verificacion = _bloque_verificacion_hidraulica(datos)
+        elif eje_key == "agronomico":
+            datos = await _extraer_datos_agronomicos(docs_grupo)
+            bloque_verificacion = _bloque_verificacion_agronomica(datos)
+    except Exception as e:
+        print(f"⚠️ Verificación numérica '{eje_key}' falló, se omite: {e}")
+
     return await _analizar_grupo(
         eje["nombre"], eje["checklist"], docs_grupo, documentos,
         modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key=eje_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
+        bloque_verificacion=bloque_verificacion,
         consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
