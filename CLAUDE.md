@@ -61,7 +61,7 @@ El push automático ya está configurado por SSH (no pide credenciales).
 
 - **Backend:** FastAPI + Jinja2 (renderizado server-side, sin framework JS)
 - **Base de datos:** PostgreSQL en Railway (persiste). En local sin `DATABASE_URL` usa JSON.
-- **IA:** Anthropic API — Claude **Sonnet 5** (revisión por ejes/ítems, chat y consultas) ·
+- **IA:** Anthropic API — Claude **Sonnet 5** (revisión por ítems, chat y consultas) ·
   Haiku 4.5 (tareas de resumen: autocompletar resumen, destilar aprendizaje)
 - **Auth:** JWT (HS256, 8 h, en cookie) + bcrypt
 - **Extracción:** PyMuPDF (fitz), python-docx, openpyxl, xlrd
@@ -103,16 +103,19 @@ CUATRO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `cons
 
 - **proyectos** → dict keyed por UUID: `id, nombre, codigo_sep, postulante, tipo_revision,
   revisor, revisor_nombre, estado, documentos[], observaciones[], consultas[]`, y además
-  `resumen{}` (ficha-formulario), `ejes_revisados{}`, `items_revisados{}`, `eje_chats{}`.
+  `resumen{}` (ficha-formulario), `items_revisados{}`, `item_chats{}`.
   - `documentos[]`: `id, nombre_original, filename, tipo_doc, tipo_doc_label, texto_extraido,
     analizado (bool), fecha_subida`.
   - `observaciones[]`: `id, texto, categoria, severidad (mayor|menor|informativa),
-    referencia_normativa, estado (pendiente|aprobada|descartada), numero, fecha`. Las de EJE
-    llevan `eje`+`eje_nombre`; las de ÍTEM SEP llevan `item`+`item_nombre`.
+    referencia_normativa, estado (pendiente|aprobada|descartada), numero, fecha`, y
+    `item`+`item_nombre`. **Nota histórica:** proyectos revisados antes de jul-2026 (cuando
+    existía el método por Ejes, ver más abajo) pueden tener observaciones antiguas con
+    `eje`+`eje_nombre` en vez de `item`/`item_nombre` — la ficha las sigue mostrando (agrupadas
+    al final, sin orden específico), pero ya no se pueden generar más ni gestionar desde la UI.
 - **concursos** → `id (ej "204-2026"), nombre, bases_texto, feedback[], fecha_*`, más
-  `criterios_aprendidos{}` (clave eje_key o "item_"+item_key → texto destilado) y `criterios_fecha`.
+  `criterios_aprendidos{}` (clave "item_"+item_key → texto destilado) y `criterios_fecha`.
   - `feedback[]`: decisiones reales del revisor (`accion: aprobada|descartada, tipo_doc,
-    texto_obs, fecha`). `tipo_doc` = eje_key, "item_"+item_key o tipo_doc real. Máx 200.
+    texto_obs, fecha`). `tipo_doc` = "item_"+item_key o tipo_doc real. Máx 200.
 - **consultores** → keyed por nombre normalizado (`_consultor_key`): `key, nombre, feedback[]
   (máx 300, cruza concursos), perfil (texto destilado), perfil_fecha`.
 
@@ -124,11 +127,11 @@ Suficiente para uso mono-usuario.
 ## Flujo de análisis IA (`analyzer.py`) — núcleo `_analizar_grupo()`
 
 El análisis documento-por-documento fue **eliminado**. Hoy todo pasa por `_analizar_grupo()`,
-que revisa un GRUPO de documentos (un eje temático o un ítem del SEP) en UNA llamada a Sonnet 5.
-`analizar_eje()` y `analizar_item()` son envoltorios delgados sobre él.
+que revisa un GRUPO de documentos (un ítem del SEP) en UNA llamada a Sonnet 5. `analizar_item()`
+es un envoltorio delgado sobre él.
 
-1. **Selección de documentos** — el envoltorio pasa los documentos del grupo (`_documentos_del_eje`
-   para ejes; filtro por `tipo_docs` para ítems). Coherencia global usa todos los con texto.
+1. **Selección de documentos** — el envoltorio filtra por `tipo_docs` del ítem. Coherencia
+   global usa todos los documentos con texto.
 2. **Texto vs imagen** — docs con `texto_extraido` van como texto; escaneados/planos (texto
    `< MIN_CHARS_TEXTO` = 300, o `__PDF_ESCANEADO__`) van por **visión** si el archivo físico
    existe (`render_pdf_as_images`, JPEG, tope global `MAX_IMG_EJE=10`). Coherencia NO usa visión.
@@ -176,60 +179,60 @@ Tres preguntas guía antes de observar:
   exigido por las bases). Las notas informativas no llevan cierre.
 - **Documentos obligatorios:** `_analizar_grupo` inyecta un manifiesto de TODOS los tipos de
   documento presentes en el expediente para que la IA detecte faltantes obligatorios.
-- **Observaciones agrupadas por eje/ítem:** en `proyecto.html` y en la ficha, las obs se
-  muestran bajo UN solo título por eje/ítem (no un encabezado por observación). El
-  agrupamiento se arma en `ver_proyecto()` / `ficha_revision()` y se pasa a la plantilla.
+- **Observaciones agrupadas por ítem:** en `proyecto.html` y en la ficha, las obs se
+  muestran bajo UN solo título por ítem (no un encabezado por observación). El
+  agrupamiento se arma en `_render_proyecto()` / `ficha_revision()` y se pasa a la plantilla.
   **OJO Jinja:** la clave de la lista de observaciones dentro de cada grupo es `obs`
   (`grupo.obs`), NO `items` — `grupo.items` colisiona con el método `dict.items()` y rompe
   el render en runtime (bug ya sufrido). Nunca usar `items` como nombre de clave de grupo.
 
-## Cuatro PÁGINAS del proyecto (no pestañas) — navegación arriba
+## Páginas del proyecto (no pestañas) — navegación arriba
 
-`proyecto.html` es **una sola plantilla** que renderiza 4 páginas según la variable `pagina`,
+`proyecto.html` es **una sola plantilla** que renderiza 3 páginas según la variable `pagina`,
 con una barra de navegación arriba (`.proj-nav`/`.proj-tab`). Son URLs reales (navegación de
 página completa, no toggle JS). El helper `_render_proyecto(request, id, pagina)` arma el
 contexto; hay una ruta GET por página:
 - `/proyecto/{id}` → redirige a `/resumen` (al abrir un proyecto se entra al Resumen).
 - `/proyecto/{id}/resumen` → ficha-formulario (ver sección Resumen).
 - `/proyecto/{id}/documentos` → subida + gestión + tabla de documentos.
-- `/proyecto/{id}/ejes` → 9 ejes (`EJES_REVISION`/`EJES_ORDEN`) + chat + obs de eje.
-- `/proyecto/{id}/items` → 18 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + obs de ítem. Sin chat.
+- `/proyecto/{id}/items` → 18 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + chat + obs de ítem.
 
-Ambos métodos **conviven**. Núcleo unificado en `_analizar_grupo()`; `analizar_eje()`/
-`analizar_item()` son envoltorios. Obs de eje: `obs.eje`/`obs.eje_nombre`; de ítem:
-`obs.item`/`obs.item_nombre`. Rutas de análisis: `POST /proyecto/{id}/revisar-eje/{key}` y
-`.../revisar-item/{key}`. Avance en `proyecto["ejes_revisados"]` / `["items_revisados"]`.
-**Limpieza INDEPENDIENTE por sistema:** `POST /proyecto/{id}/limpiar-ejes` (borra solo obs de
-eje + ejes_revisados + eje_chats) y `.../limpiar-items` (solo obs de ítem + items_revisados).
-Los redirects de cada acción vuelven a su página (`_volver_a` usa el Referer para el estado).
+Una quinta página, `/proyecto/{id}/calculos` (Chequeo de Cálculos), tiene su propia plantilla y
+ruta, fuera de `_render_proyecto()` — ver la sección dedicada más abajo.
+
+Núcleo de análisis en `_analizar_grupo()`; `analizar_item()` es su envoltorio. Obs de ítem:
+`obs.item`/`obs.item_nombre`. Ruta de análisis: `POST /proyecto/{id}/revisar-item/{key}`.
+Avance en `proyecto["items_revisados"]`. Limpieza: `POST /proyecto/{id}/limpiar-items` (borra
+obs de ítem + items_revisados + item_chats). Los redirects de cada acción vuelven a su página.
+
+**Revisión por EJES TEMÁTICOS eliminada (jul-2026):** existió como método alternativo que
+convivía con Ítems SEP. Se eliminó por completo a pedido del usuario — detalle completo del
+cambio (qué se portó, qué se preservó, compatibilidad con datos históricos) en el changelog
+"Revisión por Ejes eliminada por completo" dentro de la sección "Revisión por ÍTEMS DEL SEP",
+más abajo.
 
 **Grupos de observaciones desplegables (`<details>`):** en `bloque_observaciones()`/
-`bloque_notas()` (proyecto.html), cada grupo (eje/ítem) es un `<details>` — evita tener que
-bajar cada vez más al ir sumando revisiones. Se abre automáticamente el grupo recién analizado
-(`eje_ok`/`item_ok`, el query param del redirect) o si no hay ninguno en la URL, el más
-reciente por fecha (`eje_reciente`/`item_reciente`, calculado en `_render_proyecto()` con
-`max(revisados.items(), key=fecha)`); el resto queda contraído pero expandible a mano. El
-grupo se identifica por `grupo.key` (eje_key o item_key), agregado en `_agrupar()`.
+`bloque_notas()` (proyecto.html), cada grupo (ítem) es un `<details>` — evita tener que bajar
+cada vez más al ir sumando revisiones. Se abre automáticamente el grupo recién analizado
+(`item_ok`, el query param del redirect) o si no hay ninguno en la URL, el más reciente por
+fecha (`item_reciente`, calculado en `_render_proyecto()` con `max(revisados.items(),
+key=fecha)`); el resto queda contraído pero expandible a mano. El grupo se identifica por
+`grupo.key` (item_key), agregado en `_agrupar()`.
 
-**Mensaje de cumplimiento cuando no hay observaciones:** si un eje/ítem fue revisado y no
-generó ninguna observación ni nota, antes no aparecía nada — ahora `bloque_cumplimiento()`
-muestra una tarjeta verde "✅ Cumple con la normativa" listando esos ejes/ítems (calculado en
-`_render_proyecto()`: `ejes_cumplen`/`items_cumplen`, filtrando `revisados[key].n_obs==0 and
-n_notas==0`).
+**Mensaje de cumplimiento cuando no hay observaciones:** si un ítem fue revisado y no generó
+ninguna observación ni nota, antes no aparecía nada — ahora `bloque_cumplimiento()` muestra una
+tarjeta verde "Cumple con la normativa" listando esos ítems (calculado en `_render_proyecto()`:
+`items_cumplen`, filtrando `revisados[key].n_obs==0 and n_notas==0`).
 
-**Ver qué archivos reales se usaron en cada análisis:** cada tarjeta de eje/ítem ya revisado
-tiene un `<details>` "📄 Ver los N archivos usados en este análisis" con el nombre real de cada
-archivo (`nombre_original`, no solo el tipo/label) — para que el revisor pueda comprobar que
-la asignación de documentos a cada eje/ítem fue correcta. Antes `ejes_revisados[key]["docs"]`
-/ `items_revisados[key]["docs"]` solo guardaba `d["label"]` (el tipo, ej. "Estudio
-hidrológico"), perdiendo el nombre real del archivo — si dos documentos comparten `tipo_doc`
-(ej. 2 archivos clasificados como "Análisis Hidrológico"), no se podía distinguir cuál se usó.
-Ahora se guarda `docs_incluidos` completo (`{id, nombre, label}` por documento, ya devuelto por
-`_analizar_grupo()` pero antes descartado al persistir). La plantilla soporta ambos formatos
-(`{% if d is mapping %}`) para no romper con proyectos que ya tenían el formato viejo (lista de
-strings) guardado antes de este cambio.
-**Si un eje/ítem "solo declara 1" documento existiendo 2 clasificados con ese tipo_doc:**
-revisar en la página Documentos si el que falta tiene el indicador 🔴 "necesita resubir" — un
+**Ver qué archivos reales se usaron en cada análisis:** cada tarjeta de ítem ya revisado tiene
+un `<details>` "Ver los N archivos usados en este análisis" con el nombre real de cada archivo
+(`nombre_original`, no solo el tipo/label) — para que el revisor pueda comprobar que la
+asignación de documentos a cada ítem fue correcta. Se guarda `docs_incluidos` completo (`{id,
+nombre, label}` por documento, devuelto por `_analizar_grupo()`). La plantilla soporta ambos
+formatos (`{% if d is mapping %}`) para no romper con proyectos que ya tenían el formato viejo
+(lista de strings) guardado antes de ese cambio.
+**Si un ítem "solo declara 1" documento existiendo 2 clasificados con ese tipo_doc:** revisar
+en la página Documentos si el que falta tiene el indicador rojo "necesita resubir" — un
 documento escaneado/con poco texto cuyo archivo físico ya no existe (post-deploy) se descarta
 en silencio en `_analizar_grupo` (ni texto ni imagen disponible). Solución: resubirlo.
 
@@ -251,53 +254,58 @@ nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 ## Funcionalidades implementadas ✅
 
 - Subida PDF/Word/Excel/ZIP → extracción → clasificación por anexo
-- **Proyecto en 4 páginas** (Resumen / Documentos / Revisión por Ejes / Revisión por Ítems SEP),
-  navegación arriba — ver sección "Cuatro PÁGINAS del proyecto".
-- **DOS métodos de revisión que conviven:** por 9 EJES temáticos y por 16 ÍTEMS del SEP. El
-  análisis documento-por-documento fue eliminado de raíz.
+- **Proyecto en 3 páginas** (Resumen / Documentos / Revisión por Ítems SEP), navegación arriba
+  — ver sección "Páginas del proyecto", más una 5ª página aparte "Chequeo de Cálculos".
+- **Revisión por 18 ÍTEMS del SEP** (único método vigente — el método por Ejes se eliminó, ver
+  sección "Páginas del proyecto"). El análisis documento-por-documento fue eliminado de raíz.
 - **Resumen del proyecto** tipo formulario, autocompletable con IA y editable (campos Sí/No).
-- **🗑 Limpieza INDEPENDIENTE** por sistema: limpiar ejes no toca ítems y viceversa.
-- **Aprendizaje**: por eje/ítem (criterios destilados del feedback) y por CONSULTOR (perfil que
+- **Limpieza** de la revisión por ítems (`limpiar-items`).
+- **Aprendizaje**: por ítem (criterios destilados del feedback) y por CONSULTOR (perfil que
   cruza proyectos/concursos). Se consolida desde `/admin/concursos/{id}`.
 - **Normativa de tecnificación** destilada (ITT-01 a ITT-04) guía cada análisis.
 - Bases del concurso (admin `/admin/concursos`): subir PDF → extrae texto → se cachea
-- Chat de refinamiento por eje E ÍTEM (AJAX, sin recargar) — la IA puede modificar la
+- Chat de refinamiento por ÍTEM (AJAX, sin recargar) — la IA puede modificar la
   observación (descartar/reclasificar a nota/editar) directamente desde la conversación
 - Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
 - Estados del proyecto: En revisión / Revisado / Observado / Rechazado
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
-  (html2pdf.js), obs agrupadas por eje/ítem, sin firmas ni "R)"
+  (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 
 ---
 
-## Revisión por EJES TEMÁTICOS (uno de los dos métodos)
+## Revisión por ÍTEMS DEL SEP (único método)
 
 **Problema que resuelve:** revisar documento por documento era erróneo porque los documentos
 son complementarios (el agronómico define la demanda que el hidráulico satisface; el plano
 debe reflejar el diseño; el presupuesto debe cuadrar con las obras). Evaluarlos aislados
-generaba falsas observaciones. Ese método fue **eliminado**; hoy conviven ejes + ítems SEP.
+generaba falsas observaciones. Ese método fue **eliminado** desde el inicio; el análisis
+siempre cruza documentos por grupo.
 
-**Implementado (backbone):** `EJES_REVISION` en `analyzer.py` define los 9 ejes (tipo_docs +
-checklist). `analizar_eje()` cruza TODOS los documentos del eje en UNA llamada a Sonnet y
-devuelve observaciones tageadas con `eje`. Ruta `POST /proyecto/{id}/revisar-eje/{eje_key}`.
-UI: panel de 9 ejes en la **página "Revisión por Ejes"** (`/proyecto/{id}/ejes`). Las obs de eje
-se guardan con `obs.eje`, `obs.eje_nombre`; el feedback se etiqueta por eje.
+Este método existió junto a un método por 9 EJES TEMÁTICOS que fue **eliminado por completo
+en jul-2026** (ver el changelog al final de esta sección) — hoy Ítems SEP es el único método
+de revisión.
 
-**Visión en ejes:** `analizar_eje` usa texto extraído + IMÁGENES para documentos escaneados/planos
-(los que no tienen texto). Renderiza páginas con `render_pdf_as_images` (tope global `MAX_IMG_EJE=10`)
-y las envía como bloques de imagen. Requiere que el archivo físico exista (`ruta_uploads`); como los
-uploads NO persisten entre deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión
-actual. El eje Coherencia es solo texto (no visión, por costo).
+**Implementado (backbone):** `ITEMS_SEP` en `analyzer.py` define los 18 ítems (tipo_docs +
+checklist). `analizar_item()` cruza TODOS los documentos del ítem en UNA llamada a Sonnet y
+devuelve observaciones tageadas con `item`. Ruta `POST /proyecto/{id}/revisar-item/{item_key}`.
+UI: panel de ítems en la página "Revisión por Ítems SEP" (`/proyecto/{id}/items`). Las obs de
+ítem se guardan con `obs.item`, `obs.item_nombre`; el feedback se etiqueta por ítem
+("item_"+key).
 
-**Chat de refinamiento — eje E ÍTEM (implementado):** núcleo unificado `_chatear_grupo()` en
-`analyzer.py`; `chatear_eje()`/`chatear_item()` son envoltorios (mismo patrón que
-`_analizar_grupo`). Rutas `POST /proyecto/{id}/eje/{eje_key}/chat` y `.../item/{item_key}/chat`
-(comparten `_manejar_chat()` en main.py). Historial en `proyecto["eje_chats"][key]` /
-`["item_chats"][key]` (últimos 40 turnos). UI: macro `bloque_chat()` en `proyecto.html`,
-reusado en ambas páginas.
+**Visión en ítems:** `analizar_item` (vía `_analizar_grupo`) usa texto extraído + IMÁGENES para
+documentos escaneados/planos (los que no tienen texto). Renderiza páginas con
+`render_pdf_as_images` (tope global `MAX_IMG_EJE=10`) y las envía como bloques de imagen.
+Requiere que el archivo físico exista (`ruta_uploads`); como los uploads NO persisten entre
+deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión actual. El ítem
+Coherencia Global es solo texto (no visión, por costo).
+
+**Chat de refinamiento por ÍTEM (implementado):** núcleo `_chatear_grupo()` en `analyzer.py`;
+`chatear_item()` es su envoltorio (mismo patrón que `_analizar_grupo`). Ruta
+`POST /proyecto/{id}/item/{item_key}/chat` (vía `_manejar_chat()` en main.py). Historial en
+`proyecto["item_chats"][key]` (últimos 40 turnos). UI: macro `bloque_chat()` en `proyecto.html`.
 
 **La IA SÍ puede modificar la observación desde el chat:** si el revisor pide un cambio
 concreto (descartar, bajar a nota, corregir texto, ELIMINAR) y la IA está de acuerdo, agrega
@@ -316,7 +324,7 @@ revisor puede volver a marcarla pendiente a mano) y sirve de registro/auditoría
 borra la observación de `proyecto["observaciones"]` por completo, sin dejar rastro — NO
 reversible. La IA solo usa "eliminar" si el revisor lo pide explícitamente ("elimínala"/
 "bórrala"), y por defecto prefiere "descartar" ante la duda (instrucción explícita en el
-prompt). Además del chat, hay botón manual "🗑 Eliminar" en cada observación/nota
+prompt). Además del chat, hay botón manual "Eliminar" en cada observación/nota
 (`POST /proyecto/{id}/observacion/{obs_id}/eliminar`), con `confirm()` en el frontend.
 
 **Bug resuelto — chat decía que aplicó un cambio pero no lo aplicaba (jul-2026):** al agregar
@@ -332,16 +340,16 @@ si aun así no se puede parsear. **Si el patrón "dice que lo hizo pero no pasó
 después de esto** (sin el error de respuesta vacía), ya no sería un problema de tokens sino
 de que el modelo no está incluyendo el marcador pese a la instrucción — reforzar el prompt.
 
-**Aprendizaje por eje/ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku)
-destila el `feedback[]` de un eje/ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
-`concurso["criterios_aprendidos"][clave]` (clave = eje_key o "item_"+item_key). Se dispara desde
-`/admin/concursos/{id}` con el botón "🧠 Consolidar aprendizaje" (ruta POST `/consolidar`; requiere
-≥3 decisiones por grupo). En cada revisión, `_analizar_grupo` inyecta esos criterios destilados
-en vez de los ejemplos crudos (más compacto y generalizable). El feedback se etiqueta por eje,
-por ítem ("item_"+key) o por tipo_doc según el origen de la observación.
+**Aprendizaje por ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku) destila
+el `feedback[]` de un ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
+`concurso["criterios_aprendidos"]["item_"+item_key]`. Se dispara desde `/admin/concursos/{id}`
+con el botón "Consolidar aprendizaje" (ruta POST `/consolidar`; requiere ≥3 decisiones por
+grupo). En cada revisión, `_analizar_grupo` inyecta esos criterios destilados en vez de los
+ejemplos crudos (más compacto y generalizable). El feedback se etiqueta por ítem ("item_"+key)
+o por tipo_doc según el origen de la observación.
 
-**Optimización de velocidad:** el chat (`chatear_eje`) mueve el contexto pesado (documentos +
-observaciones + guía del eje) a bloques CACHEADOS del `system`, así en conversaciones de varios
+**Optimización de velocidad:** el chat (`chatear_item`) mueve el contexto pesado (documentos +
+observaciones + guía del ítem) a bloques CACHEADOS del `system`, así en conversaciones de varios
 turnos no se reenvía ni reprocesa (más rápido y barato). `consultar_expediente` subió su límite
 a `max_tokens=4000` (evita el mismo corte por thinking) con aviso si llega vacía.
 
@@ -361,10 +369,10 @@ Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamient
 dentro de la misma respuesta, antes del texto final. Si el límite de tokens de la respuesta
 (`max_tokens`) era muy bajo, ese pensamiento consumía todo el cupo y el JSON de observaciones
 (o el texto del chat) llegaba vacío o cortado — y el parser lo tragaba en silencio, sin avisar
-error, devolviendo `observaciones: []` o una respuesta de chat vacía. Así se manifestó: 3 ejes
-seguidos con 0 observaciones (cobrando costo real) y el chat de eje sin mostrar respuesta.
-Arreglado subiendo los límites (`MAX_TOKENS_SONNET` en `analizar_eje`: 6000→12000; en
-`chatear_eje`: 1200→4000) y agregando logs de diagnóstico (`print`) cuando la respuesta viene
+error, devolviendo `observaciones: []` o una respuesta de chat vacía. Así se manifestó: 3 grupos
+seguidos con 0 observaciones (cobrando costo real) y el chat sin mostrar respuesta.
+Arreglado subiendo los límites (`MAX_TOKENS_SONNET` en `_analizar_grupo`: 6000→12000; en
+`_chatear_grupo`: 1200→4000) y agregando logs de diagnóstico (`print`) cuando la respuesta viene
 vacía, con el `stop_reason` de la API, para detectarlo rápido si vuelve a pasar. En el chat,
 además, si la respuesta llega vacía se guarda un aviso explícito en vez de un mensaje en
 blanco. `consultar_expediente` también se subió a `max_tokens=4000` con el mismo aviso.
@@ -375,17 +383,17 @@ thinking; si una respuesta llega vacía, loguear `stop_reason` en vez de tragarl
 seguía dándose puntualmente en grupos con imágenes (planos/escaneados) — el thinking extra que
 implica "mirar" una imagen a veces se comía TODO el cupo de `MAX_TOKENS_SONNET` (12000) y la
 respuesta llegaba con `stop_reason=max_tokens` y `content_len=0`. Detectado en producción con
-"Memoria de cálculo de superficies" (justo el eje que define superficie/demanda/monto
+"Memoria de cálculo de superficies" (justo el ítem que define superficie/demanda/monto
 bonificable — el más grave para perder en silencio). Arreglado en `_analizar_grupo`: si la
 respuesta viene vacía Y `stop_reason == "max_tokens"`, reintenta una vez automáticamente con
 `MAX_TOKENS_SONNET + 8000`. Sigue logueando el mismo aviso de diagnóstico si tras el reintento
 igual quedan 0 observaciones (puede ser un resultado legítimo — ver criterios de énfasis abajo
 para cómo confirmarlo).
 
-**Criterios de énfasis por eje/ítem (implementado, jul-2026):** distinto del "aprendizaje"
-automático de abajo. Es un campo `concurso["criterios_enfasis"][clave]` (misma clave que
-`criterios_aprendidos`: eje_key o "item_"+item_key) que el revisor **escribe y edita a mano**
-en `/admin/concursos/{id}` (card "🎯 Criterios de énfasis por eje/ítem", un `<textarea>` por
+**Criterios de énfasis por ítem (implementado, jul-2026):** distinto del "aprendizaje"
+automático de abajo. Es un campo `concurso["criterios_enfasis"]["item_"+item_key]` (misma clave
+que `criterios_aprendidos`) que el revisor **escribe y edita a mano** en
+`/admin/concursos/{id}` (card "Criterios de énfasis por ítem", un `<textarea>` por
 grupo, ruta `POST .../criterios-enfasis`). Se inyecta en `_analizar_grupo` con prioridad
 explícita sobre el resto del prompt ("verifícalos SIEMPRE, tienen prioridad"). A diferencia de
 `criterios_aprendidos` (que `consolidar_aprendizaje()` puede sobrescribir cada vez que se
@@ -404,7 +412,9 @@ Instructivos CNR en Drive) — Hazen-Williams (`hazen_williams`, `velocidad_tube
 (`cadena_agronomica`). La idea: en vez de que la IA haga la matemática de memoria a partir de
 texto libre (poco confiable para números), se **recalcula con las mismas fórmulas** que usa el
 propio diseñador de proyectos y se compara contra lo declarado por el consultor.
-Flujo en `analizar_eje()` (analyzer.py), solo para `eje_key in ("hidraulico", "agronomico")`:
+Flujo en `analizar_item()` (analyzer.py), para el ítem `diseno_hidraulico` (corre tanto la
+verificación hidráulica como la agronómica — ver el bloque "Revisión por Ejes eliminada" al
+final de esta sección):
 1. `_extraer_datos_hidraulicos()` / `_extraer_datos_agronomicos()` — llamada barata a Haiku que
    extrae SOLO datos numéricos explícitos del expediente (tramos de tubería: caudal/diámetro/
    longitud/material; o cadena agronómica: CC/PMP/Da/profundidad/Kc/ETo/factor agotamiento/
@@ -426,29 +436,33 @@ mayor riesgo de extracción errónea). Tampoco se portaron aún las fórmulas de
 mismo patrón (el 80% de los proyectos reales de esta cuenta usan goteo/aspersión + FV; carrete
 y microaspersión son ~20% — priorizar FV antes que carrete/pivote en la siguiente iteración).
 
-**Página "🧮 Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
-(`templates/calculos.html`), quinta página del proyecto — mismo estilo de navegación arriba
-que las otras 4, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no
+**Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
+(`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
+que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no
 cargar ese contexto pesado). Resuelve el riesgo de que la extracción automática (Haiku) se
 equivoque: el revisor ve los datos extraídos (tramos de tubería para Hidráulico, cadena
 agronómica para Agronómico) en un formulario editable, con el recálculo mostrado al lado de
-cada campo, y puede corregirlos a mano antes de darlos por buenos.
-- Botón **"🤖 Extraer de los documentos"** (`POST .../calculos/{eje}/extraer`) — corre la
+cada campo, y puede corregirlos a mano antes de darlos por buenos. Las claves de guardado
+(`hidraulico`/`agronomico`/`energetico`) son independientes de los ítems SEP — se mantuvieron
+tal cual al portar la verificación desde el método por Ejes (ver más abajo).
+- Botón **"Extraer de los documentos"** (`POST .../calculos/{grupo}/extraer`) — corre la
   misma extracción de `analyzer.py` bajo demanda y sobrescribe el formulario. NO marca como
   validado.
-- Botón **"💾 Guardar"** + checkbox **"Ya revisé estos datos"** (`POST .../calculos/{eje}/guardar`)
-  — guarda lo que haya en el formulario (editado o no) en `proyecto["verificacion_calculos"][eje]`;
+- Botón **"Guardar"** + checkbox **"Ya revisé estos datos"** (`POST .../calculos/{grupo}/guardar`)
+  — guarda lo que haya en el formulario (editado o no) en `proyecto["verificacion_calculos"][grupo]`;
   si el checkbox está marcado, `validado=True` + `fecha_validado` + `validado_por`.
 - Hidráulico: hasta `N_TRAMOS_HIDRAULICOS=6` tramos fijos (tabla server-rendered, sin JS de
   agregar/quitar filas — suficiente para el tamaño típico de estos proyectos). Agronómico: un
   solo formulario con los 8 campos base + los 3 valores declarados por el consultor (Dn/Fr/Db).
   Fotovoltaico: bomba/sitio + panel/inversor/sistema + los 3 valores declarados (N° paneles,
   kWp, sección cable DC).
-- **Efecto en el análisis:** en `revisar_eje()` (main.py), si `verificacion_calculos[eje_key]
-  ["validado"]` es `True`, esos datos (ya revisados por el humano) se pasan a `analizar_eje()`
-  como `datos_verificacion` y se usan DIRECTO, sin volver a llamar a Haiku para extraer — la
-  supervisión humana reemplaza la extracción automática. Si no está validado, sigue
-  extrayendo automáticamente en cada revisión (comportamiento de siempre, sin cambios).
+- **Efecto en el análisis:** en `revisar_item()` (main.py), si `verificacion_calculos[grupo]
+  ["validado"]` es `True` para el ítem correspondiente (`diseno_hidraulico` lee
+  `hidraulico`+`agronomico`; `diseno_fotovoltaico` lee `energetico`), esos datos (ya revisados
+  por el humano) se pasan a `analizar_item()` como `datos_verificacion_*` y se usan DIRECTO,
+  sin volver a llamar a Haiku para extraer — la supervisión humana reemplaza la extracción
+  automática. Si no está validado, sigue extrayendo automáticamente en cada revisión
+  (comportamiento de siempre, sin cambios).
 Cubre Hidráulico, Agronómico y (desde jul-2026) Fotovoltaico. Carrete/pivote (INIA-Carillanca)
 y microaspersión todavía no tienen fórmula ni página.
 
@@ -457,8 +471,8 @@ porta `calcFV()` del Diseñador de Riego — energía diaria requerida (P_bomba�
 derating por temperatura, N° de paneles mínimo, configuración serie/paralelo según voltaje del
 sistema, y sección de cable DC por caída de tensión (2%, distancia campo→inversor asumida en
 50 m — mismo supuesto que la app hermana). `_extraer_datos_fv()` / `_bloque_verificacion_fv()`
-en `analyzer.py`, mismo patrón que hidráulico/agronómico, conectado en `analizar_eje()` para
-`eje_key == "energetico"`. **Cobertura parcial a propósito** (igual que hidráulico/agronómico):
+en `analyzer.py`, mismo patrón que hidráulico/agronómico, conectado en `analizar_item()` para
+`item_key == "diseno_fotovoltaico"`. **Cobertura parcial a propósito** (igual que hidráulico/agronómico):
 no incluye cableado AC, protecciones (DPS/fusibles), estructura de montaje, ni contraste
 explícito con el Explorador Solar — el propio Diseñador de Riego tampoco los tiene desarrollados
 todavía. Prioridad de fuente: el ~80% de los proyectos de esta cuenta llevan sistema FV (goteo/
@@ -472,31 +486,18 @@ conversión "Abrir con Google Docs" (que debería correr OCR) reproducen el mism
 que sugiere que el defecto está en la fuente/encoding del PDF, no solo en la capa de texto. Se
 eliminó el archivo del repo porque se cargaba completo (hasta 4.000 caracteres) en el
 `SYSTEM_PROMPT` de **cada** llamada a la IA sin aportar nada — puro costo sin valor. Mientras no
-haya una copia legible, el eje Energético/Fotovoltaico se apoya en `ITT_Criterios_Tecnificacion.txt`
+haya una copia legible, el ítem Diseño Fotovoltaico se apoya en `ITT_Criterios_Tecnificacion.txt`
 (ítems esperados en presupuesto FV) y `Manual_Supervision_Obras.txt` (certificación SEC on-grid/
 off-grid) — ambos sí están limpios. Si se consigue una copia legible del PDF de DT-09 (o alguien
 transcribe manualmente las secciones clave), agregar `normativa/DT-09_...txt` de nuevo con texto
 real — no reincorporar el archivo corrupto.
 
-**Los 9 ejes definidos:**
-| # | Eje | Documentos que cruza |
-|---|---|---|
-| 1 | **Superficie** ⭐ | Memoria superficies · Identificación área riego · Planos · Estudio suelos · Título dominio |
-| 2 | Agronómico | Diseño agronómico · Estudio suelos · Superficie |
-| 3 | Hidrológico | Estudio hidrológico · Derechos de agua · Prueba de bombeo |
-| 4 | Hidráulico | Diseño hidráulico · Planos tecnificación · Especificaciones técnicas · Prueba bombeo |
-| 5 | Energético/Fotovoltaico | Diseño FV · Explorador solar · Presupuesto eléctrico · Diseño hidráulico |
-| 6 | Obras civiles | Planos obras civiles · Especificaciones técnicas · Cubicaciones |
-| 7 | Presupuesto y costos | Presupuesto obras · Presupuesto eléctrico · Cubicaciones · APU · Cotizaciones |
-| 8 | Legal/administrativo | Antecedentes legales · F22 · Títulos · Derechos agua · OUA · Lista benef. · IVA · Consultor MOP |
-| 9 | **Coherencia global** ⭐ | *Todos* — cierre transversal: superficie ↔ demanda ↔ caudal ↔ diseño ↔ presupuesto ↔ monto bonificable |
-
-Eje 1 (Superficie) es la base: define demanda, escala, presupuesto y monto bonificable.
-Eje 9 (Coherencia global) es el cierre que atrapa los errores entre documentos.
-
-Los **18 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) son el segundo método: cada uno revisa
-su(s) documento(s) tal como se ingresan al Sistema Electrónico de Postulación, para copiar las
-observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id}/items`).
+Los **18 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) revisan su(s) documento(s) tal como se
+ingresan al Sistema Electrónico de Postulación, para copiar las observaciones directo al SEP.
+Página "Revisión por Ítems SEP" (`/proyecto/{id}/items`). Memoria de superficies e
+Identificación del área de riego son la base (definen demanda, escala, presupuesto y monto
+bonificable); Coherencia Global (último ítem) es el cierre transversal que atrapa los errores
+entre documentos — ver el changelog más abajo.
 
 **Bug resuelto — Diseño Fotovoltaico mezclado dentro de "Diseño y cálculos hidráulicos"
 (jul-2026):** el ítem `diseno_hidraulico` incluía `diseno_fotovoltaico` y
@@ -508,14 +509,41 @@ los archivos de FV — aunque en el SEP real son un anexo aparte (Anexo 9.5, seg
 Si aparece un caso similar en otro ítem (documentos agrupados que no correspondan), revisar el
 `tipo_docs` de `ITEMS_SEP` contra el `tipo_doc_label` real de `TIPO_DOC_LABELS` en `main.py`.
 
-**"Coherencia Global" como ÍTEM, al final de `ITEMS_ORDEN` (jul-2026):** como el revisor puede
-trabajar solo con el método de Ítems SEP (mismo orden que el SEP, para copiar observaciones
-directo), se agregó `ITEMS_SEP["coherencia"]` — mismo `checklist` que `EJES_REVISION["coherencia"]`
-(se referencia directamente, no se duplica el texto) y mismo comportamiento especial: usa TODOS
-los documentos con texto del proyecto (`tipo_docs: []`, sin filtrar), sin visión. El caso especial
-vive en `analizar_item()` (`if item_key == "coherencia"`) y en `_render_proyecto()` de main.py
-(cálculo de `n_docs` para la tarjeta del ítem) — ambos espejan la misma lógica que ya existía
-para el eje homónimo en `_documentos_del_eje()`.
+**"Coherencia Global" como ÍTEM, al final de `ITEMS_ORDEN` (jul-2026):** cuando este método
+convivía con el de Ejes, se agregó `ITEMS_SEP["coherencia"]` como el equivalente al eje
+homónimo (que hacía de cierre transversal): usa TODOS los documentos con texto del proyecto
+(`tipo_docs: []`, sin filtrar), sin visión — caso especial en `analizar_item()`
+(`if item_key == "coherencia"`) y en `_render_proyecto()` de main.py (cálculo de `n_docs` para
+la tarjeta del ítem). Al eliminar el método por Ejes (ver siguiente entrada), el checklist de
+Coherencia Global se inlineó directamente en `ITEMS_SEP["coherencia"]` (antes lo tomaba de
+`EJES_REVISION["coherencia"]["checklist"]`).
+
+**Revisión por Ejes eliminada por completo (jul-2026):** existió como método alternativo que
+convivía con Ítems SEP — 9 ejes temáticos (`EJES_REVISION`/`EJES_ORDEN`: Superficie,
+Agronómico, Hidrológico, Hidráulico, Energético/Fotovoltaico, Obras civiles, Presupuesto y
+costos, Legal/administrativo, Coherencia global), con su propia página (`/proyecto/{id}/ejes`),
+rutas de análisis (`revisar-eje/{key}`) y chat (`chatear_eje`/`.../eje/{key}/chat`), y su propio
+estado (`proyecto["ejes_revisados"]`/`["eje_chats"]`), botón de limpieza independiente
+(`limpiar-ejes`) y secciones de aprendizaje/criterios de énfasis en `/admin/concursos/{id}`. Se
+eliminó por completo a pedido explícito del usuario porque en la práctica solo usa el método
+por Ítems SEP (mismo orden que el SEP real, para copiar observaciones directo al sistema de
+postulación) — mantener dos métodos era trabajo duplicado sin uso real del segundo. Al
+eliminarlo:
+- La verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
+  FV) que antes vivía en `analizar_eje()` para `eje_key in ("hidraulico", "agronomico",
+  "energetico")` se **portó a `analizar_item()`**, para no dejar huérfana la página "Chequeo de
+  Cálculos": el ítem `diseno_hidraulico` ahora corre tanto la verificación hidráulica como la
+  agronómica (concatenadas en `bloque_verificacion`), y `diseno_fotovoltaico` corre la FV.
+- Los `tipo_docs` que cada eje usaba para alimentar su verificación (más amplios que los
+  `tipo_docs` del ítem SEP correspondiente — ej. el eje Hidráulico también incluía
+  `pruebas_bombeo`) se preservaron en la constante `DOCS_VERIFICACION` (analyzer.py) + helper
+  `_documentos_para_verificacion(grupo_key, documentos)`, que reemplazó a `_documentos_del_eje()`.
+  Las 3 rutas de extracción de "Chequeo de Cálculos" en main.py (`/calculos/{hidraulico,
+  agronomico,energetico}/extraer`) pasaron a usar este helper.
+- **Proyectos revisados antes de este cambio** pueden tener observaciones históricas con
+  `eje`/`eje_nombre` en vez de `item`/`item_nombre` — la ficha de revisión las sigue
+  mostrando (agrupadas al final, ya no aparecen en el `orden` por nombre de ítem), pero no
+  hay UI para gestionarlas ni se pueden generar más. No se hizo ninguna migración de datos.
 
 ---
 
@@ -531,7 +559,7 @@ para el eje homónimo en `_documentos_del_eje()`.
   persiste entre ejecuciones, no hace falta duplicar en la base).
   - `ver_documento()`: si el archivo no está en disco, lo sirve directo desde el `bytea`
     guardado (sin tocar el disco) antes de caer al fallback de solo-texto.
-  - `revisar_eje`/`revisar_item`: antes de analizar, `_restaurar_archivos_necesarios()`
+  - `revisar_item`: antes de analizar, `_restaurar_archivos_necesarios()`
     reescribe a disco (desde Postgres) los archivos que necesitan VISIÓN (escaneados/poco
     texto) que se hayan perdido tras un redeploy — así el análisis con imágenes sigue
     funcionando sin que el revisor tenga que resubir nada, mientras el archivo siga
@@ -558,7 +586,7 @@ para el eje homónimo en `_documentos_del_eje()`.
   a un proyecto creado antes del último deploy, fallaba con "Error Interno del Servidor"
   (`FileNotFoundError`). Arreglado agregando `filepath.parent.mkdir(parents=True,
   exist_ok=True)` antes de escribir, igual que ya tenía `subir-zip`.
-- **Bug resuelto — chat de eje/ítem "siempre fallaba" con error genérico:** causa raíz real:
+- **Bug resuelto — chat de ítem "siempre fallaba" con error genérico:** causa raíz real:
   en `enviarChat()` (proyecto.html) se hacía `textarea.value = ''` y RECIÉN DESPUÉS
   `new FormData(form)` — como `FormData(form)` lee el valor actual del campo en ese momento,
   el mensaje viajaba **vacío** al servidor en cada envío (sin importar lo que el revisor

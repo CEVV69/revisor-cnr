@@ -264,153 +264,15 @@ TIPOS_DOC = {
 }
 
 
-# ─── EJES DE REVISIÓN TEMÁTICA ─────────────────────────────────────────────────
-# Cada eje cruza varios documentos complementarios y los revisa en conjunto.
-# tipo_docs: qué documentos alimentan el eje. checklist: guía específica para el prompt.
-
-EJES_REVISION = {
-    "superficie": {
-        "nombre": "Superficie",
-        "tipo_docs": ["memoria_superficies", "identificacion_riego", "planos_tecnificacion",
-                      "planos_obras_civiles", "estudio_suelos", "antecedentes_legales"],
-        "checklist": """EJE SUPERFICIE — es la base técnica de todo el proyecto.
-El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Céntrate en:
-
-1. CÁLCULO DE LA SUPERFICIE (lo más importante):
-   - Revisa el método y los números de la Memoria de Cálculo de Superficies: cómo se obtuvo
-     cada superficie, coherencia geométrica (polígonos, coordenadas, sumatorias de cuarteles).
-   - Verifica que las sumas parciales cuadren con los totales declarados.
-   - La superficie de la memoria debe coincidir con la dibujada/acotada en los planos y con
-     la Identificación del área de riego.
-
-2. TIPOS DE SUPERFICIE — distíngue y valida cada una (son distintas y clave para el bono):
-   - Superficie física (predial total).
-   - Superficie de riego ACTUAL (la que ya se riega hoy).
-   - Superficie de NUEVO RIEGO (la que el proyecto incorpora) — revisa cómo se calculó, es
-     la que más incide en el monto bonificable.
-   - Superficie tecnificada / mejorada.
-   Si estos valores no cuadran entre memoria, planos e identificación de riego → observación mayor.
-
-3. CONSISTENCIA CON EL RESTO DEL PROYECTO:
-   - Esta superficie es el insumo del eje Agronómico (demanda) y del Presupuesto (costo/ha).
-   - La superficie de riego no debe exceder la capacidad de uso del suelo (estudio de suelos).
-
-4. TOPE LEGAL (verificación SECUNDARIA, no el foco):
-   - La superficie no debe exceder la del título de dominio. Si el título está EN TRÁMITE y las
-     bases lo permiten, NO es observación — a lo sumo una NOTA. No conviertas este eje en una
-     revisión legal; para eso está el eje Legal.""",
-    },
-    "agronomico": {
-        "nombre": "Diseño Agronómico",
-        "tipo_docs": ["diseno_agronomico", "estudio_suelos", "memoria_superficies"],
-        "checklist": """EJE AGRONÓMICO.
-- Cultivos declarados coherentes con la zona y el estudio de suelos.
-- Kc en rango (DT-05), ETP correcta, demanda neta y bruta bien calculadas.
-- Eficiencia de aplicación y eficiencia ponderada (DT-04) razonables para el método de riego.
-- Módulo de riego, caudal de diseño, tiempo de riego y dotación por hectárea consistentes
-  con la superficie del eje Superficie.
-- La demanda hídrica resultante es el insumo del eje Hidráulico e Hidrológico: debe cerrar.""",
-    },
-    "hidrologico": {
-        "nombre": "Hidrológico",
-        "tipo_docs": ["estudio_hidrologico", "pruebas_bombeo", "antecedentes_legales"],
-        "checklist": """EJE HIDROLÓGICO.
-- Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02).
-- El derecho de agua (antecedentes legales) debe respaldar el caudal usado en el diseño.
-- La prueba de bombeo (si aplica) confirma el caudal y nivel dinámico del pozo.
-- El agua disponible debe cubrir la demanda hídrica del eje Agronómico. Si no la cubre,
-  el proyecto no es viable — observación mayor.""",
-    },
-    "hidraulico": {
-        "nombre": "Diseño Hidráulico",
-        "tipo_docs": ["diseno_hidraulico", "planos_tecnificacion", "especificaciones_tecnicas",
-                      "pruebas_bombeo"],
-        "checklist": """EJE HIDRÁULICO.
-- Caudal de diseño coherente con la demanda del eje Agronómico.
-- Nodos, tuberías, diámetros, presiones y velocidades dentro de norma (DT-06).
-- Verifica que lo dibujado en los planos (nodos, trazado de tuberías) coincida con los
-  cálculos del diseño hidráulico.
-- Selección de bomba coherente con la prueba de bombeo y con la potencia del eje Energético.
-- Especificaciones técnicas respaldan los materiales del diseño.""",
-    },
-    "energetico": {
-        "nombre": "Energético / Fotovoltaico",
-        "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar", "presupuesto_electrico",
-                      "diseno_hidraulico"],
-        "checklist": """EJE ENERGÉTICO / FOTOVOLTAICO.
-- Potencia requerida por la bomba (eje Hidráulico) vs potencia instalada del sistema FV.
-- Curva de la bomba vs curva del sistema, punto de operación.
-- Radiación del Explorador Solar coherente con el diseño FV; energía generada cubre la
-  demanda de bombeo.
-- Protecciones eléctricas y normativa SEC.
-- El presupuesto eléctrico corresponde a los equipos del diseño FV.""",
-    },
-    "obras_civiles": {
-        "nombre": "Obras Civiles",
-        "tipo_docs": ["planos_obras_civiles", "especificaciones_tecnicas", "cubicaciones"],
-        "checklist": """EJE OBRAS CIVILES.
-- Obras (bocatomas, acumuladores, revestimientos, cámaras) bien definidas y constructibles.
-- Las cubicaciones corresponden a las dimensiones de los planos de obras civiles.
-- Especificaciones técnicas respaldan los materiales y procedimientos.
-- Constructibilidad: ¿un contratista podría ejecutar con esta información?""",
-    },
-    "presupuesto": {
-        "nombre": "Presupuesto y Costos",
-        "tipo_docs": ["presupuesto", "presupuesto_electrico", "cubicaciones",
-                      "cotizaciones_facturas", "cotizaciones", "planos_tecnificacion",
-                      "planos_obras_civiles"],
-        "checklist": """EJE PRESUPUESTO Y COSTOS.
-- Las partidas del presupuesto corresponden a las obras dibujadas y cubicadas.
-- Cantidades del presupuesto cuadran con las cubicaciones.
-- Precios unitarios (APU, DT-18) razonables para el mercado chileno — detecta SOBREPRECIOS
-  y también precios anormalmente bajos.
-- Cotizaciones/facturas respaldan los ítems relevantes.
-- Costo por hectárea proporcional a la escala del proyecto. Nada injustificado ni desproporcionado.""",
-    },
-    "legal": {
-        "nombre": "Legal / Administrativo",
-        "tipo_docs": ["antecedentes_legales", "declaracion_iva", "lista_beneficiarios"],
-        "checklist": """EJE LEGAL / ADMINISTRATIVO.
-- Documentos de postulación según IL-01 — solo faltantes reales.
-- Derechos de agua vigentes y con caudal suficiente.
-- Títulos de dominio vigentes y concordantes con la superficie.
-- Estrato del postulante (IL-10), F22 con códigos SII correctos.
-- OUA: acta de asamblea, poder del representante, listado de beneficiarios (FL-07).
-- Consultor habilitado en Registro MOP.
-- IMPORTANTE: documentos EN TRÁMITE (títulos, regularización de derechos, etc.) que las bases
-  del concurso permiten postular en esa condición NO son observación — a lo sumo NOTA informativa.
-  Verifica siempre lo que permiten las bases antes de marcar un antecedente en trámite.""",
-    },
-    "coherencia": {
-        "nombre": "Coherencia Global",
-        "tipo_docs": [],   # usa TODOS los documentos del proyecto
-        "checklist": """COHERENCIA GLOBAL — cierre transversal de todo el expediente.
-Este grupo NO revisa un documento puntual; verifica que TODO el proyecto sea internamente
-coherente:
-- Superficie ↔ demanda hídrica ↔ caudal disponible ↔ caudal de diseño ↔ presupuesto.
-- La superficie de la memoria coincide con la de los planos y la identificación de riego.
-- El caudal de diseño no excede el derecho de agua ni el caudal disponible al 85%.
-- La potencia del sistema FV cubre la bomba del diseño hidráulico.
-- El presupuesto corresponde a las obras dibujadas y cubicadas.
-- El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
-Marca cualquier CONTRADICCIÓN entre documentos. Este es el cierre que atrapa los errores
-que se escapan al revisar documento por documento.""",
-    },
-}
-
-# Orden de presentación de los ejes
-EJES_ORDEN = ["superficie", "agronomico", "hidrologico", "hidraulico", "energetico",
-              "obras_civiles", "presupuesto", "legal", "coherencia"]
-
-# Presupuesto total de caracteres para el prompt combinado de un eje
+# Presupuesto total de caracteres para el prompt combinado de un grupo de documentos
 MAX_CHARS_EJE_TOTAL = 45000
 
 
 # ─── ÍTEMS DEL SEP ─────────────────────────────────────────────────────────────
-# Método de revisión alternativo: por los ítems tal como se ingresan al Sistema
-# Electrónico de Postulación (SEP), que coinciden con el agrupamiento de archivos que
-# hace el consultor. Cada ítem revisa su(s) documento(s) y produce observaciones tageadas
-# con el ítem, para facilitar el ingreso al SEP. Convive con el método por ejes.
+# Único método de revisión: por los ítems tal como se ingresan al Sistema Electrónico de
+# Postulación (SEP), que coinciden con el agrupamiento de archivos que hace el consultor.
+# Cada ítem revisa su(s) documento(s) y produce observaciones tageadas con el ítem, para
+# facilitar el ingreso al SEP.
 ITEMS_SEP = {
     "plano_ubicacion": {
         "nombre": "Plano de ubicación del proyecto",
@@ -519,8 +381,18 @@ ITEMS_SEP = {
     },
     "coherencia": {
         "nombre": "Coherencia Global",
-        "tipo_docs": [],   # usa TODOS los documentos del proyecto (igual que el eje homónimo)
-        "checklist": EJES_REVISION["coherencia"]["checklist"],
+        "tipo_docs": [],   # usa TODOS los documentos del proyecto
+        "checklist": """COHERENCIA GLOBAL — cierre transversal de todo el expediente.
+Este grupo NO revisa un documento puntual; verifica que TODO el proyecto sea internamente
+coherente:
+- Superficie ↔ demanda hídrica ↔ caudal disponible ↔ caudal de diseño ↔ presupuesto.
+- La superficie de la memoria coincide con la de los planos y la identificación de riego.
+- El caudal de diseño no excede el derecho de agua ni el caudal disponible al 85%.
+- La potencia del sistema FV cubre la bomba del diseño hidráulico.
+- El presupuesto corresponde a las obras dibujadas y cubicadas.
+- El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
+Marca cualquier CONTRADICCIÓN entre documentos. Este es el cierre que atrapa los errores
+que se escapan al revisar documento por documento.""",
     },
 }
 
@@ -593,20 +465,26 @@ RESUMEN_CAMPOS_SINO = {c["key"] for sec in RESUMEN_SECCIONES for c in sec["campo
 RESUMEN_KEYS = [c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]]
 
 
-def _documentos_del_eje(eje_key: str, documentos: list) -> list:
-    """Retorna los documentos del proyecto que alimentan un eje."""
-    eje = EJES_REVISION.get(eje_key)
-    if not eje:
-        return []
-    # Coherencia global usa todos los documentos con texto
-    if eje_key == "coherencia":
-        return [d for d in documentos
-                if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
-    tipos = set(eje["tipo_docs"])
+# Documentos que alimentan cada verificación numérica determinística (independiente del ítem
+# SEP que se esté revisando) — usado por analizar_item() y por las rutas de extracción de la
+# página "Chequeo de Cálculos" en main.py.
+DOCS_VERIFICACION = {
+    "hidraulico": ["diseno_hidraulico", "planos_tecnificacion", "especificaciones_tecnicas",
+                   "pruebas_bombeo"],
+    "agronomico": ["diseno_agronomico", "estudio_suelos", "memoria_superficies"],
+    "energetico": ["diseno_fotovoltaico", "reporte_explorador_solar", "presupuesto_electrico",
+                   "diseno_hidraulico"],
+}
+
+
+def _documentos_para_verificacion(grupo_key: str, documentos: list) -> list:
+    """Retorna los documentos que alimentan la verificación numérica determinística
+    (hidraulico/agronomico/energetico) de la página "Chequeo de Cálculos"."""
+    tipos = set(DOCS_VERIFICACION.get(grupo_key, []))
     return [d for d in documentos if d.get("tipo_doc") in tipos]
 
 
-MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de eje, para controlar costo
+MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de grupo, para controlar costo
 
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
@@ -1062,75 +940,61 @@ DOCUMENTOS DEL GRUPO (texto):
             "sin_documentos": False}
 
 
-async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
-                       concurso_id: str = "", feedback_concurso: list = None,
-                       criterios_aprendidos: str = "", criterios_enfasis: str = "",
-                       consultor: dict = None, datos_verificacion: dict = None,
-                       tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
-    """Analiza un EJE TEMÁTICO (cruza documentos complementarios). Envoltorio de _analizar_grupo.
-
-    `datos_verificacion`: si se entrega (datos que el revisor ya revisó/corrigió a mano en la
-    página "🧮 Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
-    Haiku — evita depender de una extracción automática que puede fallar en algunos casos."""
-    eje = EJES_REVISION.get(eje_key)
-    if not eje:
-        return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
-    docs_grupo = _documentos_del_eje(eje_key, documentos)
-
-    # Verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
-    # FV): solo en los ejes donde hay fórmula normativa aplicable. Si la extracción no
-    # encuentra datos, el bloque queda vacío y no afecta el resto del análisis.
-    bloque_verificacion = ""
-    try:
-        if eje_key == "hidraulico":
-            datos = datos_verificacion if datos_verificacion is not None \
-                else await _extraer_datos_hidraulicos(docs_grupo)
-            bloque_verificacion = _bloque_verificacion_hidraulica(datos)
-        elif eje_key == "agronomico":
-            datos = datos_verificacion if datos_verificacion is not None \
-                else await _extraer_datos_agronomicos(docs_grupo)
-            bloque_verificacion = _bloque_verificacion_agronomica(datos)
-        elif eje_key == "energetico":
-            datos = datos_verificacion if datos_verificacion is not None \
-                else await _extraer_datos_fv(docs_grupo)
-            bloque_verificacion = _bloque_verificacion_fv(datos)
-    except Exception as e:
-        print(f"⚠️ Verificación numérica '{eje_key}' falló, se omite: {e}")
-
-    return await _analizar_grupo(
-        eje["nombre"], eje["checklist"], docs_grupo, documentos,
-        modo="EJE TEMÁTICO", es_coherencia=(eje_key == "coherencia"),
-        bases_texto=bases_texto, concurso_id=concurso_id,
-        feedback_concurso=feedback_concurso, feedback_key=eje_key,
-        criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
-        bloque_verificacion=bloque_verificacion,
-        consultor=consultor,
-        tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
-
-
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
                         criterios_aprendidos: str = "", criterios_enfasis: str = "",
                         consultor: dict = None,
+                        datos_verificacion_hidraulica: dict = None,
+                        datos_verificacion_agronomica: dict = None,
+                        datos_verificacion_fv: dict = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
-    """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo."""
+    """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
+
+    `datos_verificacion_*`: si se entregan (datos que el revisor ya revisó/corrigió a mano en la
+    página "Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
+    Haiku — evita depender de una extracción automática que puede fallar en algunos casos."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
     if item_key == "coherencia":
-        # Igual que el eje homónimo: usa TODOS los documentos con texto, sin filtrar por tipo,
-        # y sin visión (cierre transversal, no analiza planos/escaneados por costo).
+        # Usa TODOS los documentos con texto, sin filtrar por tipo, y sin visión (cierre
+        # transversal, no analiza planos/escaneados por costo).
         docs_grupo = [d for d in documentos
                       if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
     else:
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+
+    # Verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
+    # FV): solo en los ítems donde hay fórmula normativa aplicable. Si la extracción no
+    # encuentra datos, el bloque queda vacío y no afecta el resto del análisis.
+    bloque_verificacion = ""
+    try:
+        if item_key == "diseno_hidraulico":
+            docs_hid = _documentos_para_verificacion("hidraulico", documentos)
+            datos_hid = datos_verificacion_hidraulica if datos_verificacion_hidraulica is not None \
+                else await _extraer_datos_hidraulicos(docs_hid)
+            bloque_verificacion += _bloque_verificacion_hidraulica(datos_hid)
+
+            docs_agro = _documentos_para_verificacion("agronomico", documentos)
+            datos_agro = datos_verificacion_agronomica if datos_verificacion_agronomica is not None \
+                else await _extraer_datos_agronomicos(docs_agro)
+            bloque_verificacion += _bloque_verificacion_agronomica(datos_agro)
+        elif item_key == "diseno_fotovoltaico":
+            docs_fv = _documentos_para_verificacion("energetico", documentos)
+            datos_fv = datos_verificacion_fv if datos_verificacion_fv is not None \
+                else await _extraer_datos_fv(docs_fv)
+            bloque_verificacion = _bloque_verificacion_fv(datos_fv)
+    except Exception as e:
+        print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
+
     return await _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
+        bloque_verificacion=bloque_verificacion,
         consultor=consultor,
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
@@ -1283,18 +1147,6 @@ Reglas del marcador:
     if accion and accion.get("accion") == "mantener":
         accion = None   # "mantener" no requiere que el llamador haga nada
     return {"texto": texto, "accion": accion}
-
-
-async def chatear_eje(eje_key: str, documentos: list, observaciones_eje: list,
-                      historial: list, mensaje: str, bases_texto: str = "",
-                      concurso_id: str = "") -> dict:
-    """Chat de refinamiento sobre un EJE. Envoltorio de _chatear_grupo."""
-    eje = EJES_REVISION.get(eje_key)
-    if not eje:
-        return {"texto": "Eje no válido.", "accion": None}
-    docs_grupo = _documentos_del_eje(eje_key, documentos)
-    return await _chatear_grupo(eje["nombre"], eje["checklist"], docs_grupo, observaciones_eje,
-                                historial, mensaje, bases_texto=bases_texto, concurso_id=concurso_id)
 
 
 async def chatear_item(item_key: str, documentos: list, observaciones_item: list,

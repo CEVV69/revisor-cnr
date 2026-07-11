@@ -16,7 +16,7 @@
   {% elif msg_ok == 'pdf_cargado' %}PDF cargado y texto extraído. Revisa el contenido y guarda.
   {% elif msg_ok and msg_ok.startswith('consolidado_') %}Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
   {% elif msg_ok == 'archivos_liberados' %}Archivos liberados. El análisis y las observaciones quedan intactos.
-  {% elif msg_ok == 'enfasis_guardado' %}Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada eje/ítem.
+  {% elif msg_ok == 'enfasis_guardado' %}Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada ítem.
   {% else %}Guardado.{% endif %}
 </div>
 {% endif %}
@@ -191,12 +191,12 @@
 <!-- Criterios de énfasis: los escribe y edita el revisor a mano, con prioridad en el prompt -->
 <form method="post" action="/admin/concursos/{{ concurso.id }}/criterios-enfasis">
   <div class="card" style="margin-top:1.5rem; border-left:4px solid #2f855a;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por eje / ítem</h2>
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por ítem</h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-      Escribe aquí, con tus palabras, qué debe verificar la IA en cada eje/ítem de <strong>este
+      Escribe aquí, con tus palabras, qué debe verificar la IA en cada ítem de <strong>este
       concurso</strong> — cruces entre documentos, normativa específica (ej. ITT-02), o cosas
       que viste en una revisión real y que la IA no captó sola. Se inyecta siempre en el prompt
-      de ese eje/ítem, con prioridad sobre el resto de la guía. A diferencia del "aprendizaje"
+      de ese ítem, con prioridad sobre el resto de la guía. A diferencia del "aprendizaje"
       de abajo (que se destila solo del historial de aprobar/descartar), esto lo escribes y
       editas tú directamente y nunca se sobrescribe solo — es tu supervisión explícita para que
       la IA se acerque a un revisor experto.
@@ -224,10 +224,10 @@
 
 <!-- Aprendizaje del "revisor experto": destilar el feedback en criterios -->
 <div class="card" style="margin-top:1.5rem; border-left:4px solid #6b46c1;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por eje / ítem</h2>
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por ítem</h2>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
     Destila las {{ n_feedback }} decisiones del revisor (aprobar/descartar) en un conjunto de
-    <strong>criterios aprendidos</strong> por eje y por ítem, que se inyectan en el prompt de
+    <strong>criterios aprendidos</strong> por ítem, que se inyectan en el prompt de
     cada revisión (más compactos y generalizables que los ejemplos crudos). Requiere al menos
     3 decisiones por grupo.
   </p>

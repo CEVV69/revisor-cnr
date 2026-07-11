@@ -11,7 +11,7 @@
   .chat-bubble.pensando { align-self:flex-start; background:rgba(128,128,128,0.12);
     color:var(--text-2); font-style:italic; }
 
-  /* Navegación entre páginas del proyecto (Resumen / Documentos / Ejes / Ítems) */
+  /* Navegación entre páginas del proyecto (Resumen / Documentos / Ítems) */
   .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border);
     flex-wrap:wrap; }
   .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
@@ -23,7 +23,7 @@
     padding:0 0.4rem; margin-left:0.15rem; }
 </style>
 
-{# ═══ Macros de observaciones (reutilizados por la pestaña de ejes y la de ítems) ═══ #}
+{# ═══ Macros de observaciones de la pestaña de ítems ═══ #}
 {% macro bloque_observaciones(grupos, cont, proyecto_id, abrir_key) %}
 {% if grupos %}
 <div class="card">
@@ -133,13 +133,13 @@
 {% endif %}
 {% endmacro %}
 
-{% macro bloque_cumplimiento(lista, tipo) %}
+{% macro bloque_cumplimiento(lista) %}
 {% if lista %}
 <div class="card" style="border-left:4px solid #276749; background:#f0fff4;">
   <h2 style="color:#276749; margin:0 0 0.5rem; border:none; padding:0;">Cumple con la normativa</h2>
   <p style="font-size:0.85rem; color:#4a5568; margin-bottom:0.75rem;">
-    {{ 'Estos ejes fueron' if tipo == 'eje' else 'Estos ítems fueron' }} revisados y no
-    presentan observaciones: cumplen con la normativa CNR, los manuales e instructivos vigentes.
+    Estos ítems fueron revisados y no presentan observaciones: cumplen con la normativa CNR,
+    los manuales e instructivos vigentes.
   </p>
   <ul style="margin:0; padding-left:1.3rem; font-size:0.88rem; color:#276749; line-height:1.8;">
     {% for g in lista %}
@@ -289,7 +289,6 @@
 <nav class="proj-nav">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab {% if pagina == 'resumen' %}activa{% endif %}">Resumen</a>
   <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
-  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab {% if pagina == 'ejes' %}activa{% endif %}">Revisión por Ejes</a>
   <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">Revisión por Ítems SEP</a>
   <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
 </nav>
@@ -504,79 +503,8 @@ function actualizarEtiqueta(input) {
 {% endif %}
 {% endif %}{# fin página documentos #}
 
-{% set eje_ok = request.query_params.get('eje_ok') %}
-{% set eje_sin_docs = request.query_params.get('eje_sin_docs') %}
 {% set item_ok = request.query_params.get('item_ok') %}
 {% set item_sin_docs = request.query_params.get('item_sin_docs') %}
-
-<!-- ══════════ PÁGINA: REVISIÓN POR EJES ══════════ -->
-{% if pagina == 'ejes' %}
-{% if ejes_info %}
-<div class="card">
-  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
-    <h2 style="margin:0; border:none; padding:0;">Revisión por ejes temáticos</h2>
-    <span style="font-size:0.8rem; color:var(--text-2);">Cada eje cruza los documentos relacionados y los revisa en conjunto</span>
-  </div>
-  {% if eje_sin_docs %}
-  <div class="alert alert-error" style="margin:0.5rem 0;">Ese eje no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
-  {% endif %}
-
-  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
-    {% for eje in ejes_info %}
-    <div id="eje-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
-                {% if eje.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
-      <div style="display:flex; align-items:center; gap:0.5rem;">
-        <strong style="font-size:0.9rem; flex:1;">{{ eje.nombre }}</strong>
-        {% if eje.revisado %}
-        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">{{ eje.revisado.n_obs }} obs{% if eje.revisado.n_notas %} · {{ eje.revisado.n_notas }} nota{{ 's' if eje.revisado.n_notas != 1 else '' }}{% endif %}</span>
-        {% endif %}
-      </div>
-      <div style="font-size:0.76rem; color:var(--text-2);">
-        {% if eje.key == 'coherencia' %}
-          Cruza todos los documentos ({{ eje.n_docs }})
-        {% else %}
-          {{ eje.n_docs }} documento{{ 's' if eje.n_docs != 1 else '' }} disponible{{ 's' if eje.n_docs != 1 else '' }}
-        {% endif %}
-      </div>
-      {% if eje.revisado and eje.revisado.docs %}
-      <details style="font-size:0.74rem;">
-        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">Ver los {{ eje.revisado.docs|length }} archivo{{ 's' if eje.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
-        <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
-          {% for d in eje.revisado.docs %}
-          <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
-          {% endfor %}
-        </ul>
-      </details>
-      {% endif %}
-      <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-eje/{{ eje.key }}"
-            {% if eje.revisado %}onsubmit="return confirm('¿Re-revisar el eje {{ eje.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
-        <button type="submit"
-                class="btn btn-sm {% if eje.revisado %}btn-ghost{% else %}btn-primary{% endif %}"
-                style="width:100%;"
-                {% if eje.n_docs == 0 %}disabled title="Sin documentos para este eje"{% endif %}>
-          {% if eje.revisado %}↻ Re-revisar{% else %}Revisar eje{% endif %}
-        </button>
-      </form>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
-{% endif %}
-
-{{ bloque_chat(ejes_info, 'eje', eje_ok, proyecto.id) }}
-
-{% set abrir_eje = eje_ok or eje_reciente %}
-{{ bloque_observaciones(grupos_obs, cont_eje, proyecto.id, abrir_eje) }}
-{{ bloque_notas(grupos_notas, proyecto.id, abrir_eje) }}
-{{ bloque_cumplimiento(ejes_cumplen, 'eje') }}
-
-<!-- Limpiar SOLO la revisión por ejes (no afecta ítems ni documentos) -->
-<form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-ejes" style="margin-top:0.5rem;"
-      onsubmit="return confirm('¿Limpiar la revisión por EJES? Se borran las observaciones, el estado y los chats de los ejes. NO afecta la revisión por ítems ni los documentos.')">
-  <button type="submit" class="btn btn-ghost btn-sm">Limpiar revisión por ejes</button>
-</form>
-{% endif %}{# fin página ejes #}
 
 <!-- ══════════ PÁGINA: REVISIÓN POR ÍTEMS SEP ══════════ -->
 {% if pagina == 'items' %}
@@ -633,11 +561,11 @@ function actualizarEtiqueta(input) {
 {% set abrir_item = item_ok or item_reciente %}
 {{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, abrir_item) }}
 {{ bloque_notas(grupos_notas_item, proyecto.id, abrir_item) }}
-{{ bloque_cumplimiento(items_cumplen, 'item') }}
+{{ bloque_cumplimiento(items_cumplen) }}
 
-<!-- Limpiar SOLO la revisión por ítems (no afecta ejes ni documentos) -->
+<!-- Limpiar la revisión por ítems (no afecta los documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"
-      onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta la revisión por ejes ni los documentos.')">
+      onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta los documentos.')">
   <button type="submit" class="btn btn-ghost btn-sm">Limpiar revisión por ítems</button>
 </form>
 {% endif %}{# fin página items #}
@@ -728,7 +656,7 @@ function cambiarTipo(proyectoId, docId, select) {
     .catch(() => { select.style.borderColor = '#ff3b30'; });
 }
 
-// Chat de eje/ítem: enviar y mostrar la respuesta SIN recargar la página
+// Chat de ítem: enviar y mostrar la respuesta SIN recargar la página
 // (evita el salto de pantalla, que se cierre el panel y la recarga completa).
 // Si la IA modificó una observación (descartar/reclasificar/editar), sí recargamos
 // la página al final, porque esa observación puede moverse de sección o cambiar contadores.

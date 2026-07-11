@@ -18,10 +18,9 @@ from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip
-from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear_eje,
-                      chatear_item, resumir_proyecto, consolidar_aprendizaje,
-                      consolidar_perfil_consultor, EJES_REVISION, EJES_ORDEN, ITEMS_SEP,
-                      ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje,
+from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
+                      consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
+                      ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv)
 import calculos_riego
@@ -332,7 +331,7 @@ async def crear_proyecto(
 
 
 async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
-    """Renderiza una de las páginas del proyecto (resumen/documentos/ejes/items).
+    """Renderiza una de las páginas del proyecto (resumen/documentos/items).
     Todas comparten el mismo encabezado y barra de navegación; `pagina` decide qué se muestra."""
     user = get_current_user(request)
     if not user:
@@ -359,23 +358,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
                                     or doc["id"] in ids_guardados_db)
     n_faltan_resubir = len([d for d in proyecto["documentos"]
                             if d["necesita_archivo"] and not d["archivo_presente"]])
-    # Construir info de ejes: cuántos documentos tiene disponible cada eje y si ya se revisó
-    ejes_revisados = proyecto.get("ejes_revisados", {})
-    eje_chats = proyecto.get("eje_chats", {})
-    ejes_info = []
-    for eje_key in EJES_ORDEN:
-        eje = EJES_REVISION[eje_key]
-        docs_disponibles = _documentos_del_eje(eje_key, proyecto["documentos"])
-        n_docs = len([d for d in docs_disponibles
-                      if _doc_disponible_analisis(d, permite_vision=(eje_key != "coherencia"))])
-        ejes_info.append({
-            "key": eje_key,
-            "nombre": eje["nombre"],
-            "n_docs": n_docs,
-            "revisado": ejes_revisados.get(eje_key),
-            "chat": eje_chats.get(eje_key, []),
-        })
-    # Construir info de ítems SEP (método de revisión alternativo, mismo estilo que los ejes)
+    # Construir info de ítems SEP: cuántos documentos tiene disponible cada ítem y si ya se revisó
     items_revisados = proyecto.get("items_revisados", {})
     item_chats = proyecto.get("item_chats", {})
     items_info = []
@@ -397,8 +380,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             "chat": item_chats.get(item_key, []),
         })
 
-    # Agrupar observaciones bajo un solo título por eje/ítem, en su orden lógico.
-    orden_eje  = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
+    # Agrupar observaciones bajo un solo título por ítem, en su orden lógico.
     orden_item = {ITEMS_SEP[k]["nombre"]: i for i, k in enumerate(ITEMS_ORDEN)}
 
     def _agrupar(observaciones, campo_nombre, campo_key, orden):
@@ -411,11 +393,9 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
                 for n, g in sorted(grupos.items(), key=lambda kv: orden.get(kv[0], 999))]
 
     todas_obs    = proyecto.get("observaciones", [])
-    # Observaciones del método por EJES (no tienen tag de ítem)
-    obs_eje      = [o for o in todas_obs if not o.get("item")]
-    prin_eje     = [o for o in obs_eje if o.get("severidad") != "informativa"]
-    notas_eje    = [o for o in obs_eje if o.get("severidad") == "informativa"]
-    # Observaciones del método por ÍTEMS SEP
+    # Observaciones del método por ÍTEMS SEP (único método vigente; las tageadas con "eje" son
+    # historial de proyectos revisados antes de eliminar el método por Ejes — la ficha las
+    # sigue mostrando, agrupadas por su propio eje_nombre, aunque ya no se puedan generar más).
     obs_item     = [o for o in todas_obs if o.get("item")]
     prin_item    = [o for o in obs_item if o.get("severidad") != "informativa"]
     notas_item   = [o for o in obs_item if o.get("severidad") == "informativa"]
@@ -436,15 +416,10 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             return ""
         return max(revisados.items(), key=lambda kv: kv[1].get("fecha", ""))[0]
 
-    eje_reciente = _mas_reciente(ejes_revisados)
     item_reciente = _mas_reciente(items_revisados)
 
-    # Ejes/ítems revisados SIN observaciones ni notas: cumplen con la normativa — mostrar un
+    # Ítems revisados SIN observaciones ni notas: cumplen con la normativa — mostrar un
     # mensaje positivo en vez de dejar la sección vacía y ambigua.
-    ejes_cumplen = [{"key": k, "nombre": EJES_REVISION[k]["nombre"]}
-                    for k in EJES_ORDEN
-                    if ejes_revisados.get(k) and ejes_revisados[k].get("n_obs", 0) == 0
-                    and ejes_revisados[k].get("n_notas", 0) == 0]
     items_cumplen = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"]}
                      for k in ITEMS_ORDEN
                      if items_revisados.get(k) and items_revisados[k].get("n_obs", 0) == 0
@@ -465,15 +440,8 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "proyecto": proyecto,
         "concurso": concurso,
         "concurso_id": concurso_id,
-        "ejes_info": ejes_info,
         "items_info": items_info,
         "n_faltan_resubir": n_faltan_resubir,
-        # Método por ejes
-        "grupos_obs": _agrupar(prin_eje, "eje_nombre", "eje", orden_eje),
-        "grupos_notas": _agrupar(notas_eje, "eje_nombre", "eje", orden_eje),
-        "cont_eje": _contadores(prin_eje),
-        "eje_reciente": eje_reciente,
-        "ejes_cumplen": ejes_cumplen,
         # Método por ítems SEP
         "grupos_obs_item": _agrupar(prin_item, "item_nombre", "item", orden_item),
         "grupos_notas_item": _agrupar(notas_item, "item_nombre", "item", orden_item),
@@ -483,7 +451,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         # Resumen del proyecto (formulario)
         "resumen_secciones": RESUMEN_SECCIONES,
         "resumen": resumen,
-        # Página activa (resumen / documentos / ejes / items)
+        # Página activa (resumen / documentos / items)
         "pagina": pagina,
     })
 
@@ -502,11 +470,6 @@ async def pagina_resumen(request: Request, proyecto_id: str):
 @app.get("/proyecto/{proyecto_id}/documentos", response_class=HTMLResponse)
 async def pagina_documentos(request: Request, proyecto_id: str):
     return await _render_proyecto(request, proyecto_id, "documentos")
-
-
-@app.get("/proyecto/{proyecto_id}/ejes", response_class=HTMLResponse)
-async def pagina_ejes(request: Request, proyecto_id: str):
-    return await _render_proyecto(request, proyecto_id, "ejes")
 
 
 @app.get("/proyecto/{proyecto_id}/items", response_class=HTMLResponse)
@@ -587,94 +550,6 @@ async def subir_documento(
 
 # ─── Revisión por eje temático ────────────────────────────────────────────────
 
-@app.post("/proyecto/{proyecto_id}/revisar-eje/{eje_key}")
-async def revisar_eje(request: Request, proyecto_id: str, eje_key: str):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
-    if eje_key not in EJES_REVISION:
-        raise HTTPException(status_code=404, detail="Eje no válido")
-
-    proyecto = db.get_proyecto(proyecto_id)
-    if not proyecto:
-        raise HTTPException(status_code=404)
-
-    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
-    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
-    feedback_concurso = concurso.get("feedback", [])   if concurso else []
-    criterios = (concurso.get("criterios_aprendidos", {}).get(eje_key, "")
-                 if concurso else "")
-    enfasis = (concurso.get("criterios_enfasis", {}).get(eje_key, "")
-               if concurso else "")
-    ckey, _ = _consultor_de_proyecto(proyecto)
-    consultor = db.get_consultor(ckey) if ckey else None
-    # Si el revisor ya validó/corrigió los datos en "🧮 Chequeo de Cálculos", se usan tal cual
-    # en vez de volver a extraerlos automáticamente — la extracción puede fallar en algunos casos.
-    verif_eje = proyecto.get("verificacion_calculos", {}).get(eje_key)
-    datos_verificacion = verif_eje if verif_eje and verif_eje.get("validado") else None
-
-    _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
-
-    try:
-        resultado = await analizar_eje(
-            eje_key=eje_key,
-            documentos=proyecto.get("documentos", []),
-            bases_texto=bases_texto,
-            concurso_id=concurso_id,
-            feedback_concurso=feedback_concurso,
-            criterios_aprendidos=criterios,
-            criterios_enfasis=enfasis,
-            consultor=consultor,
-            datos_verificacion=datos_verificacion,
-            tipo_revision=proyecto.get("tipo_revision", "tecnica"),
-            ruta_uploads=str(UPLOAD_DIR / proyecto_id),
-        )
-    except Exception as e:
-        import traceback
-        print(f"❌ ERROR en revisar_eje {eje_key}: {e}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error al revisar eje: {str(e)}")
-
-    if resultado.get("sin_documentos"):
-        return RedirectResponse(
-            url=f"/proyecto/{proyecto_id}/ejes?eje_sin_docs={eje_key}", status_code=302)
-
-    # Reemplazar observaciones previas de este eje
-    proyecto["observaciones"] = [
-        o for o in proyecto.get("observaciones", []) if o.get("eje") != eje_key
-    ]
-
-    nombre_eje   = EJES_REVISION[eje_key]["nombre"]
-    docs_incluidos = resultado.get("docs_incluidos", [])
-    resumen_docs = ", ".join(d["label"] for d in docs_incluidos)
-    for obs in resultado.get("observaciones", []):
-        obs["id"] = str(uuid.uuid4())[:8]
-        obs["eje"] = eje_key
-        obs["eje_nombre"] = nombre_eje
-        obs["doc_id"] = ""
-        obs["doc_nombre"] = f"Eje {nombre_eje} ({resumen_docs})"
-        obs["fecha"] = datetime.now().isoformat()
-        obs["estado"] = "pendiente"
-        proyecto["observaciones"].append(obs)
-
-    # Registrar qué ejes se han revisado (contando obs y notas por separado)
-    obs_generadas = resultado.get("observaciones", [])
-    n_notas = len([o for o in obs_generadas if o.get("severidad") == "informativa"])
-    n_obs   = len(obs_generadas) - n_notas
-    proyecto.setdefault("ejes_revisados", {})
-    proyecto["ejes_revisados"][eje_key] = {
-        "fecha": datetime.now().isoformat(),
-        "n_obs": n_obs,
-        "n_notas": n_notas,
-        "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
-    }
-
-    db.save_proyecto(proyecto)
-    return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}/ejes?eje_ok={eje_key}#eje-{eje_key}", status_code=302)
-
-
 @app.post("/proyecto/{proyecto_id}/revisar-item/{item_key}")
 async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     user = get_current_user(request)
@@ -698,6 +573,18 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
 
+    # Si el revisor ya validó/corrigió los datos en "Chequeo de Cálculos", se usan tal cual en
+    # vez de volver a extraerlos automáticamente — la extracción puede fallar en algunos casos.
+    verif_calc = proyecto.get("verificacion_calculos", {})
+
+    def _validado(clave):
+        v = verif_calc.get(clave)
+        return v if v and v.get("validado") else None
+
+    datos_verificacion_hidraulica = _validado("hidraulico") if item_key == "diseno_hidraulico" else None
+    datos_verificacion_agronomica = _validado("agronomico") if item_key == "diseno_hidraulico" else None
+    datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
+
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
@@ -710,6 +597,9 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             criterios_aprendidos=criterios,
             criterios_enfasis=enfasis,
             consultor=consultor,
+            datos_verificacion_hidraulica=datos_verificacion_hidraulica,
+            datos_verificacion_agronomica=datos_verificacion_agronomica,
+            datos_verificacion_fv=datos_verificacion_fv,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -759,9 +649,9 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
 
 
 async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str, mensaje: str):
-    """Lógica compartida del chat de refinamiento, para eje (tipo='eje') e ítem (tipo='item').
-    Si la IA decide aplicar un cambio a la observación (descartar/reclasificar/editar), lo
-    aplica y avisa al frontend con "modificado": true para que refresque la página."""
+    """Lógica del chat de refinamiento por ítem SEP. Si la IA decide aplicar un cambio a la
+    observación (descartar/reclasificar/editar), lo aplica y avisa al frontend con
+    "modificado": true para que refresque la página."""
     es_ajax = request.headers.get("x-requested-with") == "fetch"
     user = get_current_user(request)
     if not user:
@@ -769,14 +659,13 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
             return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
         return RedirectResponse(url="/login")
 
-    pagina = "ejes" if tipo == "eje" else "items"
+    pagina = "items"
 
     # A partir de aquí, TODO queda envuelto en un solo try/except: si una petición AJAX
     # entra aquí, SIEMPRE debe salir como JSON (nunca como HTMLException/texto plano que el
     # frontend no pueda interpretar — eso es lo que producía el mensaje genérico sin motivo).
     try:
-        catalogo = EJES_REVISION if tipo == "eje" else ITEMS_SEP
-        if key not in catalogo:
+        if key not in ITEMS_SEP:
             raise ValueError(f"'{key}' no es un {tipo} válido")
         proyecto = db.get_proyecto(proyecto_id)
         if not proyecto:
@@ -793,24 +682,15 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         concurso = db.get_concurso(concurso_id)
         bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
-        campo_obs = tipo   # "eje" o "item"
-        observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get(campo_obs) == key]
-        campo_chats = "eje_chats" if tipo == "eje" else "item_chats"
-        proyecto.setdefault(campo_chats, {})
-        historial = proyecto[campo_chats].get(key, [])
+        observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get("item") == key]
+        proyecto.setdefault("item_chats", {})
+        historial = proyecto["item_chats"].get(key, [])
 
-        if tipo == "eje":
-            resultado = await chatear_eje(
-                eje_key=key, documentos=proyecto.get("documentos", []),
-                observaciones_eje=observaciones_grupo, historial=historial,
-                mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
-            )
-        else:
-            resultado = await chatear_item(
-                item_key=key, documentos=proyecto.get("documentos", []),
-                observaciones_item=observaciones_grupo, historial=historial,
-                mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
-            )
+        resultado = await chatear_item(
+            item_key=key, documentos=proyecto.get("documentos", []),
+            observaciones_item=observaciones_grupo, historial=historial,
+            mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
+        )
 
         respuesta = resultado.get("texto", "")
         if not respuesta.strip():
@@ -825,7 +705,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
 
         historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
         historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
-        proyecto[campo_chats][key] = historial[-40:]   # conservar últimos 40 turnos
+        proyecto["item_chats"][key] = historial[-40:]   # conservar últimos 40 turnos
         db.save_proyecto(proyecto)
     except Exception as e:
         import traceback
@@ -840,12 +720,6 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         return JSONResponse({"ok": True, "mensaje": mensaje, "respuesta": respuesta,
                             "modificado": modificado})
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}", status_code=302)
-
-
-@app.post("/proyecto/{proyecto_id}/eje/{eje_key}/chat")
-async def chat_eje(request: Request, proyecto_id: str, eje_key: str,
-                   mensaje: str = Form(...)):
-    return await _manejar_chat(request, proyecto_id, "eje", eje_key, mensaje)
 
 
 @app.post("/proyecto/{proyecto_id}/item/{item_key}/chat")
@@ -947,7 +821,7 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    docs_grupo = _documentos_del_eje("hidraulico", proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("hidraulico", proyecto.get("documentos", []))
     datos = await _extraer_datos_hidraulicos(docs_grupo)
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
@@ -1001,7 +875,7 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    docs_grupo = _documentos_del_eje("agronomico", proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("agronomico", proyecto.get("documentos", []))
     datos = await _extraer_datos_agronomicos(docs_grupo)
     datos["validado"] = False
     proyecto.setdefault("verificacion_calculos", {})
@@ -1046,7 +920,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    docs_grupo = _documentos_del_eje("energetico", proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("energetico", proyecto.get("documentos", []))
     datos = await _extraer_datos_fv(docs_grupo)
     datos["validado"] = False
     proyecto.setdefault("verificacion_calculos", {})
@@ -1373,11 +1247,10 @@ async def ficha_revision(request: Request, proyecto_id: str):
     try:
         obs_aprobadas = [o for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
-        # Agrupar por eje o ítem en su orden lógico, para la ficha oficial (ingreso al SEP).
-        # Los ítems se ubican después de los ejes.
-        n_ejes = len(EJES_ORDEN)
-        orden = {EJES_REVISION[k]["nombre"]: i for i, k in enumerate(EJES_ORDEN)}
-        orden.update({ITEMS_SEP[k]["nombre"]: n_ejes + i for i, k in enumerate(ITEMS_ORDEN)})
+        # Agrupar por ítem en su orden lógico, para la ficha oficial (ingreso al SEP). Las
+        # observaciones con eje_nombre son historial de proyectos revisados antes de eliminar
+        # el método por Ejes — se siguen mostrando, ordenadas al final (no están en `orden`).
+        orden = {ITEMS_SEP[k]["nombre"]: i for i, k in enumerate(ITEMS_ORDEN)}
         grupos = {}
         for o in obs_aprobadas:
             nombre = o.get("item_nombre") or o.get("eje_nombre") or "Otras observaciones"
@@ -1507,22 +1380,6 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
 
 
 # ─── Eliminar proyecto ────────────────────────────────────────────────────────
-
-@app.post("/proyecto/{proyecto_id}/limpiar-ejes")
-async def limpiar_ejes(request: Request, proyecto_id: str):
-    """Limpia SOLO la revisión por ejes (observaciones de eje, estado y chats). No toca ítems."""
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login")
-    proyecto = db.get_proyecto(proyecto_id)
-    if proyecto:
-        # Conservar las observaciones de ítems; borrar solo las de ejes
-        proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if o.get("item")]
-        proyecto["ejes_revisados"] = {}
-        proyecto["eje_chats"] = {}
-        db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/ejes", status_code=302)
-
 
 @app.post("/proyecto/{proyecto_id}/limpiar-items")
 async def limpiar_items(request: Request, proyecto_id: str):
@@ -1676,10 +1533,6 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
     # Resumen de criterios aprendidos (para mostrarlos y saber qué se puede consolidar)
     criterios = concurso.get("criterios_aprendidos", {})
     criterios_lista = []
-    for eje_key in EJES_ORDEN:
-        if criterios.get(eje_key):
-            criterios_lista.append({"nombre": "Eje: " + EJES_REVISION[eje_key]["nombre"],
-                                    "texto": criterios[eje_key]})
     for item_key in ITEMS_ORDEN:
         if criterios.get("item_" + item_key):
             criterios_lista.append({"nombre": "Ítem SEP: " + ITEMS_SEP[item_key]["nombre"],
@@ -1701,15 +1554,9 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
     resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
     # Criterios de énfasis: a diferencia de criterios_aprendidos (se destila solo del
     # feedback aprobada/descartada), esto lo escribe y edita el revisor directamente — su
-    # supervisión explícita sobre qué debe verificar la IA en cada eje/ítem de ESTE concurso.
+    # supervisión explícita sobre qué debe verificar la IA en cada ítem de ESTE concurso.
     enfasis_guardados = concurso.get("criterios_enfasis", {})
     grupos_enfasis = []
-    for eje_key in EJES_ORDEN:
-        grupos_enfasis.append({
-            "key": eje_key, "tipo": "Eje",
-            "nombre": EJES_REVISION[eje_key]["nombre"],
-            "texto": enfasis_guardados.get(eje_key, ""),
-        })
     for item_key in ITEMS_ORDEN:
         grupos_enfasis.append({
             "key": "item_" + item_key, "tipo": "Ítem SEP",
@@ -1758,7 +1605,7 @@ async def guardar_criterios_enfasis(request: Request, concurso_id: str):
 
 @app.post("/admin/concursos/{concurso_id}/consolidar")
 async def consolidar_concurso(request: Request, concurso_id: str):
-    """Destila el feedback acumulado en criterios aprendidos por eje y por ítem."""
+    """Destila el feedback acumulado en criterios aprendidos por ítem."""
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
@@ -1770,11 +1617,6 @@ async def consolidar_concurso(request: Request, concurso_id: str):
     criterios = dict(concurso.get("criterios_aprendidos", {}))
     n = 0
     try:
-        for eje_key in EJES_ORDEN:
-            texto = await consolidar_aprendizaje(feedback, eje_key, EJES_REVISION[eje_key]["nombre"])
-            if texto:
-                criterios[eje_key] = texto
-                n += 1
         for item_key in ITEMS_ORDEN:
             texto = await consolidar_aprendizaje(feedback, "item_" + item_key, ITEMS_SEP[item_key]["nombre"])
             if texto:
