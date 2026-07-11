@@ -11,7 +11,7 @@
   .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
   .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
 
-  .calc-tbl { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .calc-tbl { width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.82rem; }
   .calc-tbl th { text-align:left; font-weight:600; color:var(--text-2); padding:0.3rem 0.4rem;
     border-bottom:1px solid var(--border); white-space:nowrap; }
   .calc-tbl td { padding:0.3rem 0.4rem; vertical-align:middle; }
@@ -118,9 +118,9 @@
         {% endfor %}
       </table>
     </div>
-    <label style="display:flex; align-items:flex-start; gap:0.4rem; margin:0.9rem 0; font-size:0.85rem;">
-      <input type="checkbox" name="validar" style="flex-shrink:0; margin-top:0.15rem;" {% if hid_validado %}checked{% endif %}>
-      <span style="flex:1; min-width:0;">Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
+    <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
+      <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if hid_validado %}checked{% endif %}>
+      <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
     <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
   </form>
@@ -176,9 +176,9 @@
     <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa todos los datos base para ver el recálculo.</p>
     {% endif %}
 
-    <label style="display:flex; align-items:flex-start; gap:0.4rem; margin:0.9rem 0; font-size:0.85rem;">
-      <input type="checkbox" name="validar" style="flex-shrink:0; margin-top:0.15rem;" {% if agro_validado %}checked{% endif %}>
-      <span style="flex:1; min-width:0;">Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
+    <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
+      <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if agro_validado %}checked{% endif %}>
+      <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
     <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
   </form>
@@ -242,9 +242,9 @@
     <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.</p>
     {% endif %}
 
-    <label style="display:flex; align-items:flex-start; gap:0.4rem; margin:0.9rem 0; font-size:0.85rem;">
-      <input type="checkbox" name="validar" style="flex-shrink:0; margin-top:0.15rem;" {% if fv_validado %}checked{% endif %}>
-      <span style="flex:1; min-width:0;">Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
+    <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
+      <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if fv_validado %}checked{% endif %}>
+      <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
     <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
   </form>
