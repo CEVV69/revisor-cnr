@@ -381,9 +381,14 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     items_info = []
     for item_key in ITEMS_ORDEN:
         item = ITEMS_SEP[item_key]
-        tipos = set(item["tipo_docs"])
-        n_docs = len([d for d in proyecto["documentos"]
-                      if d.get("tipo_doc") in tipos and _doc_disponible_analisis(d)])
+        if item_key == "coherencia":
+            # Usa TODOS los documentos con texto, igual que el eje homónimo (sin visión).
+            n_docs = len([d for d in proyecto["documentos"]
+                          if _doc_disponible_analisis(d, permite_vision=False)])
+        else:
+            tipos = set(item["tipo_docs"])
+            n_docs = len([d for d in proyecto["documentos"]
+                          if d.get("tipo_doc") in tipos and _doc_disponible_analisis(d)])
         items_info.append({
             "key": item_key,
             "nombre": item["nombre"],

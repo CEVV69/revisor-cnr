@@ -384,15 +384,16 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     "coherencia": {
         "nombre": "Coherencia Global",
         "tipo_docs": [],   # usa TODOS los documentos del proyecto
-        "checklist": """EJE COHERENCIA GLOBAL — cierre transversal de todo el expediente.
-Este eje NO revisa un documento; verifica que TODO el proyecto sea internamente coherente:
+        "checklist": """COHERENCIA GLOBAL — cierre transversal de todo el expediente.
+Este grupo NO revisa un documento puntual; verifica que TODO el proyecto sea internamente
+coherente:
 - Superficie ↔ demanda hídrica ↔ caudal disponible ↔ caudal de diseño ↔ presupuesto.
 - La superficie de la memoria coincide con la de los planos y la identificación de riego.
 - El caudal de diseño no excede el derecho de agua ni el caudal disponible al 85%.
 - La potencia del sistema FV cubre la bomba del diseño hidráulico.
 - El presupuesto corresponde a las obras dibujadas y cubicadas.
 - El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
-Marca cualquier CONTRADICCIÓN entre documentos. Este es el eje que atrapa los errores
+Marca cualquier CONTRADICCIÓN entre documentos. Este es el cierre que atrapa los errores
 que se escapan al revisar documento por documento.""",
     },
 }
@@ -437,10 +438,18 @@ ITEMS_SEP = {
     },
     "diseno_hidraulico": {
         "nombre": "Diseño y cálculos hidráulicos",
-        "tipo_docs": ["diseno_hidraulico", "diseno_agronomico", "diseno_fotovoltaico",
-                      "reporte_explorador_solar"],
+        "tipo_docs": ["diseno_hidraulico", "diseno_agronomico"],
         "checklist": "Demanda agronómica, caudal de diseño, diámetros, presiones y velocidades "
-                     "en norma (DT-04/05/06). Sistema FV coherente con la potencia de la bomba.",
+                     "en norma (DT-04/05/06).",
+    },
+    "diseno_fotovoltaico": {
+        "nombre": "Diseño Fotovoltaico",
+        "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar"],
+        "checklist": "Dimensionamiento del sistema FV (paneles, inversor, cableado) coherente "
+                     "con la potencia de la bomba del diseño hidráulico y con la radiación del "
+                     "Explorador Solar. Ítems del presupuesto FV completos (paneles, inversor, "
+                     "cableado DC/AC, estructura, protecciones, puesta a tierra). Certificación "
+                     "SEC según corresponda (on-grid/off-grid).",
     },
     "estudios_complementarios": {
         "nombre": "Estudios y diseños complementarios",
@@ -508,14 +517,20 @@ ITEMS_SEP = {
         "checklist": "Clasificación y capacidad de uso (DT-03); la superficie de riego no debe "
                      "exceder la capacidad de uso del suelo.",
     },
+    "coherencia": {
+        "nombre": "Coherencia Global",
+        "tipo_docs": [],   # usa TODOS los documentos del proyecto (igual que el eje homónimo)
+        "checklist": EJES_REVISION["coherencia"]["checklist"],
+    },
 }
 
-# Orden de presentación de los ítems SEP (tal como se ingresan en el sistema)
+# Orden de presentación de los ítems SEP (tal como se ingresan en el sistema). "coherencia" va
+# al final: cierre transversal después de haber revisado todos los ítems individuales.
 ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "pruebas_bombeo",
-               "diseno_hidraulico", "estudios_complementarios", "especificaciones_tecnicas",
-               "cronograma", "presupuesto", "presupuesto_electrico", "cotizaciones_facturas",
-               "declaracion_iva", "planos_tecnificacion", "planos_obras_civiles",
-               "memoria_superficies", "estudio_suelos"]
+               "diseno_hidraulico", "diseno_fotovoltaico", "estudios_complementarios",
+               "especificaciones_tecnicas", "cronograma", "presupuesto", "presupuesto_electrico",
+               "cotizaciones_facturas", "declaracion_iva", "planos_tecnificacion",
+               "planos_obras_civiles", "memoria_superficies", "estudio_suelos", "coherencia"]
 
 
 # ─── RESUMEN DEL PROYECTO (ficha tipo formulario) ──────────────────────────────
@@ -1102,11 +1117,17 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
-    tipos = set(item["tipo_docs"])
-    docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    if item_key == "coherencia":
+        # Igual que el eje homónimo: usa TODOS los documentos con texto, sin filtrar por tipo,
+        # y sin visión (cierre transversal, no analiza planos/escaneados por costo).
+        docs_grupo = [d for d in documentos
+                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    else:
+        tipos = set(item["tipo_docs"])
+        docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
     return await _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
-        modo="ÍTEM DEL SEP", es_coherencia=False,
+        modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,

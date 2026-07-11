@@ -193,7 +193,7 @@ contexto; hay una ruta GET por página:
 - `/proyecto/{id}/resumen` → ficha-formulario (ver sección Resumen).
 - `/proyecto/{id}/documentos` → subida + gestión + tabla de documentos.
 - `/proyecto/{id}/ejes` → 9 ejes (`EJES_REVISION`/`EJES_ORDEN`) + chat + obs de eje.
-- `/proyecto/{id}/items` → 16 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + obs de ítem. Sin chat.
+- `/proyecto/{id}/items` → 18 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + obs de ítem. Sin chat.
 
 Ambos métodos **conviven**. Núcleo unificado en `_analizar_grupo()`; `analizar_eje()`/
 `analizar_item()` son envoltorios. Obs de eje: `obs.eje`/`obs.eje_nombre`; de ítem:
@@ -494,9 +494,28 @@ real — no reincorporar el archivo corrupto.
 Eje 1 (Superficie) es la base: define demanda, escala, presupuesto y monto bonificable.
 Eje 9 (Coherencia global) es el cierre que atrapa los errores entre documentos.
 
-Los **16 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) son el segundo método: cada uno revisa
+Los **18 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) son el segundo método: cada uno revisa
 su(s) documento(s) tal como se ingresan al Sistema Electrónico de Postulación, para copiar las
 observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id}/items`).
+
+**Bug resuelto — Diseño Fotovoltaico mezclado dentro de "Diseño y cálculos hidráulicos"
+(jul-2026):** el ítem `diseno_hidraulico` incluía `diseno_fotovoltaico` y
+`reporte_explorador_solar` en su `tipo_docs`, así que al revisar ese ítem se agrupaban también
+los archivos de FV — aunque en el SEP real son un anexo aparte (Anexo 9.5, según el propio
+`tipo_doc_label`: "Anexo 9.5 — Diseño fotovoltaico"). Se separó en un ítem nuevo
+**`diseno_fotovoltaico`** ("Diseño Fotovoltaico"), insertado en `ITEMS_ORDEN` justo después de
+`diseno_hidraulico`; este último quedó solo con `["diseno_hidraulico", "diseno_agronomico"]`.
+Si aparece un caso similar en otro ítem (documentos agrupados que no correspondan), revisar el
+`tipo_docs` de `ITEMS_SEP` contra el `tipo_doc_label` real de `TIPO_DOC_LABELS` en `main.py`.
+
+**"Coherencia Global" como ÍTEM, al final de `ITEMS_ORDEN` (jul-2026):** como el revisor puede
+trabajar solo con el método de Ítems SEP (mismo orden que el SEP, para copiar observaciones
+directo), se agregó `ITEMS_SEP["coherencia"]` — mismo `checklist` que `EJES_REVISION["coherencia"]`
+(se referencia directamente, no se duplica el texto) y mismo comportamiento especial: usa TODOS
+los documentos con texto del proyecto (`tipo_docs: []`, sin filtrar), sin visión. El caso especial
+vive en `analizar_item()` (`if item_key == "coherencia"`) y en `_render_proyecto()` de main.py
+(cálculo de `n_docs` para la tarjeta del ítem) — ambos espejan la misma lógica que ya existía
+para el eje homónimo en `_documentos_del_eje()`.
 
 ---
 
