@@ -11,28 +11,28 @@
 
 {% if msg_ok %}
 <div class="alert alert-success" style="margin-bottom:1rem;">
-  {% if msg_ok == 'creado' %}✅ Concurso creado. Ahora carga las bases.
-  {% elif msg_ok == 'guardado' %}✅ Bases guardadas correctamente.
-  {% elif msg_ok == 'pdf_cargado' %}✅ PDF cargado y texto extraído. Revisa el contenido y guarda.
-  {% elif msg_ok and msg_ok.startswith('consolidado_') %}🧠 Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
-  {% elif msg_ok == 'archivos_liberados' %}🗑 Archivos liberados. El análisis y las observaciones quedan intactos.
-  {% elif msg_ok == 'enfasis_guardado' %}🎯 Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada eje/ítem.
-  {% else %}✅ Guardado.{% endif %}
+  {% if msg_ok == 'creado' %}Concurso creado. Ahora carga las bases.
+  {% elif msg_ok == 'guardado' %}Bases guardadas correctamente.
+  {% elif msg_ok == 'pdf_cargado' %}PDF cargado y texto extraído. Revisa el contenido y guarda.
+  {% elif msg_ok and msg_ok.startswith('consolidado_') %}Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
+  {% elif msg_ok == 'archivos_liberados' %}Archivos liberados. El análisis y las observaciones quedan intactos.
+  {% elif msg_ok == 'enfasis_guardado' %}Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada eje/ítem.
+  {% else %}Guardado.{% endif %}
 </div>
 {% endif %}
 {% set msg_err = request.query_params.get('error') %}
 {% if msg_err %}
 <div class="alert alert-error" style="margin-bottom:1rem;">
-  {% if msg_err == 'escaneado' %}⚠️ El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital.
-  {% elif msg_err == 'formato' %}⚠️ Formato no soportado. Sube un PDF, DOC o DOCX.
-  {% else %}⚠️ Error: {{ msg_err }}{% endif %}
+  {% if msg_err == 'escaneado' %}El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital.
+  {% elif msg_err == 'formato' %}Formato no soportado. Sube un PDF, DOC o DOCX.
+  {% else %}Error: {{ msg_err }}{% endif %}
 </div>
 {% endif %}
 
 <!-- Archivos guardados del concurso: liberar espacio al terminar de revisarlo -->
 {% if resumen_archivos and resumen_archivos.n > 0 %}
 <div class="card" style="margin-bottom:1.2rem; border-left:4px solid #c05621;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">🗄 Archivos guardados de este concurso</h2>
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Archivos guardados de este concurso</h2>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
     {{ resumen_archivos.n }} archivo{{ 's' if resumen_archivos.n != 1 else '' }} de
     {{ n_proyectos_concurso }} proyecto{{ 's' if n_proyectos_concurso != 1 else '' }}
@@ -45,14 +45,14 @@
   <form method="post" action="/admin/concursos/{{ concurso.id }}/liberar-archivos"
         onsubmit="return confirm('¿Dar por terminado este concurso y liberar sus archivos guardados?\n\nEl análisis y las observaciones NO se pierden, solo los archivos originales.');">
     <button type="submit" class="btn btn-sm" style="background:#c05621; color:white;">
-      🗑 Dar por terminado — liberar archivos
+      Dar por terminado — liberar archivos
     </button>
   </form>
 </div>
 {% elif concurso.archivos_liberados %}
 <div class="card" style="margin-bottom:1.2rem;">
   <p class="text-muted" style="font-size:0.82rem; margin:0;">
-    🗄 Archivos de este concurso liberados{% if concurso.fecha_archivos_liberados %} el
+    Archivos de este concurso liberados{% if concurso.fecha_archivos_liberados %} el
     {{ concurso.fecha_archivos_liberados[:16].replace('T', ' ') }}{% endif %}. Los nuevos
     documentos que subas (de este u otro concurso) se vuelven a guardar automáticamente.
   </p>
@@ -63,7 +63,7 @@
 <form method="post" action="/admin/concursos/{{ concurso.id }}/bases-pdf"
       enctype="multipart/form-data">
   <div class="card" style="margin-bottom:1.2rem; border-left:4px solid #2b6cb0;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">📄 Subir PDF de bases</h2>
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Subir PDF de bases</h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
       Sube el PDF de las bases del concurso. El sistema extrae el texto automáticamente
       y lo carga en el campo de abajo para que puedas revisarlo y guardar.
@@ -96,7 +96,7 @@
 
   <div class="card" style="margin-bottom:1.5rem;">
     <h2 style="font-size:1rem; margin-bottom:0.5rem;">
-      ✏️ Texto de las bases
+      Texto de las bases
       {% if concurso.bases_texto %}
       <span class="text-muted" style="font-size:0.8rem; font-weight:400;">
         · {{ concurso.bases_texto | length }} caracteres
@@ -172,9 +172,9 @@
           </td>
           <td style="padding:0.4rem 0.75rem;">
             {% if fb.accion == 'aprobada' %}
-              <span style="color:#276749; font-weight:600;">✓ validada</span>
+              <span style="color:#276749; font-weight:600;">validada</span>
             {% else %}
-              <span style="color:#c05621; font-weight:600;">✗ descartada</span>
+              <span style="color:#c05621; font-weight:600;">descartada</span>
             {% endif %}
           </td>
           <td style="padding:0.4rem 0.75rem; color:#4a5568;">
@@ -191,7 +191,7 @@
 <!-- Criterios de énfasis: los escribe y edita el revisor a mano, con prioridad en el prompt -->
 <form method="post" action="/admin/concursos/{{ concurso.id }}/criterios-enfasis">
   <div class="card" style="margin-top:1.5rem; border-left:4px solid #2f855a;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">🎯 Criterios de énfasis por eje / ítem</h2>
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por eje / ítem</h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
       Escribe aquí, con tus palabras, qué debe verificar la IA en cada eje/ítem de <strong>este
       concurso</strong> — cruces entre documentos, normativa específica (ej. ITT-02), o cosas
@@ -224,7 +224,7 @@
 
 <!-- Aprendizaje del "revisor experto": destilar el feedback en criterios -->
 <div class="card" style="margin-top:1.5rem; border-left:4px solid #6b46c1;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">🧠 Aprendizaje por eje / ítem</h2>
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por eje / ítem</h2>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
     Destila las {{ n_feedback }} decisiones del revisor (aprobar/descartar) en un conjunto de
     <strong>criterios aprendidos</strong> por eje y por ítem, que se inyectan en el prompt de
@@ -235,7 +235,7 @@
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Consolidando…'; this.submit();">
     <button type="submit" class="btn btn-sm" style="background:#6b46c1; color:white;"
             {% if n_feedback < 3 %}disabled title="Se necesitan al menos 3 decisiones"{% endif %}>
-      🧠 Consolidar aprendizaje
+      Consolidar aprendizaje
     </button>
     {% if criterios_fecha %}
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.5rem;">
@@ -259,12 +259,12 @@
 <!-- Aprendizaje por consultor (cruza proyectos y concursos) -->
 {% if consultores_info %}
 <div class="card" style="margin-top:1.5rem; border-left:4px solid #2b6cb0;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">👷 Aprendizaje por consultor</h2>
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por consultor</h2>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
     La IA acumula los patrones de cada consultor (metodología, fortalezas y fallas recurrentes)
     a través de sus proyectos. Desde el 3° proyecto de un mismo consultor, esos patrones se
     inyectan en la revisión para hacerla más rápida y consistente. El perfil se destila con el
-    botón de arriba "🧠 Consolidar aprendizaje".
+    botón de arriba "Consolidar aprendizaje".
   </p>
   <div style="display:flex; flex-direction:column; gap:0.6rem;">
     {% for c in consultores_info %}

@@ -271,7 +271,6 @@ TIPOS_DOC = {
 EJES_REVISION = {
     "superficie": {
         "nombre": "Superficie",
-        "emoji": "📐",
         "tipo_docs": ["memoria_superficies", "identificacion_riego", "planos_tecnificacion",
                       "planos_obras_civiles", "estudio_suelos", "antecedentes_legales"],
         "checklist": """EJE SUPERFICIE — es la base técnica de todo el proyecto.
@@ -303,7 +302,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "agronomico": {
         "nombre": "Diseño Agronómico",
-        "emoji": "🌱",
         "tipo_docs": ["diseno_agronomico", "estudio_suelos", "memoria_superficies"],
         "checklist": """EJE AGRONÓMICO.
 - Cultivos declarados coherentes con la zona y el estudio de suelos.
@@ -315,7 +313,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "hidrologico": {
         "nombre": "Hidrológico",
-        "emoji": "💧",
         "tipo_docs": ["estudio_hidrologico", "pruebas_bombeo", "antecedentes_legales"],
         "checklist": """EJE HIDROLÓGICO.
 - Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02).
@@ -326,7 +323,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "hidraulico": {
         "nombre": "Diseño Hidráulico",
-        "emoji": "🔧",
         "tipo_docs": ["diseno_hidraulico", "planos_tecnificacion", "especificaciones_tecnicas",
                       "pruebas_bombeo"],
         "checklist": """EJE HIDRÁULICO.
@@ -339,7 +335,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "energetico": {
         "nombre": "Energético / Fotovoltaico",
-        "emoji": "☀️",
         "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar", "presupuesto_electrico",
                       "diseno_hidraulico"],
         "checklist": """EJE ENERGÉTICO / FOTOVOLTAICO.
@@ -352,7 +347,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "obras_civiles": {
         "nombre": "Obras Civiles",
-        "emoji": "🏗️",
         "tipo_docs": ["planos_obras_civiles", "especificaciones_tecnicas", "cubicaciones"],
         "checklist": """EJE OBRAS CIVILES.
 - Obras (bocatomas, acumuladores, revestimientos, cámaras) bien definidas y constructibles.
@@ -362,7 +356,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "presupuesto": {
         "nombre": "Presupuesto y Costos",
-        "emoji": "💰",
         "tipo_docs": ["presupuesto", "presupuesto_electrico", "cubicaciones",
                       "cotizaciones_facturas", "cotizaciones", "planos_tecnificacion",
                       "planos_obras_civiles"],
@@ -376,7 +369,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "legal": {
         "nombre": "Legal / Administrativo",
-        "emoji": "⚖️",
         "tipo_docs": ["antecedentes_legales", "declaracion_iva", "lista_beneficiarios"],
         "checklist": """EJE LEGAL / ADMINISTRATIVO.
 - Documentos de postulación según IL-01 — solo faltantes reales.
@@ -391,7 +383,6 @@ El FOCO de este eje es el CÁLCULO de superficies, no los papeles legales. Cént
     },
     "coherencia": {
         "nombre": "Coherencia Global",
-        "emoji": "🔗",
         "tipo_docs": [],   # usa TODOS los documentos del proyecto
         "checklist": """EJE COHERENCIA GLOBAL — cierre transversal de todo el expediente.
 Este eje NO revisa un documento; verifica que TODO el proyecto sea internamente coherente:
@@ -421,98 +412,98 @@ MAX_CHARS_EJE_TOTAL = 45000
 # con el ítem, para facilitar el ingreso al SEP. Convive con el método por ejes.
 ITEMS_SEP = {
     "plano_ubicacion": {
-        "nombre": "Plano de ubicación del proyecto", "emoji": "📍",
+        "nombre": "Plano de ubicación del proyecto",
         "tipo_docs": ["plano_ubicacion"],
         "checklist": "Verifica que el plano ubique el predio con coordenadas, comuna y acceso, "
                      "coherente con los demás antecedentes del expediente.",
     },
     "identificacion_riego": {
-        "nombre": "Identificación del área de riego", "emoji": "🗺️",
+        "nombre": "Identificación del área de riego",
         "tipo_docs": ["identificacion_riego"],
         "checklist": "Verifica que delimite el área de riego actual y de nuevo riego, con "
                      "superficies coherentes con la memoria de cálculo y los planos.",
     },
     "hidrologico": {
-        "nombre": "Análisis Hidrológico", "emoji": "💧",
+        "nombre": "Análisis Hidrológico",
         "tipo_docs": ["estudio_hidrologico"],
         "checklist": "Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02). "
                      "Debe respaldar el caudal usado en el diseño y cubrir la demanda hídrica.",
     },
     "pruebas_bombeo": {
-        "nombre": "Pruebas de Bombeo", "emoji": "⛲",
+        "nombre": "Pruebas de Bombeo",
         "tipo_docs": ["pruebas_bombeo"],
         "checklist": "Caudal, nivel dinámico y eficiencia del pozo. Debe respaldar el caudal y "
                      "la selección de bomba del diseño hidráulico.",
     },
     "diseno_hidraulico": {
-        "nombre": "Diseño y cálculos hidráulicos", "emoji": "🔧",
+        "nombre": "Diseño y cálculos hidráulicos",
         "tipo_docs": ["diseno_hidraulico", "diseno_agronomico", "diseno_fotovoltaico",
                       "reporte_explorador_solar"],
         "checklist": "Demanda agronómica, caudal de diseño, diámetros, presiones y velocidades "
                      "en norma (DT-04/05/06). Sistema FV coherente con la potencia de la bomba.",
     },
     "estudios_complementarios": {
-        "nombre": "Estudios y diseños complementarios", "emoji": "📚",
+        "nombre": "Estudios y diseños complementarios",
         "tipo_docs": ["estudios_complementarios"],
         "checklist": "Verifica pertinencia y consistencia técnica de los estudios complementarios "
                      "con el resto del proyecto.",
     },
     "especificaciones_tecnicas": {
-        "nombre": "Especificaciones técnicas de construcción e instalación", "emoji": "📋",
+        "nombre": "Especificaciones técnicas de construcción e instalación",
         "tipo_docs": ["especificaciones_tecnicas"],
         "checklist": "Deben respaldar los materiales y procedimientos del diseño y las obras "
                      "civiles. Sin especificaciones no hay respaldo constructivo.",
     },
     "cronograma": {
-        "nombre": "Cronograma", "emoji": "📅",
+        "nombre": "Cronograma",
         "tipo_docs": ["cronograma"],
         "checklist": "Plazos coherentes con la magnitud de las obras y con el período de "
                      "ejecución que permiten las bases.",
     },
     "presupuesto": {
-        "nombre": "Presupuesto detallado de obras", "emoji": "💰",
+        "nombre": "Presupuesto detallado de obras",
         "tipo_docs": ["presupuesto"],
         "checklist": "Partidas corresponden a las obras cubicadas; precios unitarios (APU, DT-18) "
                      "de mercado, sin sobreprecios ni valores anormalmente bajos.",
     },
     "presupuesto_electrico": {
-        "nombre": "Presupuesto detallado electrificación", "emoji": "🔌",
+        "nombre": "Presupuesto detallado electrificación",
         "tipo_docs": ["presupuesto_electrico"],
         "checklist": "Corresponde a los equipos del diseño eléctrico/FV; precios razonables y "
                      "cantidades consistentes con el diseño.",
     },
     "cotizaciones_facturas": {
-        "nombre": "Cotizaciones y Facturas", "emoji": "🧾",
+        "nombre": "Cotizaciones y Facturas",
         "tipo_docs": ["cotizaciones_facturas", "cotizaciones"],
         "checklist": "Respaldan los ítems relevantes del presupuesto; vigentes y coherentes con "
                      "los precios usados.",
     },
     "declaracion_iva": {
-        "nombre": "Declaración No Contribuyente IVA", "emoji": "📄",
+        "nombre": "Declaración No Contribuyente IVA",
         "tipo_docs": ["declaracion_iva"],
         "checklist": "Verifica que la declaración corresponda al postulante y sea coherente con "
                      "el tratamiento del IVA en el presupuesto.",
     },
     "planos_tecnificacion": {
-        "nombre": "Planos Proyecto tecnificación", "emoji": "📐",
+        "nombre": "Planos Proyecto tecnificación",
         "tipo_docs": ["planos_tecnificacion"],
         "checklist": "Trazado de redes, nodos y equipos coherente con el diseño hidráulico y las "
                      "superficies. Analiza el plano visualmente.",
     },
     "planos_obras_civiles": {
-        "nombre": "Planos Obras Civiles proy. de tecnificación", "emoji": "🏗️",
+        "nombre": "Planos Obras Civiles proy. de tecnificación",
         "tipo_docs": ["planos_obras_civiles"],
         "checklist": "Caseta, electrificación, embalses/estanques bien definidos y acotados, "
                      "coherentes con cubicaciones y presupuesto. Analiza el plano visualmente.",
     },
     "memoria_superficies": {
-        "nombre": "Memoria de cálculo de superficies", "emoji": "📏",
+        "nombre": "Memoria de cálculo de superficies",
         "tipo_docs": ["memoria_superficies"],
         "checklist": "Método y números del cálculo de superficies; sumas parciales cuadran con "
                      "totales; coincide con planos e identificación del área de riego.",
     },
     "estudio_suelos": {
-        "nombre": "Estudio de suelo - Informe de asimilación", "emoji": "🌱",
+        "nombre": "Estudio de suelo - Informe de asimilación",
         "tipo_docs": ["estudio_suelos"],
         "checklist": "Clasificación y capacidad de uso (DT-03); la superficie de riego no debe "
                      "exceder la capacidad de uso del suelo.",
@@ -1612,6 +1603,6 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
     texto = _texto_respuesta(response)
     if not texto:
         print(f"⚠️ consultar_expediente: respuesta vacía — stop_reason={response.stop_reason}")
-        texto = ("⚠️ La IA no devolvió respuesta (posible corte). Intenta reformular la "
+        texto = ("La IA no devolvió respuesta (posible corte). Intenta reformular la "
                  "consulta de forma más breve o vuelve a intentar.")
     return texto

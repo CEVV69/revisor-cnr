@@ -371,7 +371,6 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         ejes_info.append({
             "key": eje_key,
             "nombre": eje["nombre"],
-            "emoji": eje["emoji"],
             "n_docs": n_docs,
             "revisado": ejes_revisados.get(eje_key),
             "chat": eje_chats.get(eje_key, []),
@@ -388,7 +387,6 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         items_info.append({
             "key": item_key,
             "nombre": item["nombre"],
-            "emoji": item["emoji"],
             "n_docs": n_docs,
             "revisado": items_revisados.get(item_key),
             "chat": item_chats.get(item_key, []),
@@ -438,11 +436,11 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
 
     # Ejes/ítems revisados SIN observaciones ni notas: cumplen con la normativa — mostrar un
     # mensaje positivo en vez de dejar la sección vacía y ambigua.
-    ejes_cumplen = [{"key": k, "nombre": EJES_REVISION[k]["nombre"], "emoji": EJES_REVISION[k]["emoji"]}
+    ejes_cumplen = [{"key": k, "nombre": EJES_REVISION[k]["nombre"]}
                     for k in EJES_ORDEN
                     if ejes_revisados.get(k) and ejes_revisados[k].get("n_obs", 0) == 0
                     and ejes_revisados[k].get("n_notas", 0) == 0]
-    items_cumplen = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"], "emoji": ITEMS_SEP[k]["emoji"]}
+    items_cumplen = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"]}
                      for k in ITEMS_ORDEN
                      if items_revisados.get(k) and items_revisados[k].get("n_obs", 0) == 0
                      and items_revisados[k].get("n_notas", 0) == 0]
@@ -811,7 +809,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
 
         respuesta = resultado.get("texto", "")
         if not respuesta.strip():
-            respuesta = ("⚠️ La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
+            respuesta = ("La IA no devolvió una respuesta (posible corte por respuesta muy larga). "
                          "Intenta reformular la pregunta de forma más breve o vuelve a enviarla.")
 
         # Si la IA decidió aplicar un cambio concreto a la observación, aplicarlo de verdad.
@@ -1341,8 +1339,8 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
 .aviso{{background:#fff8e6;border:1px solid #f6d860;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:0.9rem}}
 h1{{font-size:1.1rem;margin-bottom:0.3rem}}pre{{white-space:pre-wrap;font-size:0.85rem;line-height:1.6;background:#f5f5f7;padding:1rem;border-radius:8px}}</style>
 </head><body>
-<h1>📄 {doc['nombre_original']}</h1>
-<div class="aviso">⚠️ El archivo original no está disponible en el servidor.
+<h1>{doc['nombre_original']}</h1>
+<div class="aviso">El archivo original no está disponible en el servidor.
 Se muestra el texto extraído que sí está guardado en la base de datos.
 Para ver el archivo original, vuelve a subirlo al proyecto.</div>
 <pre>{texto[:50000] if texto else '(Sin texto extraído)'}</pre>

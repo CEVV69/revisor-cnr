@@ -567,3 +567,12 @@ observaciones directo al SEP. Página "Revisión por Ítems SEP" (`/proyecto/{id
 4. **Español siempre**, incluso en textos técnicos.
 5. No acumular archivos sueltos de apoyo — entregar SQL/scripts en el chat.
 6. El usuario es técnico en riego/CNR — entiende la terminología.
+7. **Sin emojis/íconos decorativos (jul-2026):** la app debe verse formal y no distraer con
+   emojis — se ven distinto en cada equipo/SO y le restan seriedad. Regla: si un emoji/ícono
+   no es estrictamente informativo, se elimina sin reemplazo (el texto ya dice lo mismo). Si
+   SÍ aporta señal real a simple vista, no se usa emoji sino CSS/SVG simple que se vea igual
+   en cualquier equipo — ejemplos ya implementados: `.dot`/`.dot-green`/`.dot-red`/`.dot-gray`
+   en `base.html` para el semáforo de archivos (documentos.html), y los íconos SVG inline de
+   sol/luna del toggle de modo oscuro (`base.html`, sustituyen 🌙/☀️). Las alertas (`.alert-success`/
+   `.alert-error`) y badges de estado ya se distinguen por color de fondo — no necesitan emoji
+   encima. Aplica este criterio a cualquier UI nueva que se agregue de aquí en adelante.

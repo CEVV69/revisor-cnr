@@ -60,8 +60,8 @@
 <body>
 
 <div class="no-print">
-  <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
-  <button class="btn-print" onclick="descargarPDF()" style="background:#276749; margin-left:0.5rem;">⬇️ Descargar PDF</button>
+  <button class="btn-print" onclick="window.print()">Imprimir</button>
+  <button class="btn-print" onclick="descargarPDF()" style="background:#276749; margin-left:0.5rem;">Descargar PDF</button>
 </div>
 
 <!-- Encabezado -->
@@ -112,15 +112,15 @@
 {% set n_menor = obs_aprobadas|selectattr("severidad","eq","menor")|list|length %}
 <div class="resumen">
   <strong>Resumen observaciones aprobadas:</strong>
-  <span>🔴 Mayor: <strong>{{ n_mayor }}</strong></span>
-  <span>🟡 Menor: <strong>{{ n_menor }}</strong></span>
+  <span style="color:#9b2c2c;">Mayor: <strong>{{ n_mayor }}</strong></span>
+  <span style="color:#744210;">Menor: <strong>{{ n_menor }}</strong></span>
   <span>Total: <strong>{{ obs_aprobadas|length }}</strong></span>
   {% if n_mayor == 0 and n_menor == 0 %}
-  &nbsp;&nbsp; ✅ <strong>Sin observaciones que impidan la admisión.</strong>
+  &nbsp;&nbsp; <strong style="color:#276749;">Sin observaciones que impidan la admisión.</strong>
   {% elif n_mayor == 0 %}
-  &nbsp;&nbsp; ⚠️ Proyecto admisible con observaciones menores a subsanar.
+  &nbsp;&nbsp; <strong style="color:#744210;">Proyecto admisible con observaciones menores a subsanar.</strong>
   {% else %}
-  &nbsp;&nbsp; ❌ Proyecto presenta observaciones mayores — requiere subsanación antes de admisión.
+  &nbsp;&nbsp; <strong style="color:#9b2c2c;">Proyecto presenta observaciones mayores — requiere subsanación antes de admisión.</strong>
   {% endif %}
 </div>
 
@@ -129,7 +129,7 @@
 
 {% if grupos_ficha %}
   {% for grupo in grupos_ficha %}
-  <div class="grupo-eje">🔹 {{ grupo.nombre }}</div>
+  <div class="grupo-eje">{{ grupo.nombre }}</div>
     {% for obs in grupo.obs %}
     <div class="obs-item">
       <div class="obs-header">
@@ -139,7 +139,7 @@
       </div>
       <div class="obs-texto">{{ obs.texto }}</div>
       {% if obs.referencia_normativa %}
-      <div class="obs-ref">📋 Ref.: {{ obs.referencia_normativa }}</div>
+      <div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>
       {% endif %}
     </div>
     {% endfor %}

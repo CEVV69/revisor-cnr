@@ -30,7 +30,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
     <h2 style="margin:0; border:none; padding:0;">Observaciones ({{ cont.n }})</h2>
     <a href="/proyecto/{{ proyecto_id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
-      📄 Generar Ficha de Revisión
+      Generar Ficha de Revisión
     </a>
   </div>
   <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
@@ -42,7 +42,7 @@
   <details {% if grupo.key == abrir_key or (not abrir_key and loop.first) %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
               font-weight:700; color:#2b6cb0; font-size:0.95rem; user-select:none;">
-    🔹 {{ grupo.nombre }}
+    {{ grupo.nombre }}
     <span style="font-weight:400; color:#4a5568; font-size:0.82rem;">· {{ grupo.obs|length }} observación{{ 'es' if grupo.obs|length != 1 else '' }}</span>
   </summary>
   <div style="padding-top:0.6rem;">
@@ -67,14 +67,14 @@
                resize:vertical; overflow:hidden;">{{ obs.texto }}</textarea>
       {% if obs.referencia_normativa %}
       <p class="text-muted" style="margin-bottom:0.5rem; font-size:0.82rem;">
-        📋 Ref. normativa: {{ obs.referencia_normativa }}
+        Ref. normativa: {{ obs.referencia_normativa }}
       </p>
       {% endif %}
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">✓ Aprobar</button>
-        <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">✗ Descartar</button>
+        <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>
+        <button type="submit" name="estado" value="descartada" class="btn btn-danger btn-sm">Descartar</button>
         <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm">↺ Pendiente</button>
-        <button type="submit" form="elim-{{ obs.id }}" class="btn btn-ghost btn-sm" style="color:#c0392b;">🗑 Eliminar</button>
+        <button type="submit" form="elim-{{ obs.id }}" class="btn btn-ghost btn-sm" style="color:#c0392b;">Eliminar</button>
       </div>
     </form>
     <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
@@ -92,14 +92,14 @@
 {% macro bloque_notas(grupos, proyecto_id, abrir_key) %}
 {% if grupos %}
 <div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
-  <h2 style="color:#2b6cb0;">💡 Notas para el revisor</h2>
+  <h2 style="color:#2b6cb0;">Notas para el revisor</h2>
   <p style="margin-bottom:0.75rem; font-size:0.85rem; color:#4a5568;">
     Estas observaciones son recomendaciones o advertencias sin impacto en la admisión del proyecto.
     No se incluyen en la ficha de revisión oficial.
   </p>
   {% for grupo in grupos %}
   <details {% if grupo.key == abrir_key %}open{% endif %} style="margin:1rem 0 0.5rem; border-radius:8px; overflow:hidden;">
-  <summary style="cursor:pointer; font-weight:700; color:#2b6cb0; font-size:0.88rem; user-select:none;">🔹 {{ grupo.nombre }}</summary>
+  <summary style="cursor:pointer; font-weight:700; color:#2b6cb0; font-size:0.88rem; user-select:none;">{{ grupo.nombre }}</summary>
   <div style="padding-top:0.5rem;">
   {% for obs in grupo.obs %}
   <div style="border:1px solid #bee3f8; border-radius:8px; padding:0.85rem; margin-bottom:0.75rem; background:white;
@@ -114,12 +114,12 @@
                font-size:0.85rem; line-height:1.5; margin-bottom:0.4rem; box-sizing:border-box;
                resize:vertical; overflow:hidden; background:#ffffff; color:#1a365d;">{{ obs.texto }}</textarea>
       {% if obs.referencia_normativa %}
-      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">📋 {{ obs.referencia_normativa }}</p>
+      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.8rem;">{{ obs.referencia_normativa }}</p>
       {% endif %}
       <button type="submit" name="estado" value="descartada" class="btn btn-sm"
-              style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">✗ Descartar nota</button>
+              style="background:#e2e8f0; color:#4a5568; font-size:0.78rem;">Descartar nota</button>
       <button type="submit" form="elim-{{ obs.id }}" class="btn btn-sm"
-              style="background:transparent; color:#c0392b; font-size:0.78rem;">🗑 Eliminar</button>
+              style="background:transparent; color:#c0392b; font-size:0.78rem;">Eliminar</button>
     </form>
     <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta nota por completo? No se puede deshacer.')"
@@ -136,14 +136,14 @@
 {% macro bloque_cumplimiento(lista, tipo) %}
 {% if lista %}
 <div class="card" style="border-left:4px solid #276749; background:#f0fff4;">
-  <h2 style="color:#276749; margin:0 0 0.5rem; border:none; padding:0;">✅ Cumple con la normativa</h2>
+  <h2 style="color:#276749; margin:0 0 0.5rem; border:none; padding:0;">Cumple con la normativa</h2>
   <p style="font-size:0.85rem; color:#4a5568; margin-bottom:0.75rem;">
     {{ 'Estos ejes fueron' if tipo == 'eje' else 'Estos ítems fueron' }} revisados y no
     presentan observaciones: cumplen con la normativa CNR, los manuales e instructivos vigentes.
   </p>
   <ul style="margin:0; padding-left:1.3rem; font-size:0.88rem; color:#276749; line-height:1.8;">
     {% for g in lista %}
-    <li>{{ g.emoji }} <strong>{{ g.nombre }}</strong></li>
+    <li><strong>{{ g.nombre }}</strong></li>
     {% endfor %}
   </ul>
 </div>
@@ -154,7 +154,7 @@
 {% set revisados = lista|selectattr('revisado')|list %}
 {% if revisados %}
 <div class="card">
-  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">💬 Debatir con la IA</h2>
+  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">Debatir con la IA</h2>
   <p style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.75rem;">
     Discute las observaciones: aclara, corrige, o pídele reclasificar una a nota o descartarla
     — si la IA está de acuerdo, aplica el cambio directamente sobre la observación.
@@ -162,7 +162,7 @@
   {% for g in revisados %}
   <details id="chat-{{ tipo }}-{{ g.key }}" style="border:1px solid var(--border); border-radius:10px; margin-bottom:0.6rem;" {% if ok_actual == g.key %}open{% endif %}>
     <summary style="cursor:pointer; padding:0.7rem 0.9rem; font-weight:600; font-size:0.9rem; user-select:none;">
-      {{ g.emoji }} {{ g.nombre }}
+      {{ g.nombre }}
       {% if g.chat %}<span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ (g.chat|length / 2)|int }} mensaje{{ 's' if (g.chat|length / 2)|int != 1 else '' }}</span>{% endif %}
     </summary>
     <div style="padding:0 0.9rem 0.9rem;">
@@ -211,13 +211,13 @@
       <span class="badge badge-estado">{{ proyecto.estado }}</span>
     {% endif %}
     <span style="flex:1;"></span>
-    <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">💬 Consultas</a>
+    <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">Consultas</a>
 
     <!-- Botón de estado -->
     <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
       <button onclick="toggleMenuEstado()" class="btn btn-sm"
               style="background:{% if proyecto.estado == 'Revisado' %}#276749{% elif proyecto.estado == 'En revisión' %}#2b6cb0{% else %}#c05621{% endif %};color:white;white-space:nowrap;">
-        {% if proyecto.estado == 'Revisado' %}✓ Revisado ▾
+        {% if proyecto.estado == 'Revisado' %}Revisado ▾
         {% elif proyecto.estado == 'En revisión' %}● En revisión ▾
         {% else %}{{ proyecto.estado }} ▾{% endif %}
       </button>
@@ -259,7 +259,6 @@
 <!-- Banner bases del concurso -->
 {% if not concurso or not concurso.bases_texto %}
 <div style="background:#fffbeb; border:1px solid #f6ad55; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
-  <span style="font-size:1rem;">⚠️</span>
   <span style="font-size:0.85rem; color:#92400e;">
     El concurso <strong>{{ concurso_id }}</strong> no tiene bases cargadas.
     Los análisis no podrán verificar el cumplimiento de bases específicas.
@@ -274,7 +273,7 @@
 {% else %}
 <div style="background:#f0fff4; border:1px solid #68d391; border-radius:6px; padding:0.5rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
   <span style="font-size:0.85rem; color:#276749;">
-    ✅ Concurso <strong>{{ concurso_id }}</strong> — bases cargadas
+    Concurso <strong>{{ concurso_id }}</strong> — bases cargadas
     ({{ concurso.bases_texto | length }} caracteres)
   </span>
   {% if user.rol == 'admin' %}
@@ -288,21 +287,21 @@
 
 <!-- Barra de navegación entre páginas del proyecto -->
 <nav class="proj-nav">
-  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab {% if pagina == 'resumen' %}activa{% endif %}">📋 Resumen</a>
-  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">📁 Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
-  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab {% if pagina == 'ejes' %}activa{% endif %}">🎯 Revisión por Ejes</a>
-  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">📑 Revisión por Ítems SEP</a>
-  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">🧮 Chequeo de Cálculos</a>
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab {% if pagina == 'resumen' %}activa{% endif %}">Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
+  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab {% if pagina == 'ejes' %}activa{% endif %}">Revisión por Ejes</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
 </nav>
 
 {% if pagina == 'documentos' %}
 <!-- Subida ZIP -->
 <div class="card" style="border-left:4px solid #2b6cb0; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
   <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-    <strong style="font-size:0.92rem; white-space:nowrap;">⚡ ZIP del SEP</strong>
+    <strong style="font-size:0.92rem; white-space:nowrap;">ZIP del SEP</strong>
     <span class="text-muted" style="font-size:0.82rem; flex:1;">Extrae y clasifica todos los anexos automáticamente.</span>
     {% if request.query_params.get('zip_ok') %}
-    <span class="badge badge-tecnica">✅ {{ request.query_params.get('zip_ok') }} docs cargados</span>
+    <span class="badge badge-tecnica">{{ request.query_params.get('zip_ok') }} docs cargados</span>
     {% endif %}
   </div>
   <form method="post" action="/proyecto/{{ proyecto.id }}/subir-zip" enctype="multipart/form-data" style="margin-top:0.5rem;">
@@ -316,10 +315,10 @@
 <!-- Subida múltiple / carpeta -->
 <div class="card" style="border-left:4px solid #6b46c1; padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
   <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-    <strong style="font-size:0.92rem; white-space:nowrap;">📂 Archivos o carpeta</strong>
+    <strong style="font-size:0.92rem; white-space:nowrap;">Archivos o carpeta</strong>
     <span class="text-muted" style="font-size:0.82rem; flex:1;">Selecciona varios archivos o una carpeta. Se clasifican por nombre de anexo.</span>
     {% if request.query_params.get('multi_ok') %}
-    <span class="badge badge-tecnica">✅ {{ request.query_params.get('multi_ok') }} docs cargados</span>
+    <span class="badge badge-tecnica">{{ request.query_params.get('multi_ok') }} docs cargados</span>
     {% endif %}
   </div>
   <form method="post" action="/proyecto/{{ proyecto.id }}/subir-multiple" enctype="multipart/form-data"
@@ -328,9 +327,9 @@
            multiple style="display:none;" onchange="actualizarEtiqueta(this)">
     <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
       <button type="button" class="btn btn-outline btn-sm" style="border-color:#6b46c1; color:#6b46c1;"
-              onclick="abrirSelector('archivos')">📄 Elegir archivos</button>
+              onclick="abrirSelector('archivos')">Elegir archivos</button>
       <button type="button" class="btn btn-outline btn-sm" style="border-color:#6b46c1; color:#6b46c1;"
-              onclick="abrirSelector('carpeta')">📁 Elegir carpeta</button>
+              onclick="abrirSelector('carpeta')">Elegir carpeta</button>
       <span id="etiqueta-multi" class="text-muted" style="font-size:0.82rem; flex:1;"></span>
       <button type="submit" id="btn-subir-multi" class="btn btn-sm"
               style="display:none; background:#6b46c1; color:white; white-space:nowrap;">Subir selección</button>
@@ -341,7 +340,7 @@
 <!-- Subida individual -->
 <div class="card" style="padding:0.8rem 1.2rem; margin-bottom:0.6rem;">
   <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
-    <strong style="font-size:0.92rem;">📄 Documento individual</strong>
+    <strong style="font-size:0.92rem;">Documento individual</strong>
     <span class="text-muted" style="font-size:0.82rem;">Con clasificación manual del tipo de anexo.</span>
   </div>
   <form method="post" action="/proyecto/{{ proyecto.id }}/subir" enctype="multipart/form-data">
@@ -422,10 +421,10 @@ function actualizarEtiqueta(input) {
     </span>
     {% if n_faltan_resubir > 0 %}
     <span style="font-size:0.82rem; color:#c0392b; font-weight:600;">
-      🔴 {{ n_faltan_resubir }} documento{{ 's' if n_faltan_resubir != 1 else '' }} necesita{{ 'n' if n_faltan_resubir != 1 else '' }} que lo resubas
+      <span class="dot dot-red"></span>{{ n_faltan_resubir }} documento{{ 's' if n_faltan_resubir != 1 else '' }} necesita{{ 'n' if n_faltan_resubir != 1 else '' }} que lo resubas
     </span>
     {% else %}
-    <span style="font-size:0.82rem; color:#2e7d32;">🟢 No hace falta resubir nada</span>
+    <span style="font-size:0.82rem; color:#2e7d32;"><span class="dot dot-green"></span>No hace falta resubir nada</span>
     {% endif %}
   </div>
   <table style="min-width:600px; font-size:0.82rem;">
@@ -448,11 +447,11 @@ function actualizarEtiqueta(input) {
         </td>
         <td style="white-space:nowrap; font-size:0.78rem;">
           {% if doc.archivo_presente %}
-            <span title="El archivo sigue en el servidor">🟢 Está</span>
+            <span title="El archivo sigue en el servidor"><span class="dot dot-green"></span>Está</span>
           {% elif doc.necesita_archivo %}
-            <span style="color:#c0392b; font-weight:600;" title="Es plano o escaneado: sin este archivo no se puede analizar visualmente">🔴 Sí, resubir</span>
+            <span style="color:#c0392b; font-weight:600;" title="Es plano o escaneado: sin este archivo no se puede analizar visualmente"><span class="dot dot-red"></span>Sí, resubir</span>
           {% else %}
-            <span class="text-muted" title="Ya tiene texto guardado: no hace falta resubirlo">⚪ No hace falta</span>
+            <span class="text-muted" title="Ya tiene texto guardado: no hace falta resubirlo"><span class="dot dot-gray"></span>No hace falta</span>
           {% endif %}
         </td>
         <td style="max-width:200px;">
@@ -519,7 +518,7 @@ function actualizarEtiqueta(input) {
     <span style="font-size:0.8rem; color:var(--text-2);">Cada eje cruza los documentos relacionados y los revisa en conjunto</span>
   </div>
   {% if eje_sin_docs %}
-  <div class="alert alert-error" style="margin:0.5rem 0;">⚠️ Ese eje no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
+  <div class="alert alert-error" style="margin:0.5rem 0;">Ese eje no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
   {% endif %}
 
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
@@ -527,10 +526,9 @@ function actualizarEtiqueta(input) {
     <div id="eje-{{ eje.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
                 {% if eje.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span style="font-size:1.2rem;">{{ eje.emoji }}</span>
         <strong style="font-size:0.9rem; flex:1;">{{ eje.nombre }}</strong>
         {% if eje.revisado %}
-        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">✓ {{ eje.revisado.n_obs }} obs{% if eje.revisado.n_notas %} · {{ eje.revisado.n_notas }} nota{{ 's' if eje.revisado.n_notas != 1 else '' }}{% endif %}</span>
+        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">{{ eje.revisado.n_obs }} obs{% if eje.revisado.n_notas %} · {{ eje.revisado.n_notas }} nota{{ 's' if eje.revisado.n_notas != 1 else '' }}{% endif %}</span>
         {% endif %}
       </div>
       <div style="font-size:0.76rem; color:var(--text-2);">
@@ -542,7 +540,7 @@ function actualizarEtiqueta(input) {
       </div>
       {% if eje.revisado and eje.revisado.docs %}
       <details style="font-size:0.74rem;">
-        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">📄 Ver los {{ eje.revisado.docs|length }} archivo{{ 's' if eje.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
+        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">Ver los {{ eje.revisado.docs|length }} archivo{{ 's' if eje.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
         <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
           {% for d in eje.revisado.docs %}
           <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
@@ -576,7 +574,7 @@ function actualizarEtiqueta(input) {
 <!-- Limpiar SOLO la revisión por ejes (no afecta ítems ni documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-ejes" style="margin-top:0.5rem;"
       onsubmit="return confirm('¿Limpiar la revisión por EJES? Se borran las observaciones, el estado y los chats de los ejes. NO afecta la revisión por ítems ni los documentos.')">
-  <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión por ejes</button>
+  <button type="submit" class="btn btn-ghost btn-sm">Limpiar revisión por ejes</button>
 </form>
 {% endif %}{# fin página ejes #}
 
@@ -589,7 +587,7 @@ function actualizarEtiqueta(input) {
     <span style="font-size:0.8rem; color:var(--text-2);">Cada ítem revisa su documento tal como se ingresa al Sistema Electrónico de Postulación</span>
   </div>
   {% if item_sin_docs %}
-  <div class="alert alert-error" style="margin:0.5rem 0;">⚠️ Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
+  <div class="alert alert-error" style="margin:0.5rem 0;">Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
   {% endif %}
 
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
@@ -597,10 +595,9 @@ function actualizarEtiqueta(input) {
     <div style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
                 {% if item.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span style="font-size:1.2rem;">{{ item.emoji }}</span>
         <strong style="font-size:0.86rem; flex:1;">{{ item.nombre }}</strong>
         {% if item.revisado %}
-        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">✓ {{ item.revisado.n_obs }} obs{% if item.revisado.n_notas %} · {{ item.revisado.n_notas }} nota{{ 's' if item.revisado.n_notas != 1 else '' }}{% endif %}</span>
+        <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">{{ item.revisado.n_obs }} obs{% if item.revisado.n_notas %} · {{ item.revisado.n_notas }} nota{{ 's' if item.revisado.n_notas != 1 else '' }}{% endif %}</span>
         {% endif %}
       </div>
       <div style="font-size:0.76rem; color:var(--text-2);">
@@ -608,7 +605,7 @@ function actualizarEtiqueta(input) {
       </div>
       {% if item.revisado and item.revisado.docs %}
       <details style="font-size:0.74rem;">
-        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">📄 Ver los {{ item.revisado.docs|length }} archivo{{ 's' if item.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
+        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">Ver los {{ item.revisado.docs|length }} archivo{{ 's' if item.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
         <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
           {% for d in item.revisado.docs %}
           <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
@@ -641,7 +638,7 @@ function actualizarEtiqueta(input) {
 <!-- Limpiar SOLO la revisión por ítems (no afecta ejes ni documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"
       onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta la revisión por ejes ni los documentos.')">
-  <button type="submit" class="btn btn-ghost btn-sm">🗑 Limpiar revisión por ítems</button>
+  <button type="submit" class="btn btn-ghost btn-sm">Limpiar revisión por ítems</button>
 </form>
 {% endif %}{# fin página items #}
 
@@ -654,16 +651,16 @@ function actualizarEtiqueta(input) {
   </div>
 
   {% if request.query_params.get('resumen_ok') %}
-  <div class="alert" style="background:#f0fff4; border:1px solid #68d391; color:#276749; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">✅ Resumen guardado.</div>
+  <div class="alert" style="background:#f0fff4; border:1px solid #68d391; color:#276749; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">Resumen guardado.</div>
   {% endif %}
   {% if request.query_params.get('auto_ok') %}
-  <div class="alert" style="background:#ebf8ff; border:1px solid #90cdf4; color:#2b6cb0; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">🤖 La IA completó {{ request.query_params.get('auto_ok') }} campo(s) que estaban vacíos. Revisa y edita lo que falte, luego Guarda.</div>
+  <div class="alert" style="background:#ebf8ff; border:1px solid #90cdf4; color:#2b6cb0; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">La IA completó {{ request.query_params.get('auto_ok') }} campo(s) que estaban vacíos. Revisa y edita lo que falte, luego Guarda.</div>
   {% endif %}
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/resumen/autocompletar" style="margin:0.5rem 0 1rem;">
     <button type="submit" class="btn btn-primary btn-sm"
             onclick="this.disabled=true; this.textContent='Analizando…'; this.form.submit();">
-      🤖 Autocompletar con IA
+      Autocompletar con IA
     </button>
     <span class="text-muted" style="font-size:0.8rem; margin-left:0.5rem;">Lee los documentos y rellena los campos vacíos (no pisa lo que ya escribiste).</span>
   </form>
@@ -695,7 +692,7 @@ function actualizarEtiqueta(input) {
     </div>
     {% endfor %}
     <div style="margin-top:1.2rem;">
-      <button type="submit" class="btn btn-success btn-sm">💾 Guardar resumen</button>
+      <button type="submit" class="btn btn-success btn-sm">Guardar resumen</button>
     </div>
   </form>
 </div>
@@ -781,7 +778,7 @@ function enviarChat(event, tipo, key) {
       const burbujaIA = document.createElement('div');
       burbujaIA.className = 'chat-bubble ia';
       burbujaIA.textContent = data.ok ? data.respuesta
-        : ('⚠️ No se pudo obtener respuesta' + (data.error ? (': ' + data.error) : '.') + ' Intenta de nuevo.');
+        : ('No se pudo obtener respuesta' + (data.error ? (': ' + data.error) : '.') + ' Intenta de nuevo.');
       cont.appendChild(burbujaIA);
 
       if (data.ok && data.modificado) {
@@ -789,7 +786,7 @@ function enviarChat(event, tipo, key) {
         nota.className = 'chat-bubble ia';
         nota.style.fontStyle = 'italic';
         nota.style.opacity = '0.75';
-        nota.textContent = '🔄 Se actualizó la observación. Recargando para reflejar el cambio…';
+        nota.textContent = 'Se actualizó la observación. Recargando para reflejar el cambio…';
         cont.appendChild(nota);
         const param = tipo + '_ok=' + encodeURIComponent(key);
         setTimeout(function() {
@@ -806,7 +803,7 @@ function enviarChat(event, tipo, key) {
       pensando.remove();
       const burbujaIA = document.createElement('div');
       burbujaIA.className = 'chat-bubble ia';
-      burbujaIA.textContent = '⚠️ Error de conexión. Intenta de nuevo.';
+      burbujaIA.textContent = 'Error de conexión. Intenta de nuevo.';
       cont.appendChild(burbujaIA);
       textarea.disabled = false;
       boton.disabled = false;

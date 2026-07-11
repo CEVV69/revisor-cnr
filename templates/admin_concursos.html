@@ -9,15 +9,15 @@
 
 {% if msg_ok %}
 <div class="alert alert-success" style="margin-bottom:1rem;">
-  {% if msg_ok == 'creado' %}✅ Concurso creado correctamente.
-  {% elif msg_ok == 'eliminado' %}✅ Concurso eliminado.
-  {% else %}✅ Operación exitosa.{% endif %}
+  {% if msg_ok == 'creado' %}Concurso creado correctamente.
+  {% elif msg_ok == 'eliminado' %}Concurso eliminado.
+  {% else %}Operación exitosa.{% endif %}
 </div>
 {% endif %}
 {% if msg_err %}
 <div class="alert alert-danger" style="margin-bottom:1rem;">
-  {% if msg_err == 'existe' %}⚠️ Ya existe un concurso con ese ID.
-  {% else %}⚠️ Error: {{ msg_err }}{% endif %}
+  {% if msg_err == 'existe' %}Ya existe un concurso con ese ID.
+  {% else %}Error: {{ msg_err }}{% endif %}
 </div>
 {% endif %}
 
@@ -60,12 +60,12 @@
     <div style="font-size:0.8rem; text-align:center; min-width:120px;">
       {% if c.bases_texto %}
         <span style="color:#276749; background:#f0fff4; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #68d391;">
-          ✅ Bases cargadas
+          Bases cargadas
         </span>
         <div class="text-muted" style="font-size:0.75rem; margin-top:0.25rem;">{{ c.bases_texto | length }} caracteres</div>
       {% else %}
         <span style="color:#744210; background:#fffbeb; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #f6ad55;">
-          ⚠️ Sin bases
+          Sin bases
         </span>
       {% endif %}
     </div>

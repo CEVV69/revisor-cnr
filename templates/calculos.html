@@ -38,11 +38,11 @@
 </div>
 
 <nav class="proj-nav">
-  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">📋 Resumen</a>
-  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">📁 Documentos</a>
-  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab">🎯 Revisión por Ejes</a>
-  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">📑 Revisión por Ítems SEP</a>
-  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab activa">🧮 Chequeo de Cálculos</a>
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">Documentos</a>
+  <a href="/proyecto/{{ proyecto.id }}/ejes" class="proj-tab">Revisión por Ejes</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab activa">Chequeo de Cálculos</a>
 </nav>
 
 <div class="card" style="border-left:4px solid #2b6cb0;">
@@ -59,9 +59,9 @@
 <!-- ══════════ HIDRÁULICO ══════════ -->
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
-    <h2 style="margin:0; border:none; padding:0;">🔧 Diseño Hidráulico — Tramos de tubería</h2>
+    <h2 style="margin:0; border:none; padding:0;">Diseño Hidráulico — Tramos de tubería</h2>
     {% if hid_validado %}
-    <span class="badge-validado">✅ Validado por {{ hid_por }}{% if hid_fecha %} · {{ hid_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ hid_por }}{% if hid_fecha %} · {{ hid_fecha[:16].replace('T',' ') }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
@@ -73,7 +73,7 @@
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">🤖 Extraer de los documentos</button>
+    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los tramos de abajo con lo que encuentre la IA en el Diseño Hidráulico / planos.</span>
   </form>
 
@@ -109,7 +109,7 @@
               V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
               {% if t.calculo.hf_mca is not none %} · Hf=<b>{{ t.calculo.hf_mca }}</b> mca{% endif %}
               · Ø sug.={{ t.calculo.diametro_sugerido_mm }} mm
-              {% if t.calculo.alerta %}<br><span class="calc-alerta">⚠ {{ t.calculo.alerta }}</span>{% endif %}
+              {% if t.calculo.alerta %}<br><span class="calc-alerta">{{ t.calculo.alerta }}</span>{% endif %}
             {% else %}
               <span class="text-muted">— completa Q y Ø —</span>
             {% endif %}
@@ -122,16 +122,16 @@
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if hid_validado %}checked{% endif %}>
       <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
-    <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
+    <button type="submit" class="btn btn-success btn-sm">Guardar</button>
   </form>
 </div>
 
 <!-- ══════════ AGRONÓMICO ══════════ -->
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
-    <h2 style="margin:0; border:none; padding:0;">🌱 Diseño Agronómico — Cadena de demanda</h2>
+    <h2 style="margin:0; border:none; padding:0;">Diseño Agronómico — Cadena de demanda</h2>
     {% if agro_validado %}
-    <span class="badge-validado">✅ Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha[:16].replace('T',' ') }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
@@ -142,7 +142,7 @@
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">🤖 Extraer de los documentos</button>
+    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio de suelos.</span>
   </form>
 
@@ -180,16 +180,16 @@
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if agro_validado %}checked{% endif %}>
       <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
-    <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
+    <button type="submit" class="btn btn-success btn-sm">Guardar</button>
   </form>
 </div>
 
 <!-- ══════════ FOTOVOLTAICO ══════════ -->
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
-    <h2 style="margin:0; border:none; padding:0;">☀️ Energético / Fotovoltaico — Dimensionamiento</h2>
+    <h2 style="margin:0; border:none; padding:0;">Energético / Fotovoltaico — Dimensionamiento</h2>
     {% if fv_validado %}
-    <span class="badge-validado">✅ Validado por {{ fv_por }}{% if fv_fecha %} · {{ fv_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ fv_por }}{% if fv_fecha %} · {{ fv_fecha[:16].replace('T',' ') }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
@@ -201,7 +201,7 @@
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">🤖 Extraer de los documentos</button>
+    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño FV / Explorador Solar / presupuesto eléctrico.</span>
   </form>
 
@@ -246,13 +246,13 @@
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if fv_validado %}checked{% endif %}>
       <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones de este eje (no volver a extraer automáticamente)</span>
     </label>
-    <button type="submit" class="btn btn-success btn-sm">💾 Guardar</button>
+    <button type="submit" class="btn btn-success btn-sm">Guardar</button>
   </form>
 </div>
 
 <div class="card" style="background:rgba(128,128,128,0.05); border:none;">
   <p class="text-muted" style="font-size:0.8rem; margin:0;">
-    ℹ️ Fotovoltaico cubre energía diaria, N° de paneles, configuración serie/paralelo y cable DC
+    Fotovoltaico cubre energía diaria, N° de paneles, configuración serie/paralelo y cable DC
     (distancia campo→inversor asumida en 50 m). Todavía falta: cableado AC, protecciones
     (DPS/fusibles), estructura de montaje y contraste explícito con el Explorador Solar.
     Carrete de avance frontal y microaspersión todavía no tienen verificación numérica —
