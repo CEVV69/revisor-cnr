@@ -11,14 +11,14 @@
   .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
   .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
 
-  .calc-tbl { width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.82rem; }
+  .calc-tbl { min-width:920px; width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.82rem; }
   .calc-tbl th { text-align:left; font-weight:600; color:var(--text-2); padding:0.3rem 0.4rem;
-    border-bottom:1px solid var(--border); white-space:nowrap; }
+    border-bottom:1px solid var(--border); white-space:normal; line-height:1.25; vertical-align:bottom; }
   .calc-tbl td { padding:0.3rem 0.4rem; vertical-align:middle; }
   .calc-tbl input, .calc-tbl select { width:100%; padding:0.3rem 0.35rem; border-radius:5px;
     border:1px solid var(--border); background:var(--surface); color:var(--text);
     font-family:inherit; font-size:0.8rem; box-sizing:border-box; }
-  .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:nowrap; }
+  .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:normal; line-height:1.5; }
   .calc-resultado b { color:var(--text); }
   .calc-alerta { color:#c0392b; font-weight:600; }
   .badge-validado { display:inline-flex; align-items:center; gap:0.3rem; background:#f0fff4;
@@ -81,9 +81,9 @@
     <div style="overflow-x:auto;">
       <table class="calc-tbl">
         <colgroup>
-          <col style="width:15%;"><col style="width:8%;"><col style="width:8%;">
-          <col style="width:8%;"><col style="width:17%;"><col style="width:10%;">
-          <col style="width:34%;">
+          <col style="width:150px;"><col style="width:75px;"><col style="width:75px;">
+          <col style="width:75px;"><col style="width:170px;"><col style="width:120px;">
+          <col>
         </colgroup>
         <tr>
           <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
