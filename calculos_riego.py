@@ -1,7 +1,7 @@
 """
-Fórmulas de ingeniería de riego (hidráulica y agronómica), portadas del Diseñador de Riego
-(misma fuente normativa: Manuales e Instructivos CNR en Drive — Hazen-Williams, cadena de
-demanda agronómica ETo→ETc→AD→Dn→Fr→Db).
+Fórmulas de ingeniería de riego (hidráulica, agronómica y fotovoltaica), portadas del
+Diseñador de Riego (misma fuente normativa: Manuales e Instructivos CNR en Drive —
+Hazen-Williams, cadena de demanda agronómica ETo→ETc→AD→Dn→Fr→Db, dimensionamiento FV).
 
 Se usan para RECALCULAR de forma determinística lo que el consultor declaró en el expediente,
 y comparar — en vez de que la IA intente hacer la matemática de memoria a partir de texto
@@ -102,4 +102,69 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
         "etc_mm_dia": round(etc, 3), "ad_mm": round(ad, 2), "dn_mm": round(dn, 3),
         "fr_dias": round(fr, 2), "fr_adj_dias": fr_adj, "dn_adj_mm": round(dn_adj, 3),
         "db_mm": round(db, 3),
+    }
+
+
+# ── Fotovoltaico: energía requerida → N° paneles → configuración → cable DC ─
+
+# Secciones normalizadas de cable de cobre (mm²), mismo criterio del Diseñador de Riego
+SECCIONES_CABLE_MM2 = [4, 6, 10, 16, 25, 35, 50, 70]
+RHO_CU = 1 / 58   # Ω·mm²/m — resistividad del cobre
+
+
+def seccion_cable_normalizada(seccion_calculada_mm2: float) -> float:
+    """Redondea hacia arriba a la sección comercial normalizada más cercana."""
+    for s in SECCIONES_CABLE_MM2:
+        if seccion_calculada_mm2 <= s:
+            return s
+    return SECCIONES_CABLE_MM2[-1]
+
+
+def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: float,
+                        vmp: float, imp: float, ct: float, temp: float, einv: float,
+                        vsis: float, l_cable_m: float = 50) -> dict:
+    """Recalcula el dimensionamiento fotovoltaico con la misma cadena que usa el Diseñador
+    de Riego:
+
+    E_día      = P_bomba[kW] × H_bombeo[hr]                       [kWh/día requeridos]
+    PR         = Fp × η_inv                                        [performance ratio]
+    Derating   = 1 + (Ct/100) × (T_max − 25)                       [corrección por temperatura]
+    Wp_efectivo= Wp_panel × Derating
+    E_panel    = (Wp_ef/1000) × HSP × PR                           [kWh/panel/día]
+    N_paneles  = ⌈E_día / E_panel⌉                                  [mínimo necesario]
+    Serie      = ⌊V_sistema / Vmp⌋ · Paralelo = ⌈N_paneles/Serie⌉   [configuración real]
+    kWp_total  = N_real × Wp / 1000
+    Cable DC   = ρ_Cu × L × I_campo / (2% × V_campo)               [sección mm², normalizada]
+
+    `pkw`: potencia de la bomba en kW. `hbom`: horas de bombeo/día. `hsp`: horas sol pico
+    del sitio. `fp`: factor de pérdidas del sistema (0-1, típico 0,80). `wp`: potencia
+    nominal del panel (Wp). `vmp`/`imp`: voltaje/corriente en el punto de máxima potencia
+    del panel. `ct`: coeficiente de temperatura del panel (%/°C, típico negativo, ej. -0,35).
+    `temp`: temperatura máxima del sitio (°C). `einv`: eficiencia del inversor (0-1, típico
+    0,95). `vsis`: voltaje nominal del sistema/inversor (V).
+    """
+    if not pkw or not hbom or not hsp or not wp or not vmp or not imp:
+        return {}
+    e_dia = pkw * hbom
+    pr = (fp or 0.80) * (einv or 0.95)
+    derating = 1 + ((ct or 0) / 100) * (temp - 25) if temp else 1.0
+    wp_efectivo = wp * derating
+    e_panel = (wp_efectivo / 1000) * hsp * pr
+    n_paneles = math.ceil(e_dia / e_panel) if e_panel else 0
+    pan_serie = max(1, math.floor((vsis or 0) / vmp)) if vsis else 1
+    pan_paralelo = math.ceil(n_paneles / pan_serie) if pan_serie else n_paneles
+    n_real = pan_serie * pan_paralelo
+    kwp_total = n_real * wp / 1000
+    i_campo = pan_paralelo * imp
+    v_campo = pan_serie * vmp
+    dv_max = v_campo * 0.02
+    seccion_calc = (RHO_CU * l_cable_m * i_campo) / dv_max if dv_max else 0
+    return {
+        "e_dia_kwh": round(e_dia, 3), "pr": round(pr, 3), "derating": round(derating, 4),
+        "wp_efectivo": round(wp_efectivo, 1), "e_panel_kwh": round(e_panel, 4),
+        "n_paneles_minimo": n_paneles, "paneles_serie": pan_serie,
+        "strings_paralelo": pan_paralelo, "n_paneles_real": n_real,
+        "kwp_total": round(kwp_total, 2), "i_campo_a": round(i_campo, 2),
+        "v_campo_v": round(v_campo, 0),
+        "seccion_cable_mm2": seccion_cable_normalizada(seccion_calc) if seccion_calc else None,
     }

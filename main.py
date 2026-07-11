@@ -22,7 +22,8 @@ from analyzer import (consultar_expediente, analizar_eje, analizar_item, chatear
                       chatear_item, resumir_proyecto, consolidar_aprendizaje,
                       consolidar_perfil_consultor, EJES_REVISION, EJES_ORDEN, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_del_eje,
-                      MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos)
+                      MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
+                      _extraer_datos_fv)
 import calculos_riego
 from database import db
 
@@ -893,6 +894,17 @@ def _agronomico_calculo(datos: dict):
     return None
 
 
+def _fv_calculo(datos: dict):
+    campos = ["pkw", "hbom", "hsp", "wp", "vmp", "imp"]
+    if datos and all(datos.get(k) not in (None, "") for k in campos):
+        return calculos_riego.dimensionamiento_fv(
+            pkw=datos["pkw"], hbom=datos["hbom"], hsp=datos["hsp"], fp=datos.get("fp"),
+            wp=datos["wp"], vmp=datos["vmp"], imp=datos["imp"], ct=datos.get("ct"),
+            temp=datos.get("temp"), einv=datos.get("einv"), vsis=datos.get("vsis"),
+        ) or None
+    return None
+
+
 @app.get("/proyecto/{proyecto_id}/calculos", response_class=HTMLResponse)
 async def pagina_calculos(request: Request, proyecto_id: str):
     user = get_current_user(request)
@@ -908,6 +920,7 @@ async def pagina_calculos(request: Request, proyecto_id: str):
     while len(tramos) < N_TRAMOS_HIDRAULICOS:
         tramos.append({})
     agro = verif.get("agronomico", {})
+    fv = verif.get("energetico", {})
 
     return templates.TemplateResponse("calculos.html", {
         "request": request, "user": user, "proyecto": proyecto,
@@ -917,6 +930,9 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         "agro": agro, "agro_calc": _agronomico_calculo(agro),
         "agro_validado": agro.get("validado"), "agro_fecha": agro.get("fecha_validado"),
         "agro_por": agro.get("validado_por"),
+        "fv": fv, "fv_calc": _fv_calculo(fv),
+        "fv_validado": fv.get("validado"), "fv_fecha": fv.get("fecha_validado"),
+        "fv_por": fv.get("validado_por"),
     })
 
 
@@ -1015,6 +1031,50 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     datos["validado_por"] = user["nombre"] if validado else None
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = datos
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/energetico/extraer")
+async def calculos_extraer_fv(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    docs_grupo = _documentos_del_eje("energetico", proyecto.get("documentos", []))
+    datos = await _extraer_datos_fv(docs_grupo)
+    datos["validado"] = False
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["energetico"] = datos
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/energetico/guardar")
+async def calculos_guardar_fv(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    form = await request.form()
+    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"]
+    datos = {c: _num_form(form, c) for c in campos}
+    datos["declarado"] = {
+        "n_paneles": _num_form(form, "decl_npaneles"),
+        "kwp_total": _num_form(form, "decl_kwp"),
+        "seccion_cable_mm2": _num_form(form, "decl_seccion"),
+    }
+    validado = form.get("validar") == "on"
+    datos["validado"] = validado
+    datos["fecha_validado"] = datetime.now().isoformat() if validado else None
+    datos["validado_por"] = user["nombre"] if validado else None
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["energetico"] = datos
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 

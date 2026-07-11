@@ -776,6 +776,90 @@ def _bloque_verificacion_agronomica(datos: dict) -> str:
     return texto
 
 
+async def _extraer_datos_fv(docs_grupo: list) -> dict:
+    """Extrae los datos de dimensionamiento fotovoltaico declarados (diseño FV, reporte
+    Explorador Solar, presupuesto eléctrico). Nunca inventa: usa null si no aparece."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    prompt = f"""Extrae del siguiente expediente los datos del dimensionamiento del sistema
+fotovoltaico (bomba a alimentar, panel solar, sitio, inversor) y los resultados que declara
+el consultor. NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+Responde SOLO este JSON, sin texto adicional:
+{{"pkw": number|null, "hbom": number|null, "hsp": number|null, "fp": number|null,
+"wp": number|null, "vmp": number|null, "imp": number|null, "ct": number|null,
+"temp": number|null, "einv": number|null, "vsis": number|null,
+"declarado": {{"n_paneles": number|null, "kwp_total": number|null, "seccion_cable_mm2": number|null}}}}
+
+Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
+hbom = horas de bombeo al día. hsp = horas sol pico del sitio (del Explorador Solar CNR).
+fp = factor de pérdidas del sistema (decimal 0-1, ej 0,80). wp/vmp/imp = ficha técnica del
+panel (potencia nominal, voltaje y corriente en punto de máxima potencia). ct = coeficiente
+de temperatura del panel (%/°C). temp = temperatura máxima del sitio. einv = eficiencia del
+inversor (decimal 0-1). vsis = voltaje nominal del sistema/inversor.
+
+EXPEDIENTE:
+{texto}"""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return _extraer_json_simple(_texto_respuesta(response))
+    except Exception as e:
+        print(f"⚠️ _extraer_datos_fv: {e}")
+        return {}
+
+
+def _bloque_verificacion_fv(datos: dict) -> str:
+    """Recalcula el dimensionamiento fotovoltaico y arma el bloque para inyectar en el
+    prompt. Solo calcula si los datos base imprescindibles están presentes."""
+    if not datos:
+        return ""
+    base = ["pkw", "hbom", "hsp", "wp", "vmp", "imp"]
+    if any(datos.get(k) is None for k in base):
+        return ""
+    r = calculos_riego.dimensionamiento_fv(
+        pkw=datos["pkw"], hbom=datos["hbom"], hsp=datos["hsp"], fp=datos.get("fp"),
+        wp=datos["wp"], vmp=datos["vmp"], imp=datos["imp"], ct=datos.get("ct"),
+        temp=datos.get("temp"), einv=datos.get("einv"), vsis=datos.get("vsis"),
+    )
+    if not r:
+        return ""
+    declarado = datos.get("declarado") or {}
+    lineas = [
+        f"E_día requerida = P_bomba × H_bombeo = {datos['pkw']} kW × {datos['hbom']} hr = {r['e_dia_kwh']} kWh/día",
+        f"N° paneles mínimo recalculado = {r['n_paneles_minimo']} (config. real: "
+        f"{r['paneles_serie']} serie × {r['strings_paralelo']} paralelo = {r['n_paneles_real']} paneles)",
+        f"kWp total recalculado = {r['kwp_total']} kWp",
+        f"Cable DC recalculado = {r['seccion_cable_mm2']} mm² "
+        f"(V campo={r['v_campo_v']} V, I campo={r['i_campo_a']} A, caída máx. 2%)",
+    ]
+    comparaciones = []
+    if declarado.get("n_paneles") is not None and declarado["n_paneles"] < r["n_paneles_real"]:
+        comparaciones.append(
+            f"El expediente declara {declarado['n_paneles']} paneles — el recálculo indica "
+            f"que se necesitan al menos {r['n_paneles_real']} para cubrir la energía requerida.")
+    if declarado.get("kwp_total") is not None and _diferencia_relevante(r["kwp_total"], declarado["kwp_total"], 15):
+        comparaciones.append(f"kWp declarado = {declarado['kwp_total']} — no coincide con el recálculo ({r['kwp_total']} kWp).")
+    if declarado.get("seccion_cable_mm2") is not None and declarado["seccion_cable_mm2"] < r["seccion_cable_mm2"]:
+        comparaciones.append(
+            f"Sección de cable DC declarada = {declarado['seccion_cable_mm2']} mm² — el "
+            f"recálculo sugiere al menos {r['seccion_cable_mm2']} mm² para no exceder la caída de tensión del 2%.")
+    texto = ("\n\nVERIFICACIÓN FOTOVOLTAICA (cálculo determinístico con la cadena de "
+            "dimensionamiento del Diseñador de Riego — no es una estimación de la IA, es un "
+            "recálculo exacto a partir de los datos base que declara el expediente):\n"
+            + "\n".join(f"- {l}" for l in lineas))
+    if comparaciones:
+        texto += ("\n\nDISCREPANCIAS con lo declarado en el expediente:\n"
+                  + "\n".join(f"- {c}" for c in comparaciones) +
+                  "\nGenera una observación citando estos números exactos.")
+    else:
+        texto += "\n\nSin datos declarados para comparar, o coinciden con el recálculo — no lo menciones como observación."
+    return texto
+
+
 async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documentos: list, *,
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
@@ -987,9 +1071,9 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
     docs_grupo = _documentos_del_eje(eje_key, documentos)
 
-    # Verificación numérica determinística (Hazen-Williams / cadena agronómica): solo en los
-    # ejes donde hay fórmula normativa aplicable. Si la extracción no encuentra datos, el
-    # bloque queda vacío y no afecta el resto del análisis.
+    # Verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
+    # FV): solo en los ejes donde hay fórmula normativa aplicable. Si la extracción no
+    # encuentra datos, el bloque queda vacío y no afecta el resto del análisis.
     bloque_verificacion = ""
     try:
         if eje_key == "hidraulico":
@@ -1000,6 +1084,10 @@ async def analizar_eje(eje_key: str, documentos: list, bases_texto: str = "",
             datos = datos_verificacion if datos_verificacion is not None \
                 else await _extraer_datos_agronomicos(docs_grupo)
             bloque_verificacion = _bloque_verificacion_agronomica(datos)
+        elif eje_key == "energetico":
+            datos = datos_verificacion if datos_verificacion is not None \
+                else await _extraer_datos_fv(docs_grupo)
+            bloque_verificacion = _bloque_verificacion_fv(datos)
     except Exception as e:
         print(f"⚠️ Verificación numérica '{eje_key}' falló, se omite: {e}")
 

@@ -442,13 +442,41 @@ cada campo, y puede corregirlos a mano antes de darlos por buenos.
 - Hidráulico: hasta `N_TRAMOS_HIDRAULICOS=6` tramos fijos (tabla server-rendered, sin JS de
   agregar/quitar filas — suficiente para el tamaño típico de estos proyectos). Agronómico: un
   solo formulario con los 8 campos base + los 3 valores declarados por el consultor (Dn/Fr/Db).
+  Fotovoltaico: bomba/sitio + panel/inversor/sistema + los 3 valores declarados (N° paneles,
+  kWp, sección cable DC).
 - **Efecto en el análisis:** en `revisar_eje()` (main.py), si `verificacion_calculos[eje_key]
   ["validado"]` es `True`, esos datos (ya revisados por el humano) se pasan a `analizar_eje()`
   como `datos_verificacion` y se usan DIRECTO, sin volver a llamar a Haiku para extraer — la
   supervisión humana reemplaza la extracción automática. Si no está validado, sigue
   extrayendo automáticamente en cada revisión (comportamiento de siempre, sin cambios).
-Cubre solo Hidráulico y Agronómico — igual que el módulo de cálculo. Fotovoltaico/carrete/
-microaspersión no tienen todavía ni fórmula ni página.
+Cubre Hidráulico, Agronómico y (desde jul-2026) Fotovoltaico. Carrete/pivote (INIA-Carillanca)
+y microaspersión todavía no tienen fórmula ni página.
+
+**Verificación fotovoltaica (implementado, jul-2026):** `calculos_riego.dimensionamiento_fv()`
+porta `calcFV()` del Diseñador de Riego — energía diaria requerida (P_bomba×horas bombeo),
+derating por temperatura, N° de paneles mínimo, configuración serie/paralelo según voltaje del
+sistema, y sección de cable DC por caída de tensión (2%, distancia campo→inversor asumida en
+50 m — mismo supuesto que la app hermana). `_extraer_datos_fv()` / `_bloque_verificacion_fv()`
+en `analyzer.py`, mismo patrón que hidráulico/agronómico, conectado en `analizar_eje()` para
+`eje_key == "energetico"`. **Cobertura parcial a propósito** (igual que hidráulico/agronómico):
+no incluye cableado AC, protecciones (DPS/fusibles), estructura de montaje, ni contraste
+explícito con el Explorador Solar — el propio Diseñador de Riego tampoco los tiene desarrollados
+todavía. Prioridad de fuente: el ~80% de los proyectos de esta cuenta llevan sistema FV (goteo/
+aspersión + FV), por eso se implementó antes que carrete/pivote (~20%, sin fórmula portada aún).
+
+**Archivo de normativa DT-09 eliminado por corrupción (jul-2026):**
+`normativa/DT-09_Proyectos_Electricos.txt` (el que debía tener los requisitos eléctricos/FV) se
+detectó con texto ilegible en TODO el archivo — problema de codificación en el PDF fuente (glifos
+mal mapeados), no del extractor de la app: incluso la vista previa nativa de Google Drive y la
+conversión "Abrir con Google Docs" (que debería correr OCR) reproducen el mismo texto roto, lo
+que sugiere que el defecto está en la fuente/encoding del PDF, no solo en la capa de texto. Se
+eliminó el archivo del repo porque se cargaba completo (hasta 4.000 caracteres) en el
+`SYSTEM_PROMPT` de **cada** llamada a la IA sin aportar nada — puro costo sin valor. Mientras no
+haya una copia legible, el eje Energético/Fotovoltaico se apoya en `ITT_Criterios_Tecnificacion.txt`
+(ítems esperados en presupuesto FV) y `Manual_Supervision_Obras.txt` (certificación SEC on-grid/
+off-grid) — ambos sí están limpios. Si se consigue una copia legible del PDF de DT-09 (o alguien
+transcribe manualmente las secciones clave), agregar `normativa/DT-09_...txt` de nuevo con texto
+real — no reincorporar el archivo corrupto.
 
 **Los 9 ejes definidos:**
 | # | Eje | Documentos que cruza |
