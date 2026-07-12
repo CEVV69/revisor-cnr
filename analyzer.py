@@ -744,12 +744,13 @@ def _bloque_verificacion_fv(datos: dict) -> str:
     return texto
 
 
-# ── Verificación de precios contra la tabla de precios referenciales CNR ────────
+# ── Verificación de precios contra la tabla de precios referenciales promedio ──────
 # A diferencia de las verificaciones anteriores (fórmulas exactas), esto compara texto libre
 # (la partida del presupuesto) contra un catálogo de referencia — es inherentemente aproximado
-# (match por similitud de palabras, no por código de producto). El revisor sube la tabla en
-# /admin/precios (Excel: categoria/item/unidad/precio); si no ha subido nada, este bloque
-# queda vacío y el análisis del presupuesto sigue igual que siempre (puramente aditivo).
+# (match por similitud de palabras, no por código de producto). NO es una copia oficial de la
+# CNR: es una tabla de precios promedio que el revisor arma y sube en /admin/precios (Excel:
+# categoria/item/unidad/precio); si no ha subido nada, este bloque queda vacío y el análisis
+# del presupuesto sigue igual que siempre (puramente aditivo).
 
 TOLERANCIA_PRECIO_PCT = 30   # variación normal de mercado; fuera de este rango se observa
 _STOPWORDS_PRECIO = {"de", "del", "la", "el", "los", "las", "para", "con", "y", "en", "a",
@@ -828,8 +829,9 @@ def _extraer_json_tolerante(content: str) -> dict:
 
 def _bloque_verificacion_precios(partidas: list, tabla_precios: list) -> str:
     """Compara cada partida declarada contra su mejor match en la tabla de precios
-    referenciales CNR. Solo reporta las que exceden TOLERANCIA_PRECIO_PCT — evita ruido en
-    partidas que calzan razonablemente con el precio de referencia."""
+    referenciales PROMEDIO (no oficial de la CNR). Solo reporta las que exceden
+    TOLERANCIA_PRECIO_PCT — evita ruido en partidas que calzan razonablemente con el precio
+    de referencia."""
     if not partidas or not tabla_precios:
         return ""
     lineas = []
@@ -854,10 +856,13 @@ def _bloque_verificacion_precios(partidas: list, tabla_precios: list) -> str:
         )
     if not lineas:
         return ""
-    return ("\n\nVERIFICACIÓN DE PRECIOS (comparación contra la tabla de precios referenciales "
-            "CNR que subió el revisor — el match entre la partida y el catálogo es aproximado "
-            "por similitud de texto, NO por código de producto exacto; verifica tú mismo que "
-            "el match corresponda al mismo producto antes de observar, ignora los que no calcen):\n"
+    return ("\n\nVERIFICACIÓN DE PRECIOS (comparación contra una tabla de precios referenciales "
+            "PROMEDIO que subió el revisor — NO es una tabla oficial certificada por la CNR, es "
+            "una referencia aproximada; el match entre la partida y el catálogo también es "
+            "aproximado por similitud de texto, NO por código de producto exacto. Verifica tú "
+            "mismo que el match corresponda al mismo producto antes de observar, ignora los que "
+            "no calcen, y no cites esto como \"precio oficial CNR\" en la observación — di "
+            "\"precio referencial promedio\"):\n"
             + "\n".join(lineas) +
             f"\n\nSi la diferencia es real y el match es correcto (>±{TOLERANCIA_PRECIO_PCT}% de "
             "diferencia), genera una observación citando los montos exactos. Si el match no "
@@ -1075,9 +1080,10 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     página "Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
     Haiku — evita depender de una extracción automática que puede fallar en algunos casos.
 
-    `tabla_precios`: tabla de precios referenciales CNR subida por el revisor en
-    /admin/precios ([{categoria, item, unidad, precio}, ...]). Si es None/vacía (nunca se ha
-    subido nada), la verificación de precios del ítem Presupuesto simplemente no corre."""
+    `tabla_precios`: tabla de precios referenciales PROMEDIO subida por el revisor en
+    /admin/precios ([{categoria, item, unidad, precio}, ...]) — no es data oficial de la CNR,
+    es una referencia aproximada. Si es None/vacía (nunca se ha subido nada), la verificación
+    de precios del ítem Presupuesto simplemente no corre."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}

@@ -120,8 +120,9 @@ CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consu
   (máx 300, cruza concursos), perfil (texto destilado), perfil_fecha`.
 - **precios** → blob único global (no keyed, no es por concurso/proyecto): `items[]
   ({categoria, item, unidad, precio}), fecha_actualizado, actualizado_por, nombre_archivo`.
-  Tabla de precios referenciales CNR subida a mano por el revisor — ver la sección
-  "Verificación de precios contra tabla de referencia CNR" más abajo.
+  Tabla de precios referenciales PROMEDIO subida a mano por el revisor (NO es una copia
+  oficial certificada por la CNR) — ver la sección "Verificación de precios contra tabla de
+  referencia promedio" más abajo.
 
 `database.py` lee/escribe la colección completa en cada llamada (sin transacciones).
 Suficiente para uso mono-usuario.
@@ -278,9 +279,9 @@ nombres de proyecto largos completos, había que hacer scroll dentro del campo.
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
-  precios referenciales CNR subida a mano (`/admin/precios`) — detecta sobreprecio y
-  subvaluación. Botón "Precios referenciales CNR ↗" al dashboard oficial en las tarjetas de
-  esos ítems (consulta manual — ver sección dedicada más abajo).
+  precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —
+  detecta sobreprecio y subvaluación. Botón "Precios referenciales CNR ↗" al dashboard oficial
+  en las tarjetas de esos ítems (consulta manual — ver sección dedicada más abajo).
 
 ---
 
@@ -486,19 +487,22 @@ explícito con el Explorador Solar — el propio Diseñador de Riego tampoco los
 todavía. Prioridad de fuente: el ~80% de los proyectos de esta cuenta llevan sistema FV (goteo/
 aspersión + FV), por eso se implementó antes que carrete/pivote (~20%, sin fórmula portada aún).
 
-**Verificación de precios contra tabla de referencia CNR (implementado, jul-2026):** distinto
-del resto de las verificaciones (Hazen-Williams, cadena agronómica, FV): esas son fórmulas
-exactas, esta es texto libre comparado contra un catálogo — inherentemente aproximada, no un
-cálculo determinístico. Origen del problema: la CNR publica precios referenciales de
+**Verificación de precios contra tabla de referencia promedio (implementado, jul-2026):**
+distinto del resto de las verificaciones (Hazen-Williams, cadena agronómica, FV): esas son
+fórmulas exactas, esta es texto libre comparado contra un catálogo — inherentemente
+aproximada, no un cálculo determinístico. **La tabla NO es una copia oficial certificada por
+la CNR** — es una tabla de precios PROMEDIO que el revisor arma y mantiene por su cuenta
+(nombre elegido a propósito para no sobre-representar su autoridad frente al revisor ni frente
+a la IA en el prompt). Origen del problema: la CNR publica sus propios precios referenciales de
 materiales/equipos en un dashboard de Power BI (`app.powerbi.com/view?r=...`) para detectar
 sobreprecios y subvaluaciones en el presupuesto, pero ese dashboard **no tiene API ni export de
 datos** — es solo visualización, y `app.powerbi.com` además está bloqueado por la política de
 red del entorno de ejecución de Claude Code (403 al intentar conectar), así que la app nunca
-puede leerlo en vivo. Solución: el revisor sube una copia propia en Excel (columnas
+puede leerlo en vivo. Solución: el revisor sube su propia copia en Excel (columnas
 `categoria`/`item`/`unidad`/`precio`, reconstruida a mano o con ayuda de otra IA leyendo
-capturas del dashboard) en `/admin/precios` — reemplaza la tabla completa cada vez, no hay
-merge. Mientras no se haya subido ninguna, la verificación simplemente no corre (puramente
-aditivo, cero cambio de comportamiento).
+capturas del dashboard u otras fuentes) en `/admin/precios` — reemplaza la tabla completa cada
+vez, no hay merge. Mientras no se haya subido ninguna, la verificación simplemente no corre
+(puramente aditivo, cero cambio de comportamiento).
 - `database.py`: `get_precios()`/`save_precios()`, colección global nueva `precios` (no
   keyed, un solo blob `{items: [...], fecha_actualizado, actualizado_por, nombre_archivo}`).
 - `extractor.py`: `parse_tabla_precios()` lee la primera hoja del Excel celda por celda

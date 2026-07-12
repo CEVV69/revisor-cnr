@@ -28,7 +28,8 @@ import calculos_riego
 # Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
 # lo consulta manualmente desde un botón en los ítems de Presupuesto (ver proyecto.html). La
 # app NO puede leer este link en vivo (Power BI no expone datos ni API pública) — para la
-# verificación automática, el revisor sube una copia en Excel desde /admin/precios.
+# verificación automática, el revisor sube su propia tabla de precios PROMEDIO (no una copia
+# oficial de este dashboard) en Excel desde /admin/precios.
 URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00YzEyLWEyZjctND"
                    "hjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIs"
                    "ImMiOjR9")
@@ -594,8 +595,8 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     datos_verificacion_agronomica = _validado("agronomico") if item_key == "diseno_hidraulico" else None
     datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
 
-    # Tabla de precios referenciales CNR (subida en /admin/precios). Si nunca se ha subido
-    # nada, queda None y analizar_item() simplemente no corre la verificación de precios.
+    # Tabla de precios referenciales promedio (subida en /admin/precios, no oficial de la CNR).
+    # Si nunca se ha subido nada, queda None y analizar_item() no corre la verificación de precios.
     tabla_precios = None
     if item_key in ("presupuesto", "presupuesto_electrico"):
         precios_data = db.get_precios()
@@ -1762,9 +1763,10 @@ async def admin_eliminar_concurso(request: Request, concurso_id: str):
     return RedirectResponse(url="/admin/concursos?ok=eliminado", status_code=302)
 
 
-# ─── Precios referenciales (tabla global, para verificar sobreprecios/subvaluación) ──────────
-# La CNR publica precios referenciales de materiales y equipos en un dashboard de Power BI que
-# no expone datos ni API pública (solo visualización). El revisor sube acá una copia en Excel
+# ─── Precios referenciales PROMEDIO (tabla global, para verificar sobreprecios/subvaluación) ──
+# NO es una tabla oficial certificada por la CNR — la CNR publica sus propios precios de
+# referencia en un dashboard de Power BI que no expone datos ni API pública (solo
+# visualización). El revisor arma y sube acá su propia tabla de precios PROMEDIO en Excel
 # (columnas categoria/item/unidad/precio) y esa tabla se usa para comparar contra las partidas
 # del presupuesto de cada proyecto (ver analyzer.py: _bloque_verificacion_precios). Reemplaza
 # la tabla completa en cada subida — no es un feed en vivo, se actualiza a mano cuando cambien

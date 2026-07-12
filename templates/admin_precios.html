@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Precios referenciales — Revisor CNR{% endblock %}
+{% block title %}Precios referenciales promedio — Revisor CNR{% endblock %}
 {% block content %}
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
   <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
-  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Precios referenciales</h1>
+  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Precios referenciales promedio</h1>
 </div>
 
 {% if msg_ok %}
@@ -25,12 +25,14 @@
 <div class="card" style="max-width:720px; margin-bottom:1.5rem;">
   <p class="text-muted" style="font-size:0.85rem; margin-bottom:0.5rem;">
     Esta tabla se usa para verificar si una partida del presupuesto está muy por encima
-    (sobreprecio) o muy por debajo (posible subvaluación) del precio referencial. La CNR
-    publica sus precios de referencia en un dashboard externo que no se puede leer en vivo
-    desde la app — sube acá una copia en Excel cuando la actualices.
+    (sobreprecio) o muy por debajo (posible subvaluación) de un precio referencial
+    <strong>promedio</strong> — no es una copia oficial ni certificada de la CNR, es una
+    referencia aproximada que tú mantienes. La CNR publica sus propios precios de referencia
+    en un dashboard externo que no se puede leer en vivo desde la app — sube acá tu propia
+    tabla (armada a partir de ese dashboard u otras fuentes) cuando la actualices.
   </p>
   <p class="text-muted" style="font-size:0.8rem; margin-bottom:1rem;">
-    Dashboard de referencia (consulta manual): <a href="{{ url_precios_cnr }}" target="_blank" rel="noopener">abrir ↗</a>
+    Dashboard oficial CNR (consulta manual): <a href="{{ url_precios_cnr }}" target="_blank" rel="noopener">abrir ↗</a>
   </p>
 
   <div style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.9rem;">
@@ -40,8 +42,8 @@
       {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
       {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
     {% else %}
-      Sin tabla de precios cargada — la verificación de precios en el ítem Presupuesto no corre
-      hasta que subas una.
+      Sin tabla de precios referenciales promedio cargada — la verificación de precios en el
+      ítem Presupuesto no corre hasta que subas una.
     {% endif %}
   </div>
 
@@ -60,7 +62,7 @@
 
   {% if precios and precios.items %}
   <form method="post" action="/admin/precios/eliminar"
-        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales? La verificación de precios dejará de correr hasta que subas otra.')">
+        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales promedio? La verificación de precios dejará de correr hasta que subas otra.')">
     <button type="submit" class="btn btn-danger btn-sm">Eliminar tabla</button>
   </form>
   {% endif %}
