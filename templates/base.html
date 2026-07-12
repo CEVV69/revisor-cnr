@@ -184,6 +184,7 @@
       <span class="badge badge-estado">{{ user.rol }}</span>
       {% if user.rol == "admin" %}<a href="/admin/usuarios">Usuarios</a>{% endif %}
       {% if user.rol == "admin" %}<a href="/admin/concursos">Concursos</a>{% endif %}
+      {% if user.rol == "admin" %}<a href="/admin/precios">Precios</a>{% endif %}
       <span id="modo-indicator" onclick="toggleModo()" title="Cambiar modo claro/oscuro" style="cursor:pointer; display:inline-flex;"></span>
       <a href="/logout">Salir</a>
     </div>

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Precios referenciales — Revisor CNR{% endblock %}
+{% block content %}
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
+  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Precios referenciales</h1>
+</div>
+
+{% if msg_ok %}
+<div class="alert alert-success" style="margin-bottom:1rem;">
+  {% if msg_ok.startswith('cargado_') %}Tabla cargada: {{ msg_ok.split('_')[1] }} ítems.
+  {% elif msg_ok == 'eliminado' %}Tabla de precios eliminada.
+  {% else %}Operación exitosa.{% endif %}
+</div>
+{% endif %}
+{% if msg_err %}
+<div class="alert alert-error" style="margin-bottom:1rem;">
+  {% if msg_err == 'formato' %}Formato no soportado. Sube un Excel (.xlsx o .xls).
+  {% elif msg_err == 'vacio' %}El Excel no tiene filas válidas (categoría, ítem y precio son obligatorios).
+  {% else %}Error: {{ msg_err }}{% endif %}
+</div>
+{% endif %}
+
+<div class="card" style="max-width:720px; margin-bottom:1.5rem;">
+  <p class="text-muted" style="font-size:0.85rem; margin-bottom:0.5rem;">
+    Esta tabla se usa para verificar si una partida del presupuesto está muy por encima
+    (sobreprecio) o muy por debajo (posible subvaluación) del precio referencial. La CNR
+    publica sus precios de referencia en un dashboard externo que no se puede leer en vivo
+    desde la app — sube acá una copia en Excel cuando la actualices.
+  </p>
+  <p class="text-muted" style="font-size:0.8rem; margin-bottom:1rem;">
+    Dashboard de referencia (consulta manual): <a href="{{ url_precios_cnr }}" target="_blank" rel="noopener">abrir ↗</a>
+  </p>
+
+  <div style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.9rem;">
+    {% if precios and precios.items %}
+      <strong>{{ n_items }}</strong> ítems cargados
+      {% if precios.fecha_actualizado %} · actualizado el {{ precios.fecha_actualizado[:16].replace('T',' ') }}{% endif %}
+      {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
+      {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
+    {% else %}
+      Sin tabla de precios cargada — la verificación de precios en el ítem Presupuesto no corre
+      hasta que subas una.
+    {% endif %}
+  </div>
+
+  <form method="post" action="/admin/precios/subir" enctype="multipart/form-data" style="margin-bottom:0.6rem;"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Cargando…'; this.submit();">
+    <div class="form-group">
+      <label>Archivo Excel</label>
+      <input type="file" name="archivo" accept=".xlsx,.xls" required>
+      <p class="text-muted mt-1" style="font-size:0.78rem;">
+        Columnas obligatorias en la primera hoja: <strong>categoria</strong>, <strong>item</strong>,
+        <strong>precio</strong> (unidad es opcional). Reemplaza la tabla completa.
+      </p>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Subir y reemplazar tabla</button>
+  </form>
+
+  {% if precios and precios.items %}
+  <form method="post" action="/admin/precios/eliminar"
+        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales? La verificación de precios dejará de correr hasta que subas otra.')">
+    <button type="submit" class="btn btn-danger btn-sm">Eliminar tabla</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if grupos %}
+<h2 style="font-size:1rem; color:#2d3748; margin-bottom:0.75rem;">Ítems cargados por categoría</h2>
+<div style="display:flex; flex-direction:column; gap:0.5rem;">
+  {% for g in grupos %}
+  <details style="border:1px solid var(--border); border-radius:8px;">
+    <summary style="cursor:pointer; padding:0.6rem 0.9rem; font-weight:600; font-size:0.88rem;">
+      {{ g.nombre }} <span style="font-weight:400; color:var(--text-2);">({{ g.productos|length }})</span>
+    </summary>
+    <div style="padding:0 0.9rem 0.75rem; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+        <tr style="text-align:left; color:var(--text-2); border-bottom:1px solid var(--border);">
+          <th style="padding:0.3rem 0.5rem;">Ítem</th>
+          <th style="padding:0.3rem 0.5rem;">Unidad</th>
+          <th style="padding:0.3rem 0.5rem;">Precio</th>
+        </tr>
+        {% for it in g.productos %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.3rem 0.5rem;">{{ it.item }}</td>
+          <td style="padding:0.3rem 0.5rem;">{{ it.unidad or '—' }}</td>
+          <td style="padding:0.3rem 0.5rem;">${{ '{:,.0f}'.format(it.precio) }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

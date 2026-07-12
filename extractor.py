@@ -199,3 +199,82 @@ def _from_xls(filepath: str) -> str:
             if row_text.strip(" |"):
                 lines.append(row_text)
     return "\n".join(lines)
+
+
+# ─── Tabla de precios referenciales (categoria, item, unidad, precio) ─────────
+# A diferencia de _from_excel (texto plano concatenado), esto lee celda por celda para
+# obtener filas estructuradas — necesarias para comparar contra el presupuesto del proyecto.
+
+def _normalizar_col(valor) -> str:
+    import unicodedata
+    s = str(valor or "").strip().lower()
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def _parse_precio(valor):
+    if valor is None:
+        return None
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    s = re.sub(r"[^\d,.\-]", "", str(valor).strip())
+    if not s:
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")   # notación chilena: punto=miles, coma=decimal
+    elif "." in s:
+        s = s.replace(".", "")   # sin coma: el punto es separador de miles, no decimal
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def parse_tabla_precios(filepath: str) -> list:
+    """Lee un Excel de precios referenciales con columnas categoria/item/unidad/precio
+    (encabezados case-insensitive, sin tildes, en cualquier orden, en la primera hoja).
+    Retorna [{categoria, item, unidad, precio}, ...]. Lanza ValueError si faltan columnas
+    obligatorias (categoria, item, precio); unidad es opcional."""
+    import openpyxl
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    filas = list(wb.worksheets[0].iter_rows(values_only=True))
+    if not filas:
+        return []
+
+    header = [_normalizar_col(c) for c in filas[0]]
+    idx = {}
+    for i, h in enumerate(header):
+        if h == "categoria" and "categoria" not in idx:
+            idx["categoria"] = i
+        elif h in ("item", "producto", "descripcion") and "item" not in idx:
+            idx["item"] = i
+        elif h in ("unidad", "un", "unidadmedida") and "unidad" not in idx:
+            idx["unidad"] = i
+        elif h in ("precio", "preciopromedio", "valor", "preciounitario") and "precio" not in idx:
+            idx["precio"] = i
+
+    faltantes = {"categoria", "item", "precio"} - idx.keys()
+    if faltantes:
+        raise ValueError(
+            "Faltan columnas obligatorias en el Excel: " + ", ".join(sorted(faltantes)) +
+            " (encabezados esperados: categoria, item, unidad, precio)")
+
+    items = []
+    for row in filas[1:]:
+        if row is None:
+            continue
+
+        def _get(key):
+            i = idx.get(key)
+            return row[i] if i is not None and i < len(row) else None
+
+        categoria = str(_get("categoria") or "").strip()
+        item = str(_get("item") or "").strip()
+        if not categoria or not item:
+            continue
+        precio = _parse_precio(_get("precio"))
+        if precio is None:
+            continue
+        unidad = str(_get("unidad") or "").strip()
+        items.append({"categoria": categoria, "item": item, "unidad": unidad, "precio": precio})
+    return items

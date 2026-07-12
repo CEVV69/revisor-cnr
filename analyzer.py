@@ -744,6 +744,126 @@ def _bloque_verificacion_fv(datos: dict) -> str:
     return texto
 
 
+# ── Verificación de precios contra la tabla de precios referenciales CNR ────────
+# A diferencia de las verificaciones anteriores (fórmulas exactas), esto compara texto libre
+# (la partida del presupuesto) contra un catálogo de referencia — es inherentemente aproximado
+# (match por similitud de palabras, no por código de producto). El revisor sube la tabla en
+# /admin/precios (Excel: categoria/item/unidad/precio); si no ha subido nada, este bloque
+# queda vacío y el análisis del presupuesto sigue igual que siempre (puramente aditivo).
+
+TOLERANCIA_PRECIO_PCT = 30   # variación normal de mercado; fuera de este rango se observa
+_STOPWORDS_PRECIO = {"de", "del", "la", "el", "los", "las", "para", "con", "y", "en", "a",
+                      "un", "una", "por", "su"}
+
+
+def _tokens_precio(texto: str) -> set:
+    texto = re.sub(r"[^\w\s]", " ", (texto or "").lower())
+    return {t for t in texto.split() if t and t not in _STOPWORDS_PRECIO}
+
+
+def _similitud_item_precio(a: str, b: str) -> float:
+    """Similitud por solapamiento de palabras (Jaccard) — más robusto que comparar caracteres
+    ante reordenamientos ("Tubería PVC 110mm C-10" vs "Tubería PVC clase 10 diámetro 110mm")."""
+    ta, tb = _tokens_precio(a), _tokens_precio(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def _mejor_match_precio(item_texto: str, tabla_precios: list):
+    mejor, mejor_score = None, 0.0
+    for ref in tabla_precios:
+        score = _similitud_item_precio(item_texto, f"{ref.get('categoria','')} {ref.get('item','')}")
+        if score > mejor_score:
+            mejor, mejor_score = ref, score
+    return mejor if mejor_score >= 0.35 else None
+
+
+async def _extraer_partidas_presupuesto(docs_grupo: list) -> dict:
+    """Extrae las partidas (ítem, unidad, cantidad, precio unitario) declaradas en el
+    presupuesto. Nunca inventa: usa null si un dato no aparece en el texto."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    prompt = f"""Extrae del siguiente presupuesto TODAS las partidas de materiales/equipos con
+sus datos declarados. NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+Responde SOLO este JSON, sin texto adicional:
+{{"partidas": [{{"item": "descripción de la partida tal como aparece", "unidad": "un"|"m"|"m2"|"m3"|"kg"|null,
+"cantidad": number|null, "precio_unitario": number|null}}]}}
+
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56. Convierte
+todos los precios a número plano sin separador de miles.
+
+PRESUPUESTO:
+{texto}"""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=MODELO_HAIKU, max_tokens=4000,   # presupuestos pueden tener muchas partidas
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return _extraer_json_tolerante(_texto_respuesta(response))
+    except Exception as e:
+        print(f"⚠️ _extraer_partidas_presupuesto: {e}")
+        return {}
+
+
+def _extraer_json_tolerante(content: str) -> dict:
+    """Como _extraer_json_simple, pero si el JSON quedó cortado a mitad (lista larga de
+    partidas y el thinking se comió el cupo), reintenta cerrando llaves/corchetes abiertos."""
+    data = _extraer_json_simple(content)
+    if data:
+        return data
+    try:
+        start = content.find("{")
+        if start < 0:
+            return {}
+        frag = content[start:]
+        frag += "]" * (frag.count("[") - frag.count("]"))
+        frag += "}" * (frag.count("{") - frag.count("}"))
+        return json.loads(frag)
+    except Exception:
+        return {}
+
+
+def _bloque_verificacion_precios(partidas: list, tabla_precios: list) -> str:
+    """Compara cada partida declarada contra su mejor match en la tabla de precios
+    referenciales CNR. Solo reporta las que exceden TOLERANCIA_PRECIO_PCT — evita ruido en
+    partidas que calzan razonablemente con el precio de referencia."""
+    if not partidas or not tabla_precios:
+        return ""
+    lineas = []
+    for p in partidas:
+        item_texto = (p.get("item") or "").strip()
+        precio_decl = p.get("precio_unitario")
+        if not item_texto or precio_decl is None:
+            continue
+        match = _mejor_match_precio(item_texto, tabla_precios)
+        if not match or not match.get("precio"):
+            continue
+        precio_ref = match["precio"]
+        diff_pct = (precio_decl - precio_ref) / precio_ref * 100
+        if abs(diff_pct) < TOLERANCIA_PRECIO_PCT:
+            continue
+        signo = "sobreprecio" if diff_pct > 0 else "posible subvaluación"
+        unidad = f"/{p['unidad']}" if p.get("unidad") else ""
+        lineas.append(
+            f'- "{item_texto}" declarado a ${precio_decl:,.0f}{unidad} vs referencia CNR '
+            f'"{match["item"]}" (categoría {match.get("categoria","")}) = ${precio_ref:,.0f} '
+            f'→ {signo} de {abs(diff_pct):.0f}%'
+        )
+    if not lineas:
+        return ""
+    return ("\n\nVERIFICACIÓN DE PRECIOS (comparación contra la tabla de precios referenciales "
+            "CNR que subió el revisor — el match entre la partida y el catálogo es aproximado "
+            "por similitud de texto, NO por código de producto exacto; verifica tú mismo que "
+            "el match corresponda al mismo producto antes de observar, ignora los que no calcen):\n"
+            + "\n".join(lineas) +
+            f"\n\nSi la diferencia es real y el match es correcto (>±{TOLERANCIA_PRECIO_PCT}% de "
+            "diferencia), genera una observación citando los montos exactos. Si el match no "
+            "corresponde al mismo producto, ignóralo por completo — no lo menciones.")
+
+
 async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documentos: list, *,
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
                           bases_texto: str = "", concurso_id: str = "",
@@ -947,12 +1067,17 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         datos_verificacion_hidraulica: dict = None,
                         datos_verificacion_agronomica: dict = None,
                         datos_verificacion_fv: dict = None,
+                        tabla_precios: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
 
     `datos_verificacion_*`: si se entregan (datos que el revisor ya revisó/corrigió a mano en la
     página "Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
-    Haiku — evita depender de una extracción automática que puede fallar en algunos casos."""
+    Haiku — evita depender de una extracción automática que puede fallar en algunos casos.
+
+    `tabla_precios`: tabla de precios referenciales CNR subida por el revisor en
+    /admin/precios ([{categoria, item, unidad, precio}, ...]). Si es None/vacía (nunca se ha
+    subido nada), la verificación de precios del ítem Presupuesto simplemente no corre."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
@@ -985,6 +1110,10 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
             datos_fv = datos_verificacion_fv if datos_verificacion_fv is not None \
                 else await _extraer_datos_fv(docs_fv)
             bloque_verificacion = _bloque_verificacion_fv(datos_fv)
+        elif item_key in ("presupuesto", "presupuesto_electrico") and tabla_precios:
+            partidas_data = await _extraer_partidas_presupuesto(docs_grupo)
+            bloque_verificacion = _bloque_verificacion_precios(
+                partidas_data.get("partidas", []), tabla_precios)
     except Exception as e:
         print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
 

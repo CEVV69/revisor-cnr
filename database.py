@@ -13,6 +13,7 @@ USERS_FILE       = DATA_DIR / "users.json"
 PROYECTOS_FILE   = DATA_DIR / "proyectos.json"
 CONCURSOS_FILE   = DATA_DIR / "concursos.json"
 CONSULTORES_FILE = DATA_DIR / "consultores.json"
+PRECIOS_FILE     = DATA_DIR / "precios.json"
 
 # ── Backend PostgreSQL ─────────────────────────────────────────────────────────
 _pg_conn = None
@@ -213,6 +214,17 @@ class Database:
         c["feedback"] = c["feedback"][-300:]
         consultores[key] = c
         self._save("consultores", CONSULTORES_FILE, consultores)
+
+    # ── Precios referenciales (tabla única global, sube el revisor vía Excel) ──
+
+    def get_precios(self) -> dict:
+        """Tabla de precios referenciales (materiales/equipos) para comparar contra el
+        presupuesto declarado. Estructura: {"items": [{categoria, item, unidad, precio}, ...],
+        "fecha_actualizado", "actualizado_por", "nombre_archivo"}. {} si nunca se ha subido."""
+        return self._load("precios", PRECIOS_FILE)
+
+    def save_precios(self, data: dict):
+        self._save("precios", PRECIOS_FILE, data)
 
     # ── Archivos físicos (persistencia contra deploys efímeros de Railway) ──────
     # Solo aplica en modo PostgreSQL: en modo JSON local el disco ya persiste entre

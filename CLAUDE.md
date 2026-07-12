@@ -99,7 +99,7 @@ templates/       Jinja2 (base.html, proyecto.html, ficha.html, admin_concursos.h
 ```
 
 ### Modelo de datos (PostgreSQL: tabla `storage (key TEXT, value TEXT)`)
-CUATRO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consultores`.
+CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consultores`, `precios`.
 
 - **proyectos** → dict keyed por UUID: `id, nombre, codigo_sep, postulante, tipo_revision,
   revisor, revisor_nombre, estado, documentos[], observaciones[], consultas[]`, y además
@@ -118,6 +118,10 @@ CUATRO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `cons
     texto_obs, fecha`). `tipo_doc` = "item_"+item_key o tipo_doc real. Máx 200.
 - **consultores** → keyed por nombre normalizado (`_consultor_key`): `key, nombre, feedback[]
   (máx 300, cruza concursos), perfil (texto destilado), perfil_fecha`.
+- **precios** → blob único global (no keyed, no es por concurso/proyecto): `items[]
+  ({categoria, item, unidad, precio}), fecha_actualizado, actualizado_por, nombre_archivo`.
+  Tabla de precios referenciales CNR subida a mano por el revisor — ver la sección
+  "Verificación de precios contra tabla de referencia CNR" más abajo.
 
 `database.py` lee/escribe la colección completa en cada llamada (sin transacciones).
 Suficiente para uso mono-usuario.
@@ -273,6 +277,10 @@ nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
+- **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
+  precios referenciales CNR subida a mano (`/admin/precios`) — detecta sobreprecio y
+  subvaluación. Botón "Precios referenciales CNR ↗" al dashboard oficial en las tarjetas de
+  esos ítems (consulta manual — ver sección dedicada más abajo).
 
 ---
 
@@ -477,6 +485,58 @@ no incluye cableado AC, protecciones (DPS/fusibles), estructura de montaje, ni c
 explícito con el Explorador Solar — el propio Diseñador de Riego tampoco los tiene desarrollados
 todavía. Prioridad de fuente: el ~80% de los proyectos de esta cuenta llevan sistema FV (goteo/
 aspersión + FV), por eso se implementó antes que carrete/pivote (~20%, sin fórmula portada aún).
+
+**Verificación de precios contra tabla de referencia CNR (implementado, jul-2026):** distinto
+del resto de las verificaciones (Hazen-Williams, cadena agronómica, FV): esas son fórmulas
+exactas, esta es texto libre comparado contra un catálogo — inherentemente aproximada, no un
+cálculo determinístico. Origen del problema: la CNR publica precios referenciales de
+materiales/equipos en un dashboard de Power BI (`app.powerbi.com/view?r=...`) para detectar
+sobreprecios y subvaluaciones en el presupuesto, pero ese dashboard **no tiene API ni export de
+datos** — es solo visualización, y `app.powerbi.com` además está bloqueado por la política de
+red del entorno de ejecución de Claude Code (403 al intentar conectar), así que la app nunca
+puede leerlo en vivo. Solución: el revisor sube una copia propia en Excel (columnas
+`categoria`/`item`/`unidad`/`precio`, reconstruida a mano o con ayuda de otra IA leyendo
+capturas del dashboard) en `/admin/precios` — reemplaza la tabla completa cada vez, no hay
+merge. Mientras no se haya subido ninguna, la verificación simplemente no corre (puramente
+aditivo, cero cambio de comportamiento).
+- `database.py`: `get_precios()`/`save_precios()`, colección global nueva `precios` (no
+  keyed, un solo blob `{items: [...], fecha_actualizado, actualizado_por, nombre_archivo}`).
+- `extractor.py`: `parse_tabla_precios()` lee la primera hoja del Excel celda por celda
+  (distinto de `_from_excel`, que concatena todo a texto plano) — encabezados case-insensitive
+  sin tildes, en cualquier orden; `categoria`/`item`/`precio` obligatorios, `unidad` opcional.
+  `_parse_precio()` interpreta notación chilena: si hay coma, punto=miles y coma=decimal; si
+  NO hay coma, cualquier punto se trata como separador de miles (nunca decimal) — la app usa
+  esa convención en todos lados y los precios de esta tabla son montos en pesos, no fracciones.
+- `analyzer.py`: `_extraer_partidas_presupuesto()` (Haiku, mismo patrón que
+  `_extraer_datos_hidraulicos`) saca `{item, unidad, cantidad, precio_unitario}` de cada
+  partida del presupuesto — usa `max_tokens=4000` (más que el resto de las extracciones,
+  `MAX_TOKENS_EXTRACCION=1500`, porque un presupuesto real puede tener muchas partidas) y
+  `_extraer_json_tolerante()` (reintenta cerrando llaves/corchetes si el JSON quedó cortado,
+  mismo patrón que `_analizar_grupo`). `_mejor_match_precio()` compara cada partida contra la
+  tabla por solapamiento de palabras (Jaccard sobre tokens, sin stopwords) — más robusto que
+  comparar caracteres ante reordenamientos ("Tubería PVC 110mm C-10" vs "Tubería PVC clase 10
+  diámetro 110mm"); umbral mínimo 0,35, si no hay match sobre ese umbral la partida se ignora.
+  `_bloque_verificacion_precios()` arma el bloque solo con las partidas cuya diferencia excede
+  `TOLERANCIA_PRECIO_PCT=30` (más ancho que la tolerancia de 10-15% de hidráulica/agronómica,
+  porque precios de mercado varían más que una fórmula de ingeniería) y avisa a la IA que el
+  match es aproximado — verificar que corresponda al mismo producto antes de observar.
+  Conectado en `analizar_item()` para `item_key in ("presupuesto", "presupuesto_electrico")`
+  vía el nuevo parámetro `tabla_precios`.
+- **Por qué NO se implementó con búsqueda web de la IA en vivo:** se evaluó y se descartó como
+  mecanismo principal. Una búsqueda de mercado genérica no es reproducible (mismo ítem revisado
+  en fechas distintas puede dar resultados distintos, mal para un informe que se traspasa al
+  SEP), tiene menos autoridad que el precio oficial que la propia CNR usa para juzgar
+  sobreprecios, y suma costo/latencia a cada revisión de presupuesto. La tabla subida a mano
+  (actualizada periódicamente, igual que la normativa) es más lenta de mantener pero
+  consistente y auditable.
+- **Botón "Precios referenciales CNR ↗"** en las tarjetas de los ítems Presupuesto y
+  Presupuesto electrificación (`proyecto.html`, página Ítems SEP) — abre el dashboard original
+  en pestaña nueva para consulta manual del revisor. Es un link externo simple, no un embed
+  (Power BI no lo permitiría y tampoco aporta valor embeberlo). URL en la constante
+  `URL_PRECIOS_CNR` (main.py).
+- **Administración** (`/admin/precios`, nav "Precios" solo para admin): ver cuántos ítems hay
+  cargados, cuándo y quién los subió, tabla completa agrupada por categoría en `<details>`
+  desplegables, formulario para subir/reemplazar el Excel, botón para eliminar la tabla.
 
 **Archivo de normativa DT-09 eliminado por corrupción (jul-2026):**
 `normativa/DT-09_Proyectos_Electricos.txt` (el que debía tener los requisitos eléctricos/FV) se

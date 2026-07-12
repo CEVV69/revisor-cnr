@@ -17,13 +17,21 @@ import uvicorn
 from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
-from extractor import extract_text, extract_zip
+from extractor import extract_text, extract_zip, parse_tabla_precios
 from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv)
 import calculos_riego
+
+# Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
+# lo consulta manualmente desde un botón en los ítems de Presupuesto (ver proyecto.html). La
+# app NO puede leer este link en vivo (Power BI no expone datos ni API pública) — para la
+# verificación automática, el revisor sube una copia en Excel desde /admin/precios.
+URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00YzEyLWEyZjctND"
+                   "hjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIs"
+                   "ImMiOjR9")
 from database import db
 
 BASE_DIR = Path(__file__).parent
@@ -453,6 +461,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "resumen": resumen,
         # Página activa (resumen / documentos / items)
         "pagina": pagina,
+        "url_precios_cnr": URL_PRECIOS_CNR,
     })
 
 
@@ -585,6 +594,13 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     datos_verificacion_agronomica = _validado("agronomico") if item_key == "diseno_hidraulico" else None
     datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
 
+    # Tabla de precios referenciales CNR (subida en /admin/precios). Si nunca se ha subido
+    # nada, queda None y analizar_item() simplemente no corre la verificación de precios.
+    tabla_precios = None
+    if item_key in ("presupuesto", "presupuesto_electrico"):
+        precios_data = db.get_precios()
+        tabla_precios = precios_data.get("items") if precios_data else None
+
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
@@ -600,6 +616,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             datos_verificacion_hidraulica=datos_verificacion_hidraulica,
             datos_verificacion_agronomica=datos_verificacion_agronomica,
             datos_verificacion_fv=datos_verificacion_fv,
+            tabla_precios=tabla_precios,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -1743,6 +1760,80 @@ async def admin_eliminar_concurso(request: Request, concurso_id: str):
     concursos_data.pop(concurso_id, None)
     db._save(CONCURSOS_FILE, concursos_data)
     return RedirectResponse(url="/admin/concursos?ok=eliminado", status_code=302)
+
+
+# ─── Precios referenciales (tabla global, para verificar sobreprecios/subvaluación) ──────────
+# La CNR publica precios referenciales de materiales y equipos en un dashboard de Power BI que
+# no expone datos ni API pública (solo visualización). El revisor sube acá una copia en Excel
+# (columnas categoria/item/unidad/precio) y esa tabla se usa para comparar contra las partidas
+# del presupuesto de cada proyecto (ver analyzer.py: _bloque_verificacion_precios). Reemplaza
+# la tabla completa en cada subida — no es un feed en vivo, se actualiza a mano cuando cambien
+# los precios de referencia.
+
+@app.get("/admin/precios", response_class=HTMLResponse)
+async def admin_precios(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    precios = db.get_precios()
+    items = precios.get("items", []) if precios else []
+    categorias = {}
+    for it in items:
+        categorias.setdefault(it.get("categoria", ""), []).append(it)
+    grupos = [{"nombre": nombre, "productos": sorted(lista, key=lambda x: x.get("item", ""))}
+              for nombre, lista in sorted(categorias.items())]
+    msg_ok  = request.query_params.get("ok")
+    msg_err = request.query_params.get("error")
+    return templates.TemplateResponse("admin_precios.html", {
+        "request": request, "user": user, "precios": precios, "grupos": grupos,
+        "n_items": len(items), "url_precios_cnr": URL_PRECIOS_CNR,
+        "msg_ok": msg_ok, "msg_err": msg_err,
+    })
+
+
+@app.post("/admin/precios/subir")
+async def admin_subir_precios(request: Request, archivo: UploadFile = File(...)):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+
+    ext = Path(archivo.filename).suffix.lower()
+    if ext not in (".xlsx", ".xls"):
+        return RedirectResponse(url="/admin/precios?error=formato", status_code=302)
+
+    tmp_path = UPLOAD_DIR / "_precios_referenciales_tmp.xlsx"
+    tmp_path.parent.mkdir(parents=True, exist_ok=True)
+    content = await archivo.read()
+    with open(tmp_path, "wb") as f:
+        f.write(content)
+
+    try:
+        items = parse_tabla_precios(str(tmp_path))
+    except Exception as e:
+        tmp_path.unlink(missing_ok=True)
+        from urllib.parse import quote
+        return RedirectResponse(url=f"/admin/precios?error={quote(str(e))}", status_code=302)
+    tmp_path.unlink(missing_ok=True)
+
+    if not items:
+        return RedirectResponse(url="/admin/precios?error=vacio", status_code=302)
+
+    db.save_precios({
+        "items": items,
+        "fecha_actualizado": datetime.now().isoformat(),
+        "actualizado_por": user["nombre"],
+        "nombre_archivo": archivo.filename,
+    })
+    return RedirectResponse(url=f"/admin/precios?ok=cargado_{len(items)}", status_code=302)
+
+
+@app.post("/admin/precios/eliminar")
+async def admin_eliminar_precios(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    db.save_precios({})
+    return RedirectResponse(url="/admin/precios?ok=eliminado", status_code=302)
 
 
 # ─── Administración de usuarios ──────────────────────────────────────────────
