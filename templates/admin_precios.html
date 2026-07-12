@@ -22,7 +22,7 @@
 </div>
 {% endif %}
 
-<div class="card" style="max-width:720px; margin-bottom:1.5rem;">
+<div class="card" style="margin-bottom:1.5rem;">
   <p class="text-muted" style="font-size:0.85rem; margin-bottom:0.5rem;">
     Esta tabla se usa para verificar si una partida del presupuesto está muy por encima
     (sobreprecio) o muy por debajo (posible subvaluación) de un precio referencial
@@ -42,8 +42,9 @@
       {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
       {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
     {% else %}
-      Sin tabla de precios referenciales promedio cargada — la verificación de precios en el
-      ítem Presupuesto no corre hasta que subas una.
+      Sin tabla de precios referenciales promedio cargada — la revisión del ítem Presupuesto
+      sigue funcionando exactamente igual que antes, solo que sin el chequeo extra de
+      sobreprecio/subvaluación contra esta tabla.
     {% endif %}
   </div>
 
@@ -62,7 +63,7 @@
 
   {% if precios and precios.items %}
   <form method="post" action="/admin/precios/eliminar"
-        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales promedio? La verificación de precios dejará de correr hasta que subas otra.')">
+        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales promedio? El resto de la revisión del ítem Presupuesto sigue igual, solo se deja de comparar contra esta tabla hasta que subas otra.')">
     <button type="submit" class="btn btn-danger btn-sm">Eliminar tabla</button>
   </form>
   {% endif %}
