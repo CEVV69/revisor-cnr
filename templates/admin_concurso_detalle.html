@@ -129,15 +129,18 @@
 </form>
 
 <!-- Documentos obligatorios de admisibilidad -->
-<div class="card" style="margin-bottom:1.5rem; border-left:4px solid #c41230;">
+<div id="doc-obligatorios" class="card" style="margin-bottom:1.5rem; border-left:4px solid #c41230;">
   <h2 style="font-size:1rem; margin-bottom:0.4rem;">Documentos obligatorios (admisibilidad)</h2>
 
   {% if concurso.documentos_obligatorios_revisado %}
-  <p style="font-size:0.8rem; color:#276749; margin-bottom:0.5rem;">
-    Confirmado por {{ concurso.documentos_obligatorios_por }} el
-    {{ concurso.documentos_obligatorios_fecha | fecha_hora }} —
-    {{ concurso.documentos_obligatorios | length }} documento(s) marcado(s) obligatorio(s).
-  </p>
+  <div style="background:#f0fff4; border:1px solid #68d391; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.75rem;">
+    <span class="badge-validado">CONFIRMADO</span>
+    <span style="font-size:0.8rem; color:#276749; margin-left:0.4rem;">
+      por {{ concurso.documentos_obligatorios_por }} el {{ concurso.documentos_obligatorios_fecha | fecha_hora }} —
+      {{ concurso.documentos_obligatorios | length }} documento(s) marcado(s) obligatorio(s).
+      Ya se está aplicando el filtro en los proyectos de este concurso.
+    </span>
+  </div>
   {% elif concurso.documentos_obligatorios %}
   <p style="font-size:0.8rem; color:#92400e; margin-bottom:0.5rem;">
     Sugerencia de la IA sin confirmar — revisa y guarda abajo para activar la advertencia.
@@ -172,7 +175,9 @@
       </label>
       {% endfor %}
     </div>
-    <button type="submit" class="btn btn-success btn-sm">Guardar y confirmar</button>
+    <button type="submit" class="btn btn-success btn-sm">
+      {% if concurso.documentos_obligatorios_revisado %}Actualizar confirmación{% else %}Guardar y confirmar{% endif %}
+    </button>
   </form>
 </div>
 

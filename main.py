@@ -1690,7 +1690,7 @@ async def extraer_doc_obligatorios(request: Request, concurso_id: str):
     concurso["documentos_obligatorios_revisado"] = False   # requiere VB explícito antes de advertir
     db.save_concurso(concurso)
     return RedirectResponse(
-        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(resultado['obligatorios'])}",
+        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(resultado['obligatorios'])}#doc-obligatorios",
         status_code=302)
 
 
@@ -1711,7 +1711,8 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
     concurso["documentos_obligatorios_fecha"] = _ahora().isoformat()
     concurso["documentos_obligatorios_por"] = user["nombre"]
     db.save_concurso(concurso)
-    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=doc_obl_guardado", status_code=302)
+    return RedirectResponse(
+        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_guardado#doc-obligatorios", status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/consolidar")
