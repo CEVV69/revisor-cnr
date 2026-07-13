@@ -22,6 +22,36 @@ este CLAUDE.md y súbelas, para que el otro entorno las lea.
 
 ---
 
+## Estado al cierre de esta sesión (jul-2026) — leer antes de seguir
+
+Sesión larga con varios cambios grandes recién desplegados a `main`, **todavía sin probar con
+datos reales**:
+- Eliminación completa del método de revisión por Ejes (queda solo Ítems SEP).
+- Verificación de precios contra tabla de referencia PROMEDIO (`/admin/precios`) — el revisor
+  aún NO ha subido ninguna tabla real, así que esta verificación nunca se ha ejecutado en
+  producción todavía.
+- Reordenamiento del Chequeo de Cálculos (Agronómico → Hidráulico → Fotovoltaico).
+- Fix de huso horario (`_ahora()`, hora de Chile) y formato de fecha (`dd/mm/aaaa`) en toda
+  la app.
+- Fix de un bug real (`Internal Server Error` al eliminar un concurso — `db._load`/`_save`
+  llamados con firma incorrecta; ver `database.py: delete_concurso`).
+
+El usuario **borró el proyecto y concurso de prueba** que se usaron para probar los cambios
+anteriores (Ejes, Chequeo de Cálculos, etc.) — la base está limpia de datos de prueba.
+Mañana va a **ingresar un concurso y proyecto reales** para revisar de punta a punta y detectar
+fallas. Cuando retomes: no asumas que ya se probó nada de lo anterior en un caso real — es
+la primera pasada con datos reales desde todos estos cambios. Presta especial atención a:
+- Que la revisión por Ítems SEP corra sin errores en las 18 categorías (incluye Coherencia
+  Global al final).
+- Que el ítem `diseno_hidraulico` corra bien la verificación hidráulica + agronómica juntas
+  (recién portadas desde el eje eliminado), y que `diseno_fotovoltaico` corra la FV.
+- Que las fechas se vean en `dd/mm/aaaa` y con la hora de Chile correcta en toda la app
+  (dashboard, documentos, chat, ficha, admin).
+- Que "Chequeo de Cálculos" extraiga y guarde bien con el nuevo orden de tarjetas.
+- Cualquier error 500 nuevo — revisar el log de Railway primero.
+
+---
+
 ## Qué hace este proyecto
 
 **Revisor CNR** es una app web para los revisores de la Comisión Nacional de Riego (CNR)
