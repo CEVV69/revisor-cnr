@@ -560,6 +560,34 @@ tal cual al portar la verificación desde el método por Ejes (ver más abajo).
 Cubre Hidráulico, Agronómico y (desde jul-2026) Fotovoltaico. Carrete/pivote (INIA-Carillanca)
 y microaspersión todavía no tienen fórmula ni página.
 
+**Recálculo en vivo + tabla "Extraído/declarado vs. calculado" (implementado, jul-2026):** a
+pedido del usuario, dos cambios sobre `calculos.html` para que el chequeo sea realmente útil de
+un vistazo:
+1. **Tabla de resultados, no párrafo.** Antes el recálculo se mostraba como un párrafo de texto
+   corrido (`.calc-resultado`) — "revuelto", según el usuario. Ahora cada tarjeta (Agronómico,
+   Fotovoltaico) tiene una tabla `.calc-resultados-tbl` con 3 columnas: Resultado · Extraído/
+   declarado · Calculado por la app, una fila por concepto (Dn, Fr, Db, Superficie de riego
+   segura, Tiempo de riego, N° de sectores, Caudal de diseño/ITT-03 para Agronómico; N° paneles,
+   kWp, sección cable DC para Fotovoltaico) — el mismo concepto siempre aparece en ambas columnas
+   para poder comparar de un vistazo, con una nota roja (`.calc-nota.calc-alerta`) debajo del
+   valor calculado cuando no coincide con lo declarado. Hidráulico ya tenía esta idea (columna
+   "V declarada" + resultado recalculado con la discrepancia inline) — sirvió de referencia para
+   el formato de las otras dos tarjetas.
+2. **Recálculo en tiempo real (JS), no solo al guardar.** Antes el recálculo mostrado era el que
+   Python calculó en el último render de la página (`_agronomico_calculo`/`_fv_calculo`/
+   `_tramos_con_calculo` en main.py) — cambiar un campo no actualizaba nada hasta guardar y
+   recargar. Ahora hay un `<script>` al final de `calculos.html` que porta las MISMAS fórmulas de
+   `calculos_riego.py` a JS puro (sin librerías): `recalcAgro()`, `recalcHidraulico()`,
+   `recalcFV()`, cada una escuchando el evento `input` de su `<form>` (delegación de eventos, un
+   solo listener por formulario) y recalculando al vuelo con lo que haya en los campos, sin
+   submit ni recarga. Se ejecutan también una vez al cargar la página, así que la tabla nace ya
+   poblada sin depender del primer `input`. **Duplica las fórmulas en dos lenguajes a propósito**
+   (Python sigue siendo la fuente de verdad para el análisis real y el guardado; JS es solo para
+   feedback visual instantáneo) — se verificaron manualmente ambas versiones con los mismos
+   datos de prueba para confirmar que dan resultados idénticos antes de desplegar. Si se cambia
+   una fórmula en `calculos_riego.py`, hay que replicar el cambio a mano en el `<script>` de
+   `calculos.html` — no hay una fuente única compartida.
+
 **Verificación fotovoltaica (implementado, jul-2026):** `calculos_riego.dimensionamiento_fv()`
 porta `calcFV()` del Diseñador de Riego — energía diaria requerida (P_bomba×horas bombeo),
 derating por temperatura, N° de paneles mínimo, configuración serie/paralelo según voltaje del

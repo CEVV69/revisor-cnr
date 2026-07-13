@@ -27,6 +27,15 @@
   .agro-grid label { display:block; font-size:0.78rem; color:var(--text-2); margin-bottom:0.2rem; }
   .agro-grid input { width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border);
     background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; }
+
+  .calc-resultados-tbl { width:100%; border-collapse:collapse; font-size:0.84rem; margin-bottom:0.8rem; }
+  .calc-resultados-tbl th { text-align:left; font-weight:600; color:var(--text-2); padding:0.35rem 0.5rem;
+    border-bottom:2px solid var(--border); }
+  .calc-resultados-tbl td { padding:0.4rem 0.5rem; border-bottom:1px solid var(--border); vertical-align:top; }
+  .calc-resultados-tbl tr:last-child td { border-bottom:none; }
+  .calc-resultados-tbl .col-concepto { color:var(--text-2); }
+  .calc-resultados-tbl .col-calc { font-weight:600; }
+  .calc-nota { display:block; font-size:0.78rem; font-weight:400; margin-top:0.15rem; }
 </style>
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
@@ -48,7 +57,9 @@
     La extracción automática puede fallar en algunos casos — mientras un grupo no esté
     <strong>validado</strong>, el análisis sigue extrayendo los datos de nuevo cada vez
     (comportamiento automático de siempre). Una vez que marcas "Validado", esos datos corregidos
-    se usan tal cual en cada revisión futura, sin volver a depender de la extracción.
+    se usan tal cual en cada revisión futura, sin volver a depender de la extracción. El
+    recálculo de abajo se actualiza <strong>en tiempo real</strong> a medida que editas los
+    campos, antes de guardar.
   </p>
 </div>
 
@@ -73,52 +84,101 @@
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio de suelos.</span>
   </form>
 
-  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar">
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
     <div class="agro-grid">
-      <div><label>CC (%)</label><input type="number" step="0.1" name="cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
-      <div><label>PMP (%)</label><input type="number" step="0.1" name="pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
-      <div><label>Da (g/cc)</label><input type="number" step="0.01" name="da" value="{{ agro.da if agro.da is not none else '' }}"></div>
-      <div><label>Prof. radicular (cm)</label><input type="number" step="1" name="prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
-      <div><label>Kc</label><input type="number" step="0.01" name="kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
-      <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" name="eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
-      <div><label>Factor agotamiento (%)</label><input type="number" step="1" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
-      <div><label>Eficiencia sistema (%)</label><input type="number" step="1" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
+      <div><label>CC (%)</label><input type="number" step="0.1" id="cc_pct" name="cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
+      <div><label>PMP (%)</label><input type="number" step="0.1" id="pmp_pct" name="pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
+      <div><label>Da (g/cc)</label><input type="number" step="0.01" id="da" name="da" value="{{ agro.da if agro.da is not none else '' }}"></div>
+      <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="prof_radicular_cm" name="prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+      <div><label>Kc</label><input type="number" step="0.01" id="kc" name="kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
+      <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="eto_dia_mm" name="eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
+      <div><label>Factor agotamiento (%)</label><input type="number" step="1" id="factor_agotamiento_pct" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+      <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="eficiencia_pct" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
     <div class="agro-grid">
-      <div><label>Superficie de riego (ha)</label><input type="number" step="0.01" name="superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
-      <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" name="caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
-      <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" name="precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
-      <div><label>Horas disponibles al día</label><input type="number" step="0.1" name="horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
+      <div><label>Superficie de riego (ha)</label><input type="number" step="0.01" id="superficie_riego_ha" name="superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
+      <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" id="caudal_disponible_ls" name="caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
+      <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="precipitacion_sistema_mmhr" name="precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
+      <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="horas_disponibles_dia" name="horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
-    <div class="agro-grid" style="margin-bottom:0.4rem;">
-      <div><label>Dn declarada (mm)</label><input type="number" step="0.01" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></div>
-      <div><label>Fr declarada (días)</label><input type="number" step="1" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></div>
-      <div><label>Db declarada (mm)</label><input type="number" step="0.01" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></div>
-      <div><label>Caudal de diseño declarado (l/s)</label><input type="number" step="0.01" name="decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></div>
-      <div><label>Tiempo de riego declarado (hr)</label><input type="number" step="0.01" name="decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></div>
-      <div><label>N° sectores declarado</label><input type="number" step="1" name="decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></div>
+    <div class="agro-grid" style="margin-bottom:0.9rem;">
+      <div><label>Dn declarada (mm)</label><input type="number" step="0.01" id="decl_dn" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></div>
+      <div><label>Fr declarada (días)</label><input type="number" step="1" id="decl_fr" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></div>
+      <div><label>Db declarada (mm)</label><input type="number" step="0.01" id="decl_db" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></div>
+      <div><label>Caudal de diseño declarado (l/s)</label><input type="number" step="0.01" id="decl_qdiseno" name="decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></div>
+      <div><label>Tiempo de riego declarado (hr)</label><input type="number" step="0.01" id="decl_triego" name="decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></div>
+      <div><label>N° sectores declarado</label><input type="number" step="1" id="decl_nsec" name="decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></div>
     </div>
 
-    {% if agro_calc %}
-    <div class="calc-resultado" style="background:rgba(43,108,176,0.06); border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.82rem;">
-      Recalculado → ETc=<b>{{ agro_calc.etc_mm_dia }}</b> mm/día · AD=<b>{{ agro_calc.ad_mm }}</b> mm ·
-      Dn=<b>{{ agro_calc.dn_mm }}</b> mm · Fr=<b>{{ agro_calc.fr_adj_dias }}</b> días ·
-      Db=<b>{{ agro_calc.db_mm }}</b> mm/día
-      {% if agro_calc.demanda_ls_ha is defined %}
-      <br>Demanda=<b>{{ agro_calc.demanda_ls_ha }}</b> l/s/ha
-      {% if agro_calc.superficie_segura_ha is defined %} · Superficie de riego segura=<b>{{ agro_calc.superficie_segura_ha }}</b> ha{% endif %}
-      {% if agro_calc.tiempo_riego_hr is defined %} · Tiempo de riego=<b>{{ agro_calc.tiempo_riego_hr }}</b> hr/día{% endif %}
-      {% if agro_calc.n_sectores is defined %} · N° sectores=<b>{{ agro_calc.n_sectores }}</b>{% endif %}
-      {% endif %}
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
+    <p id="agro-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa todos los datos base para ver el recálculo.</p>
+    <div style="overflow-x:auto;">
+      <table class="calc-resultados-tbl">
+        <colgroup><col><col style="width:210px;"><col style="width:230px;"></colgroup>
+        <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
+        <tr>
+          <td class="col-concepto">ETc (mm/día)</td><td class="text-muted">—</td>
+          <td class="col-calc" id="agro-etc">—</td>
+        </tr>
+        <tr>
+          <td class="col-concepto">AD — agua disponible (mm)</td><td class="text-muted">—</td>
+          <td class="col-calc" id="agro-ad">—</td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Dn — lámina neta (mm)</td><td id="agro-dn-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-dn-calc">—</span>
+            <span id="agro-dn-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Fr — frecuencia de riego (días)</td><td id="agro-fr-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-fr-calc">—</span>
+            <span id="agro-fr-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Db — demanda bruta (mm/día)</td><td id="agro-db-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-db-calc">—</span>
+            <span id="agro-db-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Superficie de riego segura (ha)</td><td id="agro-sup-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-sup-calc">—</span>
+            <span id="agro-sup-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Tiempo de riego (hr/día)</td><td id="agro-triego-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-triego-calc">—</span>
+            <span id="agro-triego-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">N° de sectores</td><td id="agro-nsec-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-nsec-calc">—</span>
+            <span id="agro-nsec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Caudal de diseño vs. disponible (ITT-03)</td><td id="agro-qdiseno-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-qdiseno-calc">—</span>
+          </td>
+        </tr>
+      </table>
     </div>
-    {% else %}
-    <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa todos los datos base para ver el recálculo.</p>
-    {% endif %}
 
     <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if agro_validado %}checked{% endif %}>
@@ -149,7 +209,7 @@
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los tramos de abajo con lo que encuentre la IA en el Diseño Hidráulico / planos.</span>
   </form>
 
-  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar">
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar" id="form-hid">
     <div style="overflow-x:auto;">
       <table class="calc-tbl">
         <colgroup>
@@ -159,24 +219,24 @@
         </colgroup>
         <tr>
           <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
-          <th>V declarada (m/s)</th><th>Resultado recalculado</th>
+          <th>V declarada (m/s)</th><th>Extraído/declarado vs. calculado por la app</th>
         </tr>
         {% for t in tramos %}
         <tr>
-          <td><input type="text" name="t{{ loop.index0 }}_nombre" value="{{ t.nombre or '' }}" placeholder="Ej: Matriz"></td>
-          <td><input type="number" step="0.01" name="t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
-          <td><input type="number" step="0.1" name="t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
-          <td><input type="number" step="0.1" name="t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
+          <td><input type="text" id="t{{ loop.index0 }}_nombre" name="t{{ loop.index0 }}_nombre" value="{{ t.nombre or '' }}" placeholder="Ej: Matriz"></td>
+          <td><input type="number" step="0.01" id="t{{ loop.index0 }}_caudal" name="t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
+          <td><input type="number" step="0.1" id="t{{ loop.index0 }}_diametro" name="t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
+          <td><input type="number" step="0.1" id="t{{ loop.index0 }}_longitud" name="t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
           <td>
-            <select name="t{{ loop.index0 }}_material">
+            <select id="t{{ loop.index0 }}_material" name="t{{ loop.index0 }}_material">
               <option value="" {% if not t.material %}selected{% endif %}>—</option>
               <option value="pvc" {% if t.material == 'pvc' %}selected{% endif %}>PVC (C=150)</option>
               <option value="pe" {% if t.material == 'pe' %}selected{% endif %}>PE/PEAD (C=120)</option>
               <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
             </select>
           </td>
-          <td><input type="number" step="0.01" name="t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
-          <td class="calc-resultado">
+          <td><input type="number" step="0.01" id="t{{ loop.index0 }}_vel_declarada" name="t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
+          <td class="calc-resultado" id="t{{ loop.index0 }}_resultado">
             {% if t.calculo %}
               V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
               {% if t.calculo.hf_mca is not none %} · Hf=<b>{{ t.calculo.hf_mca }}</b> mca{% endif %}
@@ -219,42 +279,70 @@
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño FV / Explorador Solar / presupuesto eléctrico.</span>
   </form>
 
-  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar">
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y sitio</div>
     <div class="agro-grid">
-      <div><label>Potencia bomba (kW)</label><input type="number" step="0.01" name="pkw" value="{{ fv.pkw if fv.pkw is not none else '' }}"></div>
-      <div><label>Horas de bombeo/día</label><input type="number" step="0.1" name="hbom" value="{{ fv.hbom if fv.hbom is not none else '' }}"></div>
-      <div><label>HSP del sitio (hr)</label><input type="number" step="0.01" name="hsp" value="{{ fv.hsp if fv.hsp is not none else '' }}"></div>
-      <div><label>Factor pérdidas (0-1)</label><input type="number" step="0.01" name="fp" value="{{ fv.fp if fv.fp is not none else '' }}" placeholder="0,80"></div>
-      <div><label>Temp. máxima sitio (°C)</label><input type="number" step="0.1" name="temp" value="{{ fv.temp if fv.temp is not none else '' }}"></div>
+      <div><label>Potencia bomba (kW)</label><input type="number" step="0.01" id="pkw" name="pkw" value="{{ fv.pkw if fv.pkw is not none else '' }}"></div>
+      <div><label>Horas de bombeo/día</label><input type="number" step="0.1" id="hbom" name="hbom" value="{{ fv.hbom if fv.hbom is not none else '' }}"></div>
+      <div><label>HSP del sitio (hr)</label><input type="number" step="0.01" id="hsp" name="hsp" value="{{ fv.hsp if fv.hsp is not none else '' }}"></div>
+      <div><label>Factor pérdidas (0-1)</label><input type="number" step="0.01" id="fp" name="fp" value="{{ fv.fp if fv.fp is not none else '' }}" placeholder="0,80"></div>
+      <div><label>Temp. máxima sitio (°C)</label><input type="number" step="0.1" id="temp" name="temp" value="{{ fv.temp if fv.temp is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Panel, inversor y sistema</div>
     <div class="agro-grid">
-      <div><label>Panel Wp</label><input type="number" step="1" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
-      <div><label>Vmp panel (V)</label><input type="number" step="0.01" name="vmp" value="{{ fv.vmp if fv.vmp is not none else '' }}"></div>
-      <div><label>Imp panel (A)</label><input type="number" step="0.01" name="imp" value="{{ fv.imp if fv.imp is not none else '' }}"></div>
-      <div><label>Coef. temp. panel (%/°C)</label><input type="number" step="0.01" name="ct" value="{{ fv.ct if fv.ct is not none else '' }}" placeholder="-0,35"></div>
-      <div><label>Eficiencia inversor (0-1)</label><input type="number" step="0.01" name="einv" value="{{ fv.einv if fv.einv is not none else '' }}" placeholder="0,95"></div>
-      <div><label>Voltaje sistema (V)</label><input type="number" step="1" name="vsis" value="{{ fv.vsis if fv.vsis is not none else '' }}"></div>
+      <div><label>Panel Wp</label><input type="number" step="1" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
+      <div><label>Vmp panel (V)</label><input type="number" step="0.01" id="vmp" name="vmp" value="{{ fv.vmp if fv.vmp is not none else '' }}"></div>
+      <div><label>Imp panel (A)</label><input type="number" step="0.01" id="imp" name="imp" value="{{ fv.imp if fv.imp is not none else '' }}"></div>
+      <div><label>Coef. temp. panel (%/°C)</label><input type="number" step="0.01" id="ct" name="ct" value="{{ fv.ct if fv.ct is not none else '' }}" placeholder="-0,35"></div>
+      <div><label>Eficiencia inversor (0-1)</label><input type="number" step="0.01" id="einv" name="einv" value="{{ fv.einv if fv.einv is not none else '' }}" placeholder="0,95"></div>
+      <div><label>Voltaje sistema (V)</label><input type="number" step="1" id="vsis" name="vsis" value="{{ fv.vsis if fv.vsis is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
-    <div class="agro-grid" style="margin-bottom:0.4rem;">
-      <div><label>N° paneles declarado</label><input type="number" step="1" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
-      <div><label>kWp total declarado</label><input type="number" step="0.01" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
-      <div><label>Sección cable DC declarada (mm²)</label><input type="number" step="0.5" name="decl_seccion" value="{{ fv.declarado.seccion_cable_mm2 if fv.declarado and fv.declarado.seccion_cable_mm2 is not none else '' }}"></div>
+    <div class="agro-grid" style="margin-bottom:0.9rem;">
+      <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
+      <div><label>kWp total declarado</label><input type="number" step="0.01" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
+      <div><label>Sección cable DC declarada (mm²)</label><input type="number" step="0.5" id="decl_seccion" name="decl_seccion" value="{{ fv.declarado.seccion_cable_mm2 if fv.declarado and fv.declarado.seccion_cable_mm2 is not none else '' }}"></div>
     </div>
 
-    {% if fv_calc %}
-    <div class="calc-resultado" style="background:rgba(43,108,176,0.06); border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.82rem;">
-      Recalculado → E_día=<b>{{ fv_calc.e_dia_kwh }}</b> kWh/día · N° paneles=<b>{{ fv_calc.n_paneles_real }}</b>
-      ({{ fv_calc.paneles_serie }}S × {{ fv_calc.strings_paralelo }}P) · kWp=<b>{{ fv_calc.kwp_total }}</b> ·
-      Cable DC=<b>{{ fv_calc.seccion_cable_mm2 }}</b> mm² (V campo={{ fv_calc.v_campo_v }} V, I campo={{ fv_calc.i_campo_a }} A)
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
+    <p id="fv-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.</p>
+    <div style="overflow-x:auto;">
+      <table class="calc-resultados-tbl">
+        <colgroup><col><col style="width:210px;"><col style="width:230px;"></colgroup>
+        <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
+        <tr>
+          <td class="col-concepto">E_día requerida (kWh/día)</td><td class="text-muted">—</td>
+          <td class="col-calc" id="fv-edia">—</td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Configuración (serie × paralelo)</td><td class="text-muted">—</td>
+          <td class="col-calc" id="fv-config">—</td>
+        </tr>
+        <tr>
+          <td class="col-concepto">N° de paneles</td><td id="fv-npaneles-decl">—</td>
+          <td class="col-calc">
+            <span id="fv-npaneles-calc">—</span>
+            <span id="fv-npaneles-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">kWp total</td><td id="fv-kwp-decl">—</td>
+          <td class="col-calc">
+            <span id="fv-kwp-calc">—</span>
+            <span id="fv-kwp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">Sección cable DC (mm²)</td><td id="fv-seccion-decl">—</td>
+          <td class="col-calc">
+            <span id="fv-seccion-calc">—</span>
+            <span id="fv-seccion-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+      </table>
     </div>
-    {% else %}
-    <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.</p>
-    {% endif %}
 
     <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if fv_validado %}checked{% endif %}>
@@ -273,5 +361,229 @@
     quedan para una próxima iteración.
   </p>
 </div>
+
+<script>
+(function() {
+  "use strict";
+  var N_TRAMOS = {{ tramos|length }};
+  var C_HAZEN = {pvc:150, pe:120, pead:120, polietileno:120, aluminio:140};
+  var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
+  var RHO_CU = 1/58;
+
+  function numVal(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var raw = (el.value || "").trim();
+    if (raw === "") return null;
+    var n = parseFloat(raw.replace(",", "."));
+    return isNaN(n) ? null : n;
+  }
+  function strVal(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : "";
+  }
+  function fmt(n, dec) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return n.toLocaleString("es-CL", {minimumFractionDigits: dec, maximumFractionDigits: dec});
+  }
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  function setHtml(id, html) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+  function nota(id, texto) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (texto) { el.textContent = texto; el.style.display = ""; }
+    else { el.style.display = "none"; }
+  }
+  function diferenciaRelevante(calculado, declarado, tolPct) {
+    if (!calculado || declarado === null) return false;
+    return Math.abs(calculado - declarado) / calculado * 100 > tolPct;
+  }
+
+  // ── Agronómico ──────────────────────────────────────────────
+  function recalcAgro() {
+    var cc = numVal("cc_pct"), pmp = numVal("pmp_pct"), da = numVal("da"),
+        prof = numVal("prof_radicular_cm"), kc = numVal("kc"), eto = numVal("eto_dia_mm"),
+        fa = numVal("factor_agotamiento_pct"), ef = numVal("eficiencia_pct");
+    var declDn = numVal("decl_dn"), declFr = numVal("decl_fr"), declDb = numVal("decl_db");
+    var sup = numVal("superficie_riego_ha"), caudalDisp = numVal("caudal_disponible_ls"),
+        precip = numVal("precipitacion_sistema_mmhr"), horas = numVal("horas_disponibles_dia");
+    var declQdiseno = numVal("decl_qdiseno"), declTriego = numVal("decl_triego"), declNsec = numVal("decl_nsec");
+
+    setText("agro-dn-decl", declDn === null ? "—" : fmt(declDn, 2) + " mm");
+    setText("agro-fr-decl", declFr === null ? "—" : fmt(declFr, 0) + " días");
+    setText("agro-db-decl", declDb === null ? "—" : fmt(declDb, 2) + " mm/día");
+    setText("agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
+    setText("agro-triego-decl", declTriego === null ? "—" : fmt(declTriego, 2) + " hr");
+    setText("agro-nsec-decl", declNsec === null ? "—" : fmt(declNsec, 0));
+    setText("agro-qdiseno-decl", declQdiseno === null ? "—" : fmt(declQdiseno, 2) + " l/s");
+
+    var base = [cc, pmp, da, prof, kc, eto, fa, ef];
+    if (base.indexOf(null) !== -1) {
+      ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
+       "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc"].forEach(function(id) { setText(id, "—"); });
+      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(id, ""); });
+      setText("agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Factor agotamiento, Eficiencia) para ver el recálculo.");
+      return;
+    }
+    setText("agro-hint", "");
+
+    var etc = eto * kc;
+    var ad = (cc - pmp) / 100 * da * (prof / 100) * 1000;
+    var dn = ad * (fa / 100);
+    var fr = etc ? dn / etc : 0;
+    var frAdj = fr ? Math.max(1, Math.floor(fr)) : 1;
+    var dnAdj = etc * frAdj;
+    var db = ef ? dnAdj / (ef / 100) : 0;
+
+    setText("agro-etc", fmt(etc, 3) + " mm/día");
+    setText("agro-ad", fmt(ad, 2) + " mm");
+    setText("agro-dn-calc", fmt(dnAdj, 3) + " mm");
+    setText("agro-fr-calc", frAdj + " días");
+    setText("agro-db-calc", fmt(db, 3) + " mm/día");
+    nota("agro-dn-nota", diferenciaRelevante(dnAdj, declDn, 10) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
+    nota("agro-fr-nota", (declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
+    nota("agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
+
+    var demanda = db / 8.64;
+    if (caudalDisp !== null && demanda) {
+      var supSegura = caudalDisp / demanda;
+      setText("agro-sup-calc", fmt(supSegura, 2) + " ha");
+      nota("agro-sup-nota", (sup !== null && supSegura < sup) ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal disponible no alcanza." : "");
+    } else {
+      setText("agro-sup-calc", "—");
+      nota("agro-sup-nota", "");
+    }
+
+    if (precip !== null) {
+      var tiempoRiego = db / precip;
+      setText("agro-triego-calc", fmt(tiempoRiego, 2) + " hr");
+      nota("agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");
+      if (horas !== null && tiempoRiego) {
+        var nSectores = Math.max(1, Math.floor(horas / tiempoRiego));
+        setText("agro-nsec-calc", String(nSectores));
+        nota("agro-nsec-nota", (declNsec !== null && declNsec !== nSectores) ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+      } else {
+        setText("agro-nsec-calc", "—");
+        nota("agro-nsec-nota", "");
+      }
+    } else {
+      setText("agro-triego-calc", "—");
+      nota("agro-triego-nota", "");
+      setText("agro-nsec-calc", "—");
+      nota("agro-nsec-nota", "");
+    }
+
+    if (declQdiseno !== null && caudalDisp !== null) {
+      var limite = caudalDisp * 1.2;
+      if (declQdiseno > limite) {
+        setHtml("agro-qdiseno-calc", '<span class="calc-alerta">Requiere acumulador (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal disponible × 1,2)</span>');
+      } else {
+        setText("agro-qdiseno-calc", "Dentro del límite (≤ " + fmt(limite, 2) + " l/s)");
+      }
+    } else {
+      setText("agro-qdiseno-calc", "—");
+    }
+  }
+
+  // ── Hidráulico ──────────────────────────────────────────────
+  function recalcHidraulico() {
+    for (var i = 0; i < N_TRAMOS; i++) {
+      var q = numVal("t" + i + "_caudal");
+      var d = numVal("t" + i + "_diametro");
+      var l = numVal("t" + i + "_longitud");
+      var mat = strVal("t" + i + "_material");
+      var velDecl = numVal("t" + i + "_vel_declarada");
+      var cellId = "t" + i + "_resultado";
+      if (!q || !d) { setHtml(cellId, '<span class="text-muted">— completa Q y Ø —</span>'); continue; }
+
+      var areaM2 = (Math.PI / 4) * Math.pow(d / 1000, 2);
+      var vel = (q / 1000) / areaM2;
+      var dSug = Math.sqrt(849.6 * q);
+      var c = C_HAZEN[mat];
+      var hf = null;
+      if (l && c) {
+        var qM3s = q / 1000, dM = d / 1000;
+        hf = 10.67 * l * Math.pow(qM3s, 1.852) / (Math.pow(c, 1.852) * Math.pow(dM, 4.87));
+      }
+      var alerta = "";
+      if (vel > 2.0) alerta = "velocidad " + fmt(vel, 2) + " m/s supera el máximo recomendado (2,0 m/s)";
+      else if (vel > 0 && vel < 0.5) alerta = "velocidad " + fmt(vel, 2) + " m/s bajo el mínimo recomendado (0,5 m/s) — riesgo de sedimentación";
+      if (velDecl !== null && vel && Math.abs(vel - velDecl) / vel * 100 > 15) {
+        alerta = (alerta ? alerta + "<br>" : "") + "el expediente declara V=" + fmt(velDecl, 2) + " m/s, no coincide con el cálculo.";
+      }
+      var html = "V=<b>" + fmt(vel, 2) + "</b> m/s";
+      if (hf !== null) html += " · Hf=<b>" + fmt(hf, 3) + "</b> mca";
+      html += " · Ø sug.=" + fmt(dSug, 1) + " mm";
+      if (alerta) html += '<br><span class="calc-alerta">' + alerta + "</span>";
+      setHtml(cellId, html);
+    }
+  }
+
+  // ── Fotovoltaico ────────────────────────────────────────────
+  function seccionNormalizada(calc) {
+    for (var i = 0; i < SECCIONES_CABLE.length; i++) {
+      if (calc <= SECCIONES_CABLE[i]) return SECCIONES_CABLE[i];
+    }
+    return SECCIONES_CABLE[SECCIONES_CABLE.length - 1];
+  }
+  function recalcFV() {
+    var pkw = numVal("pkw"), hbom = numVal("hbom"), hsp = numVal("hsp"), fp = numVal("fp"),
+        wp = numVal("wp"), vmp = numVal("vmp"), imp = numVal("imp"), ct = numVal("ct"),
+        temp = numVal("temp"), einv = numVal("einv"), vsis = numVal("vsis");
+    var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declSeccion = numVal("decl_seccion");
+
+    setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0));
+    setText("fv-kwp-decl", declKwp === null ? "—" : fmt(declKwp, 2) + " kWp");
+    setText("fv-seccion-decl", declSeccion === null ? "—" : fmt(declSeccion, 1) + " mm²");
+
+    if (!pkw || !hbom || !hsp || !wp || !vmp || !imp) {
+      ["fv-edia", "fv-config", "fv-npaneles-calc", "fv-kwp-calc", "fv-seccion-calc"].forEach(function(id) { setText(id, "—"); });
+      ["fv-npaneles-nota", "fv-kwp-nota", "fv-seccion-nota"].forEach(function(id) { nota(id, ""); });
+      setText("fv-hint", "Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.");
+      return;
+    }
+    setText("fv-hint", "");
+
+    var eDia = pkw * hbom;
+    var pr = (fp || 0.80) * (einv || 0.95);
+    var derating = temp ? 1 + ((ct || 0) / 100) * (temp - 25) : 1.0;
+    var wpEfectivo = wp * derating;
+    var ePanel = (wpEfectivo / 1000) * hsp * pr;
+    var nPaneles = ePanel ? Math.ceil(eDia / ePanel) : 0;
+    var panSerie = vsis ? Math.max(1, Math.floor(vsis / vmp)) : 1;
+    var panParalelo = panSerie ? Math.ceil(nPaneles / panSerie) : nPaneles;
+    var nReal = panSerie * panParalelo;
+    var kwpTotal = nReal * wp / 1000;
+    var iCampo = panParalelo * imp;
+    var vCampo = panSerie * vmp;
+    var dvMax = vCampo * 0.02;
+    var seccionCalc = dvMax ? (RHO_CU * 50 * iCampo) / dvMax : 0;
+    var seccionNorm = seccionCalc ? seccionNormalizada(seccionCalc) : null;
+
+    setText("fv-edia", fmt(eDia, 3) + " kWh/día");
+    setText("fv-config", panSerie + "S × " + panParalelo + "P");
+    setText("fv-npaneles-calc", nReal + " (mínimo " + nPaneles + ")");
+    setText("fv-kwp-calc", fmt(kwpTotal, 2) + " kWp");
+    setText("fv-seccion-calc", seccionNorm === null ? "—" : fmt(seccionNorm, 1) + " mm²");
+
+    nota("fv-npaneles-nota", (declN !== null && declN < nReal) ? "El recálculo indica que se necesitan al menos " + nReal + " paneles." : "");
+    nota("fv-kwp-nota", diferenciaRelevante(kwpTotal, declKwp, 15) ? "No coincide con lo declarado (" + fmt(declKwp, 2) + " kWp)." : "");
+    nota("fv-seccion-nota", (declSeccion !== null && seccionNorm !== null && declSeccion < seccionNorm) ? "El recálculo sugiere al menos " + fmt(seccionNorm, 1) + " mm² para no exceder la caída de tensión del 2%." : "");
+  }
+
+  var formAgro = document.getElementById("form-agro");
+  if (formAgro) { formAgro.addEventListener("input", recalcAgro); recalcAgro(); }
+  var formHid = document.getElementById("form-hid");
+  if (formHid) { formHid.addEventListener("input", recalcHidraulico); recalcHidraulico(); }
+  var formFV = document.getElementById("form-fv");
+  if (formFV) { formFV.addEventListener("input", recalcFV); recalcFV(); }
+})();
+</script>
 
 {% endblock %}
