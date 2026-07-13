@@ -312,6 +312,13 @@ nombres de proyecto largos completos, había que hacer scroll dentro del campo.
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —
   detecta sobreprecio y subvaluación. Botón "Precios referenciales CNR ↗" al dashboard oficial
   en las tarjetas de esos ítems (consulta manual — ver sección dedicada más abajo).
+- **Instalable como PWA** (jul-2026): `static/manifest.json` + `static/sw.js` (service worker
+  mínimo, sin caché — solo existe para que el navegador ofrezca "Instalar app") + íconos en
+  `static/icons/` (192/512/apple-touch/favicons), generados desde una imagen que subió el
+  usuario. Enlazados en el `<head>` de `base.html` y `login.html` (este último NO extiende
+  `base.html`, tiene su propio `<head>` — hay que mantener el manifest/íconos/SW duplicados
+  ahí también si se edita uno). `ficha.html` (documento imprimible) queda afuera a propósito.
+  Para cambiar el ícono: reemplazar los PNG en `static/icons/` con el mismo nombre y tamaño.
 
 ---
 

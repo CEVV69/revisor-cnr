@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Revisor CNR{% endblock %}</title>
+
+  <!-- PWA: manifest + íconos, para que el navegador ofrezca "Instalar app" -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#2b6cb0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Revisor CNR">
+
   <style>
     :root {
       --bg:       #f5f5f7;
@@ -227,6 +237,13 @@
     var pos = sessionStorage.getItem('cnr_scroll');
     if (pos !== null) { sessionStorage.removeItem('cnr_scroll'); window.scrollTo({ top: parseInt(pos), behavior: 'instant' }); }
   });
+
+  // Registro del service worker mínimo — habilita el botón "Instalar app" del navegador.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/static/sw.js');
+    });
+  }
 </script>
 </body>
 </html>

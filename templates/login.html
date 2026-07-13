@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Revisor CNR — Ingreso</title>
+
+  <!-- PWA: manifest + íconos, para que el navegador ofrezca "Instalar app" desde el login -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#2b6cb0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Revisor CNR">
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -71,5 +81,12 @@
     </form>
     <div class="footer">Comisión Nacional de Riego</div>
   </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/static/sw.js');
+      });
+    }
+  </script>
 </body>
 </html>
