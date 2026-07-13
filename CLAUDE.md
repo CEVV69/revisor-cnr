@@ -287,31 +287,43 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 `nombre_proyecto` es `tipo: "textarea"` (no "text") — un `<input>` de una línea no muestra
 nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 
-**Botón "Ver en Google Maps" junto a Huso (implementado, jul-2026):** el Resumen guarda
-coordenadas UTM (`coord_e`, `coord_n`, `coord_h` — Este/Norte/Huso, notación estándar de
-levantamientos en Chile). `geo.py` (módulo nuevo, función pura sin dependencias) convierte
-UTM→lat/lon con la fórmula estándar de Snyder sobre el elipsoide WGS84 — se asume datum
-WGS84/SIRGAS-Chile (prácticamente coincidentes) y hemisferio sur (todo Chile continental).
-`_parse_coord()` (main.py) interpreta el texto libre de esos 3 campos. **Ojo:** a diferencia de
-los demás campos del Resumen (que el revisor tipea), coord_e/coord_n normalmente los llena el
-botón "Autocompletar con IA" copiando tal cual lo que encontró en el documento del consultor —
-no hay una notación fija, puede venir en formato chileno (punto=miles, ej. "349.876") o en
-formato GPS/GIS/CAD (punto=decimal, ej. "349876.32", típico si el consultor copió desde un
-software topográfico). Regla de desambiguación: si hay coma, es notación chilena completa
-(punto=miles, coma=decimal, igual que `_parse_precio` en extractor.py); si no hay coma pero el
-número queda dividido en grupos de EXACTAMENTE 3 dígitos tras cada punto (ej. "349.876" o
-"6.294.127"), son separadores de miles y se eliminan; cualquier otro patrón de un solo punto se
-trata como decimal (ej. "349876.32" o "6294127.5" quedan intactos). Además, antes de armar el
-link se valida que Este/Norte caigan en un rango UTM plausible (100.000–900.000 / 1.000.000–
-10.000.000) — si el parseo da un número fuera de ese rango, no se muestra el botón en vez de
-ubicar un pin en un lugar disparatado. `_mapa_url_resumen()` arma el link con el
-formato clásico de Google Maps `https://maps.google.com/maps?q=LAT,LON(ETIQUETA)`, que ubica
-un pin en las coordenadas exactas con el código del proyecto como etiqueta (a diferencia del
-formato `search/?api=1&query=...` más nuevo, que no permite una etiqueta custom en un punto
-arbitrario). Se calcula en `_render_proyecto()` y se pasa como `mapa_url` (None si falta
-cualquiera de los 3 campos o no se puede interpretar). En la plantilla, el botón aparece junto
-a la etiqueta "Huso (H)" en la página Resumen — solo visible si `mapa_url` existe, se abre en
-pestaña nueva.
+**Botón "Ver en Google Maps" junto a Huso (implementado, jul-2026):** el Resumen guarda un punto
+en `coord_e`, `coord_n`, `coord_h` (Este/Norte/Huso). **El formato de esos 3 campos varía
+mucho** — normalmente los llena el botón "Autocompletar con IA" copiando tal cual lo que
+encontró en el documento del consultor, y cada consultor/topógrafo escribe distinto: UTM WGS84
+(la mayoría), lat/long decimal, o grados/minutos/segundos (DMS). `_parse_coord()` (main.py)
+intenta interpretar cualquiera de los tres:
+1. **DMS** (`_parse_coord_dms`) — solo se activa con símbolos ° ' " o con 2-3 números separados
+   ESPECÍFICAMENTE por espacios con letra de hemisferio opcional al final (ej. `33°26'43"S`,
+   `33 26 43 S`, `-33 26 43`) — deliberadamente exige espacios, no puntos, para no confundirse
+   con una coordenada UTM en notación chilena de miles (`6.294.127` también tiene varios grupos
+   de dígitos, pero separados por puntos, no espacios).
+2. **Número simple** (`_parse_coord_numero`, UTM o grado decimal) — mismo problema de notación
+   que los precios: si hay coma, es notación chilena completa (punto=miles, coma=decimal, igual
+   que `_parse_precio` en extractor.py); si no hay coma pero el número queda dividido en grupos
+   de EXACTAMENTE 3 dígitos tras cada punto (ej. `349.876` o `6.294.127`), son separadores de
+   miles y se eliminan; cualquier otro patrón de un solo punto se trata como decimal (ej.
+   `349876.32` o `-70.6158` quedan intactos). Si el número simple trae una letra de hemisferio
+   suelta sin patrón DMS completo (ej. `70.6158 O`), `_parse_coord` igual le aplica el signo.
+`_mapa_url_resumen()` decide qué es cada número YA PARSEADO por su magnitud (no por el
+formato original): si Este/Norte caen dentro de ±180/±90, son longitud/latitud directas (sin
+necesidad de Huso ni conversión); si no, se tratan como UTM — ahí sí exige un Huso válido y que
+Este/Norte caigan en un rango UTM plausible (100.000–900.000 / 1.000.000–10.000.000), y se
+convierte con `geo.py` (módulo nuevo, función pura sin dependencias, fórmula estándar de Snyder
+sobre el elipsoide WGS84 — datum WGS84/SIRGAS-Chile y hemisferio sur). Si el parseo da un
+número fuera de rango en cualquiera de los dos casos, no se muestra el botón en vez de ubicar
+un pin en un lugar disparatado. El link usa el formato clásico de Google Maps
+`https://maps.google.com/maps?q=LAT,LON(ETIQUETA)`, que ubica un pin en las coordenadas exactas
+con el código del proyecto como etiqueta (a diferencia del formato `search/?api=1&query=...`
+más nuevo, que no permite una etiqueta custom en un punto arbitrario). Se calcula en
+`_render_proyecto()` y se pasa como `mapa_url` (None si falta algún dato o no se puede
+interpretar). En la plantilla, el botón (`btn btn-outline btn-sm`, no un link de texto) aparece
+junto a la etiqueta "Huso (H)" en la página Resumen — solo visible si `mapa_url` existe, se abre
+en pestaña nueva.
+**Alcance:** cubre los 3 formatos que reportó el usuario como los más comunes. Formatos más
+exóticos (otros datums declarados explícitamente, coordenadas con separadores no estándar)
+pueden seguir sin interpretarse — en ese caso simplemente no aparece el botón, nunca se
+adivina ni se muestra un pin en un lugar incorrecto.
 
 ---
 

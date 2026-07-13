@@ -40,15 +40,16 @@ URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00Y
 from database import db
 
 
-def _parse_coord(valor):
-    """Parsea una coordenada UTM en texto libre extraído de un documento — no es un dato que el
-    revisor tipee en un formulario con una convención fija, así que el punto puede ser separador
-    de miles (notación chilena, ej. "349.876") O decimal (notación GPS/GIS/CAD, ej.
-    "349876.32", habitual si el consultor copió coordenadas de un software topográfico). Regla
-    de desambiguación estándar: si hay coma, es notación chilena completa (punto=miles,
-    coma=decimal); si no hay coma pero el o los puntos dividen el número en grupos de
-    EXACTAMENTE 3 dígitos después del primero (ej. "349.876" o "6.294.127"), es agrupación de
-    miles y se eliminan; cualquier otro patrón de un solo punto se trata como decimal."""
+def _parse_coord_numero(valor):
+    """Parsea un número simple (UTM o grados decimales) en texto libre extraído de un
+    documento — no es un dato que el revisor tipee en un formulario con convención fija, así
+    que el punto puede ser separador de miles (notación chilena, ej. "349.876") O decimal
+    (notación GPS/GIS/CAD, ej. "349876.32", habitual si el consultor copió de un software
+    topográfico). Regla de desambiguación: si hay coma, es notación chilena completa
+    (punto=miles, coma=decimal); si no hay coma pero el o los puntos dividen el número en
+    grupos de EXACTAMENTE 3 dígitos después del primero (ej. "349.876" o "6.294.127"), es
+    agrupación de miles y se eliminan; cualquier otro patrón de un solo punto se trata como
+    decimal."""
     if not valor:
         return None
     s = re.sub(r"[^\d,.\-]", "", str(valor).strip())
@@ -66,26 +67,78 @@ def _parse_coord(valor):
         return None
 
 
+_RE_DMS_ESPACIOS = re.compile(
+    r"-?\d+(?:[.,]\d+)?(?:\s+\d+(?:[.,]\d+)?){1,2}\s*[NnSsEeOoWw]?$")
+
+
+def _parse_coord_dms(valor):
+    """Parsea grados/minutos/segundos (DMS) a grados decimales — ej. 33°26'43"S, 33 26 43 S,
+    -33 26 43. Solo se activa con símbolos de grado (° ' ") o con 2-3 números separados
+    ESPECÍFICAMENTE por espacios (no por puntos, para no confundirse con una coordenada UTM en
+    notación chilena de miles como "6.294.127", que también tiene varios grupos de dígitos
+    pero separados por puntos). Retorna None si no calza, para que el llamador use el otro
+    parser."""
+    if not valor:
+        return None
+    s = str(valor).strip()
+    tiene_simbolo_gms = bool(re.search(r"[°'\"]", s))
+    if not tiene_simbolo_gms and not _RE_DMS_ESPACIOS.match(s):
+        return None
+    numeros = [float(n.replace(",", ".")) for n in re.findall(r"\d+(?:[.,]\d+)?", s)]
+    if not numeros:
+        return None
+    grados = numeros[0]
+    if len(numeros) >= 2:
+        grados += numeros[1] / 60
+    if len(numeros) >= 3:
+        grados += numeros[2] / 3600
+    negativo = s.startswith("-") or bool(re.search(r"[SsWwOo]\s*$", s))
+    return -grados if negativo else grados
+
+
+def _parse_coord(valor):
+    """Parsea una coordenada (UTM, grados decimales o DMS) en texto libre — el formato varía
+    mucho según cómo lo haya escrito el consultor en el documento original. Retorna un número
+    simple; quien llama decide si es una coordenada UTM o un grado decimal según su magnitud."""
+    dms = _parse_coord_dms(valor)
+    if dms is not None:
+        return dms
+    numero = _parse_coord_numero(valor)
+    if numero is None:
+        return None
+    # Grado decimal simple con letra de hemisferio pero sin patrón DMS completo (ej.
+    # "70.6158 O") — _parse_coord_numero ya descartó la letra, aplicamos el signo acá.
+    if re.search(r"[SsWwOo]\s*$", str(valor).strip()):
+        return -abs(numero)
+    return numero
+
+
 def _mapa_url_resumen(resumen: dict, codigo_sep: str) -> str:
-    """Arma el link de Google Maps al punto UTM (Coordenada E, Coordenada N, Huso) declarado
-    en el Resumen del proyecto, con el código del proyecto como etiqueta del pin. None si
-    falta o no se puede interpretar alguno de los 3 datos."""
+    """Arma el link de Google Maps al punto declarado en el Resumen del proyecto (Coordenada E,
+    Coordenada N, Huso), con el código del proyecto como etiqueta del pin. Acepta UTM (con
+    Huso), grados decimales o grados/minutos/segundos (coord_e=longitud, coord_n=latitud en
+    estos dos últimos casos) — se distinguen por la magnitud del número ya parseado: una
+    longitud/latitud siempre cae en ±180/±90, mientras que una coordenada UTM siempre es mucho
+    mayor. None si falta algún dato o no se puede interpretar."""
     este = _parse_coord(resumen.get("coord_e"))
     norte = _parse_coord(resumen.get("coord_n"))
-    huso_match = re.search(r"\d{1,2}", str(resumen.get("coord_h") or ""))
-    if este is None or norte is None or not huso_match:
+    if este is None or norte is None:
         return None
-    # Rango plausible de una coordenada UTM real (no de cualquier número) — evita mostrar un
-    # pin en un lugar disparatado si el parseo de la notación quedó mal interpretado.
-    if not (100000 <= este <= 900000 and 1000000 <= norte <= 10000000):
-        return None
-    huso = int(huso_match.group())
-    if not (1 <= huso <= 60):
-        return None
-    try:
-        lat, lon = geo.utm_a_latlon(este, norte, huso)
-    except (ValueError, ZeroDivisionError):
-        return None
+    if abs(este) <= 180 and abs(norte) <= 90:
+        lon, lat = este, norte
+    else:
+        huso_match = re.search(r"\d{1,2}", str(resumen.get("coord_h") or ""))
+        # Rango plausible de una coordenada UTM real — evita convertir un número mal
+        # interpretado y mostrar un pin en un lugar disparatado.
+        if not huso_match or not (100000 <= este <= 900000 and 1000000 <= norte <= 10000000):
+            return None
+        huso = int(huso_match.group())
+        if not (1 <= huso <= 60):
+            return None
+        try:
+            lat, lon = geo.utm_a_latlon(este, norte, huso)
+        except (ValueError, ZeroDivisionError):
+            return None
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return None
     etiqueta = quote(codigo_sep or "Proyecto")
