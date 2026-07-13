@@ -41,10 +41,14 @@ from database import db
 
 
 def _parse_coord(valor):
-    """Parsea un valor de coordenada UTM en texto libre, con la MISMA notación chilena que el
-    resto de la app (`_parse_precio` en extractor.py): si hay coma, punto=miles y coma=decimal;
-    si NO hay coma, el punto se trata como separador de miles (no decimal) — igual que al
-    escribir cualquier número grande en Chile, incluida una coordenada UTM (ej: "349.876")."""
+    """Parsea una coordenada UTM en texto libre extraído de un documento — no es un dato que el
+    revisor tipee en un formulario con una convención fija, así que el punto puede ser separador
+    de miles (notación chilena, ej. "349.876") O decimal (notación GPS/GIS/CAD, ej.
+    "349876.32", habitual si el consultor copió coordenadas de un software topográfico). Regla
+    de desambiguación estándar: si hay coma, es notación chilena completa (punto=miles,
+    coma=decimal); si no hay coma pero el o los puntos dividen el número en grupos de
+    EXACTAMENTE 3 dígitos después del primero (ej. "349.876" o "6.294.127"), es agrupación de
+    miles y se eliminan; cualquier otro patrón de un solo punto se trata como decimal."""
     if not valor:
         return None
     s = re.sub(r"[^\d,.\-]", "", str(valor).strip())
@@ -53,7 +57,9 @@ def _parse_coord(valor):
     if "," in s:
         s = s.replace(".", "").replace(",", ".")
     elif "." in s:
-        s = s.replace(".", "")
+        partes = s.split(".")
+        if len(partes) > 1 and all(len(p) == 3 for p in partes[1:]):
+            s = "".join(partes)
     try:
         return float(s)
     except ValueError:
@@ -68,6 +74,10 @@ def _mapa_url_resumen(resumen: dict, codigo_sep: str) -> str:
     norte = _parse_coord(resumen.get("coord_n"))
     huso_match = re.search(r"\d{1,2}", str(resumen.get("coord_h") or ""))
     if este is None or norte is None or not huso_match:
+        return None
+    # Rango plausible de una coordenada UTM real (no de cualquier número) — evita mostrar un
+    # pin en un lugar disparatado si el parseo de la notación quedó mal interpretado.
+    if not (100000 <= este <= 900000 and 1000000 <= norte <= 10000000):
         return None
     huso = int(huso_match.group())
     if not (1 <= huso <= 60):

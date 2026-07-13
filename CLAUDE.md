@@ -292,12 +292,19 @@ coordenadas UTM (`coord_e`, `coord_n`, `coord_h` — Este/Norte/Huso, notación 
 levantamientos en Chile). `geo.py` (módulo nuevo, función pura sin dependencias) convierte
 UTM→lat/lon con la fórmula estándar de Snyder sobre el elipsoide WGS84 — se asume datum
 WGS84/SIRGAS-Chile (prácticamente coincidentes) y hemisferio sur (todo Chile continental).
-`_parse_coord()` (main.py) interpreta el texto libre de esos 3 campos con la MISMA notación
-chilena y la MISMA regla que `_parse_precio` (extractor.py, precios): si hay coma, punto=miles
-y coma=decimal; si NO hay coma, el punto se trata como separador de miles, no decimal — la
-primera versión asumía notación GPS (punto=decimal) y fallaba con coordenadas escritas a la
-chilena, ej. "349.876" para 349876 (bug real reportado por el usuario: el botón no aparecía
-porque el número resultante quedaba fuera de rango). `_mapa_url_resumen()` arma el link con el
+`_parse_coord()` (main.py) interpreta el texto libre de esos 3 campos. **Ojo:** a diferencia de
+los demás campos del Resumen (que el revisor tipea), coord_e/coord_n normalmente los llena el
+botón "Autocompletar con IA" copiando tal cual lo que encontró en el documento del consultor —
+no hay una notación fija, puede venir en formato chileno (punto=miles, ej. "349.876") o en
+formato GPS/GIS/CAD (punto=decimal, ej. "349876.32", típico si el consultor copió desde un
+software topográfico). Regla de desambiguación: si hay coma, es notación chilena completa
+(punto=miles, coma=decimal, igual que `_parse_precio` en extractor.py); si no hay coma pero el
+número queda dividido en grupos de EXACTAMENTE 3 dígitos tras cada punto (ej. "349.876" o
+"6.294.127"), son separadores de miles y se eliminan; cualquier otro patrón de un solo punto se
+trata como decimal (ej. "349876.32" o "6294127.5" quedan intactos). Además, antes de armar el
+link se valida que Este/Norte caigan en un rango UTM plausible (100.000–900.000 / 1.000.000–
+10.000.000) — si el parseo da un número fuera de ese rango, no se muestra el botón en vez de
+ubicar un pin en un lugar disparatado. `_mapa_url_resumen()` arma el link con el
 formato clásico de Google Maps `https://maps.google.com/maps?q=LAT,LON(ETIQUETA)`, que ubica
 un pin en las coordenadas exactas con el código del proyecto como etiqueta (a diferencia del
 formato `search/?api=1&query=...` más nuevo, que no permite una etiqueta custom en un punto
