@@ -568,6 +568,18 @@ de selección de emisor. El prompt de verificación se lo advierte explícitamen
   riego, N° sectores) — campos existentes se angostaron (`.agro-grid` de 150px a 115px mínimo)
   para que quepan más por fila, a pedido del usuario.
 
+**Label "Factor agotamiento" → "Criterio de Riego" (jul-2026):** el campo `factor_agotamiento_pct`
+(% del agua aprovechable del suelo consumible antes de regar, usado en `Dn = AD × factor`) se
+llamaba "Factor agotamiento" en `calculos.html` — término agronómico estándar (FAO-56), pero NO
+es el nombre que usa el usuario en el Diseñador de Riego (ahí es "Criterio de Riego [%HA]",
+campos `a-crit`/`c-crit`/`m-crit`) ni aparece con ese sentido en la normativa CNR indexada en
+`normativa/` (se buscó explícitamente; el único match de "Agotamiento" es en DT-06 y se refiere
+a agotamiento/drenaje de napa en excavaciones, sin relación). Se renombró el label a "Criterio
+de Riego (%)" para que coincida con la app hermana — el nombre interno de la variable/clave
+(`factor_agotamiento_pct`) NO se tocó, solo el texto visible. El prompt de extracción
+(`_extraer_datos_agronomicos` en analyzer.py) menciona ambos términos ("factor de agotamiento"
+y "criterio de riego") para reconocer cualquiera que use el documento del consultor.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

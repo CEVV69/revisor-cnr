@@ -93,7 +93,7 @@
       <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="prof_radicular_cm" name="prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
       <div><label>Kc</label><input type="number" step="0.01" id="kc" name="kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
       <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="eto_dia_mm" name="eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
-      <div><label>Factor agotamiento (%)</label><input type="number" step="1" id="factor_agotamiento_pct" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+      <div><label>Criterio de Riego (%)</label><input type="number" step="1" id="factor_agotamiento_pct" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
       <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="eficiencia_pct" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
     </div>
 
@@ -428,7 +428,7 @@
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc"].forEach(function(id) { setText(id, "—"); });
       ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(id, ""); });
-      setText("agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Factor agotamiento, Eficiencia) para ver el recálculo.");
+      setText("agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Criterio de Riego, Eficiencia) para ver el recálculo.");
       return;
     }
     setText("agro-hint", "");

@@ -568,8 +568,10 @@ async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
         return {}
     prompt = f"""Extrae del siguiente expediente los datos del cálculo de demanda agronómica
 (capacidad de campo, punto de marchitez, densidad aparente, profundidad radicular, Kc,
-evapotranspiración del mes crítico, factor de agotamiento, eficiencia del sistema, y los
-resultados finales que el consultor declara: lámina neta, frecuencia de riego, demanda bruta),
+evapotranspiración del mes crítico, factor de agotamiento — también llamado "criterio de
+riego" o "% de agua aprovechable" en algunos documentos, es el mismo dato —, eficiencia del
+sistema, y los resultados finales que el consultor declara: lámina neta, frecuencia de riego,
+demanda bruta),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
