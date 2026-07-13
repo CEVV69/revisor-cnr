@@ -1782,10 +1782,7 @@ async def admin_eliminar_concurso(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    from database import CONCURSOS_FILE
-    concursos_data = db._load(CONCURSOS_FILE)
-    concursos_data.pop(concurso_id, None)
-    db._save(CONCURSOS_FILE, concursos_data)
+    db.delete_concurso(concurso_id)
     return RedirectResponse(url="/admin/concursos?ok=eliminado", status_code=302)
 
 

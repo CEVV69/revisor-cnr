@@ -178,6 +178,11 @@ class Database:
         concursos[concurso["id"]] = concurso
         self._save("concursos", CONCURSOS_FILE, concursos)
 
+    def delete_concurso(self, concurso_id: str):
+        concursos = self._load("concursos", CONCURSOS_FILE)
+        concursos.pop(concurso_id, None)
+        self._save("concursos", CONCURSOS_FILE, concursos)
+
     def add_feedback_concurso(self, concurso_id: str, feedback_entry: dict):
         """Añade una entrada de feedback al historial del concurso (máx. 200)."""
         concurso = self.get_concurso(concurso_id)
