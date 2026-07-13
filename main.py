@@ -2,12 +2,14 @@
 Revisor CNR - Aplicación de revisión de proyectos de riego Ley 18.450
 """
 import os
+import re
 import json
 import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional, List
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
@@ -25,6 +27,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios)
 import calculos_riego
+import geo
 
 # Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
 # lo consulta manualmente desde un botón en los ítems de Presupuesto (ver proyecto.html). La
@@ -35,6 +38,45 @@ URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00Y
                    "hjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIs"
                    "ImMiOjR9")
 from database import db
+
+
+def _parse_coord(valor):
+    """Parsea un valor de coordenada UTM en texto libre. A diferencia de los precios (donde un
+    punto sin coma es separador de miles), en coordenadas un punto sin coma es casi siempre el
+    separador decimal (notación GPS/UTM estándar) — solo la coma se trata como decimal chileno."""
+    if not valor:
+        return None
+    s = re.sub(r"[^\d,.\-]", "", str(valor).strip())
+    if not s:
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _mapa_url_resumen(resumen: dict, codigo_sep: str) -> str:
+    """Arma el link de Google Maps al punto UTM (Coordenada E, Coordenada N, Huso) declarado
+    en el Resumen del proyecto, con el código del proyecto como etiqueta del pin. None si
+    falta o no se puede interpretar alguno de los 3 datos."""
+    este = _parse_coord(resumen.get("coord_e"))
+    norte = _parse_coord(resumen.get("coord_n"))
+    huso_match = re.search(r"\d{1,2}", str(resumen.get("coord_h") or ""))
+    if este is None or norte is None or not huso_match:
+        return None
+    huso = int(huso_match.group())
+    if not (1 <= huso <= 60):
+        return None
+    try:
+        lat, lon = geo.utm_a_latlon(este, norte, huso)
+    except (ValueError, ZeroDivisionError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    etiqueta = quote(codigo_sep or "Proyecto")
+    return f"https://maps.google.com/maps?q={lat:.6f},{lon:.6f}({etiqueta})"
 
 BASE_DIR = Path(__file__).parent
 os.chdir(BASE_DIR)
@@ -497,6 +539,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         # Resumen del proyecto (formulario)
         "resumen_secciones": RESUMEN_SECCIONES,
         "resumen": resumen,
+        "mapa_url": _mapa_url_resumen(resumen, proyecto.get("codigo_sep", "")),
         # Página activa (resumen / documentos / items)
         "pagina": pagina,
         "url_precios_cnr": URL_PRECIOS_CNR,

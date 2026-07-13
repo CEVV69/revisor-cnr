@@ -287,6 +287,23 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 `nombre_proyecto` es `tipo: "textarea"` (no "text") — un `<input>` de una línea no muestra
 nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 
+**Botón "Ver en Google Maps" junto a Huso (implementado, jul-2026):** el Resumen guarda
+coordenadas UTM (`coord_e`, `coord_n`, `coord_h` — Este/Norte/Huso, notación estándar de
+levantamientos en Chile). `geo.py` (módulo nuevo, función pura sin dependencias) convierte
+UTM→lat/lon con la fórmula estándar de Snyder sobre el elipsoide WGS84 — se asume datum
+WGS84/SIRGAS-Chile (prácticamente coincidentes) y hemisferio sur (todo Chile continental).
+`_parse_coord()` (main.py) interpreta el texto libre de esos 3 campos con la MISMA notación
+chilena que el resto de la app, pero con la regla opuesta a `_parse_precio` (precios): en una
+coordenada, un punto SIN coma es casi siempre el separador decimal (notación GPS/UTM estándar),
+no separador de miles — así que ahí no se elimina. `_mapa_url_resumen()` arma el link con el
+formato clásico de Google Maps `https://maps.google.com/maps?q=LAT,LON(ETIQUETA)`, que ubica
+un pin en las coordenadas exactas con el código del proyecto como etiqueta (a diferencia del
+formato `search/?api=1&query=...` más nuevo, que no permite una etiqueta custom en un punto
+arbitrario). Se calcula en `_render_proyecto()` y se pasa como `mapa_url` (None si falta
+cualquiera de los 3 campos o no se puede interpretar). En la plantilla, el botón aparece junto
+a la etiqueta "Huso (H)" en la página Resumen — solo visible si `mapa_url` existe, se abre en
+pestaña nueva.
+
 ---
 
 ## Funcionalidades implementadas ✅
