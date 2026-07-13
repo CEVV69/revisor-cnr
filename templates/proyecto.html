@@ -285,6 +285,20 @@
 </div>
 {% endif %}
 
+<!-- Advertencia: documentos obligatorios (admisibilidad) faltantes según las bases -->
+{% if faltan_obligatorios %}
+<div style="background:#fff5f5; border:1px solid #fc8181; border-radius:6px; padding:0.7rem 1rem; margin-bottom:0.8rem;">
+  <div style="font-size:0.85rem; color:#742a2a; font-weight:600; margin-bottom:0.3rem;">
+    Faltan documentos obligatorios según las bases — el proyecto podría declararse NO ADMITIDO
+  </div>
+  <ul style="margin:0; padding-left:1.2rem; font-size:0.82rem; color:#742a2a;">
+    {% for d in faltan_obligatorios %}
+    <li>{{ d.label }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <!-- Barra de navegación entre páginas del proyecto -->
 <nav class="proj-nav">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab {% if pagina == 'resumen' %}activa{% endif %}">Resumen</a>

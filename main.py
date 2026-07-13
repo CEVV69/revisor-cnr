@@ -23,7 +23,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
-                      _extraer_datos_fv)
+                      _extraer_datos_fv, extraer_documentos_obligatorios)
 import calculos_riego
 
 # Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
@@ -382,6 +382,16 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         proyecto.get("documentos", []),
         key=lambda d: TIPO_DOC_ORDEN.get(d.get("tipo_doc", "otro"), 50)
     )
+    # Documentos obligatorios de admisibilidad (según las bases) que faltan en este proyecto.
+    # Solo advierte si el revisor ya confirmó la lista en /admin/concursos/{id} — una extracción
+    # de la IA sin revisar nunca dispara esta advertencia (ver documentos_obligatorios_revisado).
+    faltan_obligatorios = []
+    if concurso and concurso.get("documentos_obligatorios_revisado") and concurso.get("documentos_obligatorios"):
+        tipos_presentes = {d.get("tipo_doc") for d in proyecto["documentos"]}
+        faltan_obligatorios = [
+            {"key": k, "label": TIPO_DOC_LABELS.get(k, k)}
+            for k in concurso["documentos_obligatorios"] if k not in tipos_presentes
+        ]
     # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
     # Solo importa re-subir los que necesitan visión (escaneados/planos con poco texto);
     # el resto ya tiene su texto extraído guardado y no requiere el archivo físico.
@@ -478,6 +488,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "concurso_id": concurso_id,
         "items_info": items_info,
         "n_faltan_resubir": n_faltan_resubir,
+        "faltan_obligatorios": faltan_obligatorios,
         # Método por ítems SEP
         "grupos_obs_item": _agrupar(prin_item, "item_nombre", "item", orden_item),
         "grupos_notas_item": _agrupar(notas_item, "item_nombre", "item", orden_item),
@@ -1607,6 +1618,14 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
             "nombre": ITEMS_SEP[item_key]["nombre"],
             "texto": enfasis_guardados.get("item_" + item_key, ""),
         })
+    # Documentos obligatorios de admisibilidad: checklist de TODOS los tipos de documento
+    # (orden del SEP), marcados según lo último guardado (extracción IA sin revisar, o ya
+    # confirmado por el revisor — ver documentos_obligatorios_revisado).
+    obligatorios_actuales = set(concurso.get("documentos_obligatorios", []))
+    checklist_doc_obligatorios = [
+        {"key": k, "label": TIPO_DOC_LABELS[k], "checked": k in obligatorios_actuales}
+        for k in sorted(TIPO_DOC_LABELS, key=lambda k: TIPO_DOC_ORDEN.get(k, 999))
+    ]
     return templates.TemplateResponse("admin_concurso_detalle.html", {
         "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
         "n_feedback": len(concurso.get("feedback", [])),
@@ -1616,12 +1635,13 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         "n_proyectos_concurso": len(proyectos_concurso),
         "resumen_archivos": resumen_archivos,
         "grupos_enfasis": grupos_enfasis,
+        "checklist_doc_obligatorios": checklist_doc_obligatorios,
     })
 
 
 @app.post("/admin/concursos/{concurso_id}/criterios-enfasis")
 async def guardar_criterios_enfasis(request: Request, concurso_id: str):
-    """Guarda los criterios de énfasis por eje/ítem escritos a mano por el revisor — a
+    """Guarda los criterios de énfasis por ítem escritos a mano por el revisor — a
     diferencia de criterios_aprendidos (se destila solo de aprobar/descartar observaciones),
     esto es supervisión directa del revisor y nunca se sobrescribe automáticamente."""
     user = get_current_user(request)
@@ -1645,6 +1665,50 @@ async def guardar_criterios_enfasis(request: Request, concurso_id: str):
     concurso["criterios_enfasis"] = criterios_enfasis
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=enfasis_guardado", status_code=302)
+
+
+# ─── Documentos obligatorios (admisibilidad según las bases) ─────────────────
+# Las bases señalan qué documentos son obligatorios — su no presentación deja el proyecto como
+# NO ADMITIDO — pero no siempre están en el mismo lugar del texto. La IA los extrae UNA VEZ POR
+# CONCURSO (no por proyecto), pero el resultado solo se usa para advertir en los proyectos
+# después de que el revisor lo revisa y guarda explícitamente ("documentos_obligatorios_revisado").
+
+@app.post("/admin/concursos/{concurso_id}/documentos-obligatorios/extraer")
+async def extraer_doc_obligatorios(request: Request, concurso_id: str):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+    if not concurso.get("bases_texto", "").strip():
+        return RedirectResponse(url=f"/admin/concursos/{concurso_id}?error=sin_bases", status_code=302)
+
+    obligatorios = await extraer_documentos_obligatorios(concurso["bases_texto"], TIPO_DOC_LABELS)
+    concurso["documentos_obligatorios"] = obligatorios
+    concurso["documentos_obligatorios_revisado"] = False   # requiere VB explícito antes de advertir
+    db.save_concurso(concurso)
+    return RedirectResponse(
+        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(obligatorios)}", status_code=302)
+
+
+@app.post("/admin/concursos/{concurso_id}/documentos-obligatorios/guardar")
+async def guardar_doc_obligatorios(request: Request, concurso_id: str):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    concurso = db.get_concurso(concurso_id)
+    if not concurso:
+        raise HTTPException(status_code=404)
+
+    form = await request.form()
+    seleccionados = [k for k in TIPO_DOC_LABELS if form.get(f"doc__{k}") == "on"]
+    concurso["documentos_obligatorios"] = seleccionados
+    concurso["documentos_obligatorios_revisado"] = True
+    concurso["documentos_obligatorios_fecha"] = _ahora().isoformat()
+    concurso["documentos_obligatorios_por"] = user["nombre"]
+    db.save_concurso(concurso)
+    return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=doc_obl_guardado", status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/consolidar")

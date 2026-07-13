@@ -1415,6 +1415,61 @@ la normativa general. Verifica su cumplimiento en el documento analizado:
     return bloque
 
 
+# ── Documentos obligatorios de admisibilidad (según las bases del concurso) ─────
+# Las bases de cada concurso señalan qué documentos son obligatorios — su no presentación deja
+# el proyecto como NO ADMITIDO — pero no siempre están en el mismo lugar del texto, hay que
+# buscarlos. Esta extracción corre UNA VEZ POR CONCURSO (no por proyecto, las bases son las
+# mismas para todos), y el resultado SIEMPRE requiere revisión y guardado explícito del revisor
+# humano antes de usarse — nunca dispara advertencias en un proyecto por sí sola. Ver
+# `main.py`: rutas `/admin/concursos/{id}/documentos-obligatorios/{extraer,guardar}` y el campo
+# `concurso["documentos_obligatorios_revisado"]`.
+
+async def extraer_documentos_obligatorios(bases_texto: str, catalogo_tipo_doc: dict) -> list:
+    """Lee las bases del concurso y determina qué tipos de documento son OBLIGATORIOS para la
+    admisibilidad — bases que indican EXPLÍCITAMENTE que su no presentación deja el proyecto
+    NO ADMITIDO (o expresiones equivalentes: "causal de inadmisibilidad", "se declarará
+    inadmisible", "quedará fuera de bases", etc.). NO inventa: si las bases solo listan
+    documentos a presentar sin mencionar esa consecuencia, no los marca — mejor una lista corta
+    y certera que una larga y especulativa. Devuelve una lista de claves tipo_doc (subconjunto
+    de las claves de catalogo_tipo_doc); el resultado se filtra siempre contra ese catálogo, sin
+    confiar ciegamente en lo que devuelva la IA."""
+    if not bases_texto or not bases_texto.strip():
+        return []
+    texto = _truncar_inteligente(bases_texto.strip(), MAX_CHARS_BASES)
+    catalogo_txt = "\n".join(f"- {k}: {v}" for k, v in catalogo_tipo_doc.items())
+    prompt = f"""Lee las bases del concurso CNR (Ley 18.450) y determina cuáles de los
+siguientes tipos de documento son OBLIGATORIOS para la admisibilidad — es decir, las bases
+indican EXPLÍCITAMENTE que si el documento no se presenta, el proyecto queda NO ADMITIDO (o
+expresiones equivalentes de esa misma consecuencia).
+
+NO inventes ni asumas — solo marca un documento como obligatorio si las bases lo dicen de forma
+explícita con esa consecuencia. Si las bases no distinguen niveles de exigencia y simplemente
+listan documentos a presentar sin mencionar inadmisibilidad, NO los marques.
+
+CATÁLOGO DE TIPOS DE DOCUMENTO (usa exactamente estas claves, no inventes otras):
+{catalogo_txt}
+
+Responde SOLO este JSON, sin texto adicional:
+{{"obligatorios": ["clave1", "clave2", ...]}}
+
+BASES DEL CONCURSO:
+{texto}"""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = _extraer_json_tolerante(_texto_respuesta(response))
+        obligatorios = data.get("obligatorios", [])
+        if not isinstance(obligatorios, list):
+            return []
+        return [k for k in obligatorios if k in catalogo_tipo_doc]
+    except Exception as e:
+        print(f"⚠️ extraer_documentos_obligatorios: {e}")
+        return []
+
+
 def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:
     """
     Construye el bloque de aprendizaje basado en decisiones reales de revisores.

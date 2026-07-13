@@ -143,7 +143,9 @@ CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consu
     `eje`+`eje_nombre` en vez de `item`/`item_nombre` — la ficha las sigue mostrando (agrupadas
     al final, sin orden específico), pero ya no se pueden generar más ni gestionar desde la UI.
 - **concursos** → `id (ej "204-2026"), nombre, bases_texto, feedback[], fecha_*`, más
-  `criterios_aprendidos{}` (clave "item_"+item_key → texto destilado) y `criterios_fecha`.
+  `criterios_aprendidos{}` (clave "item_"+item_key → texto destilado), `criterios_fecha`,
+  `documentos_obligatorios[]` (claves tipo_doc), `documentos_obligatorios_revisado` (bool —
+  VB del revisor, ver sección dedicada más abajo), `documentos_obligatorios_fecha/_por`.
   - `feedback[]`: decisiones reales del revisor (`accion: aprobada|descartada, tipo_doc,
     texto_obs, fecha`). `tipo_doc` = "item_"+item_key o tipo_doc real. Máx 200.
 - **consultores** → keyed por nombre normalizado (`_consultor_key`): `key, nombre, feedback[]
@@ -319,6 +321,10 @@ nombres de proyecto largos completos, había que hacer scroll dentro del campo.
   `base.html`, tiene su propio `<head>` — hay que mantener el manifest/íconos/SW duplicados
   ahí también si se edita uno). `ficha.html` (documento imprimible) queda afuera a propósito.
   Para cambiar el ícono: reemplazar los PNG en `static/icons/` con el mismo nombre y tamaño.
+- **Documentos obligatorios de admisibilidad** (jul-2026): la IA sugiere, desde las bases,
+  qué documentos son obligatorios (`/admin/concursos/{id}`) — requiere VB explícito del
+  revisor antes de usarse. Si al proyecto le falta alguno confirmado, se muestra un banner
+  rojo (no bloqueante) al entrar — ver sección dedicada más abajo.
 
 ---
 
@@ -578,6 +584,41 @@ vez, no hay merge. Mientras no se haya subido ninguna, la verificación simpleme
 - **Administración** (`/admin/precios`, nav "Precios" solo para admin): ver cuántos ítems hay
   cargados, cuándo y quién los subió, tabla completa agrupada por categoría en `<details>`
   desplegables, formulario para subir/reemplazar el Excel, botón para eliminar la tabla.
+
+**Documentos obligatorios de admisibilidad (implementado, jul-2026):** las bases de cada
+concurso señalan qué documentos son obligatorios — su no presentación deja el proyecto como
+NO ADMITIDO — pero no siempre están en el mismo lugar del texto, hay que buscarlos. Se agregó
+una extracción con IA (Haiku) que corre **una vez por concurso** (las bases son las mismas
+para todos sus proyectos, no tiene sentido repetir la extracción por proyecto) y que **siempre
+requiere revisión y confirmación explícita del revisor humano** antes de usarse — nunca dispara
+advertencias en un proyecto por sí sola, evitando que un error de la IA declare "no admitido"
+algo que en realidad sí califica (ej. documentos "en trámite" que las bases a veces permiten
+igual).
+- `analyzer.py`: `extraer_documentos_obligatorios(bases_texto, catalogo_tipo_doc)` — recibe el
+  catálogo `TIPO_DOC_LABELS` (definido en main.py, se pasa como parámetro para evitar import
+  circular) y responde solo con claves tipo_doc que las bases marcan EXPLÍCITAMENTE con la
+  consecuencia de inadmisibilidad ("causal de inadmisibilidad", "se declarará inadmisible",
+  etc.) — nunca marca un documento solo porque las bases lo listan como parte del expediente.
+  El resultado se filtra siempre contra el catálogo real, sin confiar ciegamente en la IA.
+- **Flujo de confirmación** (`/admin/concursos/{id}`, card "Documentos obligatorios
+  (admisibilidad)"): botón "Extraer sugerencia de las bases" (`POST .../documentos-
+  obligatorios/extraer`) guarda el resultado de la IA en `concurso["documentos_obligatorios"]`
+  pero deja `documentos_obligatorios_revisado = False` — en este estado NO se advierte nada
+  todavía en los proyectos. Un checklist de los 25 tipos de documento (`TIPO_DOC_LABELS`, orden
+  del SEP) se muestra pre-marcado según la sugerencia; el revisor corrige lo que haga falta y
+  hace clic en "Guardar y confirmar" (`POST .../documentos-obligatorios/guardar`), que recién
+  ahí pone `documentos_obligatorios_revisado = True` + `_fecha` + `_por` — ese guardado explícito
+  ES el visto bueno humano, no hay un checkbox "validado" separado como en Chequeo de Cálculos.
+  Volver a extraer resetea `_revisado` a `False`, para forzar una nueva revisión si las bases
+  cambiaron.
+- **Advertencia en el proyecto** (`_render_proyecto()` en main.py → `faltan_obligatorios`):
+  solo se calcula si `documentos_obligatorios_revisado` es `True`. Compara
+  `concurso["documentos_obligatorios"]` contra los `tipo_doc` presentes en el proyecto y arma
+  un banner rojo (no bloqueante — `proyecto.html`, antes de la barra de navegación, visible en
+  Resumen/Documentos/Ítems SEP) listando lo que falta. **A propósito NO bloquea los botones de
+  revisar ítem** — es una advertencia para que el revisor decida con esa información antes de
+  invertir tiempo revisando, no un candado, porque un falso positivo de la IA no debe impedir
+  revisar un proyecto que en realidad sí es admisible.
 
 **Archivo de normativa DT-09 eliminado por corrupción (jul-2026):**
 `normativa/DT-09_Proyectos_Electricos.txt` (el que debía tener los requisitos eléctricos/FV) se

@@ -17,6 +17,8 @@
   {% elif msg_ok and msg_ok.startswith('consolidado_') %}Aprendizaje consolidado: {{ msg_ok.split('_')[1] }} grupo(s) con criterios destilados.
   {% elif msg_ok == 'archivos_liberados' %}Archivos liberados. El análisis y las observaciones quedan intactos.
   {% elif msg_ok == 'enfasis_guardado' %}Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada ítem.
+  {% elif msg_ok and msg_ok.startswith('doc_obl_extraidos_') %}La IA sugiere {{ msg_ok.split('_')[-1] }} documento(s) obligatorio(s) según las bases. Revísalos abajo y guarda para confirmarlos.
+  {% elif msg_ok == 'doc_obl_guardado' %}Documentos obligatorios confirmados. Ya se usarán para advertir en los proyectos de este concurso.
   {% else %}Guardado.{% endif %}
 </div>
 {% endif %}
@@ -25,6 +27,7 @@
 <div class="alert alert-error" style="margin-bottom:1rem;">
   {% if msg_err == 'escaneado' %}El PDF está escaneado (imagen) y no se puede extraer texto automáticamente. Usa un PDF con texto digital.
   {% elif msg_err == 'formato' %}Formato no soportado. Sube un PDF, DOC o DOCX.
+  {% elif msg_err == 'sin_bases' %}Este concurso no tiene bases cargadas todavía — carga o pega el texto de las bases primero.
   {% else %}Error: {{ msg_err }}{% endif %}
 </div>
 {% endif %}
@@ -124,6 +127,55 @@
     <a href="/admin/concursos" class="btn btn-ghost btn-sm">Cancelar</a>
   </div>
 </form>
+
+<!-- Documentos obligatorios de admisibilidad -->
+<div class="card" style="margin-bottom:1.5rem; border-left:4px solid #c41230;">
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Documentos obligatorios (admisibilidad)</h2>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+    Las bases señalan qué documentos son obligatorios — su no presentación deja el proyecto
+    como NO ADMITIDO — pero no siempre están en el mismo lugar del texto. La IA puede sugerir
+    cuáles son leyendo las bases; el resultado solo se usa para advertir en los proyectos de
+    este concurso después de que lo revises y confirmes marcando las casillas correctas abajo.
+  </p>
+
+  {% if concurso.documentos_obligatorios_revisado %}
+  <p style="font-size:0.8rem; color:#276749; margin-bottom:0.75rem;">
+    Confirmado por {{ concurso.documentos_obligatorios_por }} el
+    {{ concurso.documentos_obligatorios_fecha | fecha_hora }} —
+    {{ concurso.documentos_obligatorios | length }} documento(s) marcado(s) obligatorio(s).
+    Los proyectos de este concurso ya muestran la advertencia si les falta alguno.
+  </p>
+  {% elif concurso.documentos_obligatorios %}
+  <p style="font-size:0.8rem; color:#92400e; margin-bottom:0.75rem;">
+    Sugerencia de la IA sin confirmar todavía — no se está advirtiendo nada en los proyectos.
+    Revisa las casillas abajo y guarda para confirmar.
+  </p>
+  {% else %}
+  <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.75rem;">
+    Todavía no se ha configurado — extrae una sugerencia de las bases o marca las casillas a
+    mano y guarda.
+  </p>
+  {% endif %}
+
+  <form method="post" action="/admin/concursos/{{ concurso.id }}/documentos-obligatorios/extraer" style="margin-bottom:0.9rem;"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Leyendo bases…'; this.submit();">
+    <button type="submit" class="btn btn-outline btn-sm" {% if not concurso.bases_texto %}disabled title="Carga las bases primero"{% endif %}>
+      Extraer sugerencia de las bases
+    </button>
+  </form>
+
+  <form method="post" action="/admin/concursos/{{ concurso.id }}/documentos-obligatorios/guardar">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:0.4rem 0.9rem; margin-bottom:0.9rem;">
+      {% for d in checklist_doc_obligatorios %}
+      <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; font-size:0.82rem;">
+        <input type="checkbox" name="doc__{{ d.key }}" {% if d.checked %}checked{% endif %} style="margin-top:0.15rem;">
+        <span>{{ d.label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-success btn-sm">Guardar y confirmar</button>
+  </form>
+</div>
 
 <!-- Estadísticas de feedback -->
 {% if concurso.feedback %}
