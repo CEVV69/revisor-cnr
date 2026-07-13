@@ -489,6 +489,47 @@ mayor riesgo de extracción errónea). Tampoco se portaron aún las fórmulas de
 mismo patrón (el 80% de los proyectos reales de esta cuenta usan goteo/aspersión + FV; carrete
 y microaspersión son ~20% — priorizar FV antes que carrete/pivote en la siguiente iteración).
 
+**Verificación de diseño base — Superficie de riego, Caudal de diseño, Tiempo de riego y N°
+de sectores (implementado, jul-2026):** extensión del Chequeo Agronómico a pedido del usuario:
+"tener a la vista la información indispensable para verificar los cálculos que arrojen los
+resultados base del diseño". Fórmula portada del Diseñador de Riego (`disenador_riego_v96.html`,
+funciones `calcGA`/`calcGE` de goteo y `calcMA`/`calcME` de microaspersión — ambas comparten
+exactamente la misma relación):
+
+```
+Demanda[l/s/ha]         = Db / 8,64                              (1 mm/día/ha = 1/8,64 l/s/ha)
+Superficie riego segura = Caudal disponible / Demanda[l/s/ha]
+Tiempo de riego          = Db / Precipitación del sistema         [hr/día]
+N° de sectores           = ⌊Horas disponibles al día / Tiempo de riego⌋
+```
+
+`calculos_riego.verificacion_diseno_riego(db_mm_dia, superficie_ha, caudal_disponible_ls,
+precipitacion_mmhr, horas_disponibles_dia)` — usa el **Db recalculado** (no el declarado, para
+no arrastrar un error de la cadena agronómica) y es aditivo campo por campo: sin caudal
+disponible no calcula superficie segura; sin precipitación no calcula tiempo de riego; sin horas
+disponibles no calcula N° de sectores. También `calculos_riego.requiere_acumulador(caudal_diseno_ls,
+caudal_disponible_ls)` — regla ITT-03 encontrada en el mismo archivo fuente (línea ~6136): si el
+caudal de diseño del sistema supera el caudal disponible × 1,2, se requiere acumulador (estanque).
+**Alcance deliberadamente NO replicado:** aspersión/carrete usan en el Diseñador de Riego un
+modelo de "posturas" distinto (caudal y tiempo por postura, N° de posturas por superficie) —
+a pedido explícito del usuario ("No se trata de replicar algo similar a la app de Diseño de
+Proyectos") no se portó ese modelo; esta verificación es una relación general
+demanda↔caudal↔tiempo↔sectores, válida como referencia para cualquier sistema pero calcada del
+patrón de goteo/microaspersión. "Precipitación del sistema" se trata como un dato **declarado/
+extraído** del expediente (no derivado de emisor+marco), evitando portar 4 sub-modelos distintos
+de selección de emisor. El prompt de verificación se lo advierte explícitamente a la IA.
+- `_extraer_datos_agronomicos()` (analyzer.py) ahora también extrae `superficie_riego_ha`,
+  `caudal_disponible_ls`, `precipitacion_sistema_mmhr`, `horas_disponibles_dia`, y en
+  `declarado`: `caudal_diseno_ls`, `tiempo_riego_hr`, `n_sectores`.
+- `_bloque_verificacion_agronomica()` agrega el bloque "VERIFICACIÓN DE DISEÑO BASE" después
+  del bloque de la cadena Db, con las mismas discrepancias/tolerancias que el resto (15% para
+  tiempo de riego, comparación exacta para N° de sectores) y el aviso de ITT-03 si corresponde.
+- Página "Chequeo de Cálculos" → tarjeta Agronómico: nueva subsección "Datos de diseño"
+  (Superficie de riego, Caudal disponible, Precipitación del sistema, Horas disponibles al día)
+  y 3 campos nuevos en "Resultados declarados por el consultor" (Caudal de diseño, Tiempo de
+  riego, N° sectores) — campos existentes se angostaron (`.agro-grid` de 150px a 115px mínimo)
+  para que quepan más por fila, a pedido del usuario.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

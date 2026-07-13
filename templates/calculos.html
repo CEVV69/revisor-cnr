@@ -21,7 +21,7 @@
   .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:normal; line-height:1.5; }
   .calc-resultado b { color:var(--text); }
   .calc-alerta { color:#c0392b; font-weight:600; }
-  .agro-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+  .agro-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(115px, 1fr));
     gap:0.6rem 0.9rem; margin-bottom:0.9rem; }
   .agro-grid > div { display:flex; flex-direction:column; justify-content:flex-end; }
   .agro-grid label { display:block; font-size:0.78rem; color:var(--text-2); margin-bottom:0.2rem; }
@@ -62,7 +62,8 @@
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
     Recalcula ETc = ETo×Kc · AD = (CC−PMP)/100×Da×Prof(m)×1000 · Dn = AD×fa · Fr = Dn/ETc ·
-    Db = Dn_adj/Ef — misma cadena del Diseñador de Riego.
+    Db = Dn_adj/Ef, y con eso la superficie de riego segura, el tiempo de riego y el N° de
+    sectores — misma cadena y relación del Diseñador de Riego.
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
@@ -85,11 +86,22 @@
       <div><label>Eficiencia sistema (%)</label><input type="number" step="1" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
     </div>
 
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
+    <div class="agro-grid">
+      <div><label>Superficie de riego (ha)</label><input type="number" step="0.01" name="superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
+      <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" name="caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
+      <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" name="precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
+      <div><label>Horas disponibles al día</label><input type="number" step="0.1" name="horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
+    </div>
+
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
     <div class="agro-grid" style="margin-bottom:0.4rem;">
       <div><label>Dn declarada (mm)</label><input type="number" step="0.01" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></div>
       <div><label>Fr declarada (días)</label><input type="number" step="1" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></div>
       <div><label>Db declarada (mm)</label><input type="number" step="0.01" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></div>
+      <div><label>Caudal de diseño declarado (l/s)</label><input type="number" step="0.01" name="decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></div>
+      <div><label>Tiempo de riego declarado (hr)</label><input type="number" step="0.01" name="decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></div>
+      <div><label>N° sectores declarado</label><input type="number" step="1" name="decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></div>
     </div>
 
     {% if agro_calc %}
@@ -97,6 +109,12 @@
       Recalculado → ETc=<b>{{ agro_calc.etc_mm_dia }}</b> mm/día · AD=<b>{{ agro_calc.ad_mm }}</b> mm ·
       Dn=<b>{{ agro_calc.dn_mm }}</b> mm · Fr=<b>{{ agro_calc.fr_adj_dias }}</b> días ·
       Db=<b>{{ agro_calc.db_mm }}</b> mm/día
+      {% if agro_calc.demanda_ls_ha is defined %}
+      <br>Demanda=<b>{{ agro_calc.demanda_ls_ha }}</b> l/s/ha
+      {% if agro_calc.superficie_segura_ha is defined %} · Superficie de riego segura=<b>{{ agro_calc.superficie_segura_ha }}</b> ha{% endif %}
+      {% if agro_calc.tiempo_riego_hr is defined %} · Tiempo de riego=<b>{{ agro_calc.tiempo_riego_hr }}</b> hr/día{% endif %}
+      {% if agro_calc.n_sectores is defined %} · N° sectores=<b>{{ agro_calc.n_sectores }}</b>{% endif %}
+      {% endif %}
     </div>
     {% else %}
     <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.8rem;">Completa todos los datos base para ver el recálculo.</p>

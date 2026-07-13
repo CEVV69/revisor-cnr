@@ -821,9 +821,17 @@ def _tramos_con_calculo(tramos: list) -> list:
 def _agronomico_calculo(datos: dict):
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct"]
-    if datos and all(datos.get(k) not in (None, "") for k in campos):
-        return calculos_riego.cadena_agronomica(*[datos[k] for k in campos])
-    return None
+    if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
+        return None
+    r = calculos_riego.cadena_agronomica(*[datos[k] for k in campos])
+    r.update(calculos_riego.verificacion_diseno_riego(
+        db_mm_dia=r["db_mm"],
+        superficie_ha=datos.get("superficie_riego_ha"),
+        caudal_disponible_ls=datos.get("caudal_disponible_ls"),
+        precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
+        horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+    ))
+    return r
 
 
 def _fv_calculo(datos: dict):
@@ -950,12 +958,17 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
 
     form = await request.form()
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "factor_agotamiento_pct", "eficiencia_pct"]
+              "factor_agotamiento_pct", "eficiencia_pct",
+              "superficie_riego_ha", "caudal_disponible_ls",
+              "precipitacion_sistema_mmhr", "horas_disponibles_dia"]
     datos = {c: _num_form(form, c) for c in campos}
     datos["declarado"] = {
         "dn_mm": _num_form(form, "decl_dn"),
         "fr_dias": _num_form(form, "decl_fr"),
         "db_mm": _num_form(form, "decl_db"),
+        "caudal_diseno_ls": _num_form(form, "decl_qdiseno"),
+        "tiempo_riego_hr": _num_form(form, "decl_triego"),
+        "n_sectores": _num_form(form, "decl_nsec"),
     }
     validado = form.get("validar") == "on"
     datos["validado"] = validado

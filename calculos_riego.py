@@ -105,6 +105,49 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     }
 
 
+def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
+                              caudal_disponible_ls: float = None,
+                              precipitacion_mmhr: float = None,
+                              horas_disponibles_dia: float = None) -> dict:
+    """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
+    misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
+    Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
+    por postura, N° de posturas por superficie) que no se replica acá a propósito — esto es
+    una verificación general de la relación demanda↔caudal↔tiempo↔sectores, no un diseño
+    completo por tipo de sistema:
+
+    Demanda[l/s/ha]        = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
+    Superficie riego segura = Caudal disponible / Demanda[l/s/ha]
+    Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día]
+    N° de sectores          = ⌊Horas disponibles al día / Tiempo de riego⌋
+
+    Cada resultado solo se calcula si están los datos que necesita — es aditivo, no todo o
+    nada. `superficie_ha`/`caudal_disponible_ls` habilitan la superficie segura;
+    `precipitacion_mmhr` habilita el tiempo de riego; `horas_disponibles_dia` (además de
+    precipitación) habilita el N° de sectores."""
+    r = {}
+    if not db_mm_dia:
+        return r
+    demanda_ls_ha = db_mm_dia / 8.64
+    r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
+    if caudal_disponible_ls and demanda_ls_ha:
+        r["superficie_segura_ha"] = round(caudal_disponible_ls / demanda_ls_ha, 4)
+    if precipitacion_mmhr:
+        tiempo_riego = db_mm_dia / precipitacion_mmhr
+        r["tiempo_riego_hr"] = round(tiempo_riego, 2)
+        if horas_disponibles_dia and tiempo_riego:
+            r["n_sectores"] = max(1, math.floor(horas_disponibles_dia / tiempo_riego))
+    return r
+
+
+def requiere_acumulador(caudal_diseno_ls: float, caudal_disponible_ls: float) -> bool:
+    """ITT-03: si el caudal de diseño del sistema supera el caudal disponible en más de un
+    20%, se requiere acumulador (estanque) — mismo criterio del Diseñador de Riego."""
+    if not caudal_diseno_ls or not caudal_disponible_ls:
+        return False
+    return caudal_diseno_ls > caudal_disponible_ls * 1.2
+
+
 # ── Fotovoltaico: energía requerida → N° paneles → configuración → cable DC ─
 
 # Secciones normalizadas de cable de cobre (mm²), mismo criterio del Diseñador de Riego

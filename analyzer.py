@@ -559,21 +559,30 @@ EXPEDIENTE:
 
 
 async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
-    """Extrae los datos de la cadena de demanda agronómica declarados en el diseño. Nunca
-    inventa: usa null si un dato no aparece en el texto."""
+    """Extrae los datos de la cadena de demanda agronómica declarados en el diseño, más los
+    datos base del diseño de riego (superficie, caudal disponible, precipitación del sistema,
+    horas disponibles) y lo que el consultor declara como caudal de diseño/tiempo de riego/N°
+    de sectores. Nunca inventa: usa null si un dato no aparece en el texto."""
     texto = _texto_grupo_para_extraccion(docs_grupo)
     if not texto.strip():
         return {}
     prompt = f"""Extrae del siguiente expediente los datos del cálculo de demanda agronómica
 (capacidad de campo, punto de marchitez, densidad aparente, profundidad radicular, Kc,
 evapotranspiración del mes crítico, factor de agotamiento, eficiencia del sistema, y los
-resultados finales que el consultor declara: lámina neta, frecuencia de riego, demanda bruta).
+resultados finales que el consultor declara: lámina neta, frecuencia de riego, demanda bruta),
+además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
+disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
+horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
+diseño del sistema, tiempo de riego por sector y número de sectores de riego.
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
 {{"cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
 "prof_radicular_cm": number|null, "kc": number|null, "eto_dia_mm": number|null,
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
-"declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null}}}}
+"superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
+"precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
+"declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
+"caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
 
 EXPEDIENTE:
 {texto}"""
@@ -665,6 +674,55 @@ def _bloque_verificacion_agronomica(datos: dict) -> str:
                   "\nGenera una observación citando estos números exactos.")
     else:
         texto += "\n\nSin datos declarados para comparar, o coinciden con el recálculo — no lo menciones como observación."
+
+    diseno = calculos_riego.verificacion_diseno_riego(
+        db_mm_dia=r["db_mm"],
+        superficie_ha=datos.get("superficie_riego_ha"),
+        caudal_disponible_ls=datos.get("caudal_disponible_ls"),
+        precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
+        horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+    )
+    if diseno:
+        lineas_diseno = [f"Demanda = Db / 8,64 = {diseno['demanda_ls_ha']} l/s/ha"]
+        superficie_decl = datos.get("superficie_riego_ha")
+        if "superficie_segura_ha" in diseno:
+            linea = (f"Superficie de riego segura (con el caudal disponible declarado de "
+                      f"{datos.get('caudal_disponible_ls')} l/s) = {diseno['superficie_segura_ha']} ha")
+            if superficie_decl is not None and diseno["superficie_segura_ha"] < superficie_decl:
+                linea += (f" — MENOR a la superficie de riego del proyecto declarada "
+                          f"({superficie_decl} ha): el caudal disponible no alcanza para regar "
+                          f"toda la superficie con esta demanda.")
+            lineas_diseno.append(linea)
+        declarado_qdiseno = declarado.get("caudal_diseno_ls")
+        if declarado_qdiseno is not None and datos.get("caudal_disponible_ls") and \
+                calculos_riego.requiere_acumulador(declarado_qdiseno, datos["caudal_disponible_ls"]):
+            lineas_diseno.append(
+                f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
+                f"disponible ({datos['caudal_disponible_ls']} l/s) × 1,2 — según ITT-03, se "
+                f"requiere acumulador (estanque) y el expediente debe contemplarlo.")
+        if "tiempo_riego_hr" in diseno:
+            linea = (f"Tiempo de riego = Db / Precipitación del sistema declarada "
+                      f"({datos.get('precipitacion_sistema_mmhr')} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")
+            declarado_triego = declarado.get("tiempo_riego_hr")
+            if declarado_triego is not None and _diferencia_relevante(diseno["tiempo_riego_hr"], declarado_triego, 15):
+                linea += f" — declarado = {declarado_triego} hr/día, no coincide con el recálculo."
+            lineas_diseno.append(linea)
+        if "n_sectores" in diseno:
+            linea = f"N° de sectores = ⌊horas disponibles / tiempo de riego⌋ = {diseno['n_sectores']}"
+            declarado_nsec = declarado.get("n_sectores")
+            if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
+                linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
+            lineas_diseno.append(linea)
+        texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores, "
+                  "cálculo determinístico — nota: esta relación es la que usan los sistemas "
+                  "localizados goteo/microaspersión del Diseñador de Riego; en aspersión/carrete "
+                  "el diseño real usa un modelo de posturas más elaborado, así que trata esta "
+                  "verificación como una referencia general, no como el diseño exacto si el "
+                  "sistema es de aspersión o carrete):\n"
+                  + "\n".join(f"- {l}" for l in lineas_diseno) +
+                  "\n\nSi hay una discrepancia relevante o falta el acumulador exigido por "
+                  "ITT-03, genera una observación citando los números exactos. Si todo cuadra, "
+                  "no lo menciones como observación.")
     return texto
 
 
