@@ -35,20 +35,28 @@
     Dashboard oficial CNR (consulta manual): <a href="{{ url_precios_cnr }}" target="_blank" rel="noopener">abrir ↗</a>
   </p>
 
-  <div style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.9rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.9rem;">
+    <div style="font-size:0.82rem; color:var(--text-2);">
+      {% if precios and precios.items %}
+        <strong>{{ n_items }}</strong> ítems cargados
+        {% if precios.fecha_actualizado %} · actualizado el {{ precios.fecha_actualizado[:16].replace('T',' ') }}{% endif %}
+        {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
+        {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
+      {% else %}
+        Sin tabla de precios referenciales promedio cargada — la revisión del ítem Presupuesto
+        sigue funcionando exactamente igual que antes, solo que sin el chequeo extra de
+        sobreprecio/subvaluación contra esta tabla.
+      {% endif %}
+    </div>
     {% if precios and precios.items %}
-      <strong>{{ n_items }}</strong> ítems cargados
-      {% if precios.fecha_actualizado %} · actualizado el {{ precios.fecha_actualizado[:16].replace('T',' ') }}{% endif %}
-      {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
-      {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
-    {% else %}
-      Sin tabla de precios referenciales promedio cargada — la revisión del ítem Presupuesto
-      sigue funcionando exactamente igual que antes, solo que sin el chequeo extra de
-      sobreprecio/subvaluación contra esta tabla.
+    <form method="post" action="/admin/precios/eliminar"
+          onsubmit="return confirm('¿Eliminar el Excel de precios referenciales promedio que subiste? No hace falta tener otro listo para subir después. El resto de la revisión del ítem Presupuesto sigue igual, solo se deja de comparar contra esta tabla hasta que subas otra.')">
+      <button type="submit" class="btn btn-danger btn-sm">Eliminar Excel subido</button>
+    </form>
     {% endif %}
   </div>
 
-  <form method="post" action="/admin/precios/subir" enctype="multipart/form-data" style="margin-bottom:0.6rem;"
+  <form method="post" action="/admin/precios/subir" enctype="multipart/form-data"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Cargando…'; this.submit();">
     <div class="form-group">
       <label>Archivo Excel</label>
@@ -60,13 +68,6 @@
     </div>
     <button type="submit" class="btn btn-primary btn-sm">Subir y reemplazar tabla</button>
   </form>
-
-  {% if precios and precios.items %}
-  <form method="post" action="/admin/precios/eliminar"
-        onsubmit="return confirm('¿Eliminar la tabla de precios referenciales promedio? El resto de la revisión del ítem Presupuesto sigue igual, solo se deja de comparar contra esta tabla hasta que subas otra.')">
-    <button type="submit" class="btn btn-danger btn-sm">Eliminar tabla</button>
-  </form>
-  {% endif %}
 </div>
 
 {% if grupos %}
