@@ -131,29 +131,23 @@
 <!-- Documentos obligatorios de admisibilidad -->
 <div class="card" style="margin-bottom:1.5rem; border-left:4px solid #c41230;">
   <h2 style="font-size:1rem; margin-bottom:0.4rem;">Documentos obligatorios (admisibilidad)</h2>
-  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-    Las bases señalan qué documentos son obligatorios — su no presentación deja el proyecto
-    como NO ADMITIDO — pero no siempre están en el mismo lugar del texto. La IA puede sugerir
-    cuáles son leyendo las bases; el resultado solo se usa para advertir en los proyectos de
-    este concurso después de que lo revises y confirmes marcando las casillas correctas abajo.
-  </p>
 
   {% if concurso.documentos_obligatorios_revisado %}
-  <p style="font-size:0.8rem; color:#276749; margin-bottom:0.75rem;">
+  <p style="font-size:0.8rem; color:#276749; margin-bottom:0.5rem;">
     Confirmado por {{ concurso.documentos_obligatorios_por }} el
     {{ concurso.documentos_obligatorios_fecha | fecha_hora }} —
     {{ concurso.documentos_obligatorios | length }} documento(s) marcado(s) obligatorio(s).
-    Los proyectos de este concurso ya muestran la advertencia si les falta alguno.
   </p>
   {% elif concurso.documentos_obligatorios %}
-  <p style="font-size:0.8rem; color:#92400e; margin-bottom:0.75rem;">
-    Sugerencia de la IA sin confirmar todavía — no se está advirtiendo nada en los proyectos.
-    Revisa las casillas abajo y guarda para confirmar.
+  <p style="font-size:0.8rem; color:#92400e; margin-bottom:0.5rem;">
+    Sugerencia de la IA sin confirmar — revisa y guarda abajo para activar la advertencia.
   </p>
-  {% else %}
-  <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.75rem;">
-    Todavía no se ha configurado — extrae una sugerencia de las bases o marca las casillas a
-    mano y guarda.
+  {% endif %}
+
+  {% if concurso.documentos_obligatorios_referencia %}
+  <p style="font-size:0.82rem; margin-bottom:0.75rem;">
+    Como lo señalan las bases, en el punto <strong>{{ concurso.documentos_obligatorios_referencia }}</strong>,
+    los documentos obligatorios a presentar son:
   </p>
   {% endif %}
 
@@ -165,6 +159,11 @@
   </form>
 
   <form method="post" action="/admin/concursos/{{ concurso.id }}/documentos-obligatorios/guardar">
+    <div class="form-group" style="margin-bottom:0.75rem; max-width:320px;">
+      <label style="font-size:0.8rem;">Referencia en las bases (opcional)</label>
+      <input type="text" name="referencia" value="{{ concurso.documentos_obligatorios_referencia or '' }}"
+             placeholder="Ej: Punto 6.3">
+    </div>
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:0.4rem 0.9rem; margin-bottom:0.9rem;">
       {% for d in checklist_doc_obligatorios %}
       <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; font-size:0.82rem;">

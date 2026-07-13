@@ -1684,12 +1684,14 @@ async def extraer_doc_obligatorios(request: Request, concurso_id: str):
     if not concurso.get("bases_texto", "").strip():
         return RedirectResponse(url=f"/admin/concursos/{concurso_id}?error=sin_bases", status_code=302)
 
-    obligatorios = await extraer_documentos_obligatorios(concurso["bases_texto"], TIPO_DOC_LABELS)
-    concurso["documentos_obligatorios"] = obligatorios
+    resultado = await extraer_documentos_obligatorios(concurso["bases_texto"], TIPO_DOC_LABELS)
+    concurso["documentos_obligatorios"] = resultado["obligatorios"]
+    concurso["documentos_obligatorios_referencia"] = resultado["referencia"]
     concurso["documentos_obligatorios_revisado"] = False   # requiere VB explícito antes de advertir
     db.save_concurso(concurso)
     return RedirectResponse(
-        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(obligatorios)}", status_code=302)
+        url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(resultado['obligatorios'])}",
+        status_code=302)
 
 
 @app.post("/admin/concursos/{concurso_id}/documentos-obligatorios/guardar")
@@ -1704,6 +1706,7 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
     form = await request.form()
     seleccionados = [k for k in TIPO_DOC_LABELS if form.get(f"doc__{k}") == "on"]
     concurso["documentos_obligatorios"] = seleccionados
+    concurso["documentos_obligatorios_referencia"] = (form.get("referencia") or "").strip()
     concurso["documentos_obligatorios_revisado"] = True
     concurso["documentos_obligatorios_fecha"] = _ahora().isoformat()
     concurso["documentos_obligatorios_por"] = user["nombre"]

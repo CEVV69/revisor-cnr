@@ -144,8 +144,9 @@ CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consu
     al final, sin orden específico), pero ya no se pueden generar más ni gestionar desde la UI.
 - **concursos** → `id (ej "204-2026"), nombre, bases_texto, feedback[], fecha_*`, más
   `criterios_aprendidos{}` (clave "item_"+item_key → texto destilado), `criterios_fecha`,
-  `documentos_obligatorios[]` (claves tipo_doc), `documentos_obligatorios_revisado` (bool —
-  VB del revisor, ver sección dedicada más abajo), `documentos_obligatorios_fecha/_por`.
+  `documentos_obligatorios[]` (claves tipo_doc), `documentos_obligatorios_referencia` (punto de
+  las bases citado, ej. "6.3"), `documentos_obligatorios_revisado` (bool — VB del revisor, ver
+  sección dedicada más abajo), `documentos_obligatorios_fecha/_por`.
   - `feedback[]`: decisiones reales del revisor (`accion: aprobada|descartada, tipo_doc,
     texto_obs, fecha`). `tipo_doc` = "item_"+item_key o tipo_doc real. Máx 200.
 - **consultores** → keyed por nombre normalizado (`_consultor_key`): `key, nombre, feedback[]
@@ -596,10 +597,15 @@ algo que en realidad sí califica (ej. documentos "en trámite" que las bases a 
 igual).
 - `analyzer.py`: `extraer_documentos_obligatorios(bases_texto, catalogo_tipo_doc)` — recibe el
   catálogo `TIPO_DOC_LABELS` (definido en main.py, se pasa como parámetro para evitar import
-  circular) y responde solo con claves tipo_doc que las bases marcan EXPLÍCITAMENTE con la
-  consecuencia de inadmisibilidad ("causal de inadmisibilidad", "se declarará inadmisible",
-  etc.) — nunca marca un documento solo porque las bases lo listan como parte del expediente.
-  El resultado se filtra siempre contra el catálogo real, sin confiar ciegamente en la IA.
+  circular) y devuelve `{"obligatorios": [...], "referencia": "..."}` — la lista de claves
+  tipo_doc que las bases marcan EXPLÍCITAMENTE con la consecuencia de inadmisibilidad ("causal
+  de inadmisibilidad", "se declarará inadmisible", etc.) — nunca marca un documento solo porque
+  las bases lo listan como parte del expediente — más el punto/numeral exacto de las bases
+  donde encontró esa lista (ej. "6.3"), para que el revisor lo verifique directamente ahí; vacío
+  si no logra identificar uno específico (nunca inventa un número). La lista de obligatorios se
+  filtra siempre contra el catálogo real, sin confiar ciegamente en la IA. La referencia también
+  es editable a mano por el revisor en el formulario (campo `documentos_obligatorios_referencia`
+  en el concurso), por si la IA no la encuentra o se equivoca.
 - **Flujo de confirmación** (`/admin/concursos/{id}`, card "Documentos obligatorios
   (admisibilidad)"): botón "Extraer sugerencia de las bases" (`POST .../documentos-
   obligatorios/extraer`) guarda el resultado de la IA en `concurso["documentos_obligatorios"]`

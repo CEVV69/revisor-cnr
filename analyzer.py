@@ -1424,17 +1424,18 @@ la normativa general. Verifica su cumplimiento en el documento analizado:
 # `main.py`: rutas `/admin/concursos/{id}/documentos-obligatorios/{extraer,guardar}` y el campo
 # `concurso["documentos_obligatorios_revisado"]`.
 
-async def extraer_documentos_obligatorios(bases_texto: str, catalogo_tipo_doc: dict) -> list:
+async def extraer_documentos_obligatorios(bases_texto: str, catalogo_tipo_doc: dict) -> dict:
     """Lee las bases del concurso y determina qué tipos de documento son OBLIGATORIOS para la
     admisibilidad — bases que indican EXPLÍCITAMENTE que su no presentación deja el proyecto
     NO ADMITIDO (o expresiones equivalentes: "causal de inadmisibilidad", "se declarará
     inadmisible", "quedará fuera de bases", etc.). NO inventa: si las bases solo listan
     documentos a presentar sin mencionar esa consecuencia, no los marca — mejor una lista corta
-    y certera que una larga y especulativa. Devuelve una lista de claves tipo_doc (subconjunto
-    de las claves de catalogo_tipo_doc); el resultado se filtra siempre contra ese catálogo, sin
-    confiar ciegamente en lo que devuelva la IA."""
+    y certera que una larga y especulativa. También identifica el punto/numeral exacto de las
+    bases donde encontró esa lista, para que el revisor pueda verificarlo directamente ahí.
+    Devuelve {"obligatorios": [...], "referencia": "..."} — la lista se filtra siempre contra
+    catalogo_tipo_doc, sin confiar ciegamente en lo que devuelva la IA."""
     if not bases_texto or not bases_texto.strip():
-        return []
+        return {"obligatorios": [], "referencia": ""}
     texto = _truncar_inteligente(bases_texto.strip(), MAX_CHARS_BASES)
     catalogo_txt = "\n".join(f"- {k}: {v}" for k, v in catalogo_tipo_doc.items())
     prompt = f"""Lee las bases del concurso CNR (Ley 18.450) y determina cuáles de los
@@ -1446,11 +1447,16 @@ NO inventes ni asumas — solo marca un documento como obligatorio si las bases 
 explícita con esa consecuencia. Si las bases no distinguen niveles de exigencia y simplemente
 listan documentos a presentar sin mencionar inadmisibilidad, NO los marques.
 
+Además, identifica el punto/numeral/artículo EXACTO de las bases donde está esa lista (ej:
+"6.3" o "Numeral 6.3 — Antecedentes obligatorios"), para que el revisor pueda verificarlo
+directamente ahí. Si no logras identificar un punto específico, deja "referencia" vacío — no
+inventes un número.
+
 CATÁLOGO DE TIPOS DE DOCUMENTO (usa exactamente estas claves, no inventes otras):
 {catalogo_txt}
 
 Responde SOLO este JSON, sin texto adicional:
-{{"obligatorios": ["clave1", "clave2", ...]}}
+{{"obligatorios": ["clave1", "clave2", ...], "referencia": "punto exacto de las bases o vacío"}}
 
 BASES DEL CONCURSO:
 {texto}"""
@@ -1463,11 +1469,15 @@ BASES DEL CONCURSO:
         data = _extraer_json_tolerante(_texto_respuesta(response))
         obligatorios = data.get("obligatorios", [])
         if not isinstance(obligatorios, list):
-            return []
-        return [k for k in obligatorios if k in catalogo_tipo_doc]
+            obligatorios = []
+        referencia = data.get("referencia") or ""
+        return {
+            "obligatorios": [k for k in obligatorios if k in catalogo_tipo_doc],
+            "referencia": referencia.strip() if isinstance(referencia, str) else "",
+        }
     except Exception as e:
         print(f"⚠️ extraer_documentos_obligatorios: {e}")
-        return []
+        return {"obligatorios": [], "referencia": ""}
 
 
 def _construir_bloque_feedback(feedback: list, tipo_doc_actual: str) -> str:
