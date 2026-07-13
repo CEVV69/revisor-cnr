@@ -337,8 +337,7 @@ async def crear_proyecto(
     request: Request,
     codigo_sep: str = Form(...),
     nombre_proyecto: str = Form(...),
-    postulante: str = Form(...),
-    tipo_revision: str = Form(...)
+    postulante: str = Form(...)
 ):
     user = get_current_user(request)
     if not user:
@@ -350,7 +349,7 @@ async def crear_proyecto(
         "codigo_sep": codigo_sep,
         "nombre": nombre_proyecto,
         "postulante": postulante,
-        "tipo_revision": tipo_revision,
+        "tipo_revision": "tecnica",   # única modalidad — la app solo hace revisión técnica
         "revisor": user["username"],
         "revisor_nombre": user["nombre"],
         "estado": "En revisión",

@@ -468,10 +468,18 @@ RESUMEN_KEYS = [c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]]
 # Documentos que alimentan cada verificación numérica determinística (independiente del ítem
 # SEP que se esté revisando) — usado por analizar_item() y por las rutas de extracción de la
 # página "Chequeo de Cálculos" en main.py.
+# "hidraulico" y "agronomico" se solapan a propósito en diseno_hidraulico/diseno_agronomico:
+# en la práctica el consultor a veces mete datos agronómicos dentro del documento clasificado
+# como diseño hidráulico (o viceversa), o entrega un solo documento combinado con ambos
+# cálculos — si cada extracción solo mirara su propio tipo_doc, se perdería esa información
+# según cómo haya quedado clasificado el archivo. Cada extracción igual solo saca del texto los
+# datos que le corresponden (Haiku recibe instrucciones específicas por tipo de cálculo), así
+# que darles el mismo pool de documentos no mezcla resultados, solo evita el falso negativo.
 DOCS_VERIFICACION = {
-    "hidraulico": ["diseno_hidraulico", "planos_tecnificacion", "especificaciones_tecnicas",
-                   "pruebas_bombeo"],
-    "agronomico": ["diseno_agronomico", "estudio_suelos", "memoria_superficies"],
+    "hidraulico": ["diseno_hidraulico", "diseno_agronomico", "planos_tecnificacion",
+                   "especificaciones_tecnicas", "pruebas_bombeo"],
+    "agronomico": ["diseno_agronomico", "diseno_hidraulico", "estudio_suelos",
+                   "memoria_superficies"],
     "energetico": ["diseno_fotovoltaico", "reporte_explorador_solar", "presupuesto_electrico",
                    "diseno_hidraulico"],
 }

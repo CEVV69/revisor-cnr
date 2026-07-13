@@ -697,6 +697,26 @@ eliminarlo:
 
 ## Restricciones y gotchas
 
+- **Solo revisión técnica (jul-2026):** la app se usa exclusivamente para revisión técnica —
+  se eliminó la opción "Revisión legal" del formulario de creación de proyecto
+  (`nuevo_proyecto.html`); `crear_proyecto()` en `main.py` ahora fija `tipo_revision = "tecnica"`
+  siempre, sin leerlo del form. El campo `tipo_revision` y su badge (`badge-legal` en
+  `dashboard.html`/`proyecto.html`/`ficha.html`) se dejaron intactos por si algún registro
+  antiguo lo tuviera en "legal" — no se hizo migración de datos, es solo display. La rama
+  "legal" en `analyzer.py` (`revision_nombre` dentro de `_analizar_grupo`) tampoco se tocó —
+  queda como código muerto inofensivo, ya no alcanzable desde ningún proyecto nuevo.
+- **Bug resuelto — verificación hidráulica/agronómica no veía datos cruzados (jul-2026):**
+  `DOCS_VERIFICACION["hidraulico"]` y `["agronomico"]` (analyzer.py) filtraban documentos
+  SOLO por su propio `tipo_doc` (diseno_hidraulico vs. diseno_agronomico), pero en la práctica
+  el consultor a veces mete datos agronómicos dentro del documento clasificado como diseño
+  hidráulico (o viceversa), o entrega un único documento combinado con ambos cálculos — la
+  extracción correspondiente no los veía según cómo hubiera quedado clasificado el archivo.
+  Arreglado: ambas listas ahora incluyen `diseno_hidraulico` Y `diseno_agronomico` (unión, no
+  exclusivo) — cada extracción igual solo saca del texto los datos que le corresponden (Haiku
+  recibe instrucciones específicas por tipo de cálculo), así que compartir el mismo pool de
+  documentos no mezcla resultados, solo evita el falso negativo de no encontrar datos que sí
+  estaban presentes en el archivo, solo que mal clasificado o combinado.
+
 - **Bug resuelto — huso horario y formato de fecha (jul-2026):** Railway corre los contenedores
   en UTC, así que `datetime.now()` a secas quedaba ~3-4 h adelantado respecto a la hora real de
   Chile (ej: una subida a las 09:07 local se guardaba como 13:07). Además, las fechas se
