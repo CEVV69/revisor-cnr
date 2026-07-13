@@ -617,10 +617,10 @@ function actualizarEtiqueta(input) {
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:0.7rem 1rem;">
       {% for campo in sec.campos %}
       <div style="{% if campo.tipo == 'textarea' %}grid-column:1/-1;{% endif %}">
-        <label style="display:flex; align-items:baseline; justify-content:space-between; gap:0.4rem; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">
+        <label style="display:flex; align-items:center; justify-content:space-between; gap:0.4rem; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">
           <span>{{ campo.label }}</span>
           {% if campo.key == 'coord_h' and mapa_url %}
-          <a href="{{ mapa_url }}" target="_blank" rel="noopener" style="font-size:0.74rem; font-weight:600; color:var(--blue); text-decoration:none; white-space:nowrap;">Ver en Google Maps ↗</a>
+          <a href="{{ mapa_url }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="padding:0.15rem 0.5rem; font-size:0.72rem; white-space:nowrap;">Ver en Google Maps ↗</a>
           {% endif %}
         </label>
         {% if campo.tipo == 'sino' %}
