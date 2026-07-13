@@ -293,9 +293,11 @@ levantamientos en Chile). `geo.py` (módulo nuevo, función pura sin dependencia
 UTM→lat/lon con la fórmula estándar de Snyder sobre el elipsoide WGS84 — se asume datum
 WGS84/SIRGAS-Chile (prácticamente coincidentes) y hemisferio sur (todo Chile continental).
 `_parse_coord()` (main.py) interpreta el texto libre de esos 3 campos con la MISMA notación
-chilena que el resto de la app, pero con la regla opuesta a `_parse_precio` (precios): en una
-coordenada, un punto SIN coma es casi siempre el separador decimal (notación GPS/UTM estándar),
-no separador de miles — así que ahí no se elimina. `_mapa_url_resumen()` arma el link con el
+chilena y la MISMA regla que `_parse_precio` (extractor.py, precios): si hay coma, punto=miles
+y coma=decimal; si NO hay coma, el punto se trata como separador de miles, no decimal — la
+primera versión asumía notación GPS (punto=decimal) y fallaba con coordenadas escritas a la
+chilena, ej. "349.876" para 349876 (bug real reportado por el usuario: el botón no aparecía
+porque el número resultante quedaba fuera de rango). `_mapa_url_resumen()` arma el link con el
 formato clásico de Google Maps `https://maps.google.com/maps?q=LAT,LON(ETIQUETA)`, que ubica
 un pin en las coordenadas exactas con el código del proyecto como etiqueta (a diferencia del
 formato `search/?api=1&query=...` más nuevo, que no permite una etiqueta custom en un punto

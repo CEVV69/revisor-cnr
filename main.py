@@ -41,9 +41,10 @@ from database import db
 
 
 def _parse_coord(valor):
-    """Parsea un valor de coordenada UTM en texto libre. A diferencia de los precios (donde un
-    punto sin coma es separador de miles), en coordenadas un punto sin coma es casi siempre el
-    separador decimal (notación GPS/UTM estándar) — solo la coma se trata como decimal chileno."""
+    """Parsea un valor de coordenada UTM en texto libre, con la MISMA notación chilena que el
+    resto de la app (`_parse_precio` en extractor.py): si hay coma, punto=miles y coma=decimal;
+    si NO hay coma, el punto se trata como separador de miles (no decimal) — igual que al
+    escribir cualquier número grande en Chile, incluida una coordenada UTM (ej: "349.876")."""
     if not valor:
         return None
     s = re.sub(r"[^\d,.\-]", "", str(valor).strip())
@@ -51,6 +52,8 @@ def _parse_coord(valor):
         return None
     if "," in s:
         s = s.replace(".", "").replace(",", ".")
+    elif "." in s:
+        s = s.replace(".", "")
     try:
         return float(s)
     except ValueError:
