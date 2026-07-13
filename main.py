@@ -5,6 +5,7 @@ import os
 import json
 import uuid
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional, List
 
@@ -128,7 +129,7 @@ def _registrar_feedback_obs(proyecto: dict, obs: dict, accion: str, user: dict):
         tipo_doc_obs = doc_de_obs["tipo_doc"] if doc_de_obs else "otro"
     entrada_fb = {
         "id":        obs["id"],
-        "fecha":     datetime.now().isoformat(),
+        "fecha":     _ahora().isoformat(),
         "tipo_doc":  tipo_doc_obs,
         "texto_obs": obs["texto"][:300],
         "accion":    accion,
@@ -181,6 +182,32 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Railway corre los contenedores en UTC, no en hora de Chile — usar datetime.now() a secas
+# desataba timestamps ~3-4 h adelantados (ej: 13:07 en vez de las 09-10 am reales). Todo el
+# código de la app debe usar _ahora() en vez de datetime.now() directo.
+TZ_CHILE = ZoneInfo("America/Santiago")
+
+
+def _ahora() -> datetime:
+    return datetime.now(TZ_CHILE)
+
+
+def _fmt_fecha(iso_str: str, con_hora: bool = False) -> str:
+    """Formatea un datetime ISO a notación chilena dd/mm/aaaa (o dd/mm/aaaa HH:MM si
+    con_hora=True). Los registros de antes de este fix son naive (sin huso horario) y quedan
+    tal cual estaban guardados — solo los timestamps nuevos usan hora de Chile correctamente."""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str)
+    except ValueError:
+        return iso_str
+    return dt.strftime("%d/%m/%Y %H:%M" if con_hora else "%d/%m/%Y")
+
+
+templates.env.filters["fecha"] = _fmt_fecha
+templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 
 
 @app.on_event("startup")
@@ -327,7 +354,7 @@ async def crear_proyecto(
         "revisor": user["username"],
         "revisor_nombre": user["nombre"],
         "estado": "En revisión",
-        "fecha_creacion": datetime.now().isoformat(),
+        "fecha_creacion": _ahora().isoformat(),
         "documentos": [],
         "observaciones": []
     }
@@ -504,7 +531,7 @@ async def cambiar_estado_proyecto(
     estados_validos = {"En revisión", "Revisado", "Observado", "Rechazado"}
     if estado in estados_validos:
         proyecto["estado"] = estado
-        proyecto["fecha_estado"] = datetime.now().isoformat()
+        proyecto["fecha_estado"] = _ahora().isoformat()
         proyecto["estado_por"] = user["nombre"]
         db.save_proyecto(proyecto)
     return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
@@ -547,7 +574,7 @@ async def subir_documento(
         "nombre_original": archivo.filename,
         "filename": filename,
         "tipo_doc": tipo_doc,
-        "fecha_subida": datetime.now().isoformat(),
+        "fecha_subida": _ahora().isoformat(),
         "texto_extraido": texto[:5000],  # primeros 5000 chars para análisis
         "analizado": False
     }
@@ -645,7 +672,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         obs["item_nombre"] = nombre_item
         obs["doc_id"] = ""
         obs["doc_nombre"] = f"Ítem SEP: {nombre_item} ({resumen_docs})"
-        obs["fecha"] = datetime.now().isoformat()
+        obs["fecha"] = _ahora().isoformat()
         obs["estado"] = "pendiente"
         proyecto["observaciones"].append(obs)
 
@@ -655,7 +682,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     n_obs   = len(obs_generadas) - n_notas
     proyecto.setdefault("items_revisados", {})
     proyecto["items_revisados"][item_key] = {
-        "fecha": datetime.now().isoformat(),
+        "fecha": _ahora().isoformat(),
         "n_obs": n_obs,
         "n_notas": n_notas,
         "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
@@ -721,8 +748,8 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         if accion:
             modificado = _aplicar_accion_chat(proyecto, accion, user)
 
-        historial.append({"rol": "revisor", "texto": mensaje, "fecha": datetime.now().isoformat()})
-        historial.append({"rol": "ia", "texto": respuesta, "fecha": datetime.now().isoformat()})
+        historial.append({"rol": "revisor", "texto": mensaje, "fecha": _ahora().isoformat()})
+        historial.append({"rol": "ia", "texto": respuesta, "fecha": _ahora().isoformat()})
         proyecto["item_chats"][key] = historial[-40:]   # conservar últimos 40 turnos
         db.save_proyecto(proyecto)
     except Exception as e:
@@ -878,7 +905,7 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
         "tramos": tramos, "validado": validado,
-        "fecha_validado": datetime.now().isoformat() if validado else None,
+        "fecha_validado": _ahora().isoformat() if validado else None,
         "validado_por": user["nombre"] if validado else None,
     }
     db.save_proyecto(proyecto)
@@ -922,7 +949,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     }
     validado = form.get("validar") == "on"
     datos["validado"] = validado
-    datos["fecha_validado"] = datetime.now().isoformat() if validado else None
+    datos["fecha_validado"] = _ahora().isoformat() if validado else None
     datos["validado_por"] = user["nombre"] if validado else None
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = datos
@@ -966,7 +993,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     }
     validado = form.get("validar") == "on"
     datos["validado"] = validado
-    datos["fecha_validado"] = datetime.now().isoformat() if validado else None
+    datos["fecha_validado"] = _ahora().isoformat() if validado else None
     datos["validado_por"] = user["nombre"] if validado else None
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["energetico"] = datos
@@ -1012,7 +1039,7 @@ async def subir_zip(
             "filename": arch["filename"],
             "tipo_doc": arch["tipo_doc"],
             "tipo_doc_label": arch["label"],
-            "fecha_subida": datetime.now().isoformat(),
+            "fecha_subida": _ahora().isoformat(),
             "texto_extraido": arch["texto_extraido"],
             "analizado": False,
             "origen": "zip"
@@ -1074,7 +1101,7 @@ async def subir_multiple(
             "filename": filename,
             "tipo_doc": tipo_doc,
             "tipo_doc_label": label,
-            "fecha_subida": datetime.now().isoformat(),
+            "fecha_subida": _ahora().isoformat(),
             "texto_extraido": texto[:5000],
             "analizado": False,
             "origen": "multiple"
@@ -1276,14 +1303,13 @@ async def ficha_revision(request: Request, proyecto_id: str):
         grupos_ficha = [{"nombre": n, "obs": items}
                         for n, items in sorted(grupos.items(),
                                                key=lambda kv: orden.get(kv[0], 999))]
-        from datetime import date
         return templates.TemplateResponse("ficha.html", {
             "request": request,
             "proyecto": proyecto,
             "user": user,
             "obs_aprobadas": obs_aprobadas,
             "grupos_ficha": grupos_ficha,
-            "fecha_ficha": date.today().strftime("%d-%m-%Y")
+            "fecha_ficha": _ahora().strftime("%d/%m/%Y")
         })
     except Exception as e:
         import traceback
@@ -1383,7 +1409,7 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
         "id": str(uuid.uuid4())[:8],
         "pregunta": pregunta,
         "respuesta": respuesta,
-        "fecha": datetime.now().isoformat(),
+        "fecha": _ahora().isoformat(),
         "revisor": user["nombre"]
     }
     if "consultas" not in proyecto:
@@ -1521,7 +1547,7 @@ async def admin_crear_concurso(
         "id": concurso_id,
         "nombre": nombre.strip(),
         "bases_texto": "",
-        "fecha_creacion": datetime.now().isoformat(),
+        "fecha_creacion": _ahora().isoformat(),
         "feedback": []
     })
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=creado", status_code=302)
@@ -1539,7 +1565,7 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
             "id": concurso_id,
             "nombre": f"Concurso {concurso_id}",
             "bases_texto": "",
-            "fecha_creacion": datetime.now().isoformat(),
+            "fecha_creacion": _ahora().isoformat(),
             "feedback": []
         }
         db.save_concurso(concurso)
@@ -1645,7 +1671,7 @@ async def consolidar_concurso(request: Request, concurso_id: str):
             perfil = await consolidar_perfil_consultor(c.get("feedback", []), c.get("nombre", ""))
             if perfil:
                 c["perfil"] = perfil
-                c["perfil_fecha"] = datetime.now().isoformat()
+                c["perfil_fecha"] = _ahora().isoformat()
                 db.save_consultor(c)
                 n += 1
     except Exception as e:
@@ -1655,7 +1681,7 @@ async def consolidar_concurso(request: Request, concurso_id: str):
         raise HTTPException(status_code=500, detail=f"Error al consolidar aprendizaje: {str(e)}")
 
     concurso["criterios_aprendidos"] = criterios
-    concurso["criterios_fecha"] = datetime.now().isoformat()
+    concurso["criterios_fecha"] = _ahora().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=consolidado_{n}", status_code=302)
 
@@ -1676,7 +1702,7 @@ async def admin_guardar_bases(
     if nombre.strip():
         concurso["nombre"] = nombre.strip()
     concurso["bases_texto"] = bases_texto.strip()
-    concurso["fecha_actualizacion"] = datetime.now().isoformat()
+    concurso["fecha_actualizacion"] = _ahora().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=guardado", status_code=302)
 
@@ -1717,7 +1743,7 @@ async def admin_subir_bases_pdf(
     if nombre.strip():
         concurso["nombre"] = nombre.strip()
     concurso["bases_texto"] = texto.strip()
-    concurso["fecha_actualizacion"] = datetime.now().isoformat()
+    concurso["fecha_actualizacion"] = _ahora().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=pdf_cargado", status_code=302)
 
@@ -1746,7 +1772,7 @@ async def liberar_archivos_concurso(request: Request, concurso_id: str):
             shutil.rmtree(carpeta, ignore_errors=True)
 
     concurso["archivos_liberados"] = True
-    concurso["fecha_archivos_liberados"] = datetime.now().isoformat()
+    concurso["fecha_archivos_liberados"] = _ahora().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=archivos_liberados", status_code=302)
 
@@ -1822,7 +1848,7 @@ async def admin_subir_precios(request: Request, archivo: UploadFile = File(...))
 
     db.save_precios({
         "items": items,
-        "fecha_actualizado": datetime.now().isoformat(),
+        "fecha_actualizado": _ahora().isoformat(),
         "actualizado_por": user["nombre"],
         "nombre_archivo": archivo.filename,
     })

@@ -53,7 +53,7 @@
 <div class="card" style="margin-bottom:1.2rem;">
   <p class="text-muted" style="font-size:0.82rem; margin:0;">
     Archivos de este concurso liberados{% if concurso.fecha_archivos_liberados %} el
-    {{ concurso.fecha_archivos_liberados[:16].replace('T', ' ') }}{% endif %}. Los nuevos
+    {{ concurso.fecha_archivos_liberados | fecha_hora }}{% endif %}. Los nuevos
     documentos que subas (de este u otro concurso) se vuelven a guardar automáticamente.
   </p>
 </div>
@@ -114,7 +114,7 @@
 
     {% if concurso.bases_texto %}
     <p class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
-      Último guardado: {{ concurso.get('fecha_actualizacion', concurso.get('fecha_creacion', ''))[:16].replace('T', ' ') }}
+      Último guardado: {{ (concurso.get('fecha_actualizacion') or concurso.get('fecha_creacion', '')) | fecha_hora }}
     </p>
     {% endif %}
   </div>
@@ -163,7 +163,7 @@
         {% for fb in concurso.feedback | reverse %}
         <tr style="border-bottom:1px solid #edf2f7;">
           <td style="padding:0.4rem 0.75rem; white-space:nowrap; color:#718096;">
-            {{ fb.fecha[:10] if fb.fecha else '' }}
+            {{ fb.fecha | fecha }}
           </td>
           <td style="padding:0.4rem 0.75rem; white-space:nowrap;">
             <code style="font-size:0.75rem; background:#edf2f7; padding:1px 5px; border-radius:3px;">
@@ -239,7 +239,7 @@
     </button>
     {% if criterios_fecha %}
     <span class="text-muted" style="font-size:0.78rem; margin-left:0.5rem;">
-      Última consolidación: {{ criterios_fecha[:16].replace('T', ' ') }}
+      Última consolidación: {{ criterios_fecha | fecha_hora }}
     </span>
     {% endif %}
   </form>

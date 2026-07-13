@@ -613,6 +613,27 @@ eliminarlo:
 
 ## Restricciones y gotchas
 
+- **Bug resuelto — huso horario y formato de fecha (jul-2026):** Railway corre los contenedores
+  en UTC, así que `datetime.now()` a secas quedaba ~3-4 h adelantado respecto a la hora real de
+  Chile (ej: una subida a las 09:07 local se guardaba como 13:07). Además, las fechas se
+  mostraban en varias partes de la app en formato ISO invertido (`aaaa-mm-dd`) en vez de la
+  notación chilena `dd/mm/aaaa`. Arreglado en `main.py`:
+  - `TZ_CHILE = ZoneInfo("America/Santiago")` + helper `_ahora()` — reemplaza las 22 llamadas a
+    `datetime.now()` (y el `date.today()` de la ficha) en todo el archivo. `tzdata` agregado a
+    `requirements.txt` por si el contenedor de Railway no trae la base de datos de husos
+    horarios del sistema operativo (evita que `ZoneInfo` falle en producción).
+  - Filtros Jinja `fecha` (`dd/mm/aaaa`) y `fecha_hora` (`dd/mm/aaaa HH:MM`) registrados en
+    `templates.env.filters`, usando `_fmt_fecha()`. Reemplazan todo el slicing manual de
+    strings ISO que había regado por los templates (`fecha[:10]`, `fecha[:16].replace('T',' ')`,
+    `fecha[8:10]-fecha[5:7]-fecha[:4]`, etc.) — antes cada plantilla lo hacía a su manera y
+    ninguna reordenaba a formato chileno.
+  - **Registros guardados antes de este fix son `naive`** (sin huso horario, hora UTC cruda) —
+    no se migraron. `_fmt_fecha()` los sigue mostrando tal cual estaban (sin reordenar la hora),
+    solo los timestamps nuevos quedan correctos en hora de Chile desde ahora en adelante.
+  - **Regla para código nuevo:** cualquier timestamp que se guarde debe usar `_ahora()`, nunca
+    `datetime.now()` directo. Cualquier fecha que se muestre en un template debe usar el filtro
+    `| fecha` o `| fecha_hora`, nunca slicing manual del string ISO.
+
 - **Archivos subidos: persistencia solucionada vía PostgreSQL (jul-2026).** El disco de
   Railway sigue siendo efímero (se borra en cada deploy), pero ahora cada archivo subido
   (PDF/Word/Excel) se guarda también como `bytea` en una tabla nueva de Postgres, `archivos`

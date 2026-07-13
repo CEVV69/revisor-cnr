@@ -43,7 +43,7 @@
   </div>
   <div style="font-size:0.88rem; line-height:1.65; color:var(--text); white-space:pre-wrap;">{{ ultima_consulta.respuesta }}</div>
   <p style="margin-top:0.75rem; font-size:0.76rem; color:var(--text-3);">
-    {{ ultima_consulta.fecha[8:10] }}-{{ ultima_consulta.fecha[5:7] }}-{{ ultima_consulta.fecha[:4] }}
+    {{ ultima_consulta.fecha | fecha }}
     · {{ ultima_consulta.revisor }}
   </p>
 </div>
@@ -60,7 +60,7 @@
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.3rem;">
       <p style="font-size:0.85rem; font-weight:500; color:var(--text);">{{ c.pregunta }}</p>
       <span style="font-size:0.74rem; color:var(--text-3); white-space:nowrap;">
-        {{ c.fecha[8:10] }}-{{ c.fecha[5:7] }}-{{ c.fecha[:4] }} · {{ c.revisor }}
+        {{ c.fecha | fecha }} · {{ c.revisor }}
       </span>
     </div>
     <div style="font-size:0.85rem; line-height:1.6; color:var(--text-2); white-space:pre-wrap;">{{ c.respuesta }}</div>

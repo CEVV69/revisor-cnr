@@ -60,7 +60,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
     <h2 style="margin:0; border:none; padding:0;">Diseño Agronómico — Cadena de demanda</h2>
     {% if agro_validado %}
-    <span class="badge-validado">Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha | fecha_hora }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
@@ -118,7 +118,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
     <h2 style="margin:0; border:none; padding:0;">Diseño Hidráulico — Tramos de tubería</h2>
     {% if hid_validado %}
-    <span class="badge-validado">Validado por {{ hid_por }}{% if hid_fecha %} · {{ hid_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ hid_por }}{% if hid_fecha %} · {{ hid_fecha | fecha_hora }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
@@ -188,7 +188,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
     <h2 style="margin:0; border:none; padding:0;">Energético / Fotovoltaico — Dimensionamiento</h2>
     {% if fv_validado %}
-    <span class="badge-validado">Validado por {{ fv_por }}{% if fv_fecha %} · {{ fv_fecha[:16].replace('T',' ') }}{% endif %}</span>
+    <span class="badge-validado">Validado por {{ fv_por }}{% if fv_fecha %} · {{ fv_fecha | fecha_hora }}{% endif %}</span>
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">

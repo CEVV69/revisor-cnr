@@ -39,7 +39,7 @@
     <div style="font-size:0.82rem; color:var(--text-2);">
       {% if precios and precios.items %}
         <strong>{{ n_items }}</strong> ítems cargados
-        {% if precios.fecha_actualizado %} · actualizado el {{ precios.fecha_actualizado[:16].replace('T',' ') }}{% endif %}
+        {% if precios.fecha_actualizado %} · actualizado el {{ precios.fecha_actualizado | fecha_hora }}{% endif %}
         {% if precios.actualizado_por %} por {{ precios.actualizado_por }}{% endif %}
         {% if precios.nombre_archivo %} · archivo <code>{{ precios.nombre_archivo }}</code>{% endif %}
       {% else %}
