@@ -187,6 +187,50 @@ def render_pdf_as_images(filepath: str, max_pages: int = 4, zoom: float = 0.8) -
     return images
 
 
+def render_plano_tiles(filepath: str, max_pages: int = 2, lado_px: int = 1550) -> list:
+    """
+    Renderiza un PLANO para visión de Claude: por página, una VISTA COMPLETA + 4 CUADRANTES
+    ampliados (2×2). La API reduce internamente cada imagen a ~1.568 px de lado — un plano
+    completo (A1/A0) a esa resolución pierde las cotas y textos chicos; los cuadrantes
+    recuperan ese detalle (resolución efectiva ~2× por eje). Retorna
+    [(etiqueta, b64), ...] — 5 imágenes por página.
+    """
+    import fitz
+    import base64
+    MAX_BYTES_POR_IMAGEN = 4 * 1024 * 1024
+    NOMBRES_CUADRANTE = ["superior izquierdo", "superior derecho",
+                         "inferior izquierdo", "inferior derecho"]
+
+    def _pix_b64(page, clip):
+        zoom = lado_px / max(clip.width, clip.height)
+        img = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip).tobytes(
+            "jpeg", jpg_quality=75)
+        if len(img) > MAX_BYTES_POR_IMAGEN:
+            img = page.get_pixmap(matrix=fitz.Matrix(zoom * 0.7, zoom * 0.7), clip=clip).tobytes(
+                "jpeg", jpg_quality=65)
+        return base64.standard_b64encode(img).decode("utf-8")
+
+    doc = fitz.open(filepath)
+    tiles = []
+    for i, page in enumerate(doc):
+        if i >= max_pages:
+            break
+        r = page.rect
+        tiles.append((f"página {i+1} — vista completa", _pix_b64(page, r)))
+        mitad_x, mitad_y = r.width / 2, r.height / 2
+        cuadrantes = [
+            fitz.Rect(r.x0, r.y0, r.x0 + mitad_x, r.y0 + mitad_y),
+            fitz.Rect(r.x0 + mitad_x, r.y0, r.x1, r.y0 + mitad_y),
+            fitz.Rect(r.x0, r.y0 + mitad_y, r.x0 + mitad_x, r.y1),
+            fitz.Rect(r.x0 + mitad_x, r.y0 + mitad_y, r.x1, r.y1),
+        ]
+        for nombre_c, rect_c in zip(NOMBRES_CUADRANTE, cuadrantes):
+            tiles.append((f"página {i+1} — cuadrante {nombre_c} (ampliado)",
+                          _pix_b64(page, rect_c)))
+    doc.close()
+    return tiles
+
+
 def _from_word(filepath: str) -> str:
     from docx import Document
     doc = Document(filepath)

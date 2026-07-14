@@ -179,7 +179,10 @@ es un envoltorio delgado sobre él.
    `< MIN_CHARS_TEXTO` = 300, o `__PDF_ESCANEADO__`) van por **visión** si el archivo físico
    existe (`render_pdf_as_images`, JPEG, tope global `MAX_IMG_EJE=10`). Coherencia NO usa visión.
 3. **Presupuesto de caracteres** — `MAX_CHARS_EJE_TOTAL=45000` repartido entre los docs del
-   grupo (`_truncar_inteligente`).
+   grupo (`_truncar_inteligente`). **Ampliado a 120.000** (`MAX_CHARS_POR_ITEM`, jul-2026) para
+   los ítems densos en datos a pedido del usuario: `diseno_hidraulico` (incluye el agronómico),
+   `diseno_fotovoltaico`, `presupuesto`, `presupuesto_electrico` y `coherencia` — así 2-3
+   archivos grandes (40.000 c/u) entran casi completos; el resto de los ítems sigue en 45.000.
 4. **Manifiesto del expediente** — se inyecta la lista de TODOS los tipos de documento presentes,
    para que la IA detecte faltantes obligatorios ("Se sugiere declarar no admitido.").
 5. **System cacheado** — `SYSTEM_PROMPT` (normativa) + bases del concurso, con
@@ -397,6 +400,24 @@ documentos escaneados/planos (los que no tienen texto). Renderiza páginas con
 Requiere que el archivo físico exista (`ruta_uploads`); como los uploads NO persisten entre
 deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión actual. El ítem
 Coherencia Global es solo texto (no visión, por costo).
+
+**Análisis de PLANOS en alta resolución (implementado, jul-2026):** los tipos en
+`TIPOS_PLANO_VISION` (`planos_tecnificacion`, `planos_obras_civiles`, `plano_ubicacion`) van a
+visión **siempre** que el archivo PDF exista — aunque tengan capa de texto extraíble (un plano
+exportado de AutoCAD trae las cotas/rótulos como texto, pero el trazado solo se ve en imagen):
+entran por AMBOS canales a la vez (texto + imagen; en "archivos usados" aparece "(texto +
+imagen)"). Se renderizan con `render_plano_tiles()` (extractor.py): por página, una vista
+completa MÁS 4 cuadrantes ampliados (2×2) — la API reduce cada imagen a ~1.568 px de lado, así
+que un plano A1/A0 completo pierde las cotas; los cuadrantes recuperan ese detalle (~2× de
+resolución efectiva por eje). 5 imágenes por página, máx 2 páginas por plano (tope global
+`MAX_IMG_EJE=10` intacto). El prompt advierte explícitamente que los cuadrantes son la MISMA
+página (no duplicar conteos) y que lea diámetros/longitudes/números SOLO de cotas y rótulos
+anotados (no "medir a escala"). Los checklists de ambos ítems de planos se detallaron:
+diámetros y longitudes rotulados por tramo vs. diseño hidráulico, sectores, marco de
+plantación, viñeta/escala, y dimensiones acotadas vs. cubicaciones/presupuesto en obras
+civiles — la ausencia de rotulado clave ES observación. **Sobre AutoCAD nativo:** DWG es
+formato binario propietario — no se puede leer directo; DXF sí sería parseable (ezdxf) si el
+consultor lo entregara, pero el SEP recibe PDF — no implementado.
 
 **Chat de refinamiento por ÍTEM (implementado):** núcleo `_chatear_grupo()` en `analyzer.py`;
 `chatear_item()` es su envoltorio (mismo patrón que `_analizar_grupo`). Ruta

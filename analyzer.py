@@ -273,6 +273,18 @@ TIPOS_DOC = {
 # Presupuesto total de caracteres para el prompt combinado de un grupo de documentos
 MAX_CHARS_EJE_TOTAL = 45000
 
+# Ítems con documentos largos y densos en datos: límite ampliado (a pedido del usuario) para
+# que 2-3 archivos grandes entren casi completos en el análisis. Solo pagan más tokens los
+# ítems que realmente tengan tanto texto; el resto sigue con MAX_CHARS_EJE_TOTAL.
+# "diseno_hidraulico" cubre también el diseño agronómico (mismo ítem SEP).
+MAX_CHARS_POR_ITEM = {
+    "diseno_hidraulico":    120000,
+    "diseno_fotovoltaico":  120000,
+    "presupuesto":          120000,
+    "presupuesto_electrico":120000,
+    "coherencia":           120000,
+}
+
 
 # ─── ÍTEMS DEL SEP ─────────────────────────────────────────────────────────────
 # Único método de revisión: por los ítems tal como se ingresan al Sistema Electrónico de
@@ -364,14 +376,37 @@ ITEMS_SEP = {
     "planos_tecnificacion": {
         "nombre": "Planos Proyecto tecnificación",
         "tipo_docs": ["planos_tecnificacion"],
-        "checklist": "Trazado de redes, nodos y equipos coherente con el diseño hidráulico y las "
-                     "superficies. Analiza el plano visualmente.",
+        "checklist": "Analiza el plano visualmente, en detalle:\n"
+                     "- Trazado de la red (matriz, secundarias, laterales): diámetros y "
+                     "longitudes ROTULADOS por tramo — deben coincidir con los tramos del "
+                     "diseño hidráulico (mismos diámetros, largos y materiales/PN).\n"
+                     "- Cambios de diámetro marcados; nodos, válvulas, filtros y equipo de "
+                     "bombeo ubicados y identificados en la simbología.\n"
+                     "- Sectores de riego delimitados: número de sectores coherente con el "
+                     "diseño (tiempo de riego × horas disponibles).\n"
+                     "- Marco de plantación/espaciamiento de emisores o aspersores anotado y "
+                     "coherente con el diseño agronómico.\n"
+                     "- Viñeta/rótulo: escala, norte, fecha, profesional; superficie total "
+                     "coincidente con la memoria de superficies.\n"
+                     "Lee SOLO lo rotulado/acotado — si un dato clave (diámetro o longitud de "
+                     "un tramo principal) no está rotulado en el plano, esa ausencia ES una "
+                     "observación (el plano debe bastarse para construir).",
     },
     "planos_obras_civiles": {
         "nombre": "Planos Obras Civiles proy. de tecnificación",
         "tipo_docs": ["planos_obras_civiles"],
-        "checklist": "Caseta, electrificación, embalses/estanques bien definidos y acotados, "
-                     "coherentes con cubicaciones y presupuesto. Analiza el plano visualmente.",
+        "checklist": "Analiza el plano visualmente, en detalle:\n"
+                     "- Caseta de bombeo, estanque/embalse, cámaras y obras de arte: "
+                     "dimensiones ACOTADAS (planta y cortes/elevaciones) y materiales "
+                     "especificados.\n"
+                     "- Las dimensiones acotadas deben cuadrar con las cubicaciones y el "
+                     "presupuesto (volúmenes de excavación/hormigón, m² de caseta).\n"
+                     "- Electrificación/FV: ubicación de paneles, inversor y tableros si "
+                     "corresponde.\n"
+                     "- Viñeta/rótulo con escala y profesional responsable.\n"
+                     "Lee SOLO lo rotulado/acotado — si una obra del presupuesto no aparece "
+                     "dibujada/acotada, o las cotas no permiten verificar la cubicación, "
+                     "genera observación.",
     },
     "memoria_superficies": {
         "nombre": "Memoria de cálculo de superficies",
@@ -499,6 +534,12 @@ def _documentos_para_verificacion(grupo_key: str, documentos: list) -> list:
 
 
 MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de grupo, para controlar costo
+
+# Tipos de documento que son PLANOS: van a visión SIEMPRE que el archivo exista (aunque el PDF
+# tenga capa de texto — un plano exportado de AutoCAD suele traer las cotas/textos extraíbles,
+# pero la geometría del trazado solo se ve en imagen), y se renderizan en ALTA RESOLUCIÓN con
+# cuadrantes ampliados (render_plano_tiles) en vez del renderizado básico de página completa.
+TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion"}
 
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
@@ -954,6 +995,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           criterios_aprendidos: str = "", criterios_enfasis: str = "",
                           bloque_verificacion: str = "",
                           consultor: dict = None,
+                          max_chars_total: int = MAX_CHARS_EJE_TOTAL,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
@@ -963,17 +1005,21 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     """
     import os as _os
 
-    # Separar documentos con texto de documentos-imagen (escaneados / planos)
+    # Separar documentos con texto de documentos-imagen (escaneados / planos). Los PLANOS van
+    # a visión aunque tengan texto extraíble (texto E imagen a la vez): la capa de texto trae
+    # cotas y rótulos, pero el trazado/geometría solo se ve en la imagen.
     docs_texto  = []
     docs_imagen = []   # (doc, filepath)
     for d in docs_grupo:
         t = d.get("texto_extraido", "").strip()
         es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
-        if (es_imagen and ruta_uploads and not es_coherencia
-                and d.get("filename", "").lower().endswith(".pdf")):
-            fp = _os.path.join(ruta_uploads, d["filename"])
-            if _os.path.exists(fp):
-                docs_imagen.append((d, fp))
+        es_plano = d.get("tipo_doc") in TIPOS_PLANO_VISION
+        fp = _os.path.join(ruta_uploads, d.get("filename", "")) if ruta_uploads else ""
+        pdf_disponible = (fp and d.get("filename", "").lower().endswith(".pdf")
+                          and _os.path.exists(fp))
+        if not es_coherencia and pdf_disponible and (es_imagen or es_plano):
+            docs_imagen.append((d, fp))
+            if es_imagen:
                 continue
         if t not in ("", "__PDF_ESCANEADO__"):
             docs_texto.append(d)
@@ -984,7 +1030,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     client = _get_client()
 
     # Bloque de texto de los documentos con texto (presupuesto repartido)
-    budget_por_doc = max(3000, MAX_CHARS_EJE_TOTAL // max(1, len(docs_texto)))
+    budget_por_doc = max(3000, max_chars_total // max(1, len(docs_texto)))
     bloque_docs = ""
     docs_incluidos = []
     for d in docs_texto:
@@ -994,24 +1040,38 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
                                "label": label})
 
-    # Renderizar imágenes de los documentos escaneados/planos (con tope global)
-    from extractor import render_pdf_as_images
-    imagenes_por_doc = []
+    # Renderizar imágenes de los documentos escaneados/planos (con tope global). Los planos
+    # usan render_plano_tiles (vista completa + 4 cuadrantes ampliados por página, 5 imágenes
+    # por página); el resto, el renderizado básico de página completa.
+    from extractor import render_pdf_as_images, render_plano_tiles
+    imagenes_por_doc = []   # (label, nombre_original, [(etiqueta_imagen, b64), ...])
     restante = MAX_IMG_EJE
     for d, fp in docs_imagen:
         if restante <= 0:
             break
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
-        pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
+        es_plano = d.get("tipo_doc") in TIPOS_PLANO_VISION
         try:
-            imgs = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
+            if es_plano and restante >= 5:
+                pags = min(2, restante // 5)
+                imgs = await asyncio.to_thread(render_plano_tiles, fp, max_pages=pags)
+            else:
+                pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
+                crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
+                imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
         except Exception:
             imgs = []
         if imgs:
             imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
             restante -= len(imgs)
-            docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
-                                   "label": label + " (imagen)"})
+            # Si el documento ya entró como texto (plano con capa de texto), no duplicar la
+            # entrada — solo marcar que también se analiza como imagen.
+            ya = next((di for di in docs_incluidos if di["id"] == d.get("id")), None)
+            if ya:
+                ya["label"] += " (texto + imagen)"
+            else:
+                docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
+                                       "label": label + " (imagen)"})
 
     if not bloque_docs and not imagenes_por_doc:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
@@ -1050,7 +1110,13 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     if imagenes_por_doc:
         nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
-                         f"(planos o escaneados) — analízalos visualmente: {nombres_img}")
+                         f"(planos o escaneados) — analízalos visualmente: {nombres_img}."
+                         f"\nOJO con los PLANOS: cada página viene como una vista completa MÁS "
+                         f"4 cuadrantes AMPLIADOS de esa MISMA página (para leer cotas, "
+                         f"diámetros y textos chicos) — los cuadrantes NO son páginas ni "
+                         f"láminas distintas, no dupliques conteos ni superficies. Lee "
+                         f"diámetros, longitudes y números de la simbología y las cotas "
+                         f"anotadas; NO intentes medir a escala sobre la imagen.")
 
     bloque_enfasis = ""
     if criterios_enfasis and criterios_enfasis.strip():
@@ -1089,7 +1155,8 @@ DOCUMENTOS DEL GRUPO (texto):
     for label, nombre_img, imgs in imagenes_por_doc:
         content_blocks.append({"type": "text",
                                "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
-        for b64 in imgs:
+        for etiqueta, b64 in imgs:
+            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
             content_blocks.append({"type": "image",
                                    "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": b64}})
@@ -1210,6 +1277,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
         bloque_verificacion=bloque_verificacion,
         consultor=consultor,
+        max_chars_total=MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL),
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
 
