@@ -127,6 +127,8 @@ normativa/       *.txt de normativa CNR, cargados al inicio (máx 4.000 chars c/
                  Incluye DT-*, IL-*, Manual_Supervision y criterios destilados de los
                  Instructivos de Tecnificación (ITT-01 a ITT-04 + ITT_Criterios), extraídos
                  del PDF oficial del Drive para guiar la revisión sin cargar el PDF completo.
+                 También `Invernaderos_Criterios.txt` (jul-2026, ver sección dedicada) —
+                 mismo patrón: extracto destilado, no el documento fuente completo.
 uploads/         Una subcarpeta por proyecto. El disco NO persiste entre deploys, pero cada
                  archivo se respalda también en Postgres (tabla `archivos`) y se restaura
                  solo cuando hace falta — ver "Restricciones y gotchas".
@@ -857,6 +859,31 @@ eliminarlo:
   `eje`/`eje_nombre` en vez de `item`/`item_nombre` — la ficha de revisión las sigue
   mostrando (agrupadas al final, ya no aparecen en el `orden` por nombre de ítem), pero no
   hay UI para gestionarlas ni se pueden generar más. No se hizo ninguna migración de datos.
+
+**Invernaderos — criterios inyectados vía normativa, SIN ítem propio (implementado, jul-2026):**
+el invernadero es una obra anexa/complementaria que NO aparece siempre, y cuando aparece el
+consultor la agrupa en carpetas distintas según el caso (Planos de tecnificación, Planos de
+obras civiles, Estudios complementarios o el Presupuesto) — no tiene un `tipo_doc` propio en el
+SEP ni conviene forzarle uno. El usuario aportó la "Planilla de verificación de invernaderos"
+que usa la CNR (Excel con geometría de cercha, cubicación de perfiles METALCON, tabla de
+sobrecarga de nieve y combinación de cargas estructurales) y se evaluó portar el cálculo
+completo como se hizo con hidráulica/agronómico/FV — **se descartó a propósito**: es un salto de
+complejidad mucho mayor (geometría trigonométrica + catálogo de perfiles + tabla de ~150
+localidades) y el propio archivo fuente está incompleto (las hojas de Cargas de viento y
+Cimentación no tienen fórmulas, solo el encabezado — se ignoraron, igual que le pidió el
+usuario: "esas no se consideran, solo las primeras").
+En su lugar, se destiló un extracto de criterios de revisión — igual patrón que
+`ITT_Criterios_Tecnificacion.txt` — en `normativa/Invernaderos_Criterios.txt` (2.850 caracteres,
+dentro del límite `MAX_CHARS_POR_NORMATIVA=4000`, no se trunca). Al cargarse en `NORMATIVA_CNR`
+queda dentro del `SYSTEM_PROMPT` (cacheado) de **toda** revisión, así que sin importar en qué
+documento el consultor haya metido el invernadero, la IA reconoce el diseño y aplica los
+criterios: qué debe incluir (dimensiones, estructura, memoria de cálculo estructural), y
+verificaciones de coherencia (pendiente de techo 30-45 %, cubicación de perfiles vs.
+presupuesto, sobrecarga de nieve/viento declarada y justificada según la ubicación real del
+proyecto, proporcionalidad de la superficie). Es solo CRITERIO para la IA (como el resto de
+`normativa/`) — no hay verificación numérica determinística ni módulo Python nuevo, cero cambio
+de código en `main.py`/ítems/rutas. Costo extra: ninguno apreciable (el bloque va cacheado con
+`cache_control: ephemeral`, igual que el resto de `NORMATIVA_CNR`).
 
 ---
 

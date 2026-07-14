@@ -1,0 +1,38 @@
+CRITERIOS DE REVISIÓN — INVERNADEROS (obra anexa/complementaria, Ley 18.450)
+Destilado de la Planilla CNR de verificación de diseño de invernaderos (estructura metálica
+tipo cercha, frecuente en proyectos de Pequeña Agricultura). El invernadero NO tiene un tipo de
+documento propio en el SEP: aparece como obra anexa dentro de Planos de tecnificación, Planos
+de obras civiles, Estudios complementarios o el Presupuesto, según cómo lo agrupe el consultor
+— aplica estos criterios cada vez que detectes un diseño de invernadero en CUALQUIERA de esos
+documentos, no solo en uno.
+
+1. QUÉ DEBE INCLUIR EL DISEÑO
+- Dimensiones básicas: ancho, largo, altura de hombro (h1) y altura de cumbrera (h2), área (m²).
+- Estructura metálica: marcos (frontal, central, posterior) con cercha, columnas, cuerdas
+  superior/inferior, montantes, diagonales y arriostres; tabiques frontal/posterior; ventana(s)
+  y puerta de acceso con su propio marco y diagonal.
+- Memoria de cálculo estructural: cargas vivas (peso humano, referencia ~70 kg/m²), cargas
+  muertas (peso propio de cercha + costaneras + cubierta de policarbonato/polietileno),
+  sobrecarga de viento y sobrecarga de nieve — según NCh431 (viento) y la tabla de sobrecargas
+  de nieve por altitud y latitud geográfica del lugar del proyecto (NCh432 o equivalente).
+- Cubicación de perfiles metálicos (tipo, dimensión, espesor, largo total y peso total por
+  elemento) — debe respaldar la(s) partida(s) del presupuesto de la obra del invernadero.
+
+2. VERIFICACIONES DE COHERENCIA
+- Pendiente de techo de la cercha: rango típico 30-45 %; muy fuera de ese rango sin
+  justificación amerita observación.
+- La cubicación de perfiles (kg totales, largos totales) debe ser coherente con la(s) partida(s)
+  de presupuesto del invernadero — cantidades y montos deben cuadrar entre memoria de cálculo,
+  planos y presupuesto.
+- El diseño debe declarar y justificar la sobrecarga de nieve y de viento usadas, coherentes con
+  la altitud y ubicación geográfica real del proyecto (comuna/coordenadas) — si NO declara
+  memoria de cálculo estructural (cargas vivas/muertas/nieve/viento) para el invernadero, es
+  observación mayor. Termina esa observación con "Debe justificar."
+- La superficie del invernadero debe ser proporcional a la escala del proyecto de riego (evitar
+  sobredimensionamiento respecto del predio o del cultivo bonificado).
+- Puerta y ventana(s) deben quedar acotadas y con su propio detalle estructural (marco, diagonal).
+
+NOTA: Extracto destilado de la planilla de verificación de invernaderos que usa la CNR — no
+reemplaza el cálculo estructural completo (geometría de cercha, catálogo de perfiles, cargas de
+viento detalladas y diseño de cimentación quedan fuera de este resumen). Ante duda, exige que el
+consultor respalde con memoria de cálculo y planos acotados — no calcules tú los valores.
