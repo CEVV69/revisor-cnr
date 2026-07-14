@@ -742,6 +742,14 @@ vez, no hay merge. Mientras no se haya subido ninguna, la verificación simpleme
   cargados, cuándo y quién los subió, tabla completa agrupada por categoría en `<details>`
   desplegables, formulario para subir/reemplazar el Excel, botón para eliminar la tabla.
 
+**Botón "Roles y uso de suelo (IDE Minagri) ↗" (implementado, jul-2026):** mismo patrón que el
+botón de precios CNR — link externo simple (no embed) al visor IDE Minagri/CIREN
+(`esri.ciren.cl`, constante `URL_IDEMINAGRI` en main.py) para que el revisor consulte
+manualmente el rol y la clasificación de uso de suelo del predio. En las tarjetas de los ítems
+**Estudio de suelos** y **Memoria de cálculo de superficies** (`proyecto.html`, página Ítems
+SEP) — son los dos ítems cuyo checklist verifica justamente la clasificación/capacidad de uso
+del suelo y las superficies declaradas. Sin integración de datos (el visor no expone API).
+
 **Documentos obligatorios de admisibilidad (implementado, jul-2026):** las bases de cada
 concurso señalan qué documentos son obligatorios — su no presentación deja el proyecto como
 NO ADMITIDO — pero no siempre están en el mismo lugar del texto, hay que buscarlos. Se agregó

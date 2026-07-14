@@ -38,6 +38,12 @@ import geo
 URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00YzEyLWEyZjctND"
                    "hjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIs"
                    "ImMiOjR9")
+
+# Visor CIREN/Minagri (IDE Minagri) para consultar roles y uso de suelo del predio — el revisor
+# lo consulta manualmente desde un botón en los ítems de Estudio de suelos y Memoria de
+# superficies (ver proyecto.html). Igual que con los precios CNR, es solo un link externo de
+# apoyo — la app no lee estos datos en vivo.
+URL_IDEMINAGRI = "https://esri.ciren.cl/portal/apps/experiencebuilder/experience/?id=77b51b8c89c3461ab7aea120be55c4b4"
 from database import db
 
 
@@ -611,6 +617,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         # Página activa (resumen / documentos / items)
         "pagina": pagina,
         "url_precios_cnr": URL_PRECIOS_CNR,
+        "url_ideminagri": URL_IDEMINAGRI,
     })
 
 
