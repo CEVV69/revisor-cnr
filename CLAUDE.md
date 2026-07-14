@@ -24,31 +24,50 @@ este CLAUDE.md y súbelas, para que el otro entorno las lea.
 
 ## Estado al cierre de esta sesión (jul-2026) — leer antes de seguir
 
-Sesión larga con varios cambios grandes recién desplegados a `main`, **todavía sin probar con
-datos reales**:
-- Eliminación completa del método de revisión por Ejes (queda solo Ítems SEP).
-- Verificación de precios contra tabla de referencia PROMEDIO (`/admin/precios`) — el revisor
-  aún NO ha subido ninguna tabla real, así que esta verificación nunca se ha ejecutado en
-  producción todavía.
-- Reordenamiento del Chequeo de Cálculos (Agronómico → Hidráulico → Fotovoltaico).
-- Fix de huso horario (`_ahora()`, hora de Chile) y formato de fecha (`dd/mm/aaaa`) en toda
-  la app.
-- Fix de un bug real (`Internal Server Error` al eliminar un concurso — `db._load`/`_save`
-  llamados con firma incorrecta; ver `database.py: delete_concurso`).
-
-El usuario **borró el proyecto y concurso de prueba** que se usaron para probar los cambios
-anteriores (Ejes, Chequeo de Cálculos, etc.) — la base está limpia de datos de prueba.
-Mañana va a **ingresar un concurso y proyecto reales** para revisar de punta a punta y detectar
-fallas. Cuando retomes: no asumas que ya se probó nada de lo anterior en un caso real — es
-la primera pasada con datos reales desde todos estos cambios. Presta especial atención a:
-- Que la revisión por Ítems SEP corra sin errores en las 18 categorías (incluye Coherencia
-  Global al final).
-- Que el ítem `diseno_hidraulico` corra bien la verificación hidráulica + agronómica juntas
-  (recién portadas desde el eje eliminado), y que `diseno_fotovoltaico` corra la FV.
-- Que las fechas se vean en `dd/mm/aaaa` y con la hora de Chile correcta en toda la app
-  (dashboard, documentos, chat, ficha, admin).
-- Que "Chequeo de Cálculos" extraiga y guarde bien con el nuevo orden de tarjetas.
+**MAÑANA el usuario ingresa el concurso 202-2026 con proyectos REALES** — primera carga de
+trabajo real desde la auditoría de rendimiento y todos los cambios de esta sesión. Cuando
+retomes: no asumas que nada de lo de abajo ya se probó con datos reales de producción — se
+verificó todo con pruebas propias (servidor local + Playwright + mocks), pero el uso real
+puede revelar cosas distintas. Presta especial atención a:
+- **Documentos que el revisor haya subido ANTES de hoy siguen truncados a 5.000 caracteres**
+  en la base (el fix de texto completo solo aplica a subidas nuevas) — si algo del concurso
+  202-2026 se cargó en una sesión anterior a esta, puede hacer falta resubirlo para que el
+  análisis vea el documento completo.
+- Que la migración automática de proyectos a claves separadas en PostgreSQL
+  (`db.migrar_proyectos()`, corre sola al primer arranque tras el deploy) no haya tenido
+  problemas — revisar el log de Railway al desplegar por si imprime error en vez de
+  "✅ Migrados N proyecto(s)...".
+- Que el análisis de los ítems con límite ampliado (`diseno_hidraulico`, `diseno_fotovoltaico`,
+  `presupuesto`, `presupuesto_electrico`, `coherencia` — 120.000 caracteres) no dispare timeouts
+  ni costos inesperados con documentos reales grandes.
+- Que los planos (tecnificación/obras civiles) con el nuevo renderizado de cuadrantes
+  (`render_plano_tiles`) se vean bien interpretados por la IA — es la primera vez que corre
+  con planos reales, no solo el PDF de prueba sintético usado para verificar.
+- Que el botón "Ver en Google Maps" interprete bien las coordenadas reales del expediente
+  (UTM, lat/long o DMS) — se probó con varios formatos sintéticos, no con datos reales del SEP.
+- Que los criterios de invernaderos (`normativa/Invernaderos_Criterios.txt`) efectivamente
+  disparen observaciones útiles si el concurso 202-2026 tiene algún proyecto con invernadero —
+  es solo criterio para la IA, no cálculo, así que vale la pena ver si el nivel de detalle es
+  suficiente o si conviene portar el cálculo real más adelante (quedó pendiente, el usuario
+  prefirió probar primero con el criterio simple).
 - Cualquier error 500 nuevo — revisar el log de Railway primero.
+
+**Resumen de lo que cambió en esta sesión** (todo ya en `main`, ver secciones dedicadas más
+abajo para el detalle completo de cada uno):
+- Chequeo Agronómico: nuevos datos de diseño (superficie, caudal disponible, precipitación,
+  horas disponibles) + verificación de Superficie de riego segura/Tiempo de riego/N° de
+  sectores/ITT-03, con tabla "extraído/declarado vs. calculado" y recálculo en vivo por JS.
+- Label "Factor agotamiento" → "Criterio de Riego" (para que coincida con el Diseñador de Riego).
+- Botón "Ver en Google Maps" en el Resumen, con parser que acepta UTM/lat-long/DMS.
+- **Auditoría completa de rendimiento y fallas**: texto ya no se trunca a 5.000 al subir,
+  llamadas a la API ya no bloquean el servidor, proyectos en clave separada en PostgreSQL,
+  varios bugs 500/redirects rotos corregidos.
+- Límite de análisis ampliado a 120.000 caracteres en los 5 ítems más densos en datos.
+- Planos en alta resolución (vista completa + 4 cuadrantes ampliados por página).
+- Extracción de datos optimizada: reparto equitativo entre documentos (antes se perdían los
+  que no fueran el primero) + Resumen pasado a Haiku (antes usaba Sonnet 5 por error).
+- Botón "Roles y uso de suelo (IDE Minagri)" en 3 ítems relacionados con suelo/superficies.
+- Criterios de invernaderos vía normativa (sin ítem nuevo, ver sección dedicada).
 
 ---
 
