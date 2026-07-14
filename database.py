@@ -77,6 +77,20 @@ def _pg_save(key: str, data: dict):
         """, (key, json.dumps(data, ensure_ascii=False)))
 
 
+def _pg_load_prefix(prefix: str) -> list:
+    """Carga todos los values cuyo key empieza con `prefix` (una sola query)."""
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute("SELECT value FROM storage WHERE key LIKE %s", (prefix + "%",))
+        return [json.loads(r[0]) for r in cur.fetchall()]
+
+
+def _pg_delete(key: str):
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM storage WHERE key = %s", (key,))
+
+
 # ── Backend JSON (desarrollo local) ───────────────────────────────────────────
 def _json_load(filepath: Path) -> dict:
     if filepath.exists():
@@ -141,27 +155,56 @@ class Database:
             self._save("users", USERS_FILE, users)
 
     # ── Proyectos ─────────────────────────────────────────────────────────────
+    # En PostgreSQL, cada proyecto vive bajo su propia clave "proyecto:{id}" — antes TODOS
+    # los proyectos (con el texto extraído completo de cada documento) se guardaban en un
+    # solo blob JSON bajo la clave "proyectos", y cada get/save de UN proyecto cargaba y
+    # reescribía el blob entero (megas por clic a medida que se acumulan expedientes).
+    # `migrar_proyectos()` (llamada al startup en main.py) traslada el blob legacy a claves
+    # separadas una única vez, de forma idempotente. En modo JSON local se conserva el
+    # archivo único de siempre (disco local, datos chicos — no vale la pena migrar).
+
+    def migrar_proyectos(self):
+        """Migra el blob legacy 'proyectos' a una clave por proyecto (solo PostgreSQL).
+        Idempotente: si algo falla a la mitad, al próximo arranque reintenta y sobrescribe."""
+        if not self._use_pg:
+            return
+        legacy = _pg_load("proyectos")
+        if not legacy:
+            return
+        for pid, proyecto in legacy.items():
+            _pg_save(f"proyecto:{pid}", proyecto)
+        _pg_delete("proyectos")
+        print(f"✅ Migrados {len(legacy)} proyecto(s) del blob legacy a claves separadas")
 
     def get_proyectos(self, username: str = None) -> list:
-        proyectos = self._load("proyectos", PROYECTOS_FILE)
-        all_p = list(proyectos.values())
+        if self._use_pg:
+            all_p = _pg_load_prefix("proyecto:")
+        else:
+            all_p = list(_json_load(PROYECTOS_FILE).values())
         if username:
             all_p = [p for p in all_p if p["revisor"] == username]
         return sorted(all_p, key=lambda x: x["fecha_creacion"], reverse=True)
 
     def get_proyecto(self, proyecto_id: str) -> dict:
-        proyectos = self._load("proyectos", PROYECTOS_FILE)
-        return proyectos.get(proyecto_id)
+        if self._use_pg:
+            return _pg_load(f"proyecto:{proyecto_id}") or None
+        return _json_load(PROYECTOS_FILE).get(proyecto_id)
 
     def save_proyecto(self, proyecto: dict):
-        proyectos = self._load("proyectos", PROYECTOS_FILE)
+        if self._use_pg:
+            _pg_save(f"proyecto:{proyecto['id']}", proyecto)
+            return
+        proyectos = _json_load(PROYECTOS_FILE)
         proyectos[proyecto["id"]] = proyecto
-        self._save("proyectos", PROYECTOS_FILE, proyectos)
+        _json_save(PROYECTOS_FILE, proyectos)
 
     def delete_proyecto(self, proyecto_id: str):
-        proyectos = self._load("proyectos", PROYECTOS_FILE)
+        if self._use_pg:
+            _pg_delete(f"proyecto:{proyecto_id}")
+            return
+        proyectos = _json_load(PROYECTOS_FILE)
         proyectos.pop(proyecto_id, None)
-        self._save("proyectos", PROYECTOS_FILE, proyectos)
+        _json_save(PROYECTOS_FILE, proyectos)
 
     # ── Concursos ─────────────────────────────────────────────────────────────
 

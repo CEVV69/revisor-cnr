@@ -157,8 +157,13 @@ CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consu
   oficial certificada por la CNR) — ver la sección "Verificación de precios contra tabla de
   referencia promedio" más abajo.
 
-`database.py` lee/escribe la colección completa en cada llamada (sin transacciones).
-Suficiente para uso mono-usuario.
+`database.py` lee/escribe cada colección completa en cada llamada (sin transacciones) — con
+UNA excepción desde jul-2026: en PostgreSQL, los **proyectos** viven en una clave separada por
+proyecto (`proyecto:{id}`), porque el blob único con el texto extraído de todos los documentos
+de todos los proyectos crecía a varios MB y cada clic pagaba cargar+reescribir todo.
+`db.migrar_proyectos()` (llamada al startup en main.py) migró el blob legacy `proyectos` a
+claves separadas una única vez, idempotente. En modo JSON local se conserva el archivo único
+de siempre. `get_proyectos()` en PG usa `SELECT ... WHERE key LIKE 'proyecto:%'` (una query).
 
 ---
 
@@ -815,6 +820,29 @@ eliminarlo:
 ---
 
 ## Restricciones y gotchas
+
+- **Auditoría de rendimiento y fallas (jul-2026)** — revisión completa del código a pedido del
+  usuario; 5 arreglos aplicados de una vez:
+  1. **Texto extraído ya NO se trunca a 5.000 caracteres al subir.** `subir`, `subir-multiple`
+     y `extract_zip` capaban `texto_extraido` a 5.000 chars (~2 páginas) — el análisis por ítem
+     reparte hasta 45.000 entre los documentos del grupo y las extracciones numéricas buscan
+     datos que suelen estar al final del documento, así que ese tope silencioso degradaba TODO
+     (análisis, Chequeo de Cálculos, autocompletar resumen, consultas). Ahora
+     `extractor.truncar_texto_guardado()` guarda hasta `MAX_CHARS_GUARDADO=60000` conservando
+     inicio (75%) + final (25%). **Documentos subidos ANTES de este fix siguen con el texto
+     capado a 5.000 en la base — para que la IA vea el documento completo hay que resubirlos.**
+  2. **Las llamadas a la API Anthropic ya no bloquean el servidor.** El cliente es sincrónico y
+     se llamaba directo dentro de rutas async — durante un análisis (1-2 min) la app ENTERA
+     quedaba congelada (ninguna página respondía). Ahora las 11 llamadas van envueltas en
+     `await asyncio.to_thread(...)` (regla para código nuevo: toda llamada
+     `client.messages.create` debe ir así), igual que `extract_text`/`extract_zip`/
+     `render_pdf_as_images` (PyMuPDF también bloquea).
+  3. **Proyectos por clave separada en PostgreSQL** — ver la nota en "Modelo de datos".
+  4. **`actualizar_observacion` con proyecto inexistente devolvía 500** (AttributeError sobre
+     None) — ahora 404 limpio.
+  5. **Aprobar/descartar/eliminar una observación histórica de Ejes redirigía a
+     `/proyecto/{id}/ejes`**, página eliminada (404). Ahora siempre vuelve a `/items`;
+     `_volver_a()` también dejó de listar "ejes" (y ganó "calculos").
 
 - **Solo revisión técnica (jul-2026):** la app se usa exclusivamente para revisión técnica —
   se eliminó la opción "Revisión legal" del formulario de creación de proyecto

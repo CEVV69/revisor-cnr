@@ -57,6 +57,28 @@ def detectar_anexo(nombre_archivo: str) -> tuple:
     return ("otro", "Documento sin clasificar")
 
 
+# Tope de texto extraído que se GUARDA por documento. Antes era 5.000 caracteres (~2 páginas),
+# lo que capaba silenciosamente todo lo que la IA podía ver de cada documento — el análisis por
+# ítem reparte hasta 45.000 caracteres entre los documentos del grupo y las extracciones
+# numéricas buscan datos que suelen estar al final (resultados/conclusiones). 60.000 caracteres
+# cubre el documento típico completo; si es más largo, se conserva inicio (75%) + final (25%),
+# igual que _truncar_inteligente en analyzer.py.
+MAX_CHARS_GUARDADO = 60000
+
+
+def truncar_texto_guardado(texto: str) -> str:
+    """Trunca el texto extraído antes de guardarlo, conservando inicio y final del documento
+    (las conclusiones/resultados suelen ir al final). No toca marcadores especiales."""
+    if not texto or len(texto) <= MAX_CHARS_GUARDADO or texto == "__PDF_ESCANEADO__":
+        return texto
+    inicio = int(MAX_CHARS_GUARDADO * 0.75)
+    fin = MAX_CHARS_GUARDADO - inicio
+    omitidos = len(texto) - MAX_CHARS_GUARDADO
+    return (texto[:inicio]
+            + f"\n\n[... {omitidos:,} caracteres omitidos — documento muy largo ...]\n\n"
+            + texto[-fin:])
+
+
 def extract_text(filepath: str, ext: str) -> str:
     ext = ext.lower()
     try:
@@ -115,7 +137,7 @@ def extract_zip(zip_path: str, dest_dir: str) -> list:
                 "filename": destino.name,
                 "tipo_doc": tipo_doc,
                 "label": label,
-                "texto_extraido": texto[:5000],
+                "texto_extraido": truncar_texto_guardado(texto),
             })
 
     return archivos

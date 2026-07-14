@@ -5,6 +5,7 @@ import os
 import re
 import json
 import uuid
+import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -20,7 +21,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from auth import create_token, verify_token, hash_password, verify_password
-from extractor import extract_text, extract_zip, parse_tabla_precios
+from extractor import extract_text, extract_zip, parse_tabla_precios, truncar_texto_guardado
 from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
@@ -216,7 +217,7 @@ def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> s
     para volver a ella tras acciones del encabezado (estado). Si no se puede, usa `defecto`."""
     ref = request.headers.get("referer", "") or ""
     base = f"/proyecto/{proyecto_id}/"
-    for pag in ("resumen", "documentos", "ejes", "items"):
+    for pag in ("resumen", "documentos", "items", "calculos"):
         if base + pag in ref:
             return base + pag
     return base + defecto
@@ -327,6 +328,7 @@ async def startup_event():
             from database import _get_pg
             _get_pg()
             print("✅ Conexión PostgreSQL OK")
+            db.migrar_proyectos()
         except Exception as e:
             print(f"❌ Error PostgreSQL: {e}")
     else:
@@ -685,16 +687,18 @@ async def subir_documento(
         f.write(content)
     db.guardar_archivo(proyecto_id, doc_id, filename, content)
 
-    # Extraer texto
-    texto = extract_text(str(filepath), ext)
+    # Extraer texto (en un thread aparte — PyMuPDF/openpyxl bloquean y un PDF grande
+    # congelaría el resto de la app mientras se procesa)
+    texto = await asyncio.to_thread(extract_text, str(filepath), ext)
 
     doc = {
         "id": doc_id,
         "nombre_original": archivo.filename,
         "filename": filename,
         "tipo_doc": tipo_doc,
+        "tipo_doc_label": TIPO_DOC_LABELS.get(tipo_doc, tipo_doc),
         "fecha_subida": _ahora().isoformat(),
-        "texto_extraido": texto[:5000],  # primeros 5000 chars para análisis
+        "texto_extraido": truncar_texto_guardado(texto),
         "analizado": False
     }
 
@@ -1158,9 +1162,9 @@ async def subir_zip(
     with open(zip_path, "wb") as f:
         f.write(content)
 
-    # Extraer y clasificar archivos
+    # Extraer y clasificar archivos (thread aparte: puede haber muchos PDF que procesar)
     dest_dir = str(UPLOAD_DIR / proyecto_id)
-    archivos = extract_zip(str(zip_path), dest_dir)
+    archivos = await asyncio.to_thread(extract_zip, str(zip_path), dest_dir)
 
     # Registrar cada archivo como documento del proyecto
     for arch in archivos:
@@ -1225,7 +1229,7 @@ async def subir_multiple(
         db.guardar_archivo(proyecto_id, doc_id, filename, content)
 
         tipo_doc, label = detectar_anexo(nombre)
-        texto = extract_text(str(filepath), ext)
+        texto = await asyncio.to_thread(extract_text, str(filepath), ext)
 
         doc = {
             "id": doc_id,
@@ -1234,7 +1238,7 @@ async def subir_multiple(
             "tipo_doc": tipo_doc,
             "tipo_doc_label": label,
             "fecha_subida": _ahora().isoformat(),
-            "texto_extraido": texto[:5000],
+            "texto_extraido": truncar_texto_guardado(texto),
             "analizado": False,
             "origen": "multiple"
         }
@@ -1604,8 +1608,10 @@ async def actualizar_observacion(
         return RedirectResponse(url="/login")
 
     proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
     obs_actualizada = None
-    for obs in proyecto["observaciones"]:
+    for obs in proyecto.get("observaciones", []):
         if obs["id"] == obs_id:
             obs["estado"] = estado
             if texto_editado:
@@ -1620,9 +1626,7 @@ async def actualizar_observacion(
     if obs_actualizada and estado in ("aprobada", "descartada"):
         _registrar_feedback_obs(proyecto, obs_actualizada, estado, user)
 
-    # Volver a la página de revisión de origen (ítems o ejes) según el tipo de observación
-    destino = "items" if (obs_actualizada and obs_actualizada.get("item")) else "ejes"
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/{destino}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/eliminar")
@@ -1637,14 +1641,13 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
         raise HTTPException(status_code=404)
 
     obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
-    destino = "items" if (obs and obs.get("item")) else "ejes"
     if obs:
         # Misma señal de aprendizaje que descartar (no era válida) antes de borrarla.
         _registrar_feedback_obs(proyecto, obs, "descartada", user)
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o["id"] != obs_id]
         db.save_proyecto(proyecto)
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/{destino}", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────
@@ -1921,9 +1924,8 @@ async def admin_subir_bases_pdf(
     with open(tmp_path, "wb") as f:
         f.write(content)
 
-    # Extraer texto
-    from extractor import extract_text
-    texto = extract_text(str(tmp_path), ext)
+    # Extraer texto (thread aparte — las bases suelen ser un PDF largo)
+    texto = await asyncio.to_thread(extract_text, str(tmp_path), ext)
     tmp_path.unlink(missing_ok=True)
 
     if texto.strip() == "__PDF_ESCANEADO__":

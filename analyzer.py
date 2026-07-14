@@ -2,9 +2,15 @@
 import os
 import json
 import re
+import asyncio
 from pathlib import Path
 import anthropic
 import calculos_riego
+
+# NOTA sobre asyncio.to_thread: el cliente de Anthropic es sincrónico — llamarlo directo
+# dentro de una ruta async de FastAPI BLOQUEA el event loop completo mientras dura la llamada
+# (un análisis puede tardar 1-2 minutos), dejando la app entera sin responder. Toda llamada
+# `client.messages.create(...)` debe ir envuelta en `await asyncio.to_thread(...)`.
 
 def _get_client():
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip().strip('"').strip("'")
@@ -548,7 +554,8 @@ EXPEDIENTE:
 {texto}"""
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -590,7 +597,8 @@ EXPEDIENTE:
 {texto}"""
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -754,7 +762,8 @@ EXPEDIENTE:
 {texto}"""
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -867,7 +876,8 @@ PRESUPUESTO:
 {texto}"""
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_HAIKU, max_tokens=4000,   # presupuestos pueden tener muchas partidas
             messages=[{"role": "user", "content": prompt}],
         )
@@ -994,7 +1004,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
         pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
         try:
-            imgs = render_pdf_as_images(fp, max_pages=pags)
+            imgs = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
         except Exception:
             imgs = []
         if imgs:
@@ -1084,8 +1094,9 @@ DOCUMENTOS DEL GRUPO (texto):
                                    "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": b64}})
 
-    def _llamar(max_tokens):
-        return client.messages.create(
+    async def _llamar(max_tokens):
+        return await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_SONNET,
             max_tokens=max_tokens,
             system=system_con_cache,
@@ -1093,7 +1104,7 @@ DOCUMENTOS DEL GRUPO (texto):
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
         )
 
-    response = _llamar(MAX_TOKENS_SONNET)
+    response = await _llamar(MAX_TOKENS_SONNET)
     content = _texto_respuesta(response)
 
     # El "thinking" de Sonnet 5 a veces se come todo el cupo antes de escribir el JSON,
@@ -1102,7 +1113,7 @@ DOCUMENTOS DEL GRUPO (texto):
     if not content.strip() and response.stop_reason == "max_tokens":
         print(f"⚠️ Grupo '{nombre}': respuesta vacía por max_tokens ({MAX_TOKENS_SONNET}) — "
               f"reintentando con más cupo…")
-        response = _llamar(MAX_TOKENS_SONNET + 8000)
+        response = await _llamar(MAX_TOKENS_SONNET + 8000)
         content = _texto_respuesta(response)
 
     observaciones = []
@@ -1334,7 +1345,8 @@ Reglas del marcador:
 
     mensajes.append({"role": "user", "content": mensaje})
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=MODELO_SONNET,
         max_tokens=8000,   # holgado: el chat ahora también debe escribir el marcador ACCION_JSON
         system=system_con_cache,
@@ -1402,7 +1414,8 @@ EXPEDIENTE:
 
 Responde SOLO el JSON, sin texto adicional."""
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=MODELO_SONNET,
         max_tokens=3000,
         system=[{"type": "text",
@@ -1478,7 +1491,8 @@ la normativa general. Verifica su cumplimiento en el documento analizado:
 {texto}
 """
     if truncado:
-        bloque += "\n[... texto de bases truncado por longitud — se muestran los primeros 20.000 caracteres]\n"
+        bloque += (f"\n[... texto de bases truncado por longitud — se muestran los primeros "
+                   f"{MAX_CHARS_BASES:,} caracteres]\n".replace(",", "."))
     bloque += "\n"
     return bloque
 
@@ -1530,7 +1544,8 @@ BASES DEL CONCURSO:
 {texto}"""
     try:
         client = _get_client()
-        response = client.messages.create(
+        response = await asyncio.to_thread(
+            client.messages.create,
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -1647,7 +1662,8 @@ El objetivo es revisar más rápido y consistente sus proyectos siguientes.
 
 Responde SOLO el perfil, en viñetas con "-"."""
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=MODELO_HAIKU,
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
@@ -1687,7 +1703,8 @@ Escribe reglas concretas y accionables; NO repitas los ejemplos textualmente.
 
 Responde SOLO las reglas, en viñetas con "-"."""
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=MODELO_HAIKU,
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
@@ -1730,7 +1747,8 @@ Responde la pregunta del revisor de forma clara y fundamentada, citando la norma
 Si la respuesta requiere revisar algo que no está en los documentos disponibles, indícalo explícitamente.
 Sé directo y práctico — el revisor necesita saber qué hacer con esta información."""
 
-    response = client.messages.create(
+    response = await asyncio.to_thread(
+        client.messages.create,
         model=MODELO_SONNET,
         max_tokens=4000,
         system=[{
