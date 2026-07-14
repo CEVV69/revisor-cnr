@@ -92,7 +92,12 @@ El push automático ya está configurado por SSH (no pide credenciales).
 - **Backend:** FastAPI + Jinja2 (renderizado server-side, sin framework JS)
 - **Base de datos:** PostgreSQL en Railway (persiste). En local sin `DATABASE_URL` usa JSON.
 - **IA:** Anthropic API — Claude **Sonnet 5** (revisión por ítems, chat y consultas) ·
-  Haiku 4.5 (tareas de resumen: autocompletar resumen, destilar aprendizaje)
+  **Haiku 4.5** (TODA extracción de datos: autocompletar resumen, extracciones del Chequeo de
+  Cálculos —hidráulica/agronómica/FV/partidas de presupuesto—, documentos obligatorios, y
+  destilar aprendizaje/perfiles). Regla de costo: si la tarea es leer texto y devolver JSON
+  estructurado, usa Haiku; Sonnet 5 solo para lo que exige razonamiento técnico (análisis por
+  ítems, chat, consulta libre). El autocompletar del Resumen usaba Sonnet por error hasta
+  jul-2026 — corregido a Haiku.
 - **Auth:** JWT (HS256, 8 h, en cookie) + bcrypt
 - **Extracción:** PyMuPDF (fitz), python-docx, openpyxl, xlrd
 
@@ -536,6 +541,12 @@ final de esta sección):
    extrae SOLO datos numéricos explícitos del expediente (tramos de tubería: caudal/diámetro/
    longitud/material; o cadena agronómica: CC/PMP/Da/profundidad/Kc/ETo/factor agotamiento/
    eficiencia + los resultados declarados Dn/Fr/Db). Nunca inventa — usa `null` si no aparece.
+   El texto que reciben lo arma `_texto_grupo_para_extraccion()`: **reparte 60.000 caracteres
+   EQUITATIVAMENTE** entre los documentos del grupo con truncado inteligente (inicio 75% +
+   final 25%). Antes repartía 20.000 "por orden de llegada" — un primer documento largo dejaba
+   a los demás fuera, y solo tomaba el inicio de cada uno (perdía los resultados declarados, que
+   suelen ir al final). Corregido jul-2026 junto con subir el Resumen a 80.000 y `consultar_
+   expediente` a 90.000, ambos con el mismo reparto equitativo + inicio/final.
 2. `_bloque_verificacion_hidraulica()` / `_bloque_verificacion_agronomica()` — con esos datos,
    llama a `calculos_riego` y arma un bloque de texto con el recálculo y, si corresponde, las
    discrepancias con lo declarado (tolerancia 10-15%, y rango de velocidad 0,5-2,0 m/s).

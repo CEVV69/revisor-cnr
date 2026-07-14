@@ -552,17 +552,22 @@ TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubi
 MAX_TOKENS_EXTRACCION = 1500
 
 
-def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 20000) -> str:
+def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 60000) -> str:
+    """Texto combinado del grupo para una extracción numérica (Haiku). El presupuesto se
+    reparte EQUITATIVAMENTE entre los documentos — antes se asignaba por orden de llegada y
+    un primer archivo largo dejaba a los demás completamente fuera — y cada documento se
+    trunca conservando inicio + final (los resultados declarados por el consultor suelen
+    estar en las conclusiones, al final del documento)."""
+    docs_utiles = [d for d in docs_grupo
+                   if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    if not docs_utiles:
+        return ""
+    budget = max(4000, max_chars // len(docs_utiles))
     partes = []
-    restante = max_chars
-    for d in docs_grupo:
-        t = d.get("texto_extraido", "").strip()
-        if t in ("", "__PDF_ESCANEADO__") or restante <= 0:
-            continue
-        t = t[:restante]
+    for d in docs_utiles:
+        t = _truncar_inteligente(d.get("texto_extraido", "").strip(), budget)
         label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
         partes.append(f"--- {label} ({d.get('nombre_original','')}) ---\n{t}")
-        restante -= len(t)
     return "\n\n".join(partes)
 
 
@@ -1457,7 +1462,7 @@ async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id:
         return {}
 
     client = _get_client()
-    budget = max(2000, 40000 // max(1, len(docs_texto)))
+    budget = max(2000, 80000 // max(1, len(docs_texto)))
     bloque = ""
     for d in docs_texto:
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
@@ -1482,15 +1487,14 @@ EXPEDIENTE:
 
 Responde SOLO el JSON, sin texto adicional."""
 
+    # Extracción de datos a JSON — Haiku es suficiente (tarea de lectura/estructuración, no de
+    # razonamiento técnico). Antes usaba Sonnet 5 pese a que CLAUDE.md ya lo listaba como tarea
+    # de Haiku — se corrige acá para bajar costo sin perder calidad.
     response = await asyncio.to_thread(
         client.messages.create,
-        model=MODELO_SONNET,
+        model=MODELO_HAIKU,
         max_tokens=3000,
-        system=[{"type": "text",
-                 "text": "Eres un asistente que extrae datos de expedientes CNR y responde únicamente con JSON válido.",
-                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
-        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
 
     content = _texto_respuesta(response)
@@ -1792,13 +1796,17 @@ async def consultar_expediente(pregunta: str, documentos: list) -> str:
     """
     client = _get_client()
 
-    # Construir contexto con texto de todos los documentos analizados
+    # Construir contexto con texto de todos los documentos analizados. Reparto equitativo del
+    # presupuesto entre los documentos con texto + truncado inteligente (inicio + final), en
+    # vez de tomar solo el inicio de cada uno (perdía las conclusiones/resultados finales).
+    docs_texto = [d for d in documentos
+                  if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+    budget = max(3000, 90000 // max(1, len(docs_texto)))
     contexto_docs = ""
-    for doc in documentos:
-        texto = doc.get("texto_extraido", "").strip()
-        if texto and texto != "__PDF_ESCANEADO__":
-            label = doc.get("tipo_doc_label") or doc.get("tipo_doc", "Documento")
-            contexto_docs += f"\n\n--- {label} ({doc.get('nombre_original','')}) ---\n{texto[:3000]}"
+    for doc in docs_texto:
+        label = doc.get("tipo_doc_label") or doc.get("tipo_doc", "Documento")
+        texto = _truncar_inteligente(doc.get("texto_extraido", "").strip(), budget)
+        contexto_docs += f"\n\n--- {label} ({doc.get('nombre_original','')}) ---\n{texto}"
 
     if not contexto_docs:
         return "No hay documentos con texto extraíble en este expediente. Sube los archivos y asegúrate de que tengan contenido legible."
