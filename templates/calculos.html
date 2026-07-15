@@ -35,7 +35,13 @@
   .calc-resultados-tbl tr:last-child td { border-bottom:none; }
   .calc-resultados-tbl .col-concepto { color:var(--text-2); }
   .calc-resultados-tbl .col-calc { font-weight:600; }
+  .calc-resultados-tbl input, .calc-resultados-tbl select { width:100%; max-width:160px;
+    padding:0.3rem 0.4rem; border-radius:5px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); font-family:inherit; font-size:0.82rem;
+    box-sizing:border-box; }
   .calc-nota { display:block; font-size:0.78rem; font-weight:400; margin-top:0.15rem; }
+  .agro-grid > div.sistema-riego-campo { display:none; }
+  .agro-grid > div.sistema-riego-campo.activo { display:flex; }
 </style>
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
@@ -85,6 +91,22 @@
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Sistema de riego</div>
+    <div class="agro-grid">
+      <div>
+        <label>Sistema declarado</label>
+        <select id="sistema_riego" name="sistema_riego">
+          <option value="" {% if not agro.sistema_riego %}selected{% endif %}>—</option>
+          <option value="Goteo" {% if agro.sistema_riego == 'Goteo' %}selected{% endif %}>Goteo</option>
+          <option value="Microaspersión" {% if agro.sistema_riego == 'Microaspersión' %}selected{% endif %}>Microaspersión</option>
+          <option value="Aspersión" {% if agro.sistema_riego == 'Aspersión' %}selected{% endif %}>Aspersión</option>
+          <option value="Carrete" {% if agro.sistema_riego == 'Carrete' %}selected{% endif %}>Carrete</option>
+          <option value="Mixto" {% if agro.sistema_riego == 'Mixto' %}selected{% endif %}>Mixto (más de un sistema)</option>
+        </select>
+      </div>
+    </div>
+    <p id="sistema-riego-aviso" class="text-muted" style="font-size:0.8rem; margin:-0.3rem 0 0.8rem; display:none;"></p>
+
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
     <div class="agro-grid">
       <div><label>Cultivo</label><input type="text" id="cultivo" name="cultivo" value="{{ agro.cultivo if agro.cultivo is not none else '' }}"></div>
@@ -96,7 +118,14 @@
       <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="eto_dia_mm" name="eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
       <div><label>Criterio de Riego (%)</label><input type="number" step="1" id="factor_agotamiento_pct" name="factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
       <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="eficiencia_pct" name="eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
+      <div><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="distancia_hileras_m" name="distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
+      <div><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="distancia_plantas_m" name="distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
+      <div class="sistema-riego-campo campo-goteo"><label>N° líneas de emisor (Goteo)</label><input type="number" step="1" id="n_lineas_emisor" name="n_lineas_emisor" value="{{ agro.n_lineas_emisor if agro.n_lineas_emisor is not none else '' }}"></div>
+      <div class="sistema-riego-campo campo-goteo"><label>Espaciamiento entre emisores (Goteo, m)</label><input type="number" step="0.01" id="espaciamiento_emisores_m" name="espaciamiento_emisores_m" value="{{ agro.espaciamiento_emisores_m if agro.espaciamiento_emisores_m is not none else '' }}"></div>
+      <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="0.01" id="espaciamiento_aspersores_m" name="espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
+      <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="espaciamiento_laterales_m" name="espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
     </div>
+    <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación y espaciamiento del sistema: dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo.</p>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
     <div class="agro-grid">
@@ -106,17 +135,8 @@
       <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="horas_disponibles_dia" name="horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
     </div>
 
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
-    <div class="agro-grid" style="margin-bottom:0.9rem;">
-      <div><label>Dn declarada (mm)</label><input type="number" step="0.01" id="decl_dn" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></div>
-      <div><label>Fr declarada (días)</label><input type="number" step="1" id="decl_fr" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></div>
-      <div><label>Db declarada (mm)</label><input type="number" step="0.01" id="decl_db" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></div>
-      <div><label>Caudal de diseño declarado (l/s)</label><input type="number" step="0.01" id="decl_qdiseno" name="decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></div>
-      <div><label>Tiempo de riego declarado (hr)</label><input type="number" step="0.01" id="decl_triego" name="decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></div>
-      <div><label>N° sectores declarado</label><input type="number" step="1" id="decl_nsec" name="decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></div>
-    </div>
-
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
+    <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Los resultados declarados por el consultor se editan directo en la columna del medio de la tabla — para comparar de un vistazo con lo calculado por la app.</p>
     <p id="agro-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa todos los datos base para ver el recálculo.</p>
     <div style="overflow-x:auto;">
       <table class="calc-resultados-tbl">
@@ -138,21 +158,24 @@
           <td class="col-calc" id="agro-ad">—</td>
         </tr>
         <tr>
-          <td class="col-concepto">Dn — lámina neta (mm)</td><td id="agro-dn-decl">—</td>
+          <td class="col-concepto">Dn — lámina neta (mm)</td>
+          <td><input type="number" step="0.01" id="decl_dn" name="decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-dn-calc">—</span>
             <span id="agro-dn-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">Fr — frecuencia de riego (días)</td><td id="agro-fr-decl">—</td>
+          <td class="col-concepto">Fr — frecuencia de riego (días)</td>
+          <td><input type="number" step="1" id="decl_fr" name="decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-fr-calc">—</span>
             <span id="agro-fr-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">Db — demanda bruta (mm/día)</td><td id="agro-db-decl">—</td>
+          <td class="col-concepto">Db — demanda bruta (mm/día)</td>
+          <td><input type="number" step="0.01" id="decl_db" name="decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-db-calc">—</span>
             <span id="agro-db-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -166,21 +189,24 @@
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">Tiempo de riego (hr/día)</td><td id="agro-triego-decl">—</td>
+          <td class="col-concepto">Tiempo de riego (hr/día)</td>
+          <td><input type="number" step="0.01" id="decl_triego" name="decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-triego-calc">—</span>
             <span id="agro-triego-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">N° de sectores</td><td id="agro-nsec-decl">—</td>
+          <td class="col-concepto">N° de sectores</td>
+          <td><input type="number" step="1" id="decl_nsec" name="decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-nsec-calc">—</span>
             <span id="agro-nsec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">Caudal de diseño vs. disponible (ITT-03)</td><td id="agro-qdiseno-decl">—</td>
+          <td class="col-concepto">Caudal de diseño vs. disponible (ITT-03)</td>
+          <td><input type="number" step="0.01" id="decl_qdiseno" name="decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></td>
           <td class="col-calc">
             <span id="agro-qdiseno-calc">—</span>
           </td>
@@ -480,6 +506,28 @@
         precip = numVal("precipitacion_sistema_mmhr"), horas = numVal("horas_disponibles_dia");
     var declQdiseno = numVal("decl_qdiseno"), declTriego = numVal("decl_triego"), declNsec = numVal("decl_nsec");
 
+    // Sistema de riego declarado — muestra solo los campos de marco/espaciamiento que
+    // correspondan (Goteo vs. Aspersión/Carrete); si no se ha declarado o es "Mixto", muestra
+    // ambos grupos. Si es "Mixto", el chequeo de abajo (Kc, Dn/Fr/Db, etc.) igual corresponde
+    // a UN solo sistema a la vez — se avisa explícitamente en vez de mezclarlos en silencio.
+    var sistema = strVal("sistema_riego");
+    var mostrarGoteo = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
+    var mostrarAspersion = !sistema || sistema === "Mixto" || sistema === "Aspersión" || sistema === "Carrete";
+    document.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
+    document.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
+    var avisoEl = document.getElementById("sistema-riego-aviso");
+    if (sistema === "Mixto") {
+      avisoEl.textContent = "Este proyecto declara más de un sistema de riego — el chequeo de "
+        + "abajo (Kc, Dn/Fr/Db, superficie segura, etc.) corresponde a UN sistema a la vez. "
+        + "Revísalo primero para el sistema más exigente y repite el chequeo a mano con los "
+        + "datos del otro sistema si también hace falta verificarlo.";
+      avisoEl.style.display = "";
+      avisoEl.classList.add("calc-alerta");
+    } else {
+      avisoEl.style.display = "none";
+      avisoEl.classList.remove("calc-alerta");
+    }
+
     // Kc vs. DT-05 — independiente del resto de la cadena (solo necesita cultivo + Kc).
     var cultivo = strVal("cultivo");
     var kcDecl = cultivo || kc !== null ? (cultivo || "(sin cultivo)") + (kc !== null ? " (Kc=" + fmt(kc, 2) + ")" : "") : "—";
@@ -494,13 +542,7 @@
       nota("agro-kc-nota", "");
     }
 
-    setText("agro-dn-decl", declDn === null ? "—" : fmt(declDn, 2) + " mm");
-    setText("agro-fr-decl", declFr === null ? "—" : fmt(declFr, 0) + " días");
-    setText("agro-db-decl", declDb === null ? "—" : fmt(declDb, 2) + " mm/día");
     setText("agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
-    setText("agro-triego-decl", declTriego === null ? "—" : fmt(declTriego, 2) + " hr");
-    setText("agro-nsec-decl", declNsec === null ? "—" : fmt(declNsec, 0));
-    setText("agro-qdiseno-decl", declQdiseno === null ? "—" : fmt(declQdiseno, 2) + " l/s");
 
     var base = [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {

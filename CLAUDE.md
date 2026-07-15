@@ -666,6 +666,47 @@ cultivo no está cubierto por el DT-05 (ej. "Trigo"), retorna `None` — no adiv
   corrige un cultivo en `KC_RANGOS_DT05`/`_KC_ALIAS_DT05` (analyzer.py), replicar el cambio a
   mano en el `<script>` de `calculos.html`.
 
+**Chequeo Agronómico — tabla sin duplicar, marco de plantación y sistema de riego declarado
+(implementado, jul-2026):** primera revisión con datos reales del concurso 202-2026 mostró tres
+mejoras necesarias en la tarjeta Agronómico de `calculos.html`:
+1. **Sección "Resultados declarados por el consultor" eliminada** — duplicaba exactamente lo que
+   ya mostraba la columna "Extraído/declarado" de la tabla de comparación (Dn, Fr, Db, Caudal de
+   diseño, Tiempo de riego, N° sectores). Esos 6 inputs (`decl_dn`/`decl_fr`/`decl_db`/
+   `decl_qdiseno`/`decl_triego`/`decl_nsec` — mismos `id`/`name`, sin cambios en el backend) se
+   movieron DENTRO de la celda izquierda de su fila correspondiente en la tabla — ahora se edita
+   en un solo lugar, no dos. (`agro-sup-decl`, la fila "Superficie de riego segura", quedó como
+   estaba: no es un duplicado, compara la superficie declarada del proyecto —dato de "Datos de
+   diseño"— contra la superficie SEGURA calculada, dos conceptos distintos.)
+2. **Marco de plantación y espaciamiento del sistema** — campos nuevos en "Datos base
+   declarados": Distancia entre hileras, Distancia entre plantas/sobre hilera (comunes a
+   cualquier sistema), N° líneas de emisor y Espaciamiento entre emisores (Goteo/Microaspersión),
+   Espaciamiento entre aspersores y Espaciamiento entre laterales (Aspersión/Carrete). Son datos
+   de referencia para que el revisor los cruce a mano contra el plano y el presupuesto — a
+   propósito NO se conectaron a ninguna fórmula nueva (sigue la misma decisión de no derivar
+   precipitación desde emisor+marco, documentada más abajo en "Verificación de diseño base").
+3. **"Sistema de riego" declarado al inicio de la tarjeta** (select: Goteo/Microaspersión/
+   Aspersión/Carrete/Mixto) — controla qué campos de marco se muestran (JS, `.campo-goteo`/
+   `.campo-aspersion` con clase `.activo`; **ojo con la especificidad CSS**: la regla que oculta
+   necesita `.agro-grid > div.sistema-riego-campo` completo, no solo `.sistema-riego-campo` —
+   la regla genérica `.agro-grid > div` ya trae `display:flex` con más especificidad y gana si no
+   se iguala). Si no hay sistema declarado o es "Mixto", se muestran AMBOS grupos de campos (no
+   se oculta nada por defecto — solo se oculta cuando el sistema es inequívoco).
+   **Sobre proyectos con MÁS DE UN sistema de riego** (caso real encontrado por el usuario: un
+   proyecto con Goteo Y Aspersión a la vez, donde la extracción automática había tomado en
+   silencio los datos de Aspersión —eficiencia 75%— sin que el revisor supiera cuál sistema
+   estaba viendo): `_extraer_datos_agronomicos()` ahora extrae también `sistema_riego`, con
+   instrucción explícita de responder `"Mixto"` si detecta más de un sistema (en vez de mezclar
+   datos de ambos en un mismo campo) y de usar los datos del sistema de MAYOR superficie/
+   principal para el resto de los campos. Cuando el valor es "Mixto": (a) la UI muestra un aviso
+   en rojo explicando que el chequeo de abajo corresponde a un solo sistema a la vez y que el
+   revisor debe repetirlo a mano para el otro si hace falta verificarlo — mismo criterio que ya
+   se le explicó al usuario para proyectos con múltiples cultivos/sistemas (revisar el más
+   exigente primero); (b) `_bloque_verificacion_agronomica()` inyecta el mismo aviso en el
+   prompt de la IA, para que no asuma que Kc/eficiencia/factor de agotamiento aplican a todo el
+   proyecto. **No se implementó** una cadena agronómica paralela por sistema (eso sería el
+   rediseño "multi-sector" que el usuario decidió no hacer en una conversación anterior) — esto
+   es la versión liviana: declarar la ambigüedad en vez de ocultarla, no resolverla del todo.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

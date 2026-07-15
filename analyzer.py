@@ -700,9 +700,24 @@ además de los datos base del diseño de riego: superficie de riego del proyecto
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
 diseño del sistema, tiempo de riego por sector y número de sectores de riego.
+También extrae el SISTEMA DE RIEGO principal (Goteo, Microaspersión, Aspersión, o Carrete) y
+el marco/espaciamiento: distancia entre hileras, distancia entre plantas o sobre hilera, y
+según el sistema: N° de líneas de emisor y espaciamiento entre emisores (Goteo/Microaspersión),
+o espaciamiento entre aspersores y entre laterales (Aspersión/Carrete).
+
+IMPORTANTE — si el proyecto usa MÁS DE UN sistema de riego (ej. goteo en un sector y aspersión
+en otro), responde "sistema_riego": "Mixto" y en los demás campos (Kc, eficiencia, factor de
+agotamiento, marco/espaciamiento, etc.) extrae los del sistema que cubra la MAYOR superficie o
+sea el principal del proyecto — dejando que el revisor verifique/ajuste a mano el resto. NO
+mezcles datos de sistemas distintos en un mismo campo.
+
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
-{{"cultivo": string|null, "cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
+{{"cultivo": string|null, "sistema_riego": "Goteo"|"Microaspersión"|"Aspersión"|"Carrete"|"Mixto"|null,
+"distancia_hileras_m": number|null, "distancia_plantas_m": number|null,
+"n_lineas_emisor": number|null, "espaciamiento_emisores_m": number|null,
+"espaciamiento_aspersores_m": number|null, "espaciamiento_laterales_m": number|null,
+"cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
 "prof_radicular_cm": number|null, "kc": number|null, "eto_dia_mm": number|null,
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
@@ -774,6 +789,14 @@ def _bloque_verificacion_agronomica(datos: dict) -> str:
         return ""
 
     texto = ""
+    if datos.get("sistema_riego") == "Mixto":
+        texto += ("\n\nAVISO: el proyecto declara MÁS DE UN sistema de riego (ej. goteo en un "
+                  "sector y aspersión en otro). Los datos agronómicos que siguen (Kc, "
+                  "eficiencia, factor de agotamiento, etc.) corresponden solo al sistema "
+                  "principal/de mayor superficie — no asumas que aplican a todo el proyecto. Si "
+                  "detectas que el otro sistema tiene parámetros claramente distintos declarados "
+                  "en el expediente (ej. otra eficiencia u otro Kc) que no se están verificando "
+                  "acá, adviértelo en una observación informativa.")
     cultivo, kc = datos.get("cultivo"), datos.get("kc")
     if cultivo and kc is not None:
         match = _buscar_rango_kc(cultivo)
