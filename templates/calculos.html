@@ -87,6 +87,7 @@
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
     <div class="agro-grid">
+      <div><label>Cultivo</label><input type="text" id="cultivo" name="cultivo" value="{{ agro.cultivo if agro.cultivo is not none else '' }}"></div>
       <div><label>CC (%)</label><input type="number" step="0.1" id="cc_pct" name="cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
       <div><label>PMP (%)</label><input type="number" step="0.1" id="pmp_pct" name="pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
       <div><label>Da (g/cc)</label><input type="number" step="0.01" id="da" name="da" value="{{ agro.da if agro.da is not none else '' }}"></div>
@@ -121,6 +122,13 @@
       <table class="calc-resultados-tbl">
         <colgroup><col><col style="width:210px;"><col style="width:230px;"></colgroup>
         <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
+        <tr>
+          <td class="col-concepto">Kc vs. rango DT-05</td><td id="agro-kc-decl">—</td>
+          <td class="col-calc">
+            <span id="agro-kc-calc">—</span>
+            <span id="agro-kc-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
         <tr>
           <td class="col-concepto">ETc (mm/día)</td><td class="text-muted">—</td>
           <td class="col-calc" id="agro-etc">—</td>
@@ -370,6 +378,63 @@
   var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
   var RHO_CU = 1/58;
 
+  // DT-05: rango de valores de Kc aceptados por CNR — misma tabla que KC_RANGOS_DT05 en
+  // analyzer.py, duplicada acá a propósito para el feedback visual instantáneo (ver nota al
+  // final de este script sobre por qué se duplican las fórmulas/tablas en JS y Python).
+  var KC_RANGOS_DT05 = {
+    "alfalfa": [0.85, 1.00], "almendro": [0.95, 1.05], "arandano": [0.60, 1.00],
+    "arroz": [1.05, 1.15], "avellano europeo": [0.70, 0.80], "cerezo": [1.00, 1.25],
+    "ciruelo": [0.90, 1.15], "damasco": [0.80, 1.15],
+    "duraznero y nectarino": [1.00, 1.15], "esparragos": [1.00, 1.10],
+    "frambuesa": [0.70, 0.80], "granado": [0.80, 0.95], "kiwi": [1.10, 1.20],
+    "limonero": [0.60, 0.80], "maiz": [1.00, 1.10], "manzano": [1.05, 1.25],
+    "naranjo": [0.65, 0.90], "nogal": [0.90, 1.10], "olivo para mesa": [0.50, 0.80],
+    "olivo para aceite": [0.40, 0.80], "palto": [0.75, 0.85], "papas": [1.00, 1.10],
+    "peral": [1.00, 1.15], "pistacho": [1.10, 1.30], "pradera": [0.90, 1.05],
+    "remolacha": [1.00, 1.10], "tabaco": [0.95, 1.10], "tomate": [1.00, 1.10],
+    "tuna": [0.25, 0.35], "vides viniferas": [0.50, 0.60], "vid de mesa": [1.00, 1.30]
+  };
+  var KC_ALIAS_DT05 = {
+    "palta": "palto", "paltas": "palto", "aguacate": "palto",
+    "uva de mesa": "vid de mesa", "uvas de mesa": "vid de mesa",
+    "uva vinifera": "vides viniferas", "uvas viniferas": "vides viniferas",
+    "vid": "vid de mesa", "vides": "vides viniferas",
+    "durazno": "duraznero y nectarino", "duraznos": "duraznero y nectarino",
+    "nectarin": "duraznero y nectarino", "nectarina": "duraznero y nectarino",
+    "nectarinas": "duraznero y nectarino",
+    "cereza": "cerezo", "cerezas": "cerezo", "manzana": "manzano", "manzanas": "manzano",
+    "pera": "peral", "peras": "peral", "naranja": "naranjo", "naranjas": "naranjo",
+    "limon": "limonero", "limones": "limonero", "nuez": "nogal", "nueces": "nogal",
+    "almendra": "almendro", "almendras": "almendro",
+    "avellana": "avellano europeo", "avellanas": "avellano europeo",
+    "avellano": "avellano europeo", "damascos": "damasco",
+    "granada": "granado", "granadas": "granado", "kiwis": "kiwi",
+    "arandanos": "arandano", "frambuesas": "frambuesa", "esparrago": "esparragos",
+    "tomates": "tomate", "papa": "papas", "patata": "papas", "patatas": "papas",
+    "maices": "maiz", "praderas": "pradera", "pasto": "pradera", "pastizal": "pradera",
+    "tunas": "tuna", "pistachos": "pistacho", "ciruela": "ciruelo", "ciruelas": "ciruelo"
+  };
+  function normalizarCultivo(s) {
+    return (s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ").trim();
+  }
+  function buscarRangoKc(cultivo) {
+    if (!cultivo) return null;
+    var s = normalizarCultivo(cultivo);
+    if (KC_RANGOS_DT05[s]) return {clave: s, rango: KC_RANGOS_DT05[s]};
+    if (KC_ALIAS_DT05[s]) { var c = KC_ALIAS_DT05[s]; return {clave: c, rango: KC_RANGOS_DT05[c]}; }
+    var candidatos = {};
+    Object.keys(KC_RANGOS_DT05).forEach(function(k) {
+      if (s.indexOf(k) !== -1 || k.indexOf(s) !== -1) candidatos[k] = true;
+    });
+    Object.keys(KC_ALIAS_DT05).forEach(function(alias) {
+      if (s.indexOf(alias) !== -1 || alias.indexOf(s) !== -1) candidatos[KC_ALIAS_DT05[alias]] = true;
+    });
+    var claves = Object.keys(candidatos);
+    if (claves.length === 1) return {clave: claves[0], rango: KC_RANGOS_DT05[claves[0]]};
+    return null;
+  }
+
   function numVal(id) {
     var el = document.getElementById(id);
     if (!el) return null;
@@ -414,6 +479,20 @@
     var sup = numVal("superficie_riego_ha"), caudalDisp = numVal("caudal_disponible_ls"),
         precip = numVal("precipitacion_sistema_mmhr"), horas = numVal("horas_disponibles_dia");
     var declQdiseno = numVal("decl_qdiseno"), declTriego = numVal("decl_triego"), declNsec = numVal("decl_nsec");
+
+    // Kc vs. DT-05 — independiente del resto de la cadena (solo necesita cultivo + Kc).
+    var cultivo = strVal("cultivo");
+    var kcDecl = cultivo || kc !== null ? (cultivo || "(sin cultivo)") + (kc !== null ? " (Kc=" + fmt(kc, 2) + ")" : "") : "—";
+    setText("agro-kc-decl", kcDecl);
+    var matchKc = buscarRangoKc(cultivo);
+    if (cultivo && kc !== null && matchKc) {
+      setText("agro-kc-calc", "Rango DT-05 (" + matchKc.clave + "): " + fmt(matchKc.rango[0], 2) + "–" + fmt(matchKc.rango[1], 2));
+      nota("agro-kc-nota", (kc < matchKc.rango[0] || kc > matchKc.rango[1])
+        ? "Kc fuera del rango DT-05 — requiere respaldo bibliográfico de institución reconocida." : "");
+    } else {
+      setText("agro-kc-calc", "—");
+      nota("agro-kc-nota", "");
+    }
 
     setText("agro-dn-decl", declDn === null ? "—" : fmt(declDn, 2) + " mm");
     setText("agro-fr-decl", declFr === null ? "—" : fmt(declFr, 0) + " días");

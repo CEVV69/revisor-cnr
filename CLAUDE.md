@@ -638,6 +638,34 @@ de Riego (%)" para que coincida con la app hermana — el nombre interno de la v
 (`_extraer_datos_agronomicos` en analyzer.py) menciona ambos términos ("factor de agotamiento"
 y "criterio de riego") para reconocer cualquiera que use el documento del consultor.
 
+**Verificación de Kc contra DT-05 (implementado, jul-2026):** a pedido del usuario, el Kc
+declarado en el diseño agronómico se valida contra `normativa/DT-05_Rangos_Kc_Cultivos.txt`
+(rangos oficiales CNR por cultivo, ~30 especies) — cálculo determinístico (lookup exacto), no
+una estimación de la IA a partir del texto. `KC_RANGOS_DT05` (analyzer.py) porta la tabla
+completa del DT-05 a un dict Python; `_buscar_rango_kc(cultivo)` normaliza el nombre (minúsculas,
+sin tildes) e intenta, en orden: coincidencia exacta, alias común (`_KC_ALIAS_DT05` — nombres
+chilenos habituales que no calzan literal con la columna "Cultivo" del DT-05: "Palta"→"Palto",
+"Durazno"→"Duraznero y Nectarino", "Uva de mesa"→"Vid de mesa", etc.), y como última opción
+substring en cualquiera de los dos sentidos (para variedades/nombres compuestos, ej. "Uva
+Vinífera cv. Cabernet Sauvignon" → "Vides Viníferas"). Si el nombre es ambiguo (ej. "Olivo"
+solo, sin especificar "para mesa"/"para aceite" — dos entradas del DT-05 calzarían) o el
+cultivo no está cubierto por el DT-05 (ej. "Trigo"), retorna `None` — no adivina.
+- `_extraer_datos_agronomicos()` ahora también extrae `"cultivo"` (nombre/especie del proyecto).
+- `_bloque_verificacion_agronomica()` arma un bloque "VERIFICACIÓN Kc vs. DT-05" **independiente**
+  del resto de la cadena agronómica (solo necesita `cultivo`+`kc`, no los otros 6 campos base) —
+  si el Kc declarado cae fuera del rango, instruye a la IA a citar el rango oficial y el DT-05
+  exige que un Kc fuera de rango se respalde con publicaciones de instituciones reconocidas.
+- Página "Chequeo de Cálculos" → tarjeta Agronómico: nuevo campo "Cultivo" (texto libre) en
+  "Datos base declarados", y nueva fila "Kc vs. rango DT-05" en la tabla de resultados —
+  también independiente del resto (se puebla aunque falten los otros campos de la cadena).
+  `_kc_dt05_calculo()` (main.py) replica la misma independencia en el preview Python.
+- **La tabla DT-05 y `_buscar_rango_kc` están duplicadas en JS** dentro de `calculos.html`
+  (`KC_RANGOS_DT05`/`KC_ALIAS_DT05`/`buscarRangoKc`, mismo algoritmo) para el recálculo en vivo
+  — se verificó paridad exacta contra la versión Python con los mismos casos de prueba (18
+  cultivos/variantes, incluida la ambigüedad de "Olivo") antes de desplegar. Si se agrega o
+  corrige un cultivo en `KC_RANGOS_DT05`/`_KC_ALIAS_DT05` (analyzer.py), replicar el cambio a
+  mano en el `<script>` de `calculos.html`.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

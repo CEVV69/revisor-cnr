@@ -611,6 +611,77 @@ EXPEDIENTE:
         return {}
 
 
+# DT-05: rango de valores de Kc aceptados por CNR (Ley 18.450) para elaborar diseños de riego.
+# Clave normalizada (minúsculas, sin tildes) → (Kc mínimo, Kc máximo). Fuente:
+# normativa/DT-05_Rangos_Kc_Cultivos.txt — mantener sincronizado si ese archivo cambia.
+KC_RANGOS_DT05 = {
+    "alfalfa": (0.85, 1.00), "almendro": (0.95, 1.05), "arandano": (0.60, 1.00),
+    "arroz": (1.05, 1.15), "avellano europeo": (0.70, 0.80), "cerezo": (1.00, 1.25),
+    "ciruelo": (0.90, 1.15), "damasco": (0.80, 1.15),
+    "duraznero y nectarino": (1.00, 1.15), "esparragos": (1.00, 1.10),
+    "frambuesa": (0.70, 0.80), "granado": (0.80, 0.95), "kiwi": (1.10, 1.20),
+    "limonero": (0.60, 0.80), "maiz": (1.00, 1.10), "manzano": (1.05, 1.25),
+    "naranjo": (0.65, 0.90), "nogal": (0.90, 1.10), "olivo para mesa": (0.50, 0.80),
+    "olivo para aceite": (0.40, 0.80), "palto": (0.75, 0.85), "papas": (1.00, 1.10),
+    "peral": (1.00, 1.15), "pistacho": (1.10, 1.30), "pradera": (0.90, 1.05),
+    "remolacha": (1.00, 1.10), "tabaco": (0.95, 1.10), "tomate": (1.00, 1.10),
+    "tuna": (0.25, 0.35), "vides viniferas": (0.50, 0.60), "vid de mesa": (1.00, 1.30),
+}
+
+# Nombres/variantes comunes en Chile que no calzan literal con la columna "Cultivo" de DT-05
+# (singular/plural, sinónimo, nombre de la fruta en vez del árbol) → clave canónica de arriba.
+_KC_ALIAS_DT05 = {
+    "palta": "palto", "paltas": "palto", "aguacate": "palto",
+    "uva de mesa": "vid de mesa", "uvas de mesa": "vid de mesa",
+    "uva vinifera": "vides viniferas", "uvas viniferas": "vides viniferas",
+    "vid": "vid de mesa", "vides": "vides viniferas",
+    "durazno": "duraznero y nectarino", "duraznos": "duraznero y nectarino",
+    "nectarin": "duraznero y nectarino", "nectarina": "duraznero y nectarino",
+    "nectarinas": "duraznero y nectarino",
+    "cereza": "cerezo", "cerezas": "cerezo", "manzana": "manzano", "manzanas": "manzano",
+    "pera": "peral", "peras": "peral", "naranja": "naranjo", "naranjas": "naranjo",
+    "limon": "limonero", "limones": "limonero", "nuez": "nogal", "nueces": "nogal",
+    "almendra": "almendro", "almendras": "almendro",
+    "avellana": "avellano europeo", "avellanas": "avellano europeo",
+    "avellano": "avellano europeo", "damascos": "damasco",
+    "granada": "granado", "granadas": "granado", "kiwis": "kiwi",
+    "arandanos": "arandano", "frambuesas": "frambuesa", "esparrago": "esparragos",
+    "tomates": "tomate", "papa": "papas", "patata": "papas", "patatas": "papas",
+    "maices": "maiz", "praderas": "pradera", "pasto": "pradera", "pastizal": "pradera",
+    "tunas": "tuna", "pistachos": "pistacho", "ciruela": "ciruelo", "ciruelas": "ciruelo",
+}
+
+
+def _normalizar_cultivo(texto: str) -> str:
+    import unicodedata
+    s = (texto or "").strip().lower()
+    s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    return " ".join(s.split())
+
+
+def _buscar_rango_kc(cultivo: str):
+    """Busca el rango Kc DT-05 para un cultivo declarado en texto libre (nombre exacto, alias
+    común, o substring — ej. "Vid de mesa cv. Thompson Seedless"). Retorna (clave_canonica,
+    kc_min, kc_max), o None si el cultivo no está cubierto por DT-05 o el nombre es ambiguo
+    (ej. "olivo" solo, sin especificar mesa/aceite — mejor no adivinar)."""
+    if not cultivo:
+        return None
+    s = _normalizar_cultivo(cultivo)
+    if s in KC_RANGOS_DT05:
+        return (s,) + KC_RANGOS_DT05[s]
+    if s in _KC_ALIAS_DT05:
+        clave = _KC_ALIAS_DT05[s]
+        return (clave,) + KC_RANGOS_DT05[clave]
+    candidatos = {k for k in KC_RANGOS_DT05 if k in s or s in k}
+    for alias, clave in _KC_ALIAS_DT05.items():
+        if alias in s or s in alias:
+            candidatos.add(clave)
+    if len(candidatos) == 1:
+        clave = next(iter(candidatos))
+        return (clave,) + KC_RANGOS_DT05[clave]
+    return None
+
+
 async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
     """Extrae los datos de la cadena de demanda agronómica declarados en el diseño, más los
     datos base del diseño de riego (superficie, caudal disponible, precipitación del sistema,
@@ -620,18 +691,18 @@ async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
     if not texto.strip():
         return {}
     prompt = f"""Extrae del siguiente expediente los datos del cálculo de demanda agronómica
-(capacidad de campo, punto de marchitez, densidad aparente, profundidad radicular, Kc,
-evapotranspiración del mes crítico, factor de agotamiento — también llamado "criterio de
-riego" o "% de agua aprovechable" en algunos documentos, es el mismo dato —, eficiencia del
-sistema, y los resultados finales que el consultor declara: lámina neta, frecuencia de riego,
-demanda bruta),
+(cultivo/especie principal del proyecto, capacidad de campo, punto de marchitez, densidad
+aparente, profundidad radicular, Kc, evapotranspiración del mes crítico, factor de agotamiento
+— también llamado "criterio de riego" o "% de agua aprovechable" en algunos documentos, es el
+mismo dato —, eficiencia del sistema, y los resultados finales que el consultor declara: lámina
+neta, frecuencia de riego, demanda bruta),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
 diseño del sistema, tiempo de riego por sector y número de sectores de riego.
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
-{{"cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
+{{"cultivo": string|null, "cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
 "prof_radicular_cm": number|null, "kc": number|null, "eto_dia_mm": number|null,
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
@@ -697,13 +768,32 @@ def _bloque_verificacion_hidraulica(datos: dict) -> str:
 
 def _bloque_verificacion_agronomica(datos: dict) -> str:
     """Recalcula la cadena ETo→ETc→AD→Dn→Fr→Db y arma el bloque para inyectar en el prompt.
-    Solo calcula si TODOS los datos base están presentes (evita comparar con supuestos)."""
+    Además valida el Kc declarado contra los rangos oficiales DT-05 — este chequeo es
+    INDEPENDIENTE del resto (solo necesita cultivo+Kc, no la cadena completa)."""
     if not datos:
         return ""
+
+    texto = ""
+    cultivo, kc = datos.get("cultivo"), datos.get("kc")
+    if cultivo and kc is not None:
+        match = _buscar_rango_kc(cultivo)
+        if match:
+            clave, kc_min, kc_max = match
+            texto += (f"\n\nVERIFICACIÓN Kc vs. DT-05 (cálculo determinístico — rango oficial "
+                      f"CNR para \"{clave}\": {kc_min}–{kc_max}): el expediente declara Kc={kc} "
+                      f"para el cultivo \"{cultivo}\".")
+            if not (kc_min <= kc <= kc_max):
+                texto += (f" Kc FUERA del rango DT-05 — según DT-05, un Kc fuera de rango debe "
+                          f"respaldarse con publicaciones de instituciones reconocidas; si el "
+                          f"expediente no lo respalda, genera una observación citando el rango "
+                          f"oficial ({kc_min}–{kc_max}) y el valor declarado ({kc}).")
+            else:
+                texto += " Dentro del rango — no lo menciones como observación."
+
     base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
             "factor_agotamiento_pct", "eficiencia_pct"]
     if any(datos.get(k) is None for k in base):
-        return ""
+        return texto
     r = calculos_riego.cadena_agronomica(*[datos[k] for k in base])
     declarado = datos.get("declarado") or {}
     lineas = [
@@ -720,7 +810,7 @@ def _bloque_verificacion_agronomica(datos: dict) -> str:
         comparaciones.append(f"Fr declarada = {declarado['fr_dias']} días — no coincide con el recálculo ({r['fr_adj_dias']} días).")
     if declarado.get("db_mm") is not None and _diferencia_relevante(r["db_mm"], declarado["db_mm"]):
         comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
-    texto = ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico con la cadena ETo→ETc→AD→Dn→"
+    texto += ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico con la cadena ETo→ETc→AD→Dn→"
             "Fr→Db, misma fórmula normativa del Diseñador de Riego — no es una estimación de "
             "la IA, es un recálculo exacto a partir de los datos base que declara el "
             f"expediente):\n" + "\n".join(f"- {l}" for l in lineas))

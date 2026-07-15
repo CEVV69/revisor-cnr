@@ -26,7 +26,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
-                      _extraer_datos_fv, extraer_documentos_obligatorios)
+                      _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc)
 import calculos_riego
 import geo
 
@@ -938,11 +938,27 @@ def _tramos_con_calculo(tramos: list) -> list:
     return out
 
 
+def _kc_dt05_calculo(cultivo, kc):
+    """Rango Kc DT-05 para el cultivo declarado, si hay match — independiente del resto de la
+    cadena agronómica (usado tanto en el preview de Chequeo de Cálculos como para completar
+    agro_calc aunque falten los otros 7 campos base)."""
+    if not cultivo or kc in (None, ""):
+        return None
+    match = _buscar_rango_kc(cultivo)
+    if not match:
+        return None
+    clave, kc_min, kc_max = match
+    return {"cultivo_match": clave, "kc_min": kc_min, "kc_max": kc_max,
+            "kc_fuera_rango": not (kc_min <= float(kc) <= kc_max)}
+
+
 def _agronomico_calculo(datos: dict):
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct"]
+    kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
+                               datos.get("kc") if datos else None)
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
-        return None
+        return {"kc_dt05": kc_dt05} if kc_dt05 else None
     r = calculos_riego.cadena_agronomica(*[datos[k] for k in campos])
     r.update(calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
@@ -951,6 +967,8 @@ def _agronomico_calculo(datos: dict):
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
     ))
+    if kc_dt05:
+        r["kc_dt05"] = kc_dt05
     return r
 
 
@@ -1082,6 +1100,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "superficie_riego_ha", "caudal_disponible_ls",
               "precipitacion_sistema_mmhr", "horas_disponibles_dia"]
     datos = {c: _num_form(form, c) for c in campos}
+    datos["cultivo"] = (form.get("cultivo") or "").strip() or None
     datos["declarado"] = {
         "dn_mm": _num_form(form, "decl_dn"),
         "fr_dias": _num_form(form, "decl_fr"),
