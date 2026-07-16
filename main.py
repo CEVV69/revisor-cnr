@@ -749,7 +749,12 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         return v if v and v.get("validado") else None
 
     datos_verificacion_hidraulica = _validado("hidraulico") if item_key == "diseno_hidraulico" else None
-    datos_verificacion_agronomica = _validado("agronomico") if item_key == "diseno_hidraulico" else None
+    verif_agro_norm = _normalizar_verif_agronomico(verif_calc.get("agronomico"))
+    datos_verificacion_agronomica = (
+        {"sistemas": verif_agro_norm["sistemas"]}
+        if item_key == "diseno_hidraulico" and verif_agro_norm.get("validado") else None
+    )
+    n_sistemas_agronomico = verif_agro_norm["n_sistemas"] if item_key == "diseno_hidraulico" else 1
     datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
 
     # Tabla de precios referenciales promedio (subida en /admin/precios, no oficial de la CNR).
@@ -773,6 +778,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             consultor=consultor,
             datos_verificacion_hidraulica=datos_verificacion_hidraulica,
             datos_verificacion_agronomica=datos_verificacion_agronomica,
+            n_sistemas_agronomico=n_sistemas_agronomico,
             datos_verificacion_fv=datos_verificacion_fv,
             tabla_precios=tabla_precios,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
@@ -952,6 +958,29 @@ def _kc_dt05_calculo(cultivo, kc):
             "kc_fuera_rango": not (kc_min <= float(kc) <= kc_max)}
 
 
+def _normalizar_verif_agronomico(datos: dict) -> dict:
+    """Normaliza proyecto["verificacion_calculos"]["agronomico"] a la forma
+    {"n_sistemas": 1|2, "sistemas": [...], "validado", "fecha_validado", "validado_por"}.
+    Datos guardados ANTES de jul-2026 (multi-sistema) son un dict plano de un solo sistema, sin
+    clave "sistemas" — se envuelven en una lista de 1 para no perder proyectos ya cargados."""
+    if not datos:
+        return {"n_sistemas": 1, "sistemas": [{}],
+                "validado": False, "fecha_validado": None, "validado_por": None}
+    if isinstance(datos.get("sistemas"), list) and datos["sistemas"]:
+        return {
+            "n_sistemas": datos.get("n_sistemas") or len(datos["sistemas"]),
+            "sistemas": datos["sistemas"],
+            "validado": datos.get("validado"), "fecha_validado": datos.get("fecha_validado"),
+            "validado_por": datos.get("validado_por"),
+        }
+    # Formato antiguo (flat, un solo sistema) — se envuelve tal cual.
+    legacy = {k: v for k, v in datos.items()
+              if k not in ("validado", "fecha_validado", "validado_por", "n_sistemas", "sistemas")}
+    return {"n_sistemas": 1, "sistemas": [legacy],
+            "validado": datos.get("validado"), "fecha_validado": datos.get("fecha_validado"),
+            "validado_por": datos.get("validado_por")}
+
+
 def _agronomico_calculo(datos: dict):
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct"]
@@ -997,7 +1026,11 @@ async def pagina_calculos(request: Request, proyecto_id: str):
     tramos = list(hid.get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
     while len(tramos) < N_TRAMOS_HIDRAULICOS:
         tramos.append({})
-    agro = verif.get("agronomico", {})
+    agro_norm = _normalizar_verif_agronomico(verif.get("agronomico", {}))
+    agro_sistemas = [
+        {"idx": i, "datos": s, "calc": _agronomico_calculo(s)}
+        for i, s in enumerate(agro_norm["sistemas"])
+    ]
     fv = verif.get("energetico", {})
 
     return templates.TemplateResponse("calculos.html", {
@@ -1005,9 +1038,9 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         "tramos": _tramos_con_calculo(tramos),
         "hid_validado": hid.get("validado"), "hid_fecha": hid.get("fecha_validado"),
         "hid_por": hid.get("validado_por"),
-        "agro": agro, "agro_calc": _agronomico_calculo(agro),
-        "agro_validado": agro.get("validado"), "agro_fecha": agro.get("fecha_validado"),
-        "agro_por": agro.get("validado_por"),
+        "agro_n_sistemas": agro_norm["n_sistemas"], "agro_sistemas": agro_sistemas,
+        "agro_validado": agro_norm.get("validado"), "agro_fecha": agro_norm.get("fecha_validado"),
+        "agro_por": agro_norm.get("validado_por"),
         "fv": fv, "fv_calc": _fv_calculo(fv),
         "fv_validado": fv.get("validado"), "fv_fecha": fv.get("fecha_validado"),
         "fv_por": fv.get("validado_por"),
@@ -1076,11 +1109,15 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
+    form = await request.form()
+    n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
     docs_grupo = _documentos_para_verificacion("agronomico", proyecto.get("documentos", []))
-    datos = await _extraer_datos_agronomicos(docs_grupo)
-    datos["validado"] = False
+    datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
+    sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
-    proyecto["verificacion_calculos"]["agronomico"] = datos
+    proyecto["verificacion_calculos"]["agronomico"] = {
+        "n_sistemas": n_sistemas, "sistemas": sistemas, "validado": False,
+    }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -1095,6 +1132,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     form = await request.form()
+    n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct",
               "superficie_riego_ha", "caudal_disponible_ls",
@@ -1102,23 +1140,30 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",
               "espaciamiento_laterales_m"]
-    datos = {c: _num_form(form, c) for c in campos}
-    datos["cultivo"] = (form.get("cultivo") or "").strip() or None
-    datos["sistema_riego"] = (form.get("sistema_riego") or "").strip() or None
-    datos["declarado"] = {
-        "dn_mm": _num_form(form, "decl_dn"),
-        "fr_dias": _num_form(form, "decl_fr"),
-        "db_mm": _num_form(form, "decl_db"),
-        "caudal_diseno_ls": _num_form(form, "decl_qdiseno"),
-        "tiempo_riego_hr": _num_form(form, "decl_triego"),
-        "n_sectores": _num_form(form, "decl_nsec"),
-    }
+    sistemas = []
+    for i in range(n_sistemas):
+        p = f"s{i}_"
+        datos = {c: _num_form(form, p + c) for c in campos}
+        datos["cultivo"] = (form.get(p + "cultivo") or "").strip() or None
+        datos["sistema_riego"] = (form.get(p + "sistema_riego") or "").strip() or None
+        datos["declarado"] = {
+            "dn_mm": _num_form(form, p + "decl_dn"),
+            "fr_dias": _num_form(form, p + "decl_fr"),
+            "db_mm": _num_form(form, p + "decl_db"),
+            "caudal_diseno_ls": _num_form(form, p + "decl_qdiseno"),
+            "tiempo_riego_hr": _num_form(form, p + "decl_triego"),
+            "n_sectores": _num_form(form, p + "decl_nsec"),
+        }
+        sistemas.append(datos)
+
     validado = form.get("validar") == "on"
-    datos["validado"] = validado
-    datos["fecha_validado"] = _ahora().isoformat() if validado else None
-    datos["validado_por"] = user["nombre"] if validado else None
     proyecto.setdefault("verificacion_calculos", {})
-    proyecto["verificacion_calculos"]["agronomico"] = datos
+    proyecto["verificacion_calculos"]["agronomico"] = {
+        "n_sistemas": n_sistemas, "sistemas": sistemas,
+        "validado": validado,
+        "fecha_validado": _ahora().isoformat() if validado else None,
+        "validado_por": user["nombre"] if validado else None,
+    }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 

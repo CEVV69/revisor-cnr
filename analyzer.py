@@ -682,14 +682,37 @@ def _buscar_rango_kc(cultivo: str):
     return None
 
 
-async def _extraer_datos_agronomicos(docs_grupo: list) -> dict:
+async def _extraer_datos_agronomicos(docs_grupo: list, n_sistemas: int = 1) -> dict:
     """Extrae los datos de la cadena de demanda agronómica declarados en el diseño, más los
     datos base del diseño de riego (superficie, caudal disponible, precipitación del sistema,
     horas disponibles) y lo que el consultor declara como caudal de diseño/tiempo de riego/N°
-    de sectores. Nunca inventa: usa null si un dato no aparece en el texto."""
+    de sectores. Nunca inventa: usa null si un dato no aparece en el texto.
+
+    `n_sistemas`: 1 o 2 — cuántos sistemas de riego distintos declara el proyecto (fijado por
+    el revisor en la página "Chequeo de Cálculos", ANTES de extraer). Si es 2, el expediente
+    normalmente trae el cálculo de cada sistema en un bloque separado con su propio encabezado
+    (ej. "Cálculo agronómico — Sector Goteo" / "Cálculo agronómico — Sector Aspersión") — se le
+    pide a la IA identificar cada bloque y extraerlo por separado en vez de mezclar datos de
+    ambos sistemas en un mismo campo (bug real detectado en producción: con un único bloque, la
+    extracción tomaba en silencio los datos de un solo sistema sin avisar cuál).
+    Retorna siempre {"sistemas": [ {...}, ... ]} — un objeto por sistema, en el mismo orden en
+    que aparecen en el expediente."""
     texto = _texto_grupo_para_extraccion(docs_grupo)
     if not texto.strip():
         return {}
+    n = 2 if n_sistemas == 2 else 1
+    if n == 2:
+        instr_sistemas = (
+            "\n\nEste proyecto declara 2 SISTEMAS DE RIEGO DISTINTOS (ej. un sector con goteo y "
+            "otro con aspersión). Los consultores habitualmente presentan el cálculo de cada "
+            "sistema en un bloque separado dentro del expediente, con su propio encabezado o "
+            "título que lo identifica (ej. \"Sector Goteo\" / \"Sector Aspersión\"). Identifica "
+            "cada bloque y extrae sus datos POR SEPARADO — NO mezcles datos de un sistema con "
+            "otro en un mismo objeto. Responde el array \"sistemas\" con EXACTAMENTE 2 objetos, "
+            "en el mismo orden en que aparecen los encabezados en el expediente (el que aparece "
+            "primero en el texto va primero en el array).")
+    else:
+        instr_sistemas = "\n\nEste proyecto declara un solo sistema de riego. Responde el array \"sistemas\" con exactamente 1 objeto."
     prompt = f"""Extrae del siguiente expediente los datos del cálculo de demanda agronómica
 (cultivo/especie principal del proyecto, capacidad de campo, punto de marchitez, densidad
 aparente, profundidad radicular, Kc, evapotranspiración del mes crítico, factor de agotamiento
@@ -700,20 +723,16 @@ además de los datos base del diseño de riego: superficie de riego del proyecto
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
 diseño del sistema, tiempo de riego por sector y número de sectores de riego.
-También extrae el SISTEMA DE RIEGO principal (Goteo, Microaspersión, Aspersión, o Carrete) y
-el marco/espaciamiento: distancia entre hileras, distancia entre plantas o sobre hilera, y
-según el sistema: N° de líneas de emisor y espaciamiento entre emisores (Goteo/Microaspersión),
-o espaciamiento entre aspersores y entre laterales (Aspersión/Carrete).
-
-IMPORTANTE — si el proyecto usa MÁS DE UN sistema de riego (ej. goteo en un sector y aspersión
-en otro), responde "sistema_riego": "Mixto" y en los demás campos (Kc, eficiencia, factor de
-agotamiento, marco/espaciamiento, etc.) extrae los del sistema que cubra la MAYOR superficie o
-sea el principal del proyecto — dejando que el revisor verifique/ajuste a mano el resto. NO
-mezcles datos de sistemas distintos en un mismo campo.
+También extrae el SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión, o Carrete) y el
+marco/espaciamiento: distancia entre hileras, distancia entre plantas o sobre hilera, y según el
+sistema: N° de líneas de emisor y espaciamiento entre emisores (Goteo/Microaspersión), o
+espaciamiento entre aspersores y entre laterales (Aspersión/Carrete).
+{instr_sistemas}
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
-Responde SOLO este JSON, sin texto adicional:
-{{"cultivo": string|null, "sistema_riego": "Goteo"|"Microaspersión"|"Aspersión"|"Carrete"|"Mixto"|null,
+Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" tiene esta forma:
+{{"sistemas": [
+{{"cultivo": string|null, "sistema_riego": "Goteo"|"Microaspersión"|"Aspersión"|"Carrete"|null,
 "distancia_hileras_m": number|null, "distancia_plantas_m": number|null,
 "n_lineas_emisor": number|null, "espaciamiento_emisores_m": number|null,
 "espaciamiento_aspersores_m": number|null, "espaciamiento_laterales_m": number|null,
@@ -724,6 +743,7 @@ Responde SOLO este JSON, sin texto adicional:
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
+]}}
 
 EXPEDIENTE:
 {texto}"""
@@ -731,10 +751,14 @@ EXPEDIENTE:
         client = _get_client()
         response = await asyncio.to_thread(
             client.messages.create,
-            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extraer_json_simple(_texto_respuesta(response))
+        data = _extraer_json_simple(_texto_respuesta(response))
+        sistemas = data.get("sistemas")
+        if not isinstance(sistemas, list) or not sistemas:
+            return {}
+        return {"sistemas": sistemas[:n]}
     except Exception as e:
         print(f"⚠️ _extraer_datos_agronomicos: {e}")
         return {}
@@ -782,7 +806,32 @@ def _bloque_verificacion_hidraulica(datos: dict) -> str:
 
 
 def _bloque_verificacion_agronomica(datos: dict) -> str:
-    """Recalcula la cadena ETo→ETc→AD→Dn→Fr→Db y arma el bloque para inyectar en el prompt.
+    """Punto de entrada: recibe {"sistemas": [ {...}, ... ]} (1 o 2 sistemas de riego) y arma el
+    bloque de verificación agronómica para inyectar en el prompt del ítem. Con 1 sistema es un
+    solo bloque (igual que antes); con 2, cada sistema se recalcula por separado y se etiqueta
+    explícitamente, para que la IA no cruce parámetros (Kc/eficiencia/etc.) entre sistemas."""
+    sistemas = (datos or {}).get("sistemas") or []
+    if not sistemas:
+        return ""
+    if len(sistemas) == 1:
+        return _bloque_verificacion_agronomica_sistema(sistemas[0])
+    bloques = []
+    for i, s in enumerate(sistemas, start=1):
+        nombre_sis = s.get("sistema_riego") or f"Sistema {i}"
+        cuerpo = _bloque_verificacion_agronomica_sistema(s)
+        if cuerpo:
+            bloques.append(f"\n\n=== SISTEMA DE RIEGO {i} ({nombre_sis}) ==="+ cuerpo)
+    if not bloques:
+        return ""
+    return ("\n\nEste proyecto declara 2 sistemas de riego distintos — a continuación la "
+            "verificación agronómica de CADA sistema por separado (bloques \"SISTEMA DE RIEGO "
+            "1\"/\"SISTEMA DE RIEGO 2\"). Trátalos de forma independiente: NO compares ni "
+            "mezcles parámetros (Kc, eficiencia, factor de agotamiento, etc.) de un sistema con "
+            "el otro — cada uno puede tener valores distintos y correctos.") + "".join(bloques)
+
+
+def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
+    """Recalcula la cadena ETo→ETc→AD→Dn→Fr→Db para UN sistema de riego y arma el bloque.
     Además valida el Kc declarado contra los rangos oficiales DT-05 — este chequeo es
     INDEPENDIENTE del resto (solo necesita cultivo+Kc, no la cadena completa)."""
     if not datos:
@@ -1335,6 +1384,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         consultor: dict = None,
                         datos_verificacion_hidraulica: dict = None,
                         datos_verificacion_agronomica: dict = None,
+                        n_sistemas_agronomico: int = 1,
                         datos_verificacion_fv: dict = None,
                         tabla_precios: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
@@ -1373,7 +1423,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
 
             docs_agro = _documentos_para_verificacion("agronomico", documentos)
             datos_agro = datos_verificacion_agronomica if datos_verificacion_agronomica is not None \
-                else await _extraer_datos_agronomicos(docs_agro)
+                else await _extraer_datos_agronomicos(docs_agro, n_sistemas=n_sistemas_agronomico)
             bloque_verificacion += _bloque_verificacion_agronomica(datos_agro)
         elif item_key == "diseno_fotovoltaico":
             docs_fv = _documentos_para_verificacion("energetico", documentos)
