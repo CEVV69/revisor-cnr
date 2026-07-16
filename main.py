@@ -1047,19 +1047,23 @@ async def pagina_calculos(request: Request, proyecto_id: str):
     verif = proyecto.get("verificacion_calculos", {})
     n_sistemas = _n_sistemas_proyecto(verif)
 
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    agro_sistemas = [
+        {"idx": i, "datos": s, "calc": _agronomico_calculo(s)}
+        for i, s in enumerate(agro_norm["sistemas"])
+    ]
+
+    # El nombre del sistema de riego (Goteo/Aspersión/...) solo se extrae en Agronómico — se
+    # reutiliza acá para el título de cada tarjeta Hidráulico (mismo orden/índice: sistema i de
+    # Hidráulico es el mismo sistema físico que sistema i de Agronómico).
     hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
     hid_sistemas = []
     for i, s in enumerate(hid_norm["sistemas"]):
         tramos = list((s or {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
         while len(tramos) < N_TRAMOS_HIDRAULICOS:
             tramos.append({})
-        hid_sistemas.append({"idx": i, "tramos": _tramos_con_calculo(tramos)})
-
-    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
-    agro_sistemas = [
-        {"idx": i, "datos": s, "calc": _agronomico_calculo(s)}
-        for i, s in enumerate(agro_norm["sistemas"])
-    ]
+        sistema_riego = agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
+        hid_sistemas.append({"idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego})
     fv = verif.get("energetico", {})
 
     return templates.TemplateResponse("calculos.html", {

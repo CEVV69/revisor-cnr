@@ -116,11 +116,12 @@
     {% set p = "s" ~ sis.idx ~ "_" %}
     {% set agro = sis.datos %}
     <div id="{{ p }}wrap" {% if n_sistemas > 1 %}style="border:1px solid var(--border); border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;"{% endif %}>
-      {% if n_sistemas > 1 %}
-      <div style="font-weight:700; font-size:0.92rem; margin-bottom:0.7rem;">Sistema {{ sis.idx + 1 }}{% if agro.sistema_riego %} — {{ agro.sistema_riego }}{% endif %}</div>
-      {% endif %}
-
-      <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Sistema de riego</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.4rem;">
+        <div style="font-weight:600; font-size:0.85rem; color:var(--text-2);">Sistema de riego</div>
+        {% if n_sistemas > 1 %}
+        <div style="font-weight:700; font-size:0.92rem;">Sistema {{ sis.idx + 1 }}{% if agro.sistema_riego %} — {{ agro.sistema_riego }}{% endif %}</div>
+        {% endif %}
+      </div>
       <div class="agro-grid">
         <div>
           <label>Sistema declarado</label>
@@ -279,7 +280,7 @@
     {% set sp = "s" ~ hsis.idx ~ "_" %}
     <div id="{{ sp }}hidwrap" {% if n_sistemas > 1 %}style="border:1px solid var(--border); border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;"{% endif %}>
       {% if n_sistemas > 1 %}
-      <div style="font-weight:700; font-size:0.92rem; margin-bottom:0.7rem;">Sistema {{ hsis.idx + 1 }}</div>
+      <div style="font-weight:700; font-size:0.92rem; margin-bottom:0.7rem;">Sistema {{ hsis.idx + 1 }}{% if hsis.sistema_riego %} — {{ hsis.sistema_riego }}{% endif %}</div>
       {% endif %}
       <div style="overflow-x:auto;">
         <table class="calc-tbl">
