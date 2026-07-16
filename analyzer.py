@@ -582,19 +582,42 @@ def _extraer_json_simple(content: str) -> dict:
     return {}
 
 
-async def _extraer_datos_hidraulicos(docs_grupo: list) -> dict:
+async def _extraer_datos_hidraulicos(docs_grupo: list, n_sistemas: int = 1) -> dict:
     """Extrae los tramos de tubería (caudal, diámetro, longitud, material) declarados en el
-    diseño hidráulico. Nunca inventa: usa null si un dato no aparece en el texto."""
+    diseño hidráulico. Nunca inventa: usa null si un dato no aparece en el texto.
+
+    `n_sistemas`: 1 o 2 — mismo N° de sistemas de riego GLOBAL del proyecto que usa el Chequeo
+    Agronómico (un proyecto con 2 sistemas de riego tiene 2 diseños hidráulicos distintos, uno
+    por sistema — no puede declarar 2 en Agronómico y 1 en Hidráulico). Si es 2, se le pide a la
+    IA identificar los tramos de CADA sistema por separado (normalmente en bloques con su propio
+    encabezado, igual que en el cálculo agronómico).
+    Retorna siempre {"sistemas": [ {"tramos": [...]}, ... ]} — un objeto por sistema."""
     texto = _texto_grupo_para_extraccion(docs_grupo)
     if not texto.strip():
         return {}
+    n = 2 if n_sistemas == 2 else 1
+    if n == 2:
+        instr_sistemas = (
+            "\n\nEste proyecto declara 2 SISTEMAS DE RIEGO DISTINTOS (ej. un sector con goteo y "
+            "otro con aspersión), cada uno con su propio diseño hidráulico. Los consultores "
+            "habitualmente presentan los tramos de cada sistema en un bloque separado, con su "
+            "propio encabezado o título. Identifica cada bloque y extrae sus tramos POR "
+            "SEPARADO — NO mezcles tramos de un sistema con otro. Responde el array \"sistemas\" "
+            "con EXACTAMENTE 2 objetos, en el mismo orden en que aparecen los encabezados en el "
+            "expediente (el que aparece primero en el texto va primero en el array).")
+    else:
+        instr_sistemas = "\n\nEste proyecto declara un solo sistema de riego. Responde el array \"sistemas\" con exactamente 1 objeto."
     prompt = f"""Extrae del siguiente expediente los TRAMOS de tubería del diseño hidráulico
 (matriz, terciaria, lateral, succión, etc.) con sus datos numéricos declarados.
+{instr_sistemas}
+
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
+{{"sistemas": [
 {{"tramos": [{{"nombre": "ej: Matriz / Lateral crítico", "caudal_ls": number|null,
 "diametro_mm": number|null, "longitud_m": number|null,
 "material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null}}]}}
+]}}
 
 EXPEDIENTE:
 {texto}"""
@@ -602,10 +625,14 @@ EXPEDIENTE:
         client = _get_client()
         response = await asyncio.to_thread(
             client.messages.create,
-            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
+            model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
-        return _extraer_json_simple(_texto_respuesta(response))
+        data = _extraer_json_simple(_texto_respuesta(response))
+        sistemas = data.get("sistemas")
+        if not isinstance(sistemas, list) or not sistemas:
+            return {}
+        return {"sistemas": sistemas[:n]}
     except Exception as e:
         print(f"⚠️ _extraer_datos_hidraulicos: {e}")
         return {}
@@ -771,9 +798,33 @@ def _diferencia_relevante(calculado: float, declarado: float, tolerancia_pct: fl
 
 
 def _bloque_verificacion_hidraulica(datos: dict) -> str:
-    """Recalcula velocidad/pérdida de carga por tramo (Hazen-Williams) y arma el bloque para
-    inyectar en el prompt. Solo compara lo que efectivamente se pudo extraer."""
-    tramos = datos.get("tramos") or []
+    """Punto de entrada: recibe {"sistemas": [ {"tramos": [...]}, ... ]} (1 o 2 sistemas de
+    riego, mismo N° global que el Chequeo Agronómico) y arma el bloque de verificación
+    hidráulica para inyectar en el prompt del ítem. Con 1 sistema es un solo bloque (igual que
+    antes); con 2, cada sistema se recalcula por separado y se etiqueta explícitamente."""
+    sistemas = (datos or {}).get("sistemas") or []
+    if not sistemas:
+        return ""
+    if len(sistemas) == 1:
+        return _bloque_verificacion_hidraulica_sistema(sistemas[0])
+    bloques = []
+    for i, s in enumerate(sistemas, start=1):
+        cuerpo = _bloque_verificacion_hidraulica_sistema(s)
+        if cuerpo:
+            bloques.append(f"\n\n=== SISTEMA DE RIEGO {i} — DISEÑO HIDRÁULICO ===" + cuerpo)
+    if not bloques:
+        return ""
+    return ("\n\nEste proyecto declara 2 sistemas de riego distintos — a continuación la "
+            "verificación hidráulica de CADA sistema por separado. Trátalos de forma "
+            "independiente: NO compares ni mezcles tramos/velocidades de un sistema con el "
+            "otro — cada uno tiene su propio diseño y puede tener valores distintos y "
+            "correctos.") + "".join(bloques)
+
+
+def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
+    """Recalcula velocidad/pérdida de carga por tramo (Hazen-Williams) para UN sistema de
+    riego y arma el bloque. Solo compara lo que efectivamente se pudo extraer."""
+    tramos = (datos or {}).get("tramos") or []
     lineas = []
     for t in tramos:
         q = t.get("caudal_ls")
@@ -1384,7 +1435,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         consultor: dict = None,
                         datos_verificacion_hidraulica: dict = None,
                         datos_verificacion_agronomica: dict = None,
-                        n_sistemas_agronomico: int = 1,
+                        n_sistemas: int = 1,
                         datos_verificacion_fv: dict = None,
                         tabla_precios: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
@@ -1416,14 +1467,17 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     bloque_verificacion = ""
     try:
         if item_key == "diseno_hidraulico":
+            # n_sistemas es GLOBAL al proyecto (mismo selector para Agronómico e Hidráulico —
+            # un proyecto con 2 sistemas de riego tiene 2 diseños hidráulicos Y 2 cadenas
+            # agronómicas, no puede ser 2 en uno y 1 en el otro).
             docs_hid = _documentos_para_verificacion("hidraulico", documentos)
             datos_hid = datos_verificacion_hidraulica if datos_verificacion_hidraulica is not None \
-                else await _extraer_datos_hidraulicos(docs_hid)
+                else await _extraer_datos_hidraulicos(docs_hid, n_sistemas=n_sistemas)
             bloque_verificacion += _bloque_verificacion_hidraulica(datos_hid)
 
             docs_agro = _documentos_para_verificacion("agronomico", documentos)
             datos_agro = datos_verificacion_agronomica if datos_verificacion_agronomica is not None \
-                else await _extraer_datos_agronomicos(docs_agro, n_sistemas=n_sistemas_agronomico)
+                else await _extraer_datos_agronomicos(docs_agro, n_sistemas=n_sistemas)
             bloque_verificacion += _bloque_verificacion_agronomica(datos_agro)
         elif item_key == "diseno_fotovoltaico":
             docs_fv = _documentos_para_verificacion("energetico", documentos)

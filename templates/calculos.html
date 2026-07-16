@@ -69,6 +69,27 @@
   </p>
 </div>
 
+<div class="card" style="border-left:4px solid #2b6cb0;">
+  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/n-sistemas"
+        style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+    <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
+      N° de sistemas de riego del proyecto
+      <select name="n_sistemas" onchange="this.form.submit()">
+        <option value="1" {% if n_sistemas != 2 %}selected{% endif %}>1</option>
+        <option value="2" {% if n_sistemas == 2 %}selected{% endif %}>2</option>
+      </select>
+    </label>
+    <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
+  </form>
+  <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
+    Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
+    riego (ej. goteo en un sector y aspersión en otro) tiene 2 diseños completos, uno por sistema,
+    así que no puede declararse 2 en un chequeo y 1 en el otro. Elígelo aquí ANTES de extraer —
+    el consultor normalmente presenta el cálculo de cada sistema en un bloque separado con su
+    propio encabezado, y la IA extrae cada uno por separado en vez de mezclarlos.
+  </p>
+</div>
+
 <!-- ══════════ AGRONÓMICO ══════════ -->
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
@@ -84,32 +105,18 @@
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
-        style="margin-bottom:0.6rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;"
+        style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <label style="font-size:0.82rem; color:var(--text-2); display:flex; align-items:center; gap:0.35rem;">
-      N° de sistemas de riego
-      <select name="n_sistemas">
-        <option value="1" {% if agro_n_sistemas != 2 %}selected{% endif %}>1</option>
-        <option value="2" {% if agro_n_sistemas == 2 %}selected{% endif %}>2</option>
-      </select>
-    </label>
     <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
+    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio de suelos.</span>
   </form>
-  <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.9rem;">
-    Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio
-    de suelos. Si el proyecto declara <strong>2 sistemas de riego distintos</strong> (ej. goteo en
-    un sector y aspersión en otro), elige "2" ANTES de extraer — el consultor normalmente presenta
-    el cálculo de cada sistema en un bloque separado con su propio encabezado, y la IA extrae cada
-    uno por separado en vez de mezclarlos.
-  </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
-    <input type="hidden" name="n_sistemas" value="{{ agro_n_sistemas }}">
     {% for sis in agro_sistemas %}
     {% set p = "s" ~ sis.idx ~ "_" %}
     {% set agro = sis.datos %}
-    <div id="{{ p }}wrap" {% if agro_n_sistemas > 1 %}style="border:1px solid var(--border); border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;"{% endif %}>
-      {% if agro_n_sistemas > 1 %}
+    <div id="{{ p }}wrap" {% if n_sistemas > 1 %}style="border:1px solid var(--border); border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;"{% endif %}>
+      {% if n_sistemas > 1 %}
       <div style="font-weight:700; font-size:0.92rem; margin-bottom:0.7rem;">Sistema {{ sis.idx + 1 }}{% if agro.sistema_riego %} — {{ agro.sistema_riego }}{% endif %}</div>
       {% endif %}
 
@@ -268,46 +275,54 @@
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar" id="form-hid">
-    <div style="overflow-x:auto;">
-      <table class="calc-tbl">
-        <colgroup>
-          <col style="width:200px;"><col style="width:75px;"><col style="width:75px;">
-          <col style="width:75px;"><col style="width:170px;"><col style="width:120px;">
-          <col>
-        </colgroup>
-        <tr>
-          <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
-          <th>V declarada (m/s)</th><th>Extraído/declarado vs. calculado por la app</th>
-        </tr>
-        {% for t in tramos %}
-        <tr>
-          <td><input type="text" id="t{{ loop.index0 }}_nombre" name="t{{ loop.index0 }}_nombre" value="{{ t.nombre or '' }}" placeholder="Ej: Matriz"></td>
-          <td><input type="number" step="0.01" id="t{{ loop.index0 }}_caudal" name="t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
-          <td><input type="number" step="0.1" id="t{{ loop.index0 }}_diametro" name="t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
-          <td><input type="number" step="0.1" id="t{{ loop.index0 }}_longitud" name="t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
-          <td>
-            <select id="t{{ loop.index0 }}_material" name="t{{ loop.index0 }}_material">
-              <option value="" {% if not t.material %}selected{% endif %}>—</option>
-              <option value="pvc" {% if t.material == 'pvc' %}selected{% endif %}>PVC (C=150)</option>
-              <option value="pe" {% if t.material == 'pe' %}selected{% endif %}>PE/PEAD (C=120)</option>
-              <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
-            </select>
-          </td>
-          <td><input type="number" step="0.01" id="t{{ loop.index0 }}_vel_declarada" name="t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
-          <td class="calc-resultado" id="t{{ loop.index0 }}_resultado">
-            {% if t.calculo %}
-              V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
-              {% if t.calculo.hf_mca is not none %} · Hf=<b>{{ t.calculo.hf_mca }}</b> mca{% endif %}
-              · Ø sug.={{ t.calculo.diametro_sugerido_mm }} mm
-              {% if t.calculo.alerta %}<br><span class="calc-alerta">{{ t.calculo.alerta }}</span>{% endif %}
-            {% else %}
-              <span class="text-muted">— completa Q y Ø —</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </table>
+    {% for hsis in hid_sistemas %}
+    {% set sp = "s" ~ hsis.idx ~ "_" %}
+    <div id="{{ sp }}hidwrap" {% if n_sistemas > 1 %}style="border:1px solid var(--border); border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;"{% endif %}>
+      {% if n_sistemas > 1 %}
+      <div style="font-weight:700; font-size:0.92rem; margin-bottom:0.7rem;">Sistema {{ hsis.idx + 1 }}</div>
+      {% endif %}
+      <div style="overflow-x:auto;">
+        <table class="calc-tbl">
+          <colgroup>
+            <col style="width:200px;"><col style="width:75px;"><col style="width:75px;">
+            <col style="width:75px;"><col style="width:170px;"><col style="width:120px;">
+            <col>
+          </colgroup>
+          <tr>
+            <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
+            <th>V declarada (m/s)</th><th>Extraído/declarado vs. calculado por la app</th>
+          </tr>
+          {% for t in hsis.tramos %}
+          <tr>
+            <td><input type="text" id="{{ sp }}t{{ loop.index0 }}_nombre" name="{{ sp }}t{{ loop.index0 }}_nombre" value="{{ t.nombre or '' }}" placeholder="Ej: Matriz"></td>
+            <td><input type="number" step="0.01" id="{{ sp }}t{{ loop.index0 }}_caudal" name="{{ sp }}t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
+            <td><input type="number" step="0.1" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
+            <td><input type="number" step="0.1" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
+            <td>
+              <select id="{{ sp }}t{{ loop.index0 }}_material" name="{{ sp }}t{{ loop.index0 }}_material">
+                <option value="" {% if not t.material %}selected{% endif %}>—</option>
+                <option value="pvc" {% if t.material == 'pvc' %}selected{% endif %}>PVC (C=150)</option>
+                <option value="pe" {% if t.material == 'pe' %}selected{% endif %}>PE/PEAD (C=120)</option>
+                <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
+              </select>
+            </td>
+            <td><input type="number" step="0.01" id="{{ sp }}t{{ loop.index0 }}_vel_declarada" name="{{ sp }}t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
+            <td class="calc-resultado" id="{{ sp }}t{{ loop.index0 }}_resultado">
+              {% if t.calculo %}
+                V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
+                {% if t.calculo.hf_mca is not none %} · Hf=<b>{{ t.calculo.hf_mca }}</b> mca{% endif %}
+                · Ø sug.={{ t.calculo.diametro_sugerido_mm }} mm
+                {% if t.calculo.alerta %}<br><span class="calc-alerta">{{ t.calculo.alerta }}</span>{% endif %}
+              {% else %}
+                <span class="text-muted">— completa Q y Ø —</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
     </div>
+    {% endfor %}
     <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
       <input type="checkbox" name="validar" style="margin-top:0.2rem;" {% if hid_validado %}checked{% endif %}>
       <span>Ya revisé estos datos — usarlos tal cual en las próximas revisiones (no volver a extraer automáticamente)</span>
@@ -423,8 +438,8 @@
 <script>
 (function() {
   "use strict";
-  var N_TRAMOS = {{ tramos|length }};
-  var N_AGRO_SISTEMAS = {{ agro_n_sistemas }};
+  var N_TRAMOS = {{ hid_sistemas[0].tramos|length }};
+  var N_SISTEMAS = {{ n_sistemas }};
   var C_HAZEN = {pvc:150, pe:120, pead:120, polietileno:120, aluminio:140};
   var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
   var RHO_CU = 1/58;
@@ -642,20 +657,22 @@
   }
 
   function recalcAgro() {
-    for (var i = 0; i < N_AGRO_SISTEMAS; i++) {
+    for (var i = 0; i < N_SISTEMAS; i++) {
       recalcAgroSistema("s" + i + "_");
     }
   }
 
   // ── Hidráulico ──────────────────────────────────────────────
-  function recalcHidraulico() {
+  // `sp` es el prefijo de ids/names de este sistema de riego (ej. "s0_", "s1_") — mismo N°
+  // de sistemas GLOBAL del proyecto que usa Agronómico (ver N_SISTEMAS).
+  function recalcHidraulicoSistema(sp) {
     for (var i = 0; i < N_TRAMOS; i++) {
-      var q = numVal("t" + i + "_caudal");
-      var d = numVal("t" + i + "_diametro");
-      var l = numVal("t" + i + "_longitud");
-      var mat = strVal("t" + i + "_material");
-      var velDecl = numVal("t" + i + "_vel_declarada");
-      var cellId = "t" + i + "_resultado";
+      var q = numVal(sp + "t" + i + "_caudal");
+      var d = numVal(sp + "t" + i + "_diametro");
+      var l = numVal(sp + "t" + i + "_longitud");
+      var mat = strVal(sp + "t" + i + "_material");
+      var velDecl = numVal(sp + "t" + i + "_vel_declarada");
+      var cellId = sp + "t" + i + "_resultado";
       if (!q || !d) { setHtml(cellId, '<span class="text-muted">— completa Q y Ø —</span>'); continue; }
 
       var areaM2 = (Math.PI / 4) * Math.pow(d / 1000, 2);
@@ -678,6 +695,12 @@
       html += " · Ø sug.=" + fmt(dSug, 1) + " mm";
       if (alerta) html += '<br><span class="calc-alerta">' + alerta + "</span>";
       setHtml(cellId, html);
+    }
+  }
+
+  function recalcHidraulico() {
+    for (var i = 0; i < N_SISTEMAS; i++) {
+      recalcHidraulicoSistema("s" + i + "_");
     }
   }
 

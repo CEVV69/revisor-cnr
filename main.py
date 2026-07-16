@@ -748,13 +748,19 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         v = verif_calc.get(clave)
         return v if v and v.get("validado") else None
 
-    datos_verificacion_hidraulica = _validado("hidraulico") if item_key == "diseno_hidraulico" else None
-    verif_agro_norm = _normalizar_verif_agronomico(verif_calc.get("agronomico"))
+    # N° de sistemas de riego: selector ÚNICO y GLOBAL al proyecto (no puede ser 2 en
+    # Agronómico y 1 en Hidráulico — son el mismo proyecto físico).
+    n_sistemas = _n_sistemas_proyecto(verif_calc)
+    verif_hid_norm = _normalizar_verif_multisistema(verif_calc.get("hidraulico"), n_sistemas, "tramos")
+    datos_verificacion_hidraulica = (
+        {"sistemas": verif_hid_norm["sistemas"]}
+        if item_key == "diseno_hidraulico" and verif_hid_norm.get("validado") else None
+    )
+    verif_agro_norm = _normalizar_verif_multisistema(verif_calc.get("agronomico"), n_sistemas)
     datos_verificacion_agronomica = (
         {"sistemas": verif_agro_norm["sistemas"]}
         if item_key == "diseno_hidraulico" and verif_agro_norm.get("validado") else None
     )
-    n_sistemas_agronomico = verif_agro_norm["n_sistemas"] if item_key == "diseno_hidraulico" else 1
     datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
 
     # Tabla de precios referenciales promedio (subida en /admin/precios, no oficial de la CNR).
@@ -778,7 +784,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             consultor=consultor,
             datos_verificacion_hidraulica=datos_verificacion_hidraulica,
             datos_verificacion_agronomica=datos_verificacion_agronomica,
-            n_sistemas_agronomico=n_sistemas_agronomico,
+            n_sistemas=n_sistemas,
             datos_verificacion_fv=datos_verificacion_fv,
             tabla_precios=tabla_precios,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
@@ -958,27 +964,44 @@ def _kc_dt05_calculo(cultivo, kc):
             "kc_fuera_rango": not (kc_min <= float(kc) <= kc_max)}
 
 
-def _normalizar_verif_agronomico(datos: dict) -> dict:
-    """Normaliza proyecto["verificacion_calculos"]["agronomico"] a la forma
-    {"n_sistemas": 1|2, "sistemas": [...], "validado", "fecha_validado", "validado_por"}.
+def _n_sistemas_proyecto(verif: dict) -> int:
+    """N° de sistemas de riego GLOBAL del proyecto (1 o 2) — selector ÚNICO, compartido entre
+    el Chequeo Agronómico y el Hidráulico: un proyecto con 2 sistemas de riego tiene 2 diseños
+    hidráulicos Y 2 cadenas agronómicas, nunca 2 en uno y 1 en el otro.
+    Fuente de verdad: verificacion_calculos["n_sistemas"]. Si no existe (proyectos guardados
+    antes de unificar el selector, jul-2026 — cuando el selector vivía solo en la tarjeta
+    Agronómico), cae al valor que haya quedado ahí."""
+    verif = verif or {}
+    if verif.get("n_sistemas") in (1, 2):
+        return verif["n_sistemas"]
+    legacy = (verif.get("agronomico") or {}).get("n_sistemas")
+    return legacy if legacy in (1, 2) else 1
+
+
+def _normalizar_verif_multisistema(datos: dict, n_sistemas: int, campo_legacy: str = None) -> dict:
+    """Normaliza un bloque de verificación (agronomico o hidraulico) a la forma
+    {"sistemas": [...], "validado", "fecha_validado", "validado_por"}, ajustado al N° de
+    sistemas GLOBAL del proyecto (`n_sistemas`, ver `_n_sistemas_proyecto`).
+
     Datos guardados ANTES de jul-2026 (multi-sistema) son un dict plano de un solo sistema, sin
-    clave "sistemas" — se envuelven en una lista de 1 para no perder proyectos ya cargados."""
-    if not datos:
-        return {"n_sistemas": 1, "sistemas": [{}],
-                "validado": False, "fecha_validado": None, "validado_por": None}
+    clave "sistemas": en Agronómico son campos sueltos (cc_pct, kc, ...); en Hidráulico están
+    bajo una clave propia (`campo_legacy="tramos"`). Ambos se envuelven en una lista de 1 para
+    no perder proyectos ya cargados."""
+    datos = datos or {}
     if isinstance(datos.get("sistemas"), list) and datos["sistemas"]:
-        return {
-            "n_sistemas": datos.get("n_sistemas") or len(datos["sistemas"]),
-            "sistemas": datos["sistemas"],
-            "validado": datos.get("validado"), "fecha_validado": datos.get("fecha_validado"),
-            "validado_por": datos.get("validado_por"),
-        }
-    # Formato antiguo (flat, un solo sistema) — se envuelve tal cual.
-    legacy = {k: v for k, v in datos.items()
-              if k not in ("validado", "fecha_validado", "validado_por", "n_sistemas", "sistemas")}
-    return {"n_sistemas": 1, "sistemas": [legacy],
-            "validado": datos.get("validado"), "fecha_validado": datos.get("fecha_validado"),
-            "validado_por": datos.get("validado_por")}
+        sistemas = list(datos["sistemas"])
+    elif campo_legacy and campo_legacy in datos:
+        sistemas = [{campo_legacy: datos[campo_legacy]}]
+    elif datos:
+        sistemas = [{k: v for k, v in datos.items()
+                      if k not in ("validado", "fecha_validado", "validado_por", "n_sistemas", "sistemas")}]
+    else:
+        sistemas = [{}]
+    while len(sistemas) < n_sistemas:
+        sistemas.append({})
+    sistemas = sistemas[:n_sistemas]
+    return {"sistemas": sistemas, "validado": datos.get("validado"),
+            "fecha_validado": datos.get("fecha_validado"), "validado_por": datos.get("validado_por")}
 
 
 def _agronomico_calculo(datos: dict):
@@ -1022,11 +1045,17 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     verif = proyecto.get("verificacion_calculos", {})
-    hid = verif.get("hidraulico", {})
-    tramos = list(hid.get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
-    while len(tramos) < N_TRAMOS_HIDRAULICOS:
-        tramos.append({})
-    agro_norm = _normalizar_verif_agronomico(verif.get("agronomico", {}))
+    n_sistemas = _n_sistemas_proyecto(verif)
+
+    hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
+    hid_sistemas = []
+    for i, s in enumerate(hid_norm["sistemas"]):
+        tramos = list((s or {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
+        while len(tramos) < N_TRAMOS_HIDRAULICOS:
+            tramos.append({})
+        hid_sistemas.append({"idx": i, "tramos": _tramos_con_calculo(tramos)})
+
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
     agro_sistemas = [
         {"idx": i, "datos": s, "calc": _agronomico_calculo(s)}
         for i, s in enumerate(agro_norm["sistemas"])
@@ -1035,16 +1064,36 @@ async def pagina_calculos(request: Request, proyecto_id: str):
 
     return templates.TemplateResponse("calculos.html", {
         "request": request, "user": user, "proyecto": proyecto,
-        "tramos": _tramos_con_calculo(tramos),
-        "hid_validado": hid.get("validado"), "hid_fecha": hid.get("fecha_validado"),
-        "hid_por": hid.get("validado_por"),
-        "agro_n_sistemas": agro_norm["n_sistemas"], "agro_sistemas": agro_sistemas,
+        "n_sistemas": n_sistemas,
+        "hid_sistemas": hid_sistemas,
+        "hid_validado": hid_norm.get("validado"), "hid_fecha": hid_norm.get("fecha_validado"),
+        "hid_por": hid_norm.get("validado_por"),
+        "agro_sistemas": agro_sistemas,
         "agro_validado": agro_norm.get("validado"), "agro_fecha": agro_norm.get("fecha_validado"),
         "agro_por": agro_norm.get("validado_por"),
         "fv": fv, "fv_calc": _fv_calculo(fv),
         "fv_validado": fv.get("validado"), "fv_fecha": fv.get("fecha_validado"),
         "fv_por": fv.get("validado_por"),
     })
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/n-sistemas")
+async def calculos_guardar_n_sistemas(request: Request, proyecto_id: str):
+    """Selector ÚNICO de N° de sistemas de riego (1 o 2), compartido entre el Chequeo
+    Agronómico y el Hidráulico — se guarda aparte, a nivel de verificacion_calculos, para que
+    ambas tarjetas lean siempre el mismo valor y nunca queden desincronizadas."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    form = await request.form()
+    n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
+    proyecto.setdefault("verificacion_calculos", {})
+    proyecto["verificacion_calculos"]["n_sistemas"] = n_sistemas
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/calculos/hidraulico/extraer")
@@ -1055,11 +1104,13 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
+    n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     docs_grupo = _documentos_para_verificacion("hidraulico", proyecto.get("documentos", []))
-    datos = await _extraer_datos_hidraulicos(docs_grupo)
+    datos = await _extraer_datos_hidraulicos(docs_grupo, n_sistemas=n_sistemas)
+    sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
-        "tramos": datos.get("tramos", []), "validado": False,
+        "sistemas": sistemas, "validado": False,
     }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -1074,26 +1125,31 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
     if not proyecto:
         raise HTTPException(status_code=404)
 
+    n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     form = await request.form()
-    tramos = []
-    for i in range(N_TRAMOS_HIDRAULICOS):
-        nombre = (form.get(f"t{i}_nombre") or "").strip()
-        q = _num_form(form, f"t{i}_caudal")
-        d = _num_form(form, f"t{i}_diametro")
-        if not nombre and not q and not d:
-            continue
-        tramos.append({
-            "nombre": nombre or f"Tramo {i+1}",
-            "caudal_ls": q, "diametro_mm": d,
-            "longitud_m": _num_form(form, f"t{i}_longitud"),
-            "material": (form.get(f"t{i}_material") or "").strip() or None,
-            "velocidad_declarada_ms": _num_form(form, f"t{i}_vel_declarada"),
-        })
+    sistemas = []
+    for si in range(n_sistemas):
+        sp = f"s{si}_"
+        tramos = []
+        for i in range(N_TRAMOS_HIDRAULICOS):
+            nombre = (form.get(f"{sp}t{i}_nombre") or "").strip()
+            q = _num_form(form, f"{sp}t{i}_caudal")
+            d = _num_form(form, f"{sp}t{i}_diametro")
+            if not nombre and not q and not d:
+                continue
+            tramos.append({
+                "nombre": nombre or f"Tramo {i+1}",
+                "caudal_ls": q, "diametro_mm": d,
+                "longitud_m": _num_form(form, f"{sp}t{i}_longitud"),
+                "material": (form.get(f"{sp}t{i}_material") or "").strip() or None,
+                "velocidad_declarada_ms": _num_form(form, f"{sp}t{i}_vel_declarada"),
+            })
+        sistemas.append({"tramos": tramos})
 
     validado = form.get("validar") == "on"
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
-        "tramos": tramos, "validado": validado,
+        "sistemas": sistemas, "validado": validado,
         "fecha_validado": _ahora().isoformat() if validado else None,
         "validado_por": user["nombre"] if validado else None,
     }
@@ -1109,14 +1165,13 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    form = await request.form()
-    n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
+    n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     docs_grupo = _documentos_para_verificacion("agronomico", proyecto.get("documentos", []))
     datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = {
-        "n_sistemas": n_sistemas, "sistemas": sistemas, "validado": False,
+        "sistemas": sistemas, "validado": False,
     }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -1131,8 +1186,8 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     if not proyecto:
         raise HTTPException(status_code=404)
 
+    n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     form = await request.form()
-    n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct",
               "superficie_riego_ha", "caudal_disponible_ls",
@@ -1159,7 +1214,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     validado = form.get("validar") == "on"
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = {
-        "n_sistemas": n_sistemas, "sistemas": sistemas,
+        "sistemas": sistemas,
         "validado": validado,
         "fecha_validado": _ahora().isoformat() if validado else None,
         "validado_por": user["nombre"] if validado else None,

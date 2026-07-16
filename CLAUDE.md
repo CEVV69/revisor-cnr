@@ -709,20 +709,22 @@ mejoras necesarias en la tarjeta Agronómico de `calculos.html`:
    "Chequeo Agronómico multi-sistema" más abajo (jul-2026, la versión completa que superó a este
    parche liviano).
 
-**Chequeo Agronómico multi-sistema — tarjeta duplicada por sistema de riego (implementado,
-jul-2026):** la versión "Mixto" de arriba era un parche — declaraba la ambigüedad pero seguía
-mostrando UN solo chequeo, así que el revisor tenía que repetirlo a mano para el segundo sistema.
-El usuario pidió la solución real: "que tanto el Chequeo del Cálculo del Diseño Agronómico, como
-el de Diseño hidráulico, se duplicaran según los sistemas de riego del proyecto" y aportó el dato
-clave que lo hizo viable: los consultores presentan el cálculo de cada sistema en un bloque
-separado con su propio encabezado (ej. "Cálculo agronómico — Sector Goteo" / "— Sector
-Aspersión"), así que separar los datos deja de ser "adivinar dónde mezclar" y pasa a ser
-"identificar encabezados y extraer cada bloque" — mucho más confiable. Implementado primero para
-Agronómico (Hidráulico queda para una siguiente iteración, mismo patrón, no implementado aún).
-- **Selector "N° de sistemas de riego" (1 o 2, tope fijo)** al inicio de la tarjeta Agronómico,
-  en el mismo formulario del botón "Extraer de los documentos" (`calculos.html`) — el revisor lo
-  fija ANTES de extraer. Tope fijo en 2 (no lista dinámica), mismo patrón que
-  `N_TRAMOS_HIDRAULICOS=6` en la tabla de tramos hidráulicos: si algún proyecto raro tiene 3+
+**Chequeo Agronómico e Hidráulico multi-sistema — tarjetas duplicadas por sistema de riego
+(implementado, jul-2026):** la versión "Mixto" de arriba era un parche — declaraba la ambigüedad
+pero seguía mostrando UN solo chequeo, así que el revisor tenía que repetirlo a mano para el
+segundo sistema. El usuario pidió la solución real: "que tanto el Chequeo del Cálculo del Diseño
+Agronómico, como el de Diseño hidráulico, se duplicaran según los sistemas de riego del proyecto"
+y aportó el dato clave que lo hizo viable: los consultores presentan el cálculo de cada sistema
+en un bloque separado con su propio encabezado (ej. "Cálculo agronómico — Sector Goteo" / "—
+Sector Aspersión"), así que separar los datos deja de ser "adivinar dónde mezclar" y pasa a ser
+"identificar encabezados y extraer cada bloque" — mucho más confiable. Se implementó primero
+Agronómico y, una vez verificado, el mismo patrón exacto se replicó a Hidráulico en la misma
+sesión — ambos ya en producción. El selector de N° de sistemas es GLOBAL y ÚNICO para los dos
+chequeos (ver la sección "Selector unificado" más abajo — corrección explícita del usuario sobre
+el diseño inicial, que tenía el selector solo en la tarjeta Agronómico).
+- **Selector "N° de sistemas de riego" (1 o 2, tope fijo)**, hoy único y compartido (ver más
+  abajo) — el revisor lo fija ANTES de extraer. Tope fijo en 2 (no lista dinámica), mismo patrón
+  que `N_TRAMOS_HIDRAULICOS=6` en la tabla de tramos hidráulicos: si algún proyecto raro tiene 3+
   sistemas, el revisor trata el tercero como observación manual aparte.
 - `_extraer_datos_agronomicos(docs_grupo, n_sistemas)` (analyzer.py) — UNA sola llamada a Haiku
   (no N llamadas). Si `n_sistemas=2`, el prompt instruye a la IA a identificar los encabezados de
@@ -760,23 +762,82 @@ Agronómico (Hidráulico queda para una siguiente iteración, mismo patrón, no 
   de ambos sistemas a la vez, más un campo oculto `n_sistemas`; `calculos_guardar_agronomico()`
   (main.py) itera `range(n_sistemas)` leyendo cada prefijo `s{i}_` del form. El botón "Ya revisé
   estos datos" sigue siendo uno solo (valida ambos sistemas juntos, no por separado).
-- **JS (recálculo en vivo)** — `recalcAgro()` (antes calculaba un solo juego de campos) ahora
-  itera `N_AGRO_SISTEMAS` (nueva variable, viene de `{{ agro_n_sistemas }}`) llamando a
-  `recalcAgroSistema(prefijo)` por cada sistema — la función vieja renombrada y parametrizada por
-  prefijo de id (`numVal(p+"cc_pct")`, `setText(p+"agro-etc", ...)`, etc.), sin cambios de
-  fórmula. El toggle de campos Goteo/Aspersión (`.campo-goteo`/`.campo-aspersion`) quedó scopeado
-  por tarjeta (`wrap.querySelectorAll(...)` sobre el contenedor `#s{idx}_wrap` de ESE sistema, no
+- **JS (recálculo en vivo)** — `recalcAgro()` itera `N_SISTEMAS` llamando a
+  `recalcAgroSistema(prefijo)` por cada sistema — función parametrizada por prefijo de id
+  (`numVal(p+"cc_pct")`, `setText(p+"agro-etc", ...)`, etc.), sin cambios de fórmula. El toggle
+  de campos Goteo/Aspersión (`.campo-goteo`/`.campo-aspersion`) quedó scopeado por tarjeta
+  (`wrap.querySelectorAll(...)` sobre el contenedor `#s{idx}_wrap` de ESE sistema, no
   `document.querySelectorAll` global) — necesario para que seleccionar "Aspersión" en el sistema 2
   no oculte los campos de goteo del sistema 1. Verificado con Playwright: ambas tarjetas
   recalculan de forma independiente con datos distintos (Kc/ETc/rango DT-05 no se mezclan entre
   sistemas), el toggle CSS no se filtra entre tarjetas, y los datos persisten correctamente tras
   guardar y recargar la página — incluyendo el caso de volver de 2 sistemas a 1 (la tarjeta del
   sistema 2 desaparece sin errores).
-- **Pendiente (siguiente iteración, NO implementado):** aplicar el mismo patrón exacto a Diseño
-  Hidráulico (`_extraer_datos_hidraulicos`, `_bloque_verificacion_hidraulica`, la tabla de tramos
-  y sus rutas/JS) — la extracción hidráulica y sus tramos de tubería hoy siguen siendo de un solo
-  sistema aunque el proyecto declare 2. El usuario aprobó implementar Agronómico primero y
-  Hidráulico después, una vez verificado a fondo.
+
+**Selector "N° de sistemas de riego" unificado — Hidráulico completa el patrón multi-sistema
+(implementado, jul-2026):** al pedir extender el mismo patrón a Diseño Hidráulico, el usuario
+hizo una corrección importante: "el selector de 1 o 2 sistemas de riego es global, se debe elegir
+solo una vez y se aplica a los dos chequeos, hidráulico y agronómico, porque no puede ser que
+solo el agronómico se haga para 2 y el hidráulico sea para 1 eso no se da" — un proyecto con 2
+sistemas de riego tiene 2 diseños completos (agronómico E hidráulico), nunca uno de cada. El
+selector individual que vivía dentro del form "Extraer" de Agronómico (versión anterior) se
+eliminó y se reemplazó por uno ÚNICO arriba de ambas tarjetas.
+- **Modelo de datos** — `proyecto["verificacion_calculos"]["n_sistemas"]` (1|2) pasó a vivir a
+  nivel RAÍZ, no colgado de `agronomico` como en la versión anterior — es la fuente de verdad
+  única para ambos chequeos. `hidraulico` y `agronomico` ya NO guardan su propio `n_sistemas`,
+  solo `{"sistemas": [...], "validado", "fecha_validado", "validado_por"}`. Para Hidráulico,
+  cada sistema es `{"tramos": [...]}` (antes era un dict plano `{"tramos": [...], "validado"}`
+  sin envoltorio por sistema).
+- **Compatibilidad con datos ya en producción** — este cambio pisa DOS generaciones de formato
+  anteriores, ambas reales (concurso 202-2026 ya se usó con la versión anterior): (1) el formato
+  histórico pre-multisistema (dict plano de un solo sistema, sin clave `"sistemas"` — Agronómico
+  con campos sueltos tipo `{"cultivo":..., "kc":...}`, Hidráulico con `{"tramos": [...]}`), y (2)
+  el formato intermedio de la iteración anterior (`n_sistemas` colgado DENTRO de `agronomico`).
+  `_n_sistemas_proyecto(verif)` (main.py) resuelve el N° global: usa `verif["n_sistemas"]` si
+  existe: si no, cae a `verif["agronomico"]["n_sistemas"]` (formato intermedio). Con ese número ya
+  resuelto, `_normalizar_verif_multisistema(datos, n_sistemas, campo_legacy=None)` (reemplaza a la
+  función `_normalizar_verif_agronomico` de la iteración anterior, ahora genérica para ambos
+  chequeos) envuelve cualquiera de los dos formatos viejos en `{"sistemas": [...]}`, rellena con
+  `{}` hasta completar `n_sistemas` si hace falta, y no toca nada si los datos ya vienen en el
+  formato nuevo. `campo_legacy="tramos"` para Hidráulico (el dato viejo estaba bajo esa clave);
+  Agronómico no pasa ese parámetro (el dato viejo eran campos sueltos directos en el dict). Sin
+  esto, un proyecto real cargado con la versión anterior (2 sistemas guardados en Agronómico, 1
+  tramo plano guardado en Hidráulico) se habría roto o mostrado datos incompletos.
+- `analyzer.py`: `_extraer_datos_hidraulicos(docs_grupo, n_sistemas)` — mismo patrón que la
+  extracción agronómica (identifica encabezados por sistema, devuelve `{"sistemas": [{"tramos":
+  [...]}, ...]}`, `max_tokens` escala con `n_sistemas`). `_bloque_verificacion_hidraulica(datos)`
+  es ahora el punto de entrada multi-sistema (delega a `_bloque_verificacion_hidraulica_sistema()`,
+  la función vieja renombrada) — con 2 sistemas etiqueta cada bloque `=== SISTEMA DE RIEGO N —
+  DISEÑO HIDRÁULICO ===` e instruye a la IA a no cruzar tramos/velocidades entre sistemas.
+  `analizar_item()` unificó el parámetro — antes `n_sistemas_agronomico` (solo para la extracción
+  agronómica), ahora `n_sistemas` a secas, usado para AMBAS extracciones (hidráulica y
+  agronómica) dentro del ítem `diseno_hidraulico`.
+- **Nueva ruta** `POST /proyecto/{id}/calculos/n-sistemas` (main.py) — guarda el selector global;
+  es el ÚNICO lugar que lo edita. Las rutas de extraer/guardar de cada tarjeta (Agronómico e
+  Hidráulico) ya no leen `n_sistemas` de su propio formulario — lo resuelven siempre desde
+  `_n_sistemas_proyecto(proyecto["verificacion_calculos"])`, así no puede haber desincronización
+  entre lo que el revisor ve y lo que efectivamente se extrae/guarda.
+- **UI (`calculos.html`)** — tarjeta azul nueva arriba de Agronómico/Hidráulico con el `<select>`
+  único ("N° de sistemas de riego del proyecto"), auto-submit por `onchange` (con `<noscript>`
+  de respaldo). La tabla de tramos de Hidráulico se duplica igual que Agronómico, con ids/names
+  prefijados `s{idx}_t{j}_...` (ej. `s0_t0_caudal`, `s1_t2_diametro`); `N_TRAMOS_HIDRAULICOS=6`
+  sigue siendo el tope POR sistema, no cambia. `pagina_calculos()` arma `hid_sistemas` (lista de
+  `{idx, tramos}`, con `_tramos_con_calculo()` aplicado a cada sistema por separado) y pasa
+  `n_sistemas` (ya no `agro_n_sistemas`) como única variable de conteo para ambas tarjetas.
+- **JS** — `N_AGRO_SISTEMAS` se renombró a `N_SISTEMAS` (compartida entre `recalcAgro()` y el
+  nuevo `recalcHidraulico()`, que ahora itera `N_SISTEMAS` llamando a
+  `recalcHidraulicoSistema(prefijo)` — la función vieja renombrada y parametrizada igual que se
+  hizo con Agronómico). `N_TRAMOS` (tope por sistema) se calcula desde
+  `hid_sistemas[0].tramos|length` en vez de la variable `tramos` que ya no se pasa al contexto.
+  Verificado con Playwright: cambiar el selector global de 1→2 muestra AMBAS tarjetas nuevas
+  (Agronómico Y Hidráulico) sin tener que elegir nada en cada una por separado, el recálculo de
+  tramos es independiente por sistema (velocidades distintas con datos distintos), persiste tras
+  guardar/recargar, y volver a 1 sistema oculta limpiamente las tarjetas del sistema 2 en ambos
+  chequeos a la vez. También se verificó compatibilidad completa con un proyecto sintético que
+  simula datos guardados en AMBOS formatos viejos a la vez (Agronómico + Hidráulico pre-
+  multisistema) — se normalizan y muestran correctamente sin acción del revisor.
+- Carrete/pivote (INIA-Carillanca) y microaspersión siguen sin fórmula propia — fuera de alcance,
+  sin cambios en esta iteración.
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
