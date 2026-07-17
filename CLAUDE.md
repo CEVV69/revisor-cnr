@@ -875,12 +875,21 @@ Agronómico de `calculos.html`.
   FV es global al proyecto (un solo `energetico`), así que con 2 sistemas ambos exportan el mismo
   bloque FV. Verificado con los 4 sistemas: el JSON generado calza campo por campo con el formato
   de los archivos de ejemplo.
-- **PENDIENTE — botón/enlace al Diseñador**: el usuario también pidió un botón que abra el
-  Diseñador (`file:///Users/.../disenador_riego_v97.html`). NO se implementó todavía porque un
-  `file://` desde la app (servida por `https://` en Railway) lo bloquean los navegadores por
-  seguridad — quedaría roto, y además solo existiría en su Mac, no en la oficina. La solución que
-  SÍ funcionaría en todos lados es subir `disenador_riego_v97.html` a `static/` del repo y enlazar
-  a `/static/disenador_riego_v97.html` (mismo origen) — falta que el usuario pase ese HTML.
+- **Botón "Abrir Diseñador de Riego" (implementado, jul-2026)**: el usuario pasó el HTML del
+  Diseñador (`disenador_riego_v97.html`, single-file 4,4 MB) y se subió a `static/` del repo, así
+  que se sirve desde `/static/disenador_riego_v97.html` (mismo origen — funciona en la oficina y
+  en cualquier equipo, a diferencia del `file://` local que los navegadores bloquean desde una
+  página `https://`). El botón está alineado a la derecha, en la misma línea del selector "N° de
+  sistemas de riego" (tarjeta azul superior de `calculos.html`), abre en pestaña nueva
+  (`target="_blank" rel="noopener"`). Flujo completo: exportar el `.json` desde Revisor → abrir el
+  Diseñador con este botón → en el Diseñador, "Importar proyecto" y elegir el archivo. Se verificó
+  contra la función `restoreFieldData()`/`importProject()` del Diseñador que el formato exportado
+  calza (solo asigna las claves presentes, conserva sus defaults para el resto; tramos por
+  `l/q/t/z`). **Ojo — el import del Diseñador NO cambia de sistema solo**: usa el sistema
+  activo en su pantalla, así que el revisor debe seleccionar Goteo/Aspersión/etc. en el Diseñador
+  ANTES de importar (el prefijo de campos del archivo —g-/a-/…— debe coincidir con el sistema
+  activo). Si se actualiza el HTML del Diseñador, reemplazar `static/disenador_riego_v97.html` (y
+  si cambia el nombre de archivo, actualizar el enlace en `calculos.html`).
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba

@@ -70,17 +70,20 @@
 </div>
 
 <div class="card" style="border-left:4px solid #2b6cb0;">
-  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/n-sistemas"
-        style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-    <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
-      N° de sistemas de riego del proyecto
-      <select name="n_sistemas" onchange="this.form.submit()">
-        <option value="1" {% if n_sistemas != 2 %}selected{% endif %}>1</option>
-        <option value="2" {% if n_sistemas == 2 %}selected{% endif %}>2</option>
-      </select>
-    </label>
-    <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
-  </form>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/n-sistemas"
+          style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin:0;">
+      <label style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:0.4rem;">
+        N° de sistemas de riego del proyecto
+        <select name="n_sistemas" onchange="this.form.submit()">
+          <option value="1" {% if n_sistemas != 2 %}selected{% endif %}>1</option>
+          <option value="2" {% if n_sistemas == 2 %}selected{% endif %}>2</option>
+        </select>
+      </label>
+      <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
+    </form>
+    <a href="/static/disenador_riego_v97.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+  </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
     riego (ej. goteo en un sector y aspersión en otro) tiene 2 diseños completos, uno por sistema,
