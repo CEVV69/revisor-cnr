@@ -99,6 +99,11 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     if sys_code in ("asp", "car"):
         put("crit", sistema_agro.get("factor_agotamiento_pct"))
 
+    # VIB (Velocidad de Infiltración Básica) — el Diseñador la tiene en Aspersión y
+    # Microaspersión (Goteo/Carrete no la exponen).
+    if sys_code in ("asp", "mic"):
+        put("vib", sistema_agro.get("vib_mmhr"))
+
     # Marco de plantación / espaciamiento — los IDs del Diseñador difieren por sistema:
     #   Goteo: DEH (dist. entre hileras), DSH (dist. sobre hilera / entre plantas), N° líneas de
     #          emisor, Esp. entre goteros.

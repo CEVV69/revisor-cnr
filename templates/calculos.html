@@ -151,14 +151,15 @@
         <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
         <div class="campo-criterio-riego"><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
         <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
-        <div><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
-        <div><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
+        <div class="campo-vib"><label>VIB del suelo (mm/hr)</label><input type="number" step="0.1" id="{{ p }}vib_mmhr" name="{{ p }}vib_mmhr" value="{{ agro.vib_mmhr if agro.vib_mmhr is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-goteo"><label>N° líneas de emisor (Goteo)</label><input type="number" step="1" id="{{ p }}n_lineas_emisor" name="{{ p }}n_lineas_emisor" value="{{ agro.n_lineas_emisor if agro.n_lineas_emisor is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-goteo"><label>Espaciamiento entre emisores (Goteo, m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_emisores_m" name="{{ p }}espaciamiento_emisores_m" value="{{ agro.espaciamiento_emisores_m if agro.espaciamiento_emisores_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_aspersores_m" name="{{ p }}espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación y espaciamiento del sistema: dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo.</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación (Goteo/Microaspersión) y espaciamiento del sistema: dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo (salvo VIB, que sí se verifica contra la Precipitación del sistema).</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
       <div class="agro-grid">
@@ -182,6 +183,13 @@
             <td class="col-calc">
               <span id="{{ p }}agro-kc-calc">—</span>
               <span id="{{ p }}agro-kc-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-vib">
+            <td class="col-concepto">VIB vs. Precipitación del sistema (Aspersión)</td><td id="{{ p }}agro-vib-decl">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-vib-calc">—</span>
+              <span id="{{ p }}agro-vib-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr>
@@ -557,7 +565,8 @@
     if (!wrap) return;
     var cc = numVal(p + "cc_pct"), pmp = numVal(p + "pmp_pct"), da = numVal(p + "da"),
         prof = numVal(p + "prof_radicular_cm"), kc = numVal(p + "kc"), eto = numVal(p + "eto_dia_mm"),
-        fa = numVal(p + "factor_agotamiento_pct"), ef = numVal(p + "eficiencia_pct");
+        fa = numVal(p + "factor_agotamiento_pct"), ef = numVal(p + "eficiencia_pct"),
+        vib = numVal(p + "vib_mmhr");
     var declDn = numVal(p + "decl_dn"), declFr = numVal(p + "decl_fr"), declDb = numVal(p + "decl_db");
     var sup = numVal(p + "superficie_riego_ha"), caudalDisp = numVal(p + "caudal_disponible_ls"),
         precip = numVal(p + "precipitacion_sistema_mmhr"), horas = numVal(p + "horas_disponibles_dia");
@@ -576,6 +585,10 @@
     // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
     // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
     wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
+    // VIB (Velocidad de Infiltración Básica) solo aplica a Aspersión — Goteo/Microaspersión/
+    // Carrete no la usan en el Diseñador de Riego.
+    var mostrarVib = !sistema || sistema === "Mixto" || sistema === "Aspersión";
+    wrap.querySelectorAll(".campo-vib").forEach(function(el) { el.style.display = mostrarVib ? "" : "none"; });
     var avisoEl = document.getElementById(p + "sistema-riego-aviso");
     if (sistema === "Mixto") {
       avisoEl.textContent = "Este proyecto declara más de un sistema de riego — el chequeo de "
@@ -601,6 +614,21 @@
     } else {
       setText(p + "agro-kc-calc", "—");
       nota(p + "agro-kc-nota", "");
+    }
+
+    // VIB vs. Precipitación del sistema (Aspersión) — independiente del resto, verifica que la
+    // velocidad de aplicación no supere la infiltración básica del suelo (riesgo de escorrentía).
+    var vibDecl = (vib !== null || precip !== null)
+      ? "VIB=" + (vib !== null ? fmt(vib, 1) : "—") + " mm/hr, Precipitación=" + (precip !== null ? fmt(precip, 2) : "—") + " mm/hr"
+      : "—";
+    setText(p + "agro-vib-decl", vibDecl);
+    if (vib !== null && precip !== null) {
+      var vibOk = vib > precip;
+      setText(p + "agro-vib-calc", vibOk ? "VIB > Precipitación — OK" : "VIB ≤ Precipitación — riesgo de escorrentía");
+      nota(p + "agro-vib-nota", vibOk ? "" : "La precipitación del sistema (" + fmt(precip, 2) + " mm/hr) supera la VIB del suelo (" + fmt(vib, 1) + " mm/hr) — riesgo de escorrentía. Reducir caudal o aumentar espaciamiento.");
+    } else {
+      setText(p + "agro-vib-calc", "—");
+      nota(p + "agro-vib-nota", "");
     }
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");

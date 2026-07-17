@@ -753,9 +753,12 @@ proyecto declara uno (para aumentar el caudal instantáneo disponible respecto a
 y lo que el consultor declara como resultado: caudal de diseño del sistema, tiempo de riego por
 sector y número de sectores de riego.
 También extrae el SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión, o Carrete) y el
-marco/espaciamiento: distancia entre hileras, distancia entre plantas o sobre hilera, y según el
-sistema: N° de líneas de emisor y espaciamiento entre emisores (Goteo/Microaspersión), o
-espaciamiento entre aspersores y entre laterales (Aspersión/Carrete).
+espaciamiento del sistema: si es Goteo/Microaspersión, distancia entre hileras, distancia entre
+plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores (marco de
+plantación del cultivo); si es Aspersión/Carrete, espaciamiento entre aspersores y entre
+laterales (NO el marco de plantación — en aspersión no aplica). Si el sistema es Aspersión,
+extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr) — para verificar que
+no la supere la precipitación/tasa de aplicación del sistema (riesgo de escorrentía).
 {instr_sistemas}
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
@@ -770,7 +773,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
-"volumen_acumulador_m3": number|null,
+"volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
 ]}}
@@ -915,6 +918,24 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"oficial ({kc_min}–{kc_max}) y el valor declarado ({kc}).")
             else:
                 texto += " Dentro del rango — no lo menciones como observación."
+
+    # VIB vs. Precipitación del sistema — solo Aspersión, independiente del resto de la cadena.
+    vib = datos.get("vib_mmhr")
+    precip = datos.get("precipitacion_sistema_mmhr")
+    if datos.get("sistema_riego") == "Aspersión" and vib is not None and precip is not None:
+        vib_check = calculos_riego.verificacion_vib(vib, precip)
+        if vib_check:
+            texto += (f"\n\nVERIFICACIÓN VIB vs. PRECIPITACIÓN DEL SISTEMA (cálculo determinístico "
+                      f"— la Velocidad de Infiltración Básica del suelo debe superar la "
+                      f"precipitación/tasa de aplicación del sistema, si no hay riesgo de "
+                      f"escorrentía; mismo criterio del Diseñador de Riego): VIB={vib} mm/hr, "
+                      f"Precipitación del sistema={precip} mm/hr.")
+            if not vib_check["vib_ok"]:
+                texto += (f" La precipitación SUPERA la VIB del suelo — genera una observación "
+                          f"citando estos números exactos (riesgo de escorrentía; se sugiere "
+                          f"reducir el caudal del aspersor o aumentar el espaciamiento).")
+            else:
+                texto += " VIB > Precipitación — dentro de rango, no lo menciones como observación."
 
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
     # calcGA del Diseñador). No requiere ni usa el criterio de riego.

@@ -179,6 +179,16 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     return r
 
 
+def verificacion_vib(vib_mmhr: float, precipitacion_mmhr: float) -> dict:
+    """Verifica que la Velocidad de Infiltración Básica (VIB) del suelo supere la precipitación
+    (velocidad de aplicación) del sistema de riego — si no, hay riesgo de escorrentía. Aplica
+    solo a Aspersión (Goteo no la usa — aplica agua directo al bulbo húmedo, no en área). Mismo
+    criterio del Diseñador de Riego ("VIB > VA" en aspersión, "Pls ≤ VIB" en microaspersión)."""
+    if not vib_mmhr or not precipitacion_mmhr:
+        return {}
+    return {"vib_ok": vib_mmhr > precipitacion_mmhr}
+
+
 def requiere_acumulador(caudal_diseno_ls: float, caudal_disponible_ls: float) -> bool:
     """ITT-03: si el caudal de diseño del sistema supera el caudal disponible en más de un
     20%, se requiere acumulador (estanque) — mismo criterio del Diseñador de Riego."""

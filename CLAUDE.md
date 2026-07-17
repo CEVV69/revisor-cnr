@@ -395,6 +395,13 @@ adivina ni se muestra un pin en un lugar incorrecto.
   recuadro con líneas en blanco para que el revisor anote a mano sobre el papel, nunca se
   guarda ni se envía al backend. Botón "Imprimir informe" (`target="_blank"`) en la página
   Resumen, mismo patrón que el botón "Generar Ficha de Revisión" de la página Ítems SEP.
+  **Ajustado tras la primera prueba (jul-2026):** 18 líneas en vez de 6 (triplicado, a pedido del
+  usuario, más espacio para escribir) y `padding-left` del `body` ampliado a 2,8cm (vs. 1,5cm del
+  resto) tanto en la regla base como dentro de `@media print` — deja margen para perforar y
+  archivar el informe impreso. El margen se puso en ambos lugares porque html2canvas (el PDF
+  descargado) usa el padding de la regla BASE, no el de `@media print` (mismo motivo por el que
+  la sección Notas se fuerza a mano en `descargarPDF()` — ver arriba); `window.print()` nativo sí
+  respeta `@media print`, así que ese padding también se actualizó para que ambos caminos calcen.
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —
@@ -989,6 +996,36 @@ que ambas apps den el mismo número si el revisor exporta/importa el mismo proye
 - **Alcance**: solo cubre la superficie segura y el chequeo ITT-03 — no toca el resto de la
   cadena agronómica (ETc/Dn/Fr/Db) ni el diseño hidráulico (tramos), que no dependen del caudal
   de la fuente en el modelo actual.
+
+**VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
+(implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras
+usar la app con proyectos reales:
+1. **VIB nueva, solo Aspersión** — verifica que la Precipitación del sistema (tasa de aplicación,
+   ya existente en "Datos de diseño") no supere la Velocidad de Infiltración Básica del suelo
+   (mm/hr); si la supera, hay riesgo de escorrentía. Mismo criterio que usa el Diseñador de Riego
+   ("VIB > VA" en aspersión, `calcAA`). Campo nuevo "VIB del suelo (mm/hr)" en "Datos base
+   declarados", visible solo si el sistema declarado es Aspersión (o sin declarar/Mixto, mismo
+   criterio "mostrar si es ambiguo" del resto de la tarjeta) — `calculos_riego.verificacion_vib()`
+   nueva, usada en `_bloque_verificacion_agronomica_sistema` (analyzer.py, prompt de la IA) y en
+   `_agronomico_calculo` (main.py, independiente del resto de la cadena, igual que Kc-DT05). Fila
+   nueva en la tabla de resultados ("VIB vs. Precipitación del sistema (Aspersión)"), y exportado
+   al Diseñador como `{prefijo}-vib` en Aspersión y Microaspersión (el Diseñador expone el campo
+   en ambos, aunque el Chequeo hoy solo lo pide para Aspersión).
+2. **Marco de plantación (Distancia entre hileras/entre plantas) — eliminado para Aspersión.**
+   Bug real reportado por el usuario: esos dos campos eran incondicionales (se mostraban para
+   TODOS los sistemas) y en Aspersión la extracción automática los rellenaba con los MISMOS
+   valores que el espaciamiento entre aspersores/laterales — confuso, porque en aspersión el
+   "marco de plantación del cultivo" no es un dato relevante (a diferencia de Goteo/Microaspersión,
+   donde el emisor se ubica respecto a cada planta). Se movieron esos dos campos a la clase
+   `campo-goteo` (el mismo grupo que N° líneas de emisor/espaciamiento entre emisores) — ahora se
+   ocultan junto con el resto del grupo Goteo cuando el sistema es Aspersión/Carrete, dejando solo
+   Espaciamiento entre aspersores/laterales visibles para esos dos. Confirma además, de paso, lo
+   que ya reflejaba `exportar_disenador.py` (el Diseñador tampoco tiene DEH/DSH para Aspersión ni
+   Carrete) — el Chequeo quedó consistente con eso.
+- Verificado con Playwright: en Goteo se ve el marco de plantación y NO la VIB; al cambiar a
+  Aspersión se invierte (VIB visible, marco de plantación oculto), el cálculo VIB reacciona en
+  vivo (alerta de escorrentía si Precipitación ≥ VIB, "OK" si no), y la exportación al Diseñador
+  incluye `a-vib` y ya no incluye `a-deh`/`a-dsh`.
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba

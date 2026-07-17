@@ -1022,8 +1022,18 @@ def _agronomico_calculo(datos: dict):
         campos.insert(6, "factor_agotamiento_pct")
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
+    # VIB vs. Precipitación — independiente del resto, solo Aspersión.
+    vib_check = None
+    if datos and datos.get("sistema_riego") == "Aspersión":
+        vib_check = calculos_riego.verificacion_vib(
+            datos.get("vib_mmhr"), datos.get("precipitacion_sistema_mmhr")) or None
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
-        return {"kc_dt05": kc_dt05} if kc_dt05 else None
+        r = {}
+        if kc_dt05:
+            r["kc_dt05"] = kc_dt05
+        if vib_check:
+            r["vib_check"] = vib_check
+        return r or None
     r = calculos_riego.cadena_agronomica(
         datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
@@ -1038,6 +1048,8 @@ def _agronomico_calculo(datos: dict):
     ))
     if kc_dt05:
         r["kc_dt05"] = kc_dt05
+    if vib_check:
+        r["vib_check"] = vib_check
     return r
 
 
@@ -1266,7 +1278,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     form = await request.form()
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "factor_agotamiento_pct", "eficiencia_pct",
+              "factor_agotamiento_pct", "eficiencia_pct", "vib_mmhr",
               "superficie_riego_ha", "caudal_disponible_ls",
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
