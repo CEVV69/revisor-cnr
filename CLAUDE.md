@@ -839,6 +839,49 @@ eliminó y se reemplazó por uno ÚNICO arriba de ambas tarjetas.
 - Carrete/pivote (INIA-Carillanca) y microaspersión siguen sin fórmula propia — fuera de alcance,
   sin cambios en esta iteración.
 
+**Exportar a archivo del Diseñador de Riego (implementado, jul-2026):** el usuario pidió generar,
+desde la página Chequeo, un `.json` del mismo formato que guarda/abre su otra app, el **Diseñador
+de Riego** (`disenador_riego_v97.html`, single-file HTML que corre en su Mac) — así puede abrir ese
+archivo en el Diseñador y evaluar a mano aspectos que Revisor no cubre, sin recargar Revisor con
+esos cálculos. Módulo nuevo `exportar_disenador.py` (función pura `construir(...)`), ruta
+`GET /proyecto/{id}/calculos/exportar-disenador/{idx}` (descarga con `Content-Disposition
+attachment`), y un botón "Exportar para el Diseñador de Riego (.json)" en cada tarjeta de sistema
+Agronómico de `calculos.html`.
+- **Formato del Diseñador**: `{"__sys": "got"|"mic"|"asp"|"car", "__name", "__date", "fields":
+  {...}}`. Cada sistema de riego usa un PREFIJO de campo distinto (`g-`/`m-`/`a-`/`c-`) y su
+  código `__sys`; el mapeo `SISTEMA_A_DR` traduce el `sistema_riego` declarado en Revisor
+  (Goteo/Microaspersión/Aspersión/Carrete) a ese par. `__name` = "{sistema} {codigo_sep}" (a
+  pedido del usuario); `__date` en el formato del Diseñador ("dd-mm-aaaa, h:mm:ss a.m./p.m.",
+  helper `_fecha_disenador()` en main.py). El nombre de archivo se pasa por
+  `unicodedata`→ASCII (sin tildes/ñ) porque el header Content-Disposition no es unicode-safe; el
+  `__name` interno sí conserva la tilde.
+- **REGLA — solo lo que hay, no inventar**: se exportan ÚNICAMENTE los campos con dato real
+  (identificación desde el Resumen; cadena agronómica + superficie/caudal/horas/criterio de riego
+  desde el Chequeo; los 11 campos FV con los MISMOS sufijos en ambas apps). Las claves sin dato NO
+  se incluyen (se omiten, no van con ""), así el Diseñador conserva sus defaults al cargar. El
+  revisor completa el resto en el Diseñador.
+- **Diferencias por sistema** (verificadas contra archivos reales que subió el usuario, uno por
+  sistema): el campo de superficie a regar cambia de nombre (`-sup` en goteo/micro, `-strie` en
+  aspersión, `-supr` en carrete); "criterio de riego"/agotamiento (`-crit`) solo existe en
+  aspersión/carrete; carrete no tiene campo de horas de riego (`-hrs`). Los TRAMOS de tubería solo
+  se exportan a la lista genérica `__tramos` (l/q) en aspersión y carrete — goteo/microaspersión
+  usan en el Diseñador un modelo matriz/terciaria/lateral (`-lm/-dm/-cm`, etc.) que NO mapea desde
+  nuestra tabla de tramos plana sin adivinar cuál tramo es cuál, así que ahí los tramos no se
+  exportan (quedan para el Diseñador). En `__tramos`, `l`=longitud y `q`=caudal (que sí tenemos);
+  `t` y `z` van vacíos (no existen en Revisor, no se inventan).
+- **Alcance**: exporta los datos GUARDADOS de `verificacion_calculos` (no los del formulario sin
+  guardar) — el botón avisa "guarda primero si acabas de editar". El botón solo aparece si el
+  sistema declarado es uno de los cuatro conocidos (si está sin declarar o "Mixto", no aparece).
+  FV es global al proyecto (un solo `energetico`), así que con 2 sistemas ambos exportan el mismo
+  bloque FV. Verificado con los 4 sistemas: el JSON generado calza campo por campo con el formato
+  de los archivos de ejemplo.
+- **PENDIENTE — botón/enlace al Diseñador**: el usuario también pidió un botón que abra el
+  Diseñador (`file:///Users/.../disenador_riego_v97.html`). NO se implementó todavía porque un
+  `file://` desde la app (servida por `https://` en Railway) lo bloquean los navegadores por
+  seguridad — quedaría roto, y además solo existiría en su Mac, no en la oficina. La solución que
+  SÍ funcionaría en todos lados es subir `disenador_riego_v97.html` a `static/` del repo y enlazar
+  a `/static/disenador_riego_v97.html` (mismo origen) — falta que el usuario pase ese HTML.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

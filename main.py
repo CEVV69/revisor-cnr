@@ -6,6 +6,7 @@ import re
 import json
 import uuid
 import asyncio
+import unicodedata
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -29,6 +30,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc)
 import calculos_riego
 import geo
+import exportar_disenador
 
 # Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
 # lo consulta manualmente desde un botón en los ítems de Presupuesto (ver proyecto.html). La
@@ -1159,6 +1161,56 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
     }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
+
+
+def _fecha_disenador() -> str:
+    """Fecha/hora actual en el formato del Diseñador de Riego: 'dd-mm-aaaa, h:mm:ss a.m./p.m.'."""
+    now = _ahora()
+    ampm = "a.m." if now.hour < 12 else "p.m."
+    h12 = now.hour % 12 or 12
+    return f"{now.day:02d}-{now.month:02d}-{now.year}, {h12}:{now.minute:02d}:{now.second:02d} {ampm}"
+
+
+@app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")
+async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
+    """Descarga un .json con el formato del Diseñador de Riego, armado con los datos GUARDADOS del
+    Chequeo de Cálculos del sistema `idx`. Solo exporta lo que Revisor tiene (no inventa). Si el
+    sistema no está declarado como uno de los cuatro exportables, vuelve al Chequeo con un aviso."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
+    if idx < 0 or idx >= len(agro_norm["sistemas"]):
+        raise HTTPException(status_code=404, detail="Sistema no válido")
+
+    sistema_agro = agro_norm["sistemas"][idx]
+    nombre_sistema = (sistema_agro or {}).get("sistema_riego")
+    tramos_hid = (hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos", [])
+    fv = verif.get("energetico", {})
+    resumen = proyecto.get("resumen", {})
+
+    data = exportar_disenador.construir(
+        sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, _fecha_disenador())
+    if not data:
+        return RedirectResponse(
+            url=f"/proyecto/{proyecto_id}/calculos?export_sin_sistema=1", status_code=302)
+
+    contenido = json.dumps(data, ensure_ascii=False, indent=2)
+    codigo = (proyecto.get("codigo_sep", "") or "").replace("/", "-").replace(" ", "")
+    # Nombre de archivo sin tildes/ñ ni espacios (el header Content-Disposition es ASCII-safe;
+    # el __name interno del JSON sí conserva la tilde, es contenido, no header).
+    sis_ascii = (unicodedata.normalize("NFKD", nombre_sistema)
+                 .encode("ascii", "ignore").decode("ascii"))
+    filename = f"DR_{sis_ascii}_{codigo}.json".replace(" ", "_")
+    return Response(content=contenido, media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 @app.post("/proyecto/{proyecto_id}/calculos/agronomico/extraer")
