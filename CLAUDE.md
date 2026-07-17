@@ -930,6 +930,53 @@ con agotamiento. Se alineó el Chequeo con ese modelo, SOLO para Goteo:
   tocó porque el usuario reportó específicamente goteo; si en el futuro molesta lo mismo en micro,
   aplicar el mismo patrón o un default 50.
 
+**Acumulador (estanque/tranque regulador) en el Chequeo Agronómico (implementado, jul-2026):**
+caso real del concurso 202-2026: un proyecto con caudal disponible de la fuente muy bajo (0,4 l/s)
+declara un acumulador de 10 m³ para regar una superficie mayor de la que el caudal de la fuente
+solo permitiría. El usuario lo agregó primero al Diseñador de Riego (subió `disenador_riego_v98.html`,
+reemplazó a v97 en `static/` — actualizar el link de "Abrir Diseñador de Riego" en `calculos.html`
+si se vuelve a actualizar el archivo) y pidió portar el mismo criterio al Chequeo. Se leyó
+directo el código del Diseñador (`calcAcum`, línea ~6172) para no adivinar la fórmula:
+```
+Q_acumulador[l/s] = Volumen[m³] × 1000 / (horas_disponibles_dia × 3600)
+```
+**Importante — el Diseñador usa "Horas Riego Disp." (Paso 1, el dato que declara el consultor),
+NO el "tiempo de riego" calculado** (que sí fue lo que el usuario planteó de palabra al pedir el
+cambio) — se le hizo notar la diferencia y se implementó fiel al código real del Diseñador para
+que ambas apps den el mismo número si el revisor exporta/importa el mismo proyecto.
+- `calculos_riego.verificacion_diseno_riego(...)` ganó el parámetro `volumen_acumulador_m3`. Si
+  viene junto con `horas_disponibles_dia`, calcula `caudal_acumulador_ls` con la fórmula de
+  arriba y lo usa como **caudal EFECTIVO** en vez del `caudal_disponible_ls` de la fuente para:
+  (a) `superficie_segura_ha`, y (b) el chequeo ITT-03 (`requiere_acumulador`) — el caudal de la
+  fuente pasa a ser solo el que recarga el acumulador entre riegos, no el que se usa durante el
+  riego. Sin acumulador declarado, el comportamiento es exactamente el de antes (fallback al
+  caudal de la fuente).
+- `_extraer_datos_agronomicos()` (analyzer.py) extrae también `volumen_acumulador_m3` (null si el
+  expediente no declara acumulador). `_bloque_verificacion_agronomica_sistema()` inyecta el
+  cálculo del caudal equivalente en el prompt de la IA y ajusta el mensaje de ITT-03: si hay
+  acumulador y el caudal de diseño lo supera ×1,2, la observación dice que el VOLUMEN DECLARADO
+  no alcanza (en vez de "se requiere acumulador", que ya no aplica porque el proyecto sí declaró
+  uno — el problema pasa a ser su tamaño).
+- **UI (`calculos.html`)**: campo nuevo "Volumen acumulador (m³)" en "Datos de diseño" (por
+  sistema, junto a Superficie/Caudal disponible/Precipitación/Horas disponibles). La fila
+  "Superficie de riego segura" de la tabla ganó un `<span id="{p}agro-sup-info">` (nota neutra,
+  no roja) que muestra el caudal equivalente cuando hay acumulador — separado del
+  `agro-sup-nota` existente (que sigue siendo solo la alerta roja de superficie insuficiente,
+  para no mezclar un mensaje informativo con uno de alerta en el mismo span). El chequeo ITT-03
+  también cambia de texto con acumulador ("El volumen de acumulador declarado no alcanza" en vez
+  de "Requiere acumulador"). Mismo patrón de siempre: la fórmula se duplicó a mano en el
+  `<script>` de `calculos.html` (`recalcAgroSistema`), verificada con Playwright contra el
+  cálculo Python (mismo caudal equivalente, misma superficie segura, mismo mensaje ITT-03).
+- `exportar_disenador.py`: se agregó `put("acum-vol", sistema_agro.get("volumen_acumulador_m3"))`
+  para los 4 sistemas (el Diseñador v98+ tiene el campo `{prefijo}-acum-vol` en los cuatro). El
+  checkbox `{prefijo}-acum-chk` NO se exporta a propósito — es un `<input type="checkbox">` y
+  `restoreFieldData()` del Diseñador lo restaura con `el.value = ...`, que no marca `.checked`
+  (limitación del propio Diseñador, no de Revisor) — el revisor debe tildar "¿Acumula agua?" a
+  mano en el Diseñador después de importar para que se muestre el volumen ya cargado.
+- **Alcance**: solo cubre la superficie segura y el chequeo ITT-03 — no toca el resto de la
+  cadena agronómica (ETc/Dn/Fr/Db) ni el diseño hidráulico (tramos), que no dependen del caudal
+  de la fuente en el modelo actual.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

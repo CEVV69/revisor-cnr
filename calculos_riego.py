@@ -129,7 +129,8 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
 def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               caudal_disponible_ls: float = None,
                               precipitacion_mmhr: float = None,
-                              horas_disponibles_dia: float = None) -> dict:
+                              horas_disponibles_dia: float = None,
+                              volumen_acumulador_m3: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -138,21 +139,38 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     completo por tipo de sistema:
 
     Demanda[l/s/ha]        = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
-    Superficie riego segura = Caudal disponible / Demanda[l/s/ha]
+    Superficie riego segura = Caudal EFECTIVO / Demanda[l/s/ha]
     Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día]
     N° de sectores          = ⌊Horas disponibles al día / Tiempo de riego⌋
 
+    Si el proyecto declara un ACUMULADOR (estanque/tranque regulador, `volumen_acumulador_m3`),
+    el caudal EFECTIVO disponible para regar ya no es el de la fuente (`caudal_disponible_ls`)
+    sino el que entrega el acumulador repartido en las horas de riego disponibles del día —
+    misma fórmula que usa el Diseñador de Riego (`calcAcum`):
+        Q_acumulador = Volumen[m³] × 1000 / (horas_disponibles_dia × 3600)   [l/s]
+    Ese caudal reemplaza al de la fuente para la superficie de riego segura; el caudal de la
+    fuente pasa a ser solo el que recarga el acumulador entre riegos, no el que se usa durante
+    el riego. Sin acumulador declarado, el caudal efectivo sigue siendo el de la fuente
+    (comportamiento de siempre).
+
     Cada resultado solo se calcula si están los datos que necesita — es aditivo, no todo o
-    nada. `superficie_ha`/`caudal_disponible_ls` habilitan la superficie segura;
-    `precipitacion_mmhr` habilita el tiempo de riego; `horas_disponibles_dia` (además de
+    nada. `superficie_ha`/`caudal_disponible_ls` (o el acumulador) habilitan la superficie
+    segura; `precipitacion_mmhr` habilita el tiempo de riego; `horas_disponibles_dia` (además de
     precipitación) habilita el N° de sectores."""
     r = {}
     if not db_mm_dia:
         return r
     demanda_ls_ha = db_mm_dia / 8.64
     r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
-    if caudal_disponible_ls and demanda_ls_ha:
-        r["superficie_segura_ha"] = round(caudal_disponible_ls / demanda_ls_ha, 4)
+
+    caudal_efectivo_ls = caudal_disponible_ls
+    if volumen_acumulador_m3 and horas_disponibles_dia:
+        caudal_acumulador_ls = volumen_acumulador_m3 * 1000 / (horas_disponibles_dia * 3600)
+        r["caudal_acumulador_ls"] = round(caudal_acumulador_ls, 3)
+        caudal_efectivo_ls = caudal_acumulador_ls
+
+    if caudal_efectivo_ls and demanda_ls_ha:
+        r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
     if precipitacion_mmhr:
         tiempo_riego = db_mm_dia / precipitacion_mmhr
         r["tiempo_riego_hr"] = round(tiempo_riego, 2)

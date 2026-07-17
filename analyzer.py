@@ -748,8 +748,10 @@ mismo dato —, eficiencia del sistema, y los resultados finales que el consulto
 neta, frecuencia de riego, demanda bruta),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
-horas disponibles de riego al día, y lo que el consultor declara como resultado: caudal de
-diseño del sistema, tiempo de riego por sector y número de sectores de riego.
+horas disponibles de riego al día, volumen de un ACUMULADOR/estanque/tranque regulador si el
+proyecto declara uno (para aumentar el caudal instantáneo disponible respecto al de la fuente),
+y lo que el consultor declara como resultado: caudal de diseño del sistema, tiempo de riego por
+sector y número de sectores de riego.
 También extrae el SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión, o Carrete) y el
 marco/espaciamiento: distancia entre hileras, distancia entre plantas o sobre hilera, y según el
 sistema: N° de líneas de emisor y espaciamiento entre emisores (Goteo/Microaspersión), o
@@ -768,6 +770,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
+"volumen_acumulador_m3": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
 ]}}
@@ -957,31 +960,52 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     else:
         texto += "\n\nSin datos declarados para comparar, o coinciden con el recálculo — no lo menciones como observación."
 
+    volumen_acum = datos.get("volumen_acumulador_m3")
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         superficie_ha=datos.get("superficie_riego_ha"),
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+        volumen_acumulador_m3=volumen_acum,
     )
     if diseno:
         lineas_diseno = [f"Demanda = Db / 8,64 = {diseno['demanda_ls_ha']} l/s/ha"]
         superficie_decl = datos.get("superficie_riego_ha")
+        caudal_para_diseno = datos.get("caudal_disponible_ls")
+        if "caudal_acumulador_ls" in diseno:
+            lineas_diseno.append(
+                f"El proyecto declara un acumulador de {volumen_acum} m³ — caudal equivalente = "
+                f"Vol×1000/(horas disponibles×3600) = {volumen_acum}×1000/"
+                f"({datos.get('horas_disponibles_dia')}×3600) = {diseno['caudal_acumulador_ls']} "
+                f"l/s (misma fórmula que usa el Diseñador de Riego). Este caudal REEMPLAZA al "
+                f"caudal de la fuente para la superficie de riego segura y el chequeo ITT-03 de "
+                f"abajo — la fuente solo necesita alcanzar para recargar el acumulador entre "
+                f"riegos, no para regar directo.")
+            caudal_para_diseno = diseno["caudal_acumulador_ls"]
         if "superficie_segura_ha" in diseno:
-            linea = (f"Superficie de riego segura (con el caudal disponible declarado de "
-                      f"{datos.get('caudal_disponible_ls')} l/s) = {diseno['superficie_segura_ha']} ha")
+            etiqueta_caudal = "del acumulador" if "caudal_acumulador_ls" in diseno else "disponible declarado"
+            linea = (f"Superficie de riego segura (con el caudal {etiqueta_caudal} de "
+                      f"{caudal_para_diseno} l/s) = {diseno['superficie_segura_ha']} ha")
             if superficie_decl is not None and diseno["superficie_segura_ha"] < superficie_decl:
                 linea += (f" — MENOR a la superficie de riego del proyecto declarada "
-                          f"({superficie_decl} ha): el caudal disponible no alcanza para regar "
-                          f"toda la superficie con esta demanda.")
+                          f"({superficie_decl} ha): el caudal {etiqueta_caudal} no alcanza para "
+                          f"regar toda la superficie con esta demanda.")
             lineas_diseno.append(linea)
         declarado_qdiseno = declarado.get("caudal_diseno_ls")
-        if declarado_qdiseno is not None and datos.get("caudal_disponible_ls") and \
-                calculos_riego.requiere_acumulador(declarado_qdiseno, datos["caudal_disponible_ls"]):
-            lineas_diseno.append(
-                f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
-                f"disponible ({datos['caudal_disponible_ls']} l/s) × 1,2 — según ITT-03, se "
-                f"requiere acumulador (estanque) y el expediente debe contemplarlo.")
+        if declarado_qdiseno is not None and caudal_para_diseno and \
+                calculos_riego.requiere_acumulador(declarado_qdiseno, caudal_para_diseno):
+            if "caudal_acumulador_ls" in diseno:
+                lineas_diseno.append(
+                    f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
+                    f"equivalente del acumulador ({caudal_para_diseno} l/s) × 1,2 — el volumen "
+                    f"de acumulador declarado ({volumen_acum} m³) no alcanza para este caudal de "
+                    f"diseño; debe justificar o aumentar el volumen del acumulador.")
+            else:
+                lineas_diseno.append(
+                    f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
+                    f"disponible ({caudal_para_diseno} l/s) × 1,2 — según ITT-03, se "
+                    f"requiere acumulador (estanque) y el expediente debe contemplarlo.")
         if "tiempo_riego_hr" in diseno:
             linea = (f"Tiempo de riego = Db / Precipitación del sistema declarada "
                       f"({datos.get('precipitacion_sistema_mmhr')} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")

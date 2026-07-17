@@ -82,7 +82,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v97.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v98.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
@@ -166,7 +166,9 @@
         <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" id="{{ p }}caudal_disponible_ls" name="{{ p }}caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
+        <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
       </div>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Si el proyecto declara un estanque/tranque regulador, complétalo aquí — la superficie de riego segura y el chequeo ITT-03 de abajo usan el caudal equivalente del acumulador (Vol×1000/horas disponibles×3600) en vez del caudal disponible de la fuente. Vacío = sin acumulador, se usa el caudal disponible tal cual.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
       <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Los resultados declarados por el consultor se editan directo en la columna del medio de la tabla — para comparar de un vistazo con lo calculado por la app.</p>
@@ -218,6 +220,7 @@
             <td class="col-concepto">Superficie de riego segura (ha)</td><td id="{{ p }}agro-sup-decl">—</td>
             <td class="col-calc">
               <span id="{{ p }}agro-sup-calc">—</span>
+              <span id="{{ p }}agro-sup-info" class="calc-nota" style="display:none;"></span>
               <span id="{{ p }}agro-sup-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
@@ -607,7 +610,7 @@
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc"].forEach(function(id) { setText(p + id, "—"); });
-      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(p + id, ""); });
+      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-sup-info", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(p + id, ""); });
       setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, "
         + (esGoteo ? "" : "Criterio de Riego, ") + "Eficiencia) para ver el recálculo.");
       return;
@@ -639,14 +642,27 @@
     nota(p + "agro-fr-nota", (!esGoteo && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
+    // Acumulador (estanque/tranque regulador): si hay volumen declarado, el caudal EFECTIVO
+    // para superficie segura e ITT-03 pasa a ser el del acumulador (Vol×1000/horas×3600, misma
+    // fórmula que el Diseñador de Riego), no el de la fuente — el caudal de la fuente solo
+    // necesita recargar el acumulador entre riegos.
+    var volAcum = numVal(p + "volumen_acumulador_m3");
+    var caudalAcum = (volAcum !== null && horas) ? (volAcum * 1000) / (horas * 3600) : null;
+    var caudalEfectivo = caudalAcum !== null ? caudalAcum : caudalDisp;
+    var etiquetaCaudal = caudalAcum !== null ? "del acumulador" : "disponible";
+
     var demanda = db / 8.64;
-    if (caudalDisp !== null && demanda) {
-      var supSegura = caudalDisp / demanda;
+    if (caudalEfectivo !== null && demanda) {
+      var supSegura = caudalEfectivo / demanda;
       setText(p + "agro-sup-calc", fmt(supSegura, 2) + " ha");
-      nota(p + "agro-sup-nota", (sup !== null && supSegura < sup) ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal disponible no alcanza." : "");
+      nota(p + "agro-sup-nota", (sup !== null && supSegura < sup)
+        ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal " + etiquetaCaudal + " no alcanza." : "");
+      nota(p + "agro-sup-info", caudalAcum !== null
+        ? "Con acumulador de " + fmt(volAcum, 1) + " m³ (en " + fmt(horas, 1) + " hr) → caudal equivalente = " + fmt(caudalAcum, 3) + " l/s." : "");
     } else {
       setText(p + "agro-sup-calc", "—");
       nota(p + "agro-sup-nota", "");
+      nota(p + "agro-sup-info", "");
     }
 
     if (precip !== null) {
@@ -668,12 +684,15 @@
       nota(p + "agro-nsec-nota", "");
     }
 
-    if (declQdiseno !== null && caudalDisp !== null) {
-      var limite = caudalDisp * 1.2;
+    if (declQdiseno !== null && caudalEfectivo !== null) {
+      var limite = caudalEfectivo * 1.2;
       if (declQdiseno > limite) {
-        setHtml(p + "agro-qdiseno-calc", '<span class="calc-alerta">Requiere acumulador (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal disponible × 1,2)</span>');
+        var msjLimite = caudalAcum !== null
+          ? 'El volumen de acumulador declarado no alcanza (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal del acumulador × 1,2)'
+          : 'Requiere acumulador (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal disponible × 1,2)';
+        setHtml(p + "agro-qdiseno-calc", '<span class="calc-alerta">' + msjLimite + '</span>');
       } else {
-        setText(p + "agro-qdiseno-calc", "Dentro del límite (≤ " + fmt(limite, 2) + " l/s)");
+        setText(p + "agro-qdiseno-calc", "Dentro del límite (≤ " + fmt(limite, 2) + " l/s" + (caudalAcum !== null ? ", con acumulador" : "") + ")");
       }
     } else {
       setText(p + "agro-qdiseno-calc", "—");

@@ -1034,6 +1034,7 @@ def _agronomico_calculo(datos: dict):
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+        volumen_acumulador_m3=datos.get("volumen_acumulador_m3"),
     ))
     if kc_dt05:
         r["kc_dt05"] = kc_dt05
@@ -1267,7 +1268,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct",
               "superficie_riego_ha", "caudal_disponible_ls",
-              "precipitacion_sistema_mmhr", "horas_disponibles_dia",
+              "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",
               "espaciamiento_laterales_m"]

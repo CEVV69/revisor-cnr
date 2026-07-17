@@ -1,5 +1,5 @@
 """Exporta los datos del Chequeo de Cálculos al formato de archivo del Diseñador de Riego
-(la app hermana del mismo usuario, `disenador_riego_v97.html`), para poder abrirlo ahí y seguir
+(la app hermana del mismo usuario, `disenador_riego_v98.html`), para poder abrirlo ahí y seguir
 evaluando aspectos que no cubre Revisor CNR — sin recargar Revisor con esos cálculos.
 
 REGLA: solo se exportan los datos que Revisor efectivamente tiene (extraídos/validados en el
@@ -75,6 +75,12 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     put("pr", sistema_agro.get("prof_radicular_cm"))
     put("kc", sistema_agro.get("kc"))
     put("q", sistema_agro.get("caudal_disponible_ls"))
+
+    # Acumulador (estanque/tranque regulador) — mismo campo -acum-vol en los 4 sistemas del
+    # Diseñador (v98+). El checkbox -acum-chk no se exporta: es un <input type="checkbox"> y el
+    # Diseñador lo restaura con `el.value = ...`, que no marca `.checked` — el revisor debe
+    # tildarlo a mano en el Diseñador para que se muestre el volumen ya cargado.
+    put("acum-vol", sistema_agro.get("volumen_acumulador_m3"))
 
     # Superficie a regar — el nombre del campo cambia según el sistema.
     superficie = sistema_agro.get("superficie_riego_ha")
