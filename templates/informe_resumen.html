@@ -5,15 +5,19 @@
   <title>Informe Resumen — {{ proyecto.codigo_sep }}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    /* Margen izquierdo más ancho que el resto — deja espacio para perforar y archivar. */
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2.8cm; }
+    /* Margen izquierdo más ancho que el resto — deja espacio para perforar y archivar. El
+       padding del body es la ÚNICA fuente de margen (@page margin:0 anula el margen propio
+       del navegador, y descargarPDF() usa margin:0 en html2pdf) — evita que se sumen dos
+       márgenes distintos y el resultado impreso quede más ancho de lo pedido. */
+    @page { margin: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
 
     /* Botones — solo en pantalla */
     .no-print { text-align: right; margin-bottom: 1rem; }
     .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
                  border-radius: 4px; cursor: pointer; font-size: 13px; }
     .btn-print:hover { background: #2c5282; }
-    @media print { .no-print { display: none; } body { padding: 1cm 1cm 1cm 2.8cm; } }
+    @media print { .no-print { display: none; } body { padding: 1cm 1cm 1cm 2cm; } }
 
     /* Encabezado */
     .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
@@ -81,7 +85,7 @@
 <div class="notas-print">
   <div class="notas-titulo">Notas</div>
   <div class="notas-lineas">
-    {% for _ in range(18) %}
+    {% for _ in range(24) %}
     <div class="notas-linea"></div>
     {% endfor %}
   </div>
@@ -96,7 +100,7 @@ function descargarPDF() {
   notas.style.display = 'block';
   var nombre = 'Informe_Resumen_{{ proyecto.codigo_sep }}_{{ fecha_informe }}.pdf'.replace(/\//g, '-');
   var opt = {
-    margin:       [10, 10, 10, 10],
+    margin:       0,
     filename:     nombre,
     image:        { type: 'jpeg', quality: 0.97 },
     html2canvas:  { scale: 2, useCORS: true },

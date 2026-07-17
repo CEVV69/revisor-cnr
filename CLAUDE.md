@@ -395,13 +395,25 @@ adivina ni se muestra un pin en un lugar incorrecto.
   recuadro con líneas en blanco para que el revisor anote a mano sobre el papel, nunca se
   guarda ni se envía al backend. Botón "Imprimir informe" (`target="_blank"`) en la página
   Resumen, mismo patrón que el botón "Generar Ficha de Revisión" de la página Ítems SEP.
-  **Ajustado tras la primera prueba (jul-2026):** 18 líneas en vez de 6 (triplicado, a pedido del
-  usuario, más espacio para escribir) y `padding-left` del `body` ampliado a 2,8cm (vs. 1,5cm del
-  resto) tanto en la regla base como dentro de `@media print` — deja margen para perforar y
-  archivar el informe impreso. El margen se puso en ambos lugares porque html2canvas (el PDF
-  descargado) usa el padding de la regla BASE, no el de `@media print` (mismo motivo por el que
-  la sección Notas se fuerza a mano en `descargarPDF()` — ver arriba); `window.print()` nativo sí
-  respeta `@media print`, así que ese padding también se actualizó para que ambos caminos calcen.
+  **Ajustado tras probarlo (jul-2026):** 24 líneas en vez de 6 (a pedido del usuario, en dos
+  rondas: primero triplicado a 18, después subido a 24 al ver que sobraba espacio en la hoja) y
+  `padding-left` del `body` a 2cm (vs. 1,5cm del resto) tanto en la regla base como dentro de
+  `@media print` — deja margen para perforar y archivar. **Bug encontrado y corregido en la
+  primera vuelta: el margen quedaba de 3,8cm en vez de los 2,8cm pedidos** — la causa era que
+  `descargarPDF()` tenía su PROPIO margen (`margin: [10,10,10,10]` en el `opt` de html2pdf, 10mm
+  = 1cm) que se sumaba al `padding` del CSS (2,8 + 1 = 3,8). Se corrigió por partida doble: (1)
+  `margin: 0` en el `opt` de html2pdf, para que el padding del `body` sea la ÚNICA fuente de
+  margen en el PDF descargado (recordar: html2canvas usa el padding de la regla BASE, no el de
+  `@media print`, mismo motivo por el que la sección Notas se fuerza a mano ahí); (2) `@page {
+  margin: 0; }` agregado al inicio del `<style>`, para que `window.print()` nativo tampoco sume
+  el margen de impresión propio del navegador — el `padding` del `body` dentro de `@media print`
+  queda como única fuente también en ese camino. Verificado midiendo el PDF resultante con
+  PyMuPDF (posición x mínima del texto): exactamente 2,0cm en el camino de impresión nativa; el
+  camino de html2pdf no se pudo probar en este entorno (el CDN de html2pdf.js está bloqueado por
+  la red del sandbox — no es un problema de la app, es la misma librería que ya usa `ficha.html`
+  en producción sin problemas) pero la lógica es la misma (padding base + margin:0 = 2cm exactos,
+  sin doble suma) y quedó verificado indirectamente confirmando que el `padding-left` de la regla
+  BASE (la que usa html2canvas) es exactamente 2cm.
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —
