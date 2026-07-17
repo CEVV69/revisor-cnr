@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe Resumen — {{ proyecto.codigo_sep }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm; }
+
+    /* Botones — solo en pantalla */
+    .no-print { text-align: right; margin-bottom: 1rem; }
+    .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
+                 border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .btn-print:hover { background: #2c5282; }
+    @media print { .no-print { display: none; } body { padding: 0; } }
+
+    /* Encabezado */
+    .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
+    .header-titulo { flex: 1; }
+    .header-titulo h1 { font-size: 18px; color: #1a365d; letter-spacing: 0.5px; font-weight: bold; }
+    .header-titulo .subtitulo { font-size: 11px; color: #555; margin-top: 2px; }
+    .header-fecha { font-size: 10px; color: #555; text-align: right; white-space: nowrap; }
+
+    /* Secciones del resumen */
+    .titulo-seccion { font-size: 12.5px; font-weight: bold; color: #1a365d; margin: 1.1rem 0 0.4rem;
+                       border-bottom: 1px solid #1a365d; padding-bottom: 2px; }
+    .titulo-seccion:first-of-type { margin-top: 0.7rem; }
+    .tabla-datos { width: 100%; border-collapse: collapse; margin-bottom: 0.3rem; }
+    .tabla-datos td { border: 1px solid #ccc; padding: 4px 8px; vertical-align: top; font-size: 12px; }
+    .tabla-datos .label { background: #eef2f8; font-weight: bold; width: 34%; white-space: normal; }
+    .tabla-datos .valor { background: white; white-space: pre-wrap; }
+    .tabla-datos .valor.vacio { color: #999; font-style: italic; }
+
+    /* Notas — SOLO aparece en la versión impresa/PDF, nunca en pantalla */
+    .notas-print { display: none; }
+    @media print {
+      .notas-print {
+        display: block;
+        margin-top: 1.5rem;
+        page-break-inside: avoid;
+      }
+    }
+    .notas-titulo { font-size: 12.5px; font-weight: bold; color: #1a365d; margin-bottom: 0.5rem;
+                     border-bottom: 1px solid #1a365d; padding-bottom: 2px; }
+    .notas-lineas { border: 1px solid #999; border-radius: 3px; padding: 0.6rem 0.8rem; }
+    .notas-linea { border-bottom: 1px solid #ccc; height: 1.6rem; }
+    .notas-linea:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+<div class="no-print">
+  <button class="btn-print" onclick="window.print()">Imprimir</button>
+  <button class="btn-print" onclick="descargarPDF()" style="background:#276749; margin-left:0.5rem;">Descargar PDF</button>
+</div>
+
+<!-- Encabezado: código del proyecto — sistema(s) de riego -->
+<div class="header">
+  <div class="header-titulo">
+    <h1>{{ proyecto.codigo_sep }} — {{ sistemas_riego_str }}</h1>
+    <div class="subtitulo">Informe Resumen del Proyecto — Comisión Nacional de Riego, Ley N° 18.450</div>
+  </div>
+  <div class="header-fecha">Fecha: {{ fecha_informe }}</div>
+</div>
+
+{% for sec in resumen_secciones %}
+<div class="titulo-seccion">{{ sec.titulo }}</div>
+<table class="tabla-datos">
+  {% for campo in sec.campos %}
+  {% set valor = resumen.get(campo.key, '') %}
+  <tr>
+    <td class="label">{{ campo.label }}</td>
+    <td class="valor{% if not valor %} vacio{% endif %}">{{ valor if valor else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<!-- Notas — impresión únicamente, para anotar a mano sobre el papel -->
+<div class="notas-print">
+  <div class="notas-titulo">Notas</div>
+  <div class="notas-lineas">
+    <div class="notas-linea"></div>
+    <div class="notas-linea"></div>
+    <div class="notas-linea"></div>
+    <div class="notas-linea"></div>
+    <div class="notas-linea"></div>
+    <div class="notas-linea"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function descargarPDF() {
+  var botones = document.querySelector('.no-print');
+  botones.style.display = 'none';
+  var notas = document.querySelector('.notas-print');
+  notas.style.display = 'block';
+  var nombre = 'Informe_Resumen_{{ proyecto.codigo_sep }}_{{ fecha_informe }}.pdf'.replace(/\//g, '-');
+  var opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     nombre,
+    image:        { type: 'jpeg', quality: 0.97 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(document.body).save().then(function() {
+    botones.style.display = '';
+    notas.style.display = '';
+  });
+}
+</script>
+</body>
+</html>

@@ -382,6 +382,19 @@ adivina ni se muestra un pin en un lugar incorrecto.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
+- **Informe Resumen** (`/proyecto/{id}/resumen/informe`, jul-2026): versión imprimible de la
+  página Resumen (`templates/informe_resumen.html`, mismo patrón standalone que `ficha.html` —
+  no extiende `base.html`, botones Imprimir/Descargar PDF con html2pdf.js). Encabezado con
+  "{código del proyecto} — {sistema(s) de riego}" (`_sistemas_riego_proyecto()` en main.py, lee
+  `verificacion_calculos["agronomico"]` con los mismos helpers multi-sistema del Chequeo de
+  Cálculos — con 2 sistemas los une "Goteo + Aspersión"; sin ninguno declarado, "No
+  especificado"). Todas las secciones/campos del Resumen en solo lectura (tablas label:valor,
+  "—" si está vacío). Sección **"Notas"** al final — SOLO aparece en la versión impresa/PDF
+  (`display:none` en pantalla, `@media print { display:block }`; en `descargarPDF()` se fuerza
+  `display:block` a mano porque html2canvas no dispara `@media print` de forma confiable) — un
+  recuadro con líneas en blanco para que el revisor anote a mano sobre el papel, nunca se
+  guarda ni se envía al backend. Botón "Imprimir informe" (`target="_blank"`) en la página
+  Resumen, mismo patrón que el botón "Generar Ficha de Revisión" de la página Ítems SEP.
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —

@@ -1661,6 +1661,52 @@ async def ficha_revision(request: Request, proyecto_id: str):
         raise HTTPException(status_code=500, detail=f"Error al generar ficha: {str(e)}")
 
 
+def _sistemas_riego_proyecto(proyecto: dict) -> str:
+    """Sistema(s) de riego declarado(s) del proyecto (para el encabezado del informe) — lee
+    verificacion_calculos["agronomico"], mismo dato que muestra el Chequeo de Cálculos. Con 2
+    sistemas los une con " + " (ej. "Goteo + Aspersión"); si no hay ninguno declarado aún,
+    "No especificado"."""
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    vistos = []
+    for s in agro_norm["sistemas"]:
+        nombre = (s or {}).get("sistema_riego")
+        if nombre and nombre not in vistos:
+            vistos.append(nombre)
+    return " + ".join(vistos) if vistos else "No especificado"
+
+
+@app.get("/proyecto/{proyecto_id}/resumen/informe", response_class=HTMLResponse)
+async def informe_resumen(request: Request, proyecto_id: str):
+    """Informe imprimible del Resumen del proyecto (solo lectura) — botón "Imprimir informe" en
+    la página Resumen. Mismo patrón que ficha.html: template standalone (no extiende base.html),
+    botones Imprimir/Descargar PDF, y una sección "Notas" que solo aparece en la versión impresa
+    (@media print), para anotar a mano sobre el papel — nunca se guarda ni se envía al backend."""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    resumen = dict(proyecto.get("resumen", {}))
+    for sec in RESUMEN_SECCIONES:
+        for campo in sec["campos"]:
+            k = campo["key"]
+            if not resumen.get(k) and campo.get("auto"):
+                resumen[k] = proyecto.get(campo["auto"], "") or ""
+
+    return templates.TemplateResponse("informe_resumen.html", {
+        "request": request,
+        "proyecto": proyecto,
+        "resumen": resumen,
+        "resumen_secciones": RESUMEN_SECCIONES,
+        "sistemas_riego_str": _sistemas_riego_proyecto(proyecto),
+        "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+    })
+
+
 # ─── Resumen del proyecto (formulario) ────────────────────────────────────────
 
 @app.post("/proyecto/{proyecto_id}/resumen")
