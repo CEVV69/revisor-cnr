@@ -913,30 +913,43 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             else:
                 texto += " Dentro del rango — no lo menciones como observación."
 
-    base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-            "factor_agotamiento_pct", "eficiencia_pct"]
+    # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
+    # calcGA del Diseñador). No requiere ni usa el criterio de riego.
+    alta_frec = datos.get("sistema_riego") == "Goteo"
+    base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm", "eficiencia_pct"]
+    if not alta_frec:
+        base.append("factor_agotamiento_pct")
     if any(datos.get(k) is None for k in base):
         return texto
-    r = calculos_riego.cadena_agronomica(*[datos[k] for k in base])
+    r = calculos_riego.cadena_agronomica(
+        datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
+        datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
+        datos["eficiencia_pct"], alta_frecuencia=alta_frec)
     declarado = datos.get("declarado") or {}
-    lineas = [
-        f"ETc = ETo × Kc = {datos['eto_dia_mm']} × {datos['kc']} = {r['etc_mm_dia']} mm/día",
-        f"AD (agua disponible) = {r['ad_mm']} mm",
-        f"Dn (lámina neta) recalculada = {r['dn_mm']} mm",
-        f"Fr (frecuencia de riego) recalculada = {r['fr_adj_dias']} días",
-        f"Db (demanda bruta) recalculada = {r['db_mm']} mm/día",
-    ]
+    if alta_frec:
+        lineas = [
+            f"ETc = ETo × Kc = {datos['eto_dia_mm']} × {datos['kc']} = {r['etc_mm_dia']} mm/día",
+            f"Db (demanda bruta) recalculada = ETc / Ef = {r['db_mm']} mm/día (goteo: riego diario, "
+            f"la demanda sale directo de la ETc — sin factor de agotamiento)",
+        ]
+    else:
+        lineas = [
+            f"ETc = ETo × Kc = {datos['eto_dia_mm']} × {datos['kc']} = {r['etc_mm_dia']} mm/día",
+            f"AD (agua disponible) = {r['ad_mm']} mm",
+            f"Dn (lámina neta) recalculada = {r['dn_mm']} mm",
+            f"Fr (frecuencia de riego) recalculada = {r['fr_adj_dias']} días",
+            f"Db (demanda bruta) recalculada = {r['db_mm']} mm/día",
+        ]
     comparaciones = []
-    if declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_adj_mm"], declarado["dn_mm"]):
+    if not alta_frec and declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_adj_mm"], declarado["dn_mm"]):
         comparaciones.append(f"Dn declarada = {declarado['dn_mm']} mm — no coincide con el recálculo ({r['dn_adj_mm']} mm).")
-    if declarado.get("fr_dias") is not None and declarado["fr_dias"] != r["fr_adj_dias"]:
+    if not alta_frec and declarado.get("fr_dias") is not None and declarado["fr_dias"] != r["fr_adj_dias"]:
         comparaciones.append(f"Fr declarada = {declarado['fr_dias']} días — no coincide con el recálculo ({r['fr_adj_dias']} días).")
     if declarado.get("db_mm") is not None and _diferencia_relevante(r["db_mm"], declarado["db_mm"]):
         comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
-    texto += ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico con la cadena ETo→ETc→AD→Dn→"
-            "Fr→Db, misma fórmula normativa del Diseñador de Riego — no es una estimación de "
-            "la IA, es un recálculo exacto a partir de los datos base que declara el "
-            f"expediente):\n" + "\n".join(f"- {l}" for l in lineas))
+    texto += ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico, misma fórmula normativa del "
+            "Diseñador de Riego — no es una estimación de la IA, es un recálculo exacto a partir "
+            f"de los datos base que declara el expediente):\n" + "\n".join(f"- {l}" for l in lineas))
     if comparaciones:
         texto += ("\n\nDISCREPANCIAS con lo declarado en el expediente:\n"
                   + "\n".join(f"- {c}" for c in comparaciones) +

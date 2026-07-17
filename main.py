@@ -1006,14 +1006,28 @@ def _normalizar_verif_multisistema(datos: dict, n_sistemas: int, campo_legacy: s
             "fecha_validado": datos.get("fecha_validado"), "validado_por": datos.get("validado_por")}
 
 
+def _es_goteo(datos: dict) -> bool:
+    """True si el sistema de riego declarado es Goteo — usa el modelo de alta frecuencia (Db
+    directo de la ETc, sin criterio de riego). Microaspersión/Aspersión/Carrete usan la cadena
+    con agotamiento, igual que el Diseñador de Riego (calcGA vs. calcMA/calcAA)."""
+    return (datos or {}).get("sistema_riego") == "Goteo"
+
+
 def _agronomico_calculo(datos: dict):
+    alta_frec = _es_goteo(datos)
+    # En goteo el factor de agotamiento no se usa (ni se pide) — no debe bloquear el cálculo.
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "factor_agotamiento_pct", "eficiencia_pct"]
+              "eficiencia_pct"]
+    if not alta_frec:
+        campos.insert(6, "factor_agotamiento_pct")
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
         return {"kc_dt05": kc_dt05} if kc_dt05 else None
-    r = calculos_riego.cadena_agronomica(*[datos[k] for k in campos])
+    r = calculos_riego.cadena_agronomica(
+        datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
+        datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
+        datos["eficiencia_pct"], alta_frecuencia=alta_frec)
     r.update(calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         superficie_ha=datos.get("superficie_riego_ha"),
@@ -1194,7 +1208,13 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
     nombre_sistema = (sistema_agro or {}).get("sistema_riego")
     tramos_hid = (hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos", [])
     fv = verif.get("energetico", {})
-    resumen = proyecto.get("resumen", {})
+    # La UTM del Resumen puede venir en notación chilena de miles ("5.946.762"); el input
+    # type="number" del Diseñador solo acepta un número plano, así que se normaliza aquí.
+    resumen = dict(proyecto.get("resumen", {}))
+    for k in ("coord_n", "coord_e"):
+        num = _parse_coord_numero(resumen.get(k))
+        if num is not None:
+            resumen[k] = int(num) if float(num).is_integer() else num
 
     data = exportar_disenador.construir(
         sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, _fecha_disenador())

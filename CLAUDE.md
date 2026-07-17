@@ -869,6 +869,17 @@ Agronómico de `calculos.html`.
   nuestra tabla de tramos plana sin adivinar cuál tramo es cuál, así que ahí los tramos no se
   exportan (quedan para el Diseñador). En `__tramos`, `l`=longitud y `q`=caudal (que sí tenemos);
   `t` y `z` van vacíos (no existen en Revisor, no se inventan).
+- **Marco de plantación / espaciamiento** (agregado jul-2026 tras prueba real — los IDs difieren
+  por sistema): Goteo → `deh` (dist. entre hileras) ← `distancia_hileras_m`, `dsh` (dist. sobre
+  hilera/entre plantas) ← `distancia_plantas_m`, `nlin` ← `n_lineas_emisor`, `espm` (esp. entre
+  goteros) ← `espaciamiento_emisores_m`. Microaspersión → `dl` (entre laterales/hileras) ←
+  `distancia_hileras_m`, `de` (entre emisores) ← `espaciamiento_emisores_m`. Aspersión → `easp` ←
+  `espaciamiento_aspersores_m`, `elat` ← `espaciamiento_laterales_m`. Carrete no tiene marco de
+  plantación en el Diseñador.
+- **UTM normalizada** (fix jul-2026): la UTM del Resumen puede venir en notación chilena de miles
+  ("5.946.762"), y el `<input type="number">` del Diseñador la rechaza y queda vacía. La ruta de
+  export pasa `coord_n`/`coord_e` por `_parse_coord_numero` (el mismo parser del botón de Google
+  Maps) para dejar un número plano antes de exportar (`g-utmn`/`g-utme`).
 - **Alcance**: exporta los datos GUARDADOS de `verificacion_calculos` (no los del formulario sin
   guardar) — el botón avisa "guarda primero si acabas de editar". El botón solo aparece si el
   sistema declarado es uno de los cuatro conocidos (si está sin declarar o "Mixto", no aparece).
@@ -890,6 +901,34 @@ Agronómico de `calculos.html`.
   ANTES de importar (el prefijo de campos del archivo —g-/a-/…— debe coincidir con el sistema
   activo). Si se actualiza el HTML del Diseñador, reemplazar `static/disenador_riego_v97.html` (y
   si cambia el nombre de archivo, actualizar el enlace en `calculos.html`).
+
+**Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
+exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en
+goteo y sin él NO calculaba, pese a que en goteo ese dato no se usa. Es correcto: el Diseñador de
+Riego calcula goteo con `calcGA` como `Db = ETc / Ef` DIRECTO (riego diario de alta frecuencia,
+la demanda repone la ETc del día, Fr=1, sin pasar por el agotamiento AD→Dn→Fr), y por eso goteo
+no tiene campo `-crit`. Aspersión/Carrete (`calcAA`) y Microaspersión (`calcMA`) sí usan la cadena
+con agotamiento. Se alineó el Chequeo con ese modelo, SOLO para Goteo:
+- `calculos_riego.cadena_agronomica(...)` ganó el parámetro `alta_frecuencia` (default False =
+  comportamiento de siempre). Con `True`: `Db = ETc/Ef`, `Fr_adj=1`, `Dn=Dn_adj=ETc`; el
+  `factor_agotamiento_pct` se ignora (puede venir None); `ad` se calcula solo si están CC/PMP/Da/
+  Prof (dato informativo), si no queda None.
+- `_es_goteo(datos)` (main.py) y la misma condición `sistema_riego == "Goteo"` en
+  `_bloque_verificacion_agronomica_sistema` (analyzer.py) eligen el modelo. En goteo la lista de
+  campos requeridos NO incluye `factor_agotamiento_pct`, así que su ausencia ya no bloquea. El
+  bloque de verificación de la IA, en goteo, muestra solo `ETc` y `Db = ETc/Ef` (sin Dn/AD/Fr) y
+  no compara Dn/Fr declarados (solo Db).
+- **UI (`calculos.html`)**: el campo "Criterio de Riego (%)" tiene la clase `campo-criterio-riego`
+  y el JS lo OCULTA (`display:none`) cuando el sistema es Goteo; `recalcAgroSistema` usa
+  `esGoteo` para armar la lista `base` sin `fa`, calcular `Db=ETc/Ef` con `Fr="1 (riego diario)"`,
+  mostrar `AD`/`Dn` como "—", y ajustar el hint para no pedir el criterio de riego. Verificado con
+  Playwright (goteo calcula con criterio de riego vacío/oculto; al cambiar a Aspersión el campo
+  reaparece y se vuelve a exigir). Si se cambia una fórmula, recordar la regla de siempre:
+  replicar el cambio en `calculos_riego.py` (Python) Y en el `<script>` de `calculos.html` (JS).
+- **Alcance**: solo Goteo usa el modelo directo. Microaspersión sigue con la cadena de agotamiento
+  (en el Diseñador `calcMA` usa un criterio por defecto de 50 aunque no exponga el campo) — no se
+  tocó porque el usuario reportó específicamente goteo; si en el futuro molesta lo mismo en micro,
+  aplicar el mismo patrón o un default 50.
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba

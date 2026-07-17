@@ -93,6 +93,27 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     if sys_code in ("asp", "car"):
         put("crit", sistema_agro.get("factor_agotamiento_pct"))
 
+    # Marco de plantación / espaciamiento — los IDs del Diseñador difieren por sistema:
+    #   Goteo: DEH (dist. entre hileras), DSH (dist. sobre hilera / entre plantas), N° líneas de
+    #          emisor, Esp. entre goteros.
+    #   Microaspersión: DL (dist. entre laterales = entre hileras), DE (dist. entre emisores).
+    #   Aspersión: Esp. entre aspersores, Esp. entre laterales.
+    #   Carrete: no tiene marco de plantación en el Diseñador.
+    dist_hileras = sistema_agro.get("distancia_hileras_m")
+    dist_plantas = sistema_agro.get("distancia_plantas_m")
+    esp_emisores = sistema_agro.get("espaciamiento_emisores_m")
+    if sys_code == "got":
+        put("deh", dist_hileras)
+        put("dsh", dist_plantas)
+        put("nlin", sistema_agro.get("n_lineas_emisor"))
+        put("espm", esp_emisores)
+    elif sys_code == "mic":
+        put("dl", dist_hileras)
+        put("de", esp_emisores)
+    elif sys_code == "asp":
+        put("easp", sistema_agro.get("espaciamiento_aspersores_m"))
+        put("elat", sistema_agro.get("espaciamiento_laterales_m"))
+
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
     for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"):
         put(f"fv-{suf}", fv.get(suf))

@@ -149,7 +149,7 @@
         <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
         <div><label>Kc</label><input type="number" step="0.01" id="{{ p }}kc" name="{{ p }}kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
         <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
-        <div><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+        <div class="campo-criterio-riego"><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
         <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
         <div><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
         <div><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
@@ -565,10 +565,14 @@
     // ambos grupos. Si es "Mixto", el chequeo de abajo (Kc, Dn/Fr/Db, etc.) igual corresponde
     // a UN solo sistema a la vez — se avisa explícitamente en vez de mezclarlos en silencio.
     var sistema = strVal(p + "sistema_riego");
+    var esGoteo = sistema === "Goteo";
     var mostrarGoteo = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
     var mostrarAspersion = !sistema || sistema === "Mixto" || sistema === "Aspersión" || sistema === "Carrete";
     wrap.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
     wrap.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
+    // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
+    // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
+    wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
     var avisoEl = document.getElementById(p + "sistema-riego-aviso");
     if (sistema === "Mixto") {
       avisoEl.textContent = "Este proyecto declara más de un sistema de riego — el chequeo de "
@@ -598,31 +602,41 @@
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
 
-    var base = [cc, pmp, da, prof, kc, eto, fa, ef];
+    // En goteo el factor de agotamiento (criterio de riego) no se usa ni se pide.
+    var base = esGoteo ? [cc, pmp, da, prof, kc, eto, ef] : [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc"].forEach(function(id) { setText(p + id, "—"); });
       ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(p + id, ""); });
-      setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Criterio de Riego, Eficiencia) para ver el recálculo.");
+      setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, "
+        + (esGoteo ? "" : "Criterio de Riego, ") + "Eficiencia) para ver el recálculo.");
       return;
     }
     setText(p + "agro-hint", "");
 
     var etc = eto * kc;
     var ad = (cc - pmp) / 100 * da * (prof / 100) * 1000;
-    var dn = ad * (fa / 100);
-    var fr = etc ? dn / etc : 0;
-    var frAdj = fr ? Math.max(1, Math.floor(fr)) : 1;
-    var dnAdj = etc * frAdj;
-    var db = ef ? dnAdj / (ef / 100) : 0;
+    var dn, fr, frAdj, dnAdj, db;
+    if (esGoteo) {
+      // Goteo: riego diario, Db directo de la ETc, sin factor de agotamiento (Fr=1).
+      frAdj = 1;
+      dnAdj = etc;
+      db = ef ? dnAdj / (ef / 100) : 0;
+    } else {
+      dn = ad * (fa / 100);
+      fr = etc ? dn / etc : 0;
+      frAdj = fr ? Math.max(1, Math.floor(fr)) : 1;
+      dnAdj = etc * frAdj;
+      db = ef ? dnAdj / (ef / 100) : 0;
+    }
 
     setText(p + "agro-etc", fmt(etc, 3) + " mm/día");
-    setText(p + "agro-ad", fmt(ad, 2) + " mm");
-    setText(p + "agro-dn-calc", fmt(dnAdj, 3) + " mm");
-    setText(p + "agro-fr-calc", frAdj + " días");
+    setText(p + "agro-ad", esGoteo ? "—" : fmt(ad, 2) + " mm");
+    setText(p + "agro-dn-calc", esGoteo ? "—" : fmt(dnAdj, 3) + " mm");
+    setText(p + "agro-fr-calc", esGoteo ? "1 (riego diario)" : frAdj + " días");
     setText(p + "agro-db-calc", fmt(db, 3) + " mm/día");
-    nota(p + "agro-dn-nota", diferenciaRelevante(dnAdj, declDn, 10) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
-    nota(p + "agro-fr-nota", (declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
+    nota(p + "agro-dn-nota", (!esGoteo && diferenciaRelevante(dnAdj, declDn, 10)) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
+    nota(p + "agro-fr-nota", (!esGoteo && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
     var demanda = db / 8.64;

@@ -81,27 +81,48 @@ def evaluar_tramo(q_ls: float, d_mm: float, l_m: float = None, c: float = None) 
 
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
                       kc: float, eto_dia_mm: float, factor_agotamiento_pct: float,
-                      eficiencia_pct: float) -> dict:
-    """Recalcula la demanda agronómica con la misma cadena que usa el Diseñador de Riego:
+                      eficiencia_pct: float, alta_frecuencia: bool = False) -> dict:
+    """Recalcula la demanda agronómica con la misma cadena que usa el Diseñador de Riego.
 
-    ETc    = ETo × Kc
-    AD     = (CC − PMP)/100 × Da × Prof(m) × 1000     [mm — agua disponible del suelo]
-    Dn     = AD × fa                                   [mm — lámina neta de riego]
-    Fr     = Dn / ETc  →  Fr_adj = floor(Fr) (mín. 1)   [días — frecuencia de riego]
-    Dn_adj = ETc × Fr_adj
-    Db     = Dn_adj / Ef                                [mm — demanda bruta]
+    ETc = ETo × Kc, siempre. Después hay DOS modelos según el sistema de riego:
+
+    · Aspersión / Carrete / Microaspersión (por turnos, con agotamiento — `alta_frecuencia=False`):
+        AD     = (CC − PMP)/100 × Da × Prof(m) × 1000   [mm — agua disponible del suelo]
+        Dn     = AD × fa                                 [mm — lámina neta de riego]
+        Fr     = Dn / ETc  →  Fr_adj = floor(Fr) (mín. 1) [días — frecuencia de riego]
+        Dn_adj = ETc × Fr_adj
+        Db     = Dn_adj / Ef                             [mm — demanda bruta]
+
+    · Goteo (riego localizado de ALTA FRECUENCIA — `alta_frecuencia=True`): se riega a diario
+        reponiendo la ETc del día, así que la demanda bruta sale DIRECTO de la ETc, sin pasar
+        por el factor de agotamiento (Fr = 1). Es el modelo `calcGA` del Diseñador de Riego —
+        por eso goteo no tiene campo "criterio de riego":
+        Db = ETc / Ef,  Fr_adj = 1,  Dn = Dn_adj = ETc
+
+    `factor_agotamiento_pct` se ignora cuando `alta_frecuencia=True` (puede venir None). AD se
+    calcula igual (dato informativo) si están CC/PMP/Da/Prof; si falta alguno, queda None.
     """
     etc = eto_dia_mm * kc
-    ad = (cc_pct - pmp_pct) / 100 * da * (prof_cm / 100) * 1000
-    dn = ad * (factor_agotamiento_pct / 100)
-    fr = dn / etc if etc else 0
-    fr_adj = max(1, math.floor(fr)) if fr else 1
-    dn_adj = etc * fr_adj
+    if None not in (cc_pct, pmp_pct, da, prof_cm):
+        ad = (cc_pct - pmp_pct) / 100 * da * (prof_cm / 100) * 1000
+    else:
+        ad = None
+
+    if alta_frecuencia:
+        fr = 1.0
+        fr_adj = 1
+        dn = etc
+        dn_adj = etc
+    else:
+        dn = ad * (factor_agotamiento_pct / 100) if ad is not None else 0
+        fr = dn / etc if etc else 0
+        fr_adj = max(1, math.floor(fr)) if fr else 1
+        dn_adj = etc * fr_adj
     db = dn_adj / (eficiencia_pct / 100) if eficiencia_pct else 0
     return {
-        "etc_mm_dia": round(etc, 3), "ad_mm": round(ad, 2), "dn_mm": round(dn, 3),
-        "fr_dias": round(fr, 2), "fr_adj_dias": fr_adj, "dn_adj_mm": round(dn_adj, 3),
-        "db_mm": round(db, 3),
+        "etc_mm_dia": round(etc, 3), "ad_mm": round(ad, 2) if ad is not None else None,
+        "dn_mm": round(dn, 3), "fr_dias": round(fr, 2), "fr_adj_dias": fr_adj,
+        "dn_adj_mm": round(dn_adj, 3), "db_mm": round(db, 3),
     }
 
 
