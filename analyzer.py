@@ -424,16 +424,23 @@ ITEMS_SEP = {
         "nombre": "Coherencia Global",
         "tipo_docs": [],   # usa TODOS los documentos del proyecto
         "checklist": """COHERENCIA GLOBAL — cierre transversal de todo el expediente.
-Este grupo NO revisa un documento puntual; verifica que TODO el proyecto sea internamente
-coherente:
+Este grupo NO revisa un documento puntual ni repite el detalle que ya reviso ítem por ítem.
+La pregunta que responde es de otro nivel: ¿la IDEA del proyecto como un todo —su forma de
+operar, su lógica de diseño y de construcción— es coherente y viable? Es decir, si se construye
+tal como está proyectado en el conjunto de documentos, ¿funciona como un sistema de riego real,
+ejecutable en terreno, sin piezas que se contradigan entre sí?
+Ejemplos de la relación entre documentos que hay que verificar (no es una lista cerrada):
 - Superficie ↔ demanda hídrica ↔ caudal disponible ↔ caudal de diseño ↔ presupuesto.
 - La superficie de la memoria coincide con la de los planos y la identificación de riego.
 - El caudal de diseño no excede el derecho de agua ni el caudal disponible al 85%.
 - La potencia del sistema FV cubre la bomba del diseño hidráulico.
 - El presupuesto corresponde a las obras dibujadas y cubicadas.
 - El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
-Marca cualquier CONTRADICCIÓN entre documentos. Este es el cierre que atrapa los errores
-que se escapan al revisar documento por documento.""",
+- La secuencia constructiva (cronograma, obras civiles, tecnificación, energización) tiene un
+  orden lógico y ejecutable, sin depender de una obra que aparece después de la que la necesita.
+Marca cualquier CONTRADICCIÓN entre documentos o quiebre en la lógica global del proyecto. Este
+es el cierre que atrapa los errores que se escapan al revisar documento por documento — NO es una
+segunda pasada que repite lo que cada ítem individual ya detectó por su cuenta.""",
     },
 }
 
@@ -1266,6 +1273,7 @@ def _bloque_verificacion_precios(partidas: list, tabla_precios: list) -> str:
 
 async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documentos: list, *,
                           modo: str = "EJE TEMÁTICO", es_coherencia: bool = False,
+                          observaciones_previas: list = None,
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
                           criterios_aprendidos: str = "", criterios_enfasis: str = "",
@@ -1400,12 +1408,33 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           f"ESTE GRUPO EN ESTE CONCURSO — verifícalos SIEMPRE, tienen prioridad "
                           f"sobre el resto de la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
 
+    # Coherencia Global revisa el expediente COMPLETO, así que sin este bloque tiende a
+    # re-encontrar y repetir hallazgos puntuales que ya quedaron registrados al revisar cada
+    # ítem por separado (ej. superficie inconsistente ya observada en Memoria de superficies).
+    # Se le pasa lo YA observado en los demás ítems para que no lo repita y se concentre en lo
+    # que solo se ve mirando el conjunto: la lógica global del proyecto, su viabilidad como
+    # sistema, contradicciones entre documentos que ningún ítem individual detecta solo.
+    bloque_obs_previas = ""
+    if es_coherencia and observaciones_previas:
+        lineas = [f"• [{o.get('item_nombre', '')}] {(o.get('texto', '') or '')[:400]}"
+                  for o in observaciones_previas[:200]]
+        bloque_obs_previas = (
+            f"\n\n{'═'*60}\nOBSERVACIONES YA REGISTRADAS AL REVISAR CADA ÍTEM POR SEPARADO "
+            f"(NO LAS REPITAS — ya están cubiertas y se gestionan en su propio ítem)\n{'═'*60}\n"
+            + "\n".join(lineas) +
+            f"\n\nTu tarea acá es EXCLUSIVAMENTE detectar lo que SOLO se ve mirando el expediente "
+            f"COMPLETO: si la idea del proyecto, su forma de operar y su lógica de diseño y "
+            f"construcción son coherentes y viables en conjunto. NO vuelvas a señalar algo de la "
+            f"lista de arriba aunque lo veas de nuevo en los documentos, aunque lo redactes "
+            f"distinto. Si no encuentras una incoherencia genuinamente NUEVA (no cubierta arriba), "
+            f"no fuerces una observación — la ausencia de hallazgos nuevos es un resultado válido.")
+
     prompt = f"""{bloque_bases}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
 
-{checklist}{bloque_enfasis}{bloque_verificacion}
+{checklist}{bloque_enfasis}{bloque_obs_previas}{bloque_verificacion}
 
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56
 Interpreta TODOS los números con esta convención.
@@ -1504,6 +1533,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         n_sistemas: int = 1,
                         datos_verificacion_fv: dict = None,
                         tabla_precios: list = None,
+                        observaciones_previas: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
 
@@ -1514,7 +1544,12 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     `tabla_precios`: tabla de precios referenciales PROMEDIO subida por el revisor en
     /admin/precios ([{categoria, item, unidad, precio}, ...]) — no es data oficial de la CNR,
     es una referencia aproximada. Si es None/vacía (nunca se ha subido nada), la verificación
-    de precios del ítem Presupuesto simplemente no corre."""
+    de precios del ítem Presupuesto simplemente no corre.
+
+    `observaciones_previas`: solo se usa para `item_key == "coherencia"` — las observaciones ya
+    generadas en los OTROS ítems del mismo proyecto ([{item_nombre, texto}, ...]), para que el
+    cierre transversal no repita hallazgos puntuales ya cubiertos y se concentre en lo que solo
+    se ve mirando el expediente completo (ver `_analizar_grupo`)."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
@@ -1560,6 +1595,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     return await _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
+        observaciones_previas=observaciones_previas if item_key == "coherencia" else None,
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,

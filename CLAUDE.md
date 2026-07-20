@@ -1272,6 +1272,32 @@ la tarjeta del ítem). Al eliminar el método por Ejes (ver siguiente entrada), 
 Coherencia Global se inlineó directamente en `ITEMS_SEP["coherencia"]` (antes lo tomaba de
 `EJES_REVISION["coherencia"]["checklist"]`).
 
+**Bug resuelto — Coherencia Global repetía observaciones ya hechas en otros ítems (jul-2026):**
+con un proyecto real (12 de 21 documentos entran a este ítem), de 6 observaciones generadas 3
+eran duplicados de hallazgos ya registrados al revisar Memoria de superficies, Presupuesto, etc.
+Causa: la IA revisaba el expediente completo sin ninguna noción de qué ya se había observado en
+los ítems individuales, así que era natural que re-encontrara el mismo problema (ej. una
+superficie inconsistente) al mirar los mismos documentos de nuevo. Arreglado en dos frentes:
+1. **Se le pasa lo ya observado.** `revisar_item()` (main.py), solo para `item_key == "coherencia"`,
+   arma `observaciones_previas` = las observaciones de `proyecto["observaciones"]` de los DEMÁS
+   ítems ya revisados (excluye las del propio "coherencia" y las `estado == "descartada"`) y se
+   lo pasa a `analizar_item()` → `_analizar_grupo()` (parámetro nuevo `observaciones_previas`,
+   solo se usa si `es_coherencia=True`). `_analizar_grupo` arma un bloque explícito
+   "OBSERVACIONES YA REGISTRADAS... NO LAS REPITAS" con instrucción de que su tarea es EXCLUSIVA
+   detectar lo que solo se ve mirando el expediente completo, y que "no hay hallazgos nuevos" es
+   un resultado válido (evita que fuerce una observación para no volver con la lista vacía).
+   **Efecto colateral esperado y deseado:** como depende de `proyecto["observaciones"]` en el
+   momento de la llamada, mientras MÁS ítems se hayan revisado antes de correr Coherencia Global,
+   mejor funciona el filtro — es más preciso revisarlo al final (que es como ya está pensado el
+   orden de `ITEMS_ORDEN`, coherencia va último).
+2. **Checklist reenfocado.** `ITEMS_SEP["coherencia"]["checklist"]` explicita ahora la pregunta
+   real que responde este ítem (tal como la planteó el usuario): si la IDEA del proyecto —su
+   forma de operar, su lógica de diseño y de construcción— es coherente y viable como un todo, no
+   una segunda pasada que repite el detalle de cada documento. La lista de relaciones a verificar
+   (superficie↔caudal↔presupuesto, etc.) se mantuvo como EJEMPLOS no exhaustivos, y se agregó un
+   punto sobre la secuencia constructiva (cronograma/obras civiles/tecnificación/energización con
+   orden lógico y ejecutable).
+
 **Revisión por Ejes eliminada por completo (jul-2026):** existió como método alternativo que
 convivía con Ítems SEP — 9 ejes temáticos (`EJES_REVISION`/`EJES_ORDEN`: Superficie,
 Agronómico, Hidrológico, Hidráulico, Energético/Fotovoltaico, Obras civiles, Presupuesto y

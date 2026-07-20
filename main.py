@@ -772,6 +772,16 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         precios_data = db.get_precios()
         tabla_precios = precios_data.get("items") if precios_data else None
 
+    # Coherencia Global: se le pasan las observaciones YA generadas en los demás ítems para que
+    # no las repita — su rol es detectar solo lo que se ve mirando el expediente completo.
+    observaciones_previas = None
+    if item_key == "coherencia":
+        observaciones_previas = [
+            {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+            for o in proyecto.get("observaciones", [])
+            if o.get("item") and o.get("item") != "coherencia" and o.get("estado") != "descartada"
+        ]
+
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
@@ -789,6 +799,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             n_sistemas=n_sistemas,
             datos_verificacion_fv=datos_verificacion_fv,
             tabla_precios=tabla_precios,
+            observaciones_previas=observaciones_previas,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
