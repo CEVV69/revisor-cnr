@@ -565,6 +565,25 @@ respuesta viene vacía Y `stop_reason == "max_tokens"`, reintenta una vez autom�
 igual quedan 0 observaciones (puede ser un resultado legítimo — ver criterios de énfasis abajo
 para cómo confirmarlo).
 
+**Bug resuelto — la revisión del ítem Presupuesto se colgaba varios minutos sin respuesta
+(jul-2026):** al revisar "Presupuesto detallado de obra" con un proyecto real, la app quedaba
+colgada 5+ minutos y no devolvía nada. Causa: la llamada a Sonnet 5 dentro de `_analizar_grupo`
+usaba `client.messages.create` **sin streaming**. Presupuesto es el ítem con mayor presupuesto de
+caracteres (`MAX_CHARS_POR_ITEM["presupuesto"]=120000`) y encima el análisis puede reintentar con
+`MAX_TOKENS_SONNET+8000` (20.000 tokens de salida) — una petición con tanto input y `max_tokens`
+tan alto choca contra el timeout HTTP del SDK (`create()` no envía nada hasta tener la respuesta
+completa), y desde el navegador se ve como la app "colgada". Arreglado pasando la llamada a
+**streaming**: `client.messages.stream(...)` como context manager + `get_final_message()` (patrón
+recomendado por la guía de la API de Anthropic para peticiones con mucho input o `max_tokens`
+alto — mantiene la conexión viva y evita el timeout de request). `get_final_message()` devuelve el
+MISMO objeto `Message` que `create()`, así que `.stop_reason`, `_texto_respuesta()` y el reintento
+por respuesta vacía + `max_tokens` no cambiaron. Se envuelve en un helper síncrono
+(`_stream_final`) llamado vía `asyncio.to_thread` (el SDK es síncrono, misma regla de siempre).
+**Regla para código nuevo:** cualquier llamada a Sonnet 5 con input grande (análisis por ítem) o
+`max_tokens` alto debe usar streaming + `get_final_message()`, no `create()` a secas. El chat
+(8.000 tokens) y la consulta libre (4.000) quedaron con `create()` por ahora — son más chicos y no
+se colgaron; si alguno empieza a hacerlo, aplicar el mismo patrón.
+
 **Criterios de énfasis por ítem (implementado, jul-2026):** distinto del "aprendizaje"
 automático de abajo. Es un campo `concurso["criterios_enfasis"]["item_"+item_key]` (misma clave
 que `criterios_aprendidos`) que el revisor **escribe y edita a mano** en
