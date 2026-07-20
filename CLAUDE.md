@@ -1582,9 +1582,39 @@ punto del pipeline (clasificación → disponibilidad de archivo → render de i
 como mínimo, y si el resultado es que el documento queda sin ninguna representación en el
 prompt, debe generar la misma nota determinística que los casos ya cubiertos.
 
----
-
-## Restricciones y gotchas
+**Tercer hallazgo — el tope `MAX_IMG_EJE` era estrictamente "por orden de llegada" (jul-2026):**
+con el aviso del punto anterior ya en producción, el usuario probó de nuevo (resubiendo el
+documento del invernadero) y esta vez SÍ aparecieron los 8 documentos en "archivos usados", pero
+3 con la nota "no se pudo renderizar" — incluyendo otra vez el cálculo estructural. Causa: el
+render de imágenes repartía el cupo `MAX_IMG_EJE` (entonces 10) estrictamente en el ORDEN en que
+aparecían los documentos — el primero (o los primeros) podían agotar TODO el cupo antes de que
+le tocara el turno a los demás, dejando a los últimos sin ninguna posibilidad real (no es que
+fallara su render, ni siquiera se intentaba). Mismo patrón de bug que el reparto de caracteres
+antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENES.
+- **Cuota FIJA por documento** (no water-filling completo, a diferencia del reparto de
+  caracteres): `cuota_por_doc = max(1, MAX_IMG_EJE // n_docs_imagen)`, calculada UNA vez antes
+  del loop — cada documento que necesita visión reserva de entrada un cupo parejo, así el primero
+  de la lista no puede consumir todo el presupuesto y dejar a los demás en cero. No se hizo
+  water-filling completo (redistribuir el sobrante de un documento corto a uno más largo) porque,
+  a diferencia del texto, no se sabe cuántas páginas necesita un PDF sin abrirlo — el costo de
+  calcularlo de antemano (abrir cada archivo dos veces) no se justificaba frente a la cuota fija,
+  que ya resuelve el problema real (nadie se queda en cero).
+- **Degradación elegante para planos con cuota insuficiente:** `render_plano_tiles` (vista +
+  4 cuadrantes) exige mínimo 5 imágenes por página — con muchos planos compitiendo por el mismo
+  cupo, la cuota individual puede caer bajo ese mínimo y antes NINGUNO se renderizaba (ni
+  siquiera en baja resolución). Ahora, si la cuota no alcanza para el modo alta resolución, cae
+  al renderizado básico de página completa (`render_pdf_as_images`) con las páginas que sí
+  alcancen — mejor ver todos los planos en resolución normal que perder algunos por completo.
+- **`MAX_IMG_EJE` subido de 10 a 14** — más margen para grupos con varios documentos que
+  necesitan visión a la vez (como el caso real: 3 de 8 documentos escaneados en un mismo ítem).
+  Costo extra marginal (unos pocos miles de tokens de imagen más por revisión, solo en los
+  grupos que efectivamente necesitan visión).
+- **Diagnóstico preciso, no genérico:** antes el aviso decía "tope alcanzado o error de
+  render" sin poder distinguir cuál — ahora `motivo_fallo_imagen` (dict doc_id→motivo) rastrea
+  exactamente `"tope"` (se acabó el cupo global antes de llegar a este documento), `"cuota"`
+  (caso residual, hoy prácticamente inalcanzable gracias a la degradación elegante) o
+  `"error: <detalle real de la excepción>"` — y tanto el `print()` de Railway como el texto de
+  la observación citan la causa específica, no un genérico.
 
 - **Auditoría de rendimiento y fallas (jul-2026)** — revisión completa del código a pedido del
   usuario; 5 arreglos aplicados de una vez:

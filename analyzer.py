@@ -557,7 +557,7 @@ def _documentos_para_verificacion(grupo_key: str, documentos: list) -> list:
     return [d for d in documentos if d.get("tipo_doc") in tipos]
 
 
-MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de grupo, para controlar costo
+MAX_IMG_EJE = 14   # tope de imágenes (páginas) por revisión de grupo, para controlar costo
 
 # Tipos de documento que son PLANOS: van a visión SIEMPRE que el archivo exista (aunque el PDF
 # tenga capa de texto — un plano exportado de AutoCAD suele traer las cotas/textos extraíbles,
@@ -1393,39 +1393,56 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     from extractor import render_pdf_as_images, render_plano_tiles
     imagenes_por_doc = []   # (label, nombre_original, [(etiqueta_imagen, b64), ...])
     ids_imagen_lograda = set()
+    motivo_fallo_imagen = {}   # doc_id -> "tope" | "cuota" | "error: <detalle>"
+    # Cuota FIJA por documento (no water-filling): reserva de entrada un cupo parejo para cada
+    # documento que necesita visión, para que el primero de la lista no consuma TODO el tope
+    # MAX_IMG_EJE y deje a los demás sin nada — antes era estrictamente por orden de llegada.
+    n_docs_imagen = len(docs_imagen)
+    cuota_por_doc = max(1, MAX_IMG_EJE // n_docs_imagen) if n_docs_imagen else 0
     restante = MAX_IMG_EJE
     for d, fp in docs_imagen:
+        doc_id = d.get("id")
         if restante <= 0:
-            break
+            motivo_fallo_imagen[doc_id] = "tope"
+            continue
+        cuota_doc = min(cuota_por_doc, restante)
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
         es_plano = d.get("tipo_doc") in TIPOS_PLANO_VISION
+        imgs = []
         try:
-            if es_plano and restante >= 5:
-                pags = min(2, restante // 5)
+            if es_plano and cuota_doc >= 5:
+                pags = min(2, cuota_doc // 5)
                 imgs = await asyncio.to_thread(render_plano_tiles, fp, max_pages=pags)
             else:
-                pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
+                # Sin cuota suficiente para el renderizado en alta resolución de planos
+                # (render_plano_tiles pide mínimo 5 imágenes por página) — degrada a la
+                # página completa básica en vez de dejar el documento sin nada. Con muchos
+                # planos compitiendo por el mismo cupo, es mejor verlos todos en resolución
+                # normal que perder algunos por completo.
+                pags = min(cuota_doc, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
                 crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
                 imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
         except Exception as e:
-            imgs = []
             print(f"⚠️ Grupo '{nombre}': error renderizando imagen de "
                   f"'{d.get('nombre_original','')}': {e}")
+            motivo_fallo_imagen[doc_id] = f"error: {e}"
         if imgs:
             imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
             restante -= len(imgs)
-            ids_imagen_lograda.add(d.get("id"))
+            ids_imagen_lograda.add(doc_id)
             # Si el documento ya entró como texto (plano con capa de texto), no duplicar la
             # entrada — solo marcar que también se analiza como imagen.
-            ya = next((di for di in docs_incluidos if di["id"] == d.get("id")), None)
+            ya = next((di for di in docs_incluidos if di["id"] == doc_id), None)
             if ya:
                 ya["label"] += " (texto + imagen)"
             else:
-                docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
+                docs_incluidos.append({"id": doc_id, "nombre": d.get("nombre_original"),
                                        "label": label + " (imagen)"})
+        elif doc_id not in motivo_fallo_imagen:
+            motivo_fallo_imagen[doc_id] = "error: el render no devolvió imágenes"
 
     # Documentos que estaban en cola para VISIÓN (sin texto, así que dependían por completo de
-    # la imagen) pero cuyo render falló (excepción de PyMuPDF) o quedó fuera por el tope
+    # la imagen) pero cuyo render falló, quedaron sin cuota o quedaron fuera por el tope
     # MAX_IMG_EJE — mismo problema que docs_excluidos de más arriba: sin este aviso,
     # desaparecían del análisis sin dejar rastro pese a tener el archivo físico disponible
     # (ej. un documento recién resubido, cuyo archivo SÍ existe en disco pero no se pudo
@@ -1433,24 +1450,35 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     # "archivos usados", salvo que el documento ya tenga cobertura por texto (plano con capa de
     # texto que sí se incluyó, solo falló el canal de imagen — cobertura parcial, no total).
     for d, fp in docs_imagen:
-        if d.get("id") in ids_imagen_lograda:
+        doc_id = d.get("id")
+        if doc_id in ids_imagen_lograda:
             continue
-        ya_tiene_texto = any(di["id"] == d.get("id") for di in docs_incluidos)
+        ya_tiene_texto = any(di["id"] == doc_id for di in docs_incluidos)
         label_doc = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
         nombre_doc = d.get("nombre_original", "")
-        print(f"⚠️ Grupo '{nombre}': documento en cola de visión SIN renderizar (tope de "
-              f"imágenes alcanzado o error de render) — {label_doc} ({nombre_doc}), "
-              f"id={d.get('id')}, ya_tiene_texto={ya_tiene_texto}")
+        motivo = motivo_fallo_imagen.get(doc_id, "error: motivo no determinado")
+        print(f"⚠️ Grupo '{nombre}': documento en cola de visión SIN renderizar — {label_doc} "
+              f"({nombre_doc}), id={doc_id}, motivo={motivo}, ya_tiene_texto={ya_tiene_texto}")
         if ya_tiene_texto:
             continue
+        if motivo == "tope":
+            razon = ("se alcanzó el máximo de imágenes permitidas en una sola revisión "
+                     "(este grupo tiene varios documentos que requieren visión y el cupo ya "
+                     "se agotó con los anteriores)")
+        elif motivo == "cuota":
+            razon = ("el cupo de imágenes se reparte entre todos los documentos de este grupo "
+                     "que necesitan visión, y a este no le alcanzó espacio suficiente")
+        elif motivo.startswith("error:"):
+            razon = f"hubo un error al procesar el PDF ({motivo[7:]})"
+        else:
+            razon = "no se pudo determinar la causa exacta"
         observaciones_excluidos.append({
-            "texto": (f'El documento "{nombre_doc}" ({label_doc}) no pudo procesarse como '
-                      f"imagen para su análisis visual (error al renderizar el PDF, o se "
-                      f"alcanzó el máximo de imágenes por revisión). Debe revisarse "
-                      f"manualmente o resubirse si el problema persiste."),
+            "texto": (f'El documento "{nombre_doc}" ({label_doc}) no pudo incluirse en el '
+                      f"análisis visual: {razon}. Debe revisarse manualmente o resubirse si "
+                      f"el problema persiste."),
             "categoria": "administrativa", "severidad": "informativa", "referencia_normativa": "",
         })
-        docs_incluidos_excluidos.append({"id": d.get("id"), "nombre": nombre_doc,
+        docs_incluidos_excluidos.append({"id": doc_id, "nombre": nombre_doc,
                                          "label": label_doc + " (NO SE PUDO RENDERIZAR)"})
 
     if not bloque_docs and not imagenes_por_doc:
