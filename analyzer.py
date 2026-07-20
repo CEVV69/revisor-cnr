@@ -1392,6 +1392,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     # por página); el resto, el renderizado básico de página completa.
     from extractor import render_pdf_as_images, render_plano_tiles
     imagenes_por_doc = []   # (label, nombre_original, [(etiqueta_imagen, b64), ...])
+    ids_imagen_lograda = set()
     restante = MAX_IMG_EJE
     for d, fp in docs_imagen:
         if restante <= 0:
@@ -1406,11 +1407,14 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                 pags = min(restante, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 4))
                 crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
                 imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
-        except Exception:
+        except Exception as e:
             imgs = []
+            print(f"⚠️ Grupo '{nombre}': error renderizando imagen de "
+                  f"'{d.get('nombre_original','')}': {e}")
         if imgs:
             imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
             restante -= len(imgs)
+            ids_imagen_lograda.add(d.get("id"))
             # Si el documento ya entró como texto (plano con capa de texto), no duplicar la
             # entrada — solo marcar que también se analiza como imagen.
             ya = next((di for di in docs_incluidos if di["id"] == d.get("id")), None)
@@ -1419,6 +1423,35 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
             else:
                 docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
                                        "label": label + " (imagen)"})
+
+    # Documentos que estaban en cola para VISIÓN (sin texto, así que dependían por completo de
+    # la imagen) pero cuyo render falló (excepción de PyMuPDF) o quedó fuera por el tope
+    # MAX_IMG_EJE — mismo problema que docs_excluidos de más arriba: sin este aviso,
+    # desaparecían del análisis sin dejar rastro pese a tener el archivo físico disponible
+    # (ej. un documento recién resubido, cuyo archivo SÍ existe en disco pero no se pudo
+    # renderizar como imagen). Se les da el mismo tratamiento: nota determinística + marca en
+    # "archivos usados", salvo que el documento ya tenga cobertura por texto (plano con capa de
+    # texto que sí se incluyó, solo falló el canal de imagen — cobertura parcial, no total).
+    for d, fp in docs_imagen:
+        if d.get("id") in ids_imagen_lograda:
+            continue
+        ya_tiene_texto = any(di["id"] == d.get("id") for di in docs_incluidos)
+        label_doc = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        nombre_doc = d.get("nombre_original", "")
+        print(f"⚠️ Grupo '{nombre}': documento en cola de visión SIN renderizar (tope de "
+              f"imágenes alcanzado o error de render) — {label_doc} ({nombre_doc}), "
+              f"id={d.get('id')}, ya_tiene_texto={ya_tiene_texto}")
+        if ya_tiene_texto:
+            continue
+        observaciones_excluidos.append({
+            "texto": (f'El documento "{nombre_doc}" ({label_doc}) no pudo procesarse como '
+                      f"imagen para su análisis visual (error al renderizar el PDF, o se "
+                      f"alcanzó el máximo de imágenes por revisión). Debe revisarse "
+                      f"manualmente o resubirse si el problema persiste."),
+            "categoria": "administrativa", "severidad": "informativa", "referencia_normativa": "",
+        })
+        docs_incluidos_excluidos.append({"id": d.get("id"), "nombre": nombre_doc,
+                                         "label": label_doc + " (NO SE PUDO RENDERIZAR)"})
 
     if not bloque_docs and not imagenes_por_doc:
         if observaciones_excluidos:

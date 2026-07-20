@@ -1559,6 +1559,29 @@ bien clasificado y verse "en verde" (sin necesidad de resubir) en la página Doc
   causa puntual (ej. comparar si `db.obtener_archivo()` realmente devuelve contenido para ese
   documento).
 
+**Segundo punto de falla silenciosa encontrado — el render de la imagen puede fallar DESPUÉS de
+pasar el chequeo de archivo disponible (jul-2026):** el fix anterior cubre el caso "sin texto Y
+sin archivo" (`pdf_disponible=False`), pero el usuario reportó que **incluso resubiendo** el
+documento del invernadero (archivo físico recién escrito a disco, sin duda alguna disponible),
+seguía sin aparecer — probando que el primer fix no bastaba. Causa: un documento escaneado con
+archivo disponible SÍ entra a `docs_imagen`, pero el render real (`render_pdf_as_images` /
+`render_plano_tiles`, PyMuPDF) puede fallar por su cuenta (PDF con estructura inusual, y en este
+caso probablemente un documento con planos/gráficos vectoriales pesados tipo cálculo
+estructural) — el `except Exception: imgs = []` original tragaba el error POR COMPLETO, sin
+loguearlo siquiera, y el documento quedaba fuera de `imagenes_por_doc`/`docs_incluidos` sin
+ningún rastro, igual que el bug anterior pero en un punto distinto del flujo. Mismo patrón de
+solución: (1) el `except` ahora loguea la excepción real; (2) tras el loop de render, se
+detectan los documentos de `docs_imagen` que NO lograron renderizarse (`ids_imagen_lograda`,
+por tope `MAX_IMG_EJE` alcanzado o por excepción) y reciben la misma nota informativa
+determinística + marca `"(NO SE PUDO RENDERIZAR)"` en "archivos usados" — salvo que el
+documento YA tenga cobertura por texto (plano con capa de texto que sí entró, solo falló el
+canal de imagen), caso en que no se duplica el aviso porque el documento sigue analizándose por
+su texto. **Lección para el futuro:** un documento puede "desaparecer" del análisis en más de un
+punto del pipeline (clasificación → disponibilidad de archivo → render de imagen) — cualquier
+`except Exception: ... = []` silencioso en este flujo es sospechoso por defecto; debe loguear
+como mínimo, y si el resultado es que el documento queda sin ninguna representación en el
+prompt, debe generar la misma nota determinística que los casos ya cubiertos.
+
 ---
 
 ## Restricciones y gotchas
