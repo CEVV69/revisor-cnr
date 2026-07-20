@@ -583,17 +583,20 @@ MAX_TOKENS_EXTRACCION = 1500
 
 def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 60000) -> str:
     """Texto combinado del grupo para una extracción numérica (Haiku). El presupuesto se
-    reparte EQUITATIVAMENTE entre los documentos — antes se asignaba por orden de llegada y
-    un primer archivo largo dejaba a los demás completamente fuera — y cada documento se
-    trunca conservando inicio + final (los resultados declarados por el consultor suelen
-    estar en las conclusiones, al final del documento)."""
+    reparte de forma ADAPTATIVA entre los documentos (`_repartir_presupuesto`, water-filling) —
+    antes se asignaba por orden de llegada y un primer archivo largo dejaba a los demás
+    completamente fuera; luego se pasó a una cuota FIJA por documento, que desperdiciaba margen
+    en manuales/folletos cortos en vez de dárselo a los documentos densos que sí lo necesitan.
+    Cada documento se trunca conservando inicio + final (los resultados declarados por el
+    consultor suelen estar en las conclusiones, al final del documento)."""
     docs_utiles = [d for d in docs_grupo
                    if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
     if not docs_utiles:
         return ""
-    budget = max(4000, max_chars // len(docs_utiles))
+    tamanos = [len(d.get("texto_extraido", "").strip()) for d in docs_utiles]
+    presupuestos = _repartir_presupuesto(tamanos, max_chars, minimo=4000)
     partes = []
-    for d in docs_utiles:
+    for d, budget in zip(docs_utiles, presupuestos):
         t = _truncar_inteligente(d.get("texto_extraido", "").strip(), budget)
         label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
         partes.append(f"--- {label} ({d.get('nombre_original','')}) ---\n{t}")
@@ -1335,13 +1338,16 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
 
     client = _get_client()
 
-    # Bloque de texto de los documentos con texto (presupuesto repartido)
-    budget_por_doc = max(3000, max_chars_total // max(1, len(docs_texto)))
+    # Bloque de texto de los documentos con texto (presupuesto repartido de forma ADAPTATIVA:
+    # un manual/folleto corto recibe solo lo que necesita, y el margen sobrante se le pasa a
+    # los documentos que sí lo requieren — ver _repartir_presupuesto).
+    tamanos = [len(d.get("texto_extraido", "")) for d in docs_texto]
+    presupuestos = _repartir_presupuesto(tamanos, max_chars_total, minimo=3000)
     bloque_docs = ""
     docs_incluidos = []
-    for d in docs_texto:
+    for d, budget_doc in zip(docs_texto, presupuestos):
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
-        texto = _truncar_inteligente(d.get("texto_extraido", ""), budget_por_doc)
+        texto = _truncar_inteligente(d.get("texto_extraido", ""), budget_doc)
         bloque_docs += f"\n\n{'─'*55}\nDOCUMENTO: {label}  ({d.get('nombre_original','')})\n{'─'*55}\n{texto}"
         docs_incluidos.append({"id": d.get("id"), "nombre": d.get("nombre_original"),
                                "label": label})
@@ -1964,6 +1970,43 @@ Responde SOLO el JSON, sin texto adicional."""
 
 
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
+
+
+def _repartir_presupuesto(tamanos: list, total_chars: int, minimo: int = 3000) -> list:
+    """Reparte `total_chars` entre documentos según su tamaño REAL (algoritmo "water-filling"),
+    en vez de una cuota fija por documento (`total // n`). Antes, un manual de equipo de 2
+    páginas (poco texto) recibía la MISMA cuota que un documento denso de 20 páginas — el
+    margen que el manual no necesitaba se perdía, en vez de pasarle ese espacio al documento que
+    sí lo necesitaba (caso real: 8 documentos donde 5 eran manuales/folletos cortos y 3 eran
+    memorias técnicas densas).
+
+    Ordena ascendente por tamaño; a cada documento que cabe completo dentro de la cuota
+    equitativa del momento se le da su tamaño exacto (nada de margen desperdiciado) y se saca
+    del reparto; el resto del presupuesto se recalcula entre los documentos que quedan. Cuando
+    un documento excede la cuota, él y todos los que siguen (son ≥ en tamaño, por el orden
+    ascendente) se reparten en partes iguales lo que queda. `minimo`: piso por documento para
+    que ninguno quede en 0 si hay muchísimos documentos.
+
+    Devuelve una lista de presupuestos (mismo orden y largo que `tamanos`)."""
+    n = len(tamanos)
+    if n == 0:
+        return []
+    orden = sorted(range(n), key=lambda i: tamanos[i])
+    presupuestos = [0] * n
+    restante = total_chars
+    pendientes = n
+    for pos, idx in enumerate(orden):
+        cuota = max(minimo, restante // pendientes)
+        if tamanos[idx] <= cuota:
+            presupuestos[idx] = tamanos[idx]
+            restante -= tamanos[idx]
+            pendientes -= 1
+        else:
+            cuota_final = max(minimo, restante // pendientes)
+            for idx2 in orden[pos:]:
+                presupuestos[idx2] = cuota_final
+            break
+    return presupuestos
 
 
 def _truncar_inteligente(texto: str, max_chars: int) -> str:

@@ -1488,6 +1488,33 @@ CANTIDAD de documentos — el mismo presupuesto total dividido entre más docume
 espacio a cada uno. Arreglado agregando `especificaciones_tecnicas` a `MAX_CHARS_POR_ITEM`
 (120.000) — con 8 documentos, ~15.000 caracteres cada uno (2,7× más).
 
+**Reparto de presupuesto ADAPTATIVO entre documentos (implementado, jul-2026):** al revisar el
+fix anterior, el usuario notó el problema de fondo: de esos 8 documentos, 5 eran manuales o
+folletos de equipos (motobomba, aspersores) — pocas hojas, mucha imagen, poco texto — y con la
+cuota FIJA (`total // n`) cada uno recibía la MISMA cuota que la memoria estructural del
+invernadero, aunque le sobrara casi todo su margen sin usar. "Si se reparte fijo se distribuye
+muy mal" cuando los documentos de un grupo tienen tamaños muy dispares (2 hojas vs. 20 hojas),
+algo habitual en cualquier ítem, no solo Especificaciones técnicas.
+- `_repartir_presupuesto(tamanos, total_chars, minimo)` (analyzer.py) — algoritmo *water-filling*:
+  ordena los documentos ascendente por tamaño real; a cada uno que cabe completo dentro de la
+  cuota equitativa del momento se le da su tamaño EXACTO (nada de margen desperdiciado) y sale
+  del reparto; el presupuesto restante se recalcula entre los que quedan. Cuando un documento
+  excede la cuota, él y todos los que siguen (≥ en tamaño, por el orden ascendente) se reparten
+  en partes iguales lo que sobra. `minimo`: piso por documento para que ninguno quede en 0 si
+  hay muchísimos documentos y el presupuesto total no alcanza ni para eso.
+- **Reemplaza la cuota fija en LOS DOS puntos del código que la usaban:** `_analizar_grupo`
+  (`bloque_docs`, el análisis principal de observaciones — antes `max_chars_total //
+  len(docs_texto)`) y `_texto_grupo_para_extraccion` (extracciones numéricas de Haiku —
+  hidráulica/agronómica/FV/presupuesto — antes `max_chars // len(docs_utiles)`, la función que
+  ya tenía el reparto "equitativo" pero seguía siendo una cuota fija, no adaptativa).
+- **Costo:** nunca supera el presupuesto total ya establecido para cada ítem — solo lo usa
+  mejor. Verificado con el caso real: 8 documentos (5 manuales cortos + memoria del invernadero
+  de 80.000 caracteres reales) sobre un presupuesto de 120.000 — con la cuota fija anterior la
+  memoria recibía 15.000 caracteres; con el reparto adaptativo recibe 65.400 (4,4× más), porque
+  los 5 manuales solo toman lo que necesitan (sus tamaños reales, sin desperdicio) y el resto se
+  lo lleva el documento que sí lo requiere. Si la demanda total de un grupo es menor al
+  presupuesto (documentos cortos en su mayoría), TODOS entran completos, sin truncar nada.
+
 ---
 
 ## Restricciones y gotchas
