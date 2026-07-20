@@ -314,7 +314,14 @@ ITEMS_SEP = {
         "nombre": "Pruebas de Bombeo",
         "tipo_docs": ["pruebas_bombeo"],
         "checklist": "Caudal, nivel dinámico y eficiencia del pozo. Debe respaldar el caudal y "
-                     "la selección de bomba del diseño hidráulico.",
+                     "la selección de bomba del diseño hidráulico. "
+                     "ALCANCE: este ítem revisa SOLO estos aspectos TÉCNICOS de la prueba — NO "
+                     "corresponde observar aquí el estado legal ni la inscripción del derecho de "
+                     "agua (eso se revisa en Antecedentes legales, otro ítem). Tampoco asumas que "
+                     "la prueba de bombeo no se requiere por tener derechos inscritos: varias "
+                     "bases la exigen igual, con derechos inscritos o no, para dar certeza "
+                     "técnica del caudal disponible — si el expediente la presenta, revísala por "
+                     "sus méritos técnicos sin cuestionar si correspondía o no exigirla.",
     },
     "diseno_hidraulico": {
         "nombre": "Diseño y cálculos hidráulicos",
@@ -1283,7 +1290,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           feedback_concurso: list = None, feedback_key: str = "",
                           criterios_aprendidos: str = "", criterios_enfasis: str = "",
                           bloque_verificacion: str = "",
-                          consultor: dict = None,
+                          consultor: dict = None, resumen: dict = None,
                           max_chars_total: int = MAX_CHARS_EJE_TOTAL,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
@@ -1366,6 +1373,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
+    bloque_resumen  = _construir_bloque_resumen(resumen)
     # Aprendizaje: si hay criterios ya destilados de este eje/ítem, se usan (más compactos y
     # generalizables). Si no, se cae a los ejemplos crudos de feedback.
     if criterios_aprendidos and criterios_aprendidos.strip():
@@ -1436,7 +1444,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
             f"distinto. Si no encuentras una incoherencia genuinamente NUEVA (no cubierta arriba), "
             f"no fuerces una observación — la ausencia de hallazgos nuevos es un resultado válido.")
 
-    prompt = f"""{bloque_bases}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
+    prompt = f"""{bloque_bases}{bloque_resumen}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
@@ -1598,7 +1606,7 @@ Si ninguna se resuelve, responde: {{"resueltas": [], "justificaciones": {{}}}}""
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
                         criterios_aprendidos: str = "", criterios_enfasis: str = "",
-                        consultor: dict = None,
+                        consultor: dict = None, resumen: dict = None,
                         datos_verificacion_hidraulica: dict = None,
                         datos_verificacion_agronomica: dict = None,
                         n_sistemas: int = 1,
@@ -1608,6 +1616,11 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         observaciones_pendientes_otros: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
+
+    `resumen`: lo que el revisor ya completó en la página Resumen del proyecto
+    (`proyecto["resumen"]`) — se inyecta como contexto YA VALIDADO en TODO ítem (ver
+    `_construir_bloque_resumen`), para que la IA no genere una observación asumiendo que falta
+    un dato que el revisor ya declaró (ej. derechos de agua no inscritos, servidumbres, etc.).
 
     `datos_verificacion_*`: si se entregan (datos que el revisor ya revisó/corrigió a mano en la
     página "Chequeo de Cálculos"), se usan directamente en vez de volver a extraerlos con
@@ -1678,7 +1691,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
         bloque_verificacion=bloque_verificacion,
-        consultor=consultor,
+        consultor=consultor, resumen=resumen,
         max_chars_total=MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL),
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
@@ -1979,6 +1992,38 @@ la normativa general. Verifica su cumplimiento en el documento analizado:
                    f"{MAX_CHARS_BASES:,} caracteres]\n".replace(",", "."))
     bloque += "\n"
     return bloque
+
+
+MAX_CHARS_CAMPO_RESUMEN = 500   # tope por campo del Resumen (textareas pueden ser largos)
+
+def _construir_bloque_resumen(resumen: dict) -> str:
+    """Construye el bloque de contexto con lo que el REVISOR ya completó/confirmó en la página
+    Resumen del proyecto (RESUMEN_SECCIONES) — ej. si declara derechos de agua no inscritos,
+    servidumbres, INDAP, etc. Se inyecta en TODO análisis de ítem para que la IA cruce contra
+    esos datos en vez de asumir un incumplimiento solo porque el ítem que está revisando no
+    incluye ese dato por su cuenta (evita falsos positivos por falta de contexto entre ítems)."""
+    if not resumen:
+        return ""
+    lineas = []
+    for sec in RESUMEN_SECCIONES:
+        for campo in sec["campos"]:
+            valor = resumen.get(campo["key"])
+            if not valor or not str(valor).strip():
+                continue
+            v = str(valor).strip()
+            if len(v) > MAX_CHARS_CAMPO_RESUMEN:
+                v = v[:MAX_CHARS_CAMPO_RESUMEN] + "…"
+            lineas.append(f"• {campo['label']}: {v}")
+    if not lineas:
+        return ""
+    return (f"\n{'═'*60}\nDATOS YA DECLARADOS POR EL REVISOR EN EL RESUMEN DEL PROYECTO\n"
+            f"{'═'*60}\nEstos datos ya fueron completados/confirmados por el revisor humano —"
+            f" trátalos como contexto YA VALIDADO. NO generes una observación asumiendo que "
+            f"falta un dato que ya está declarado aquí (ej. si aquí consta que el derecho de "
+            f"agua NO está inscrito, no observes la ausencia de su inscripción). Si un "
+            f"documento del expediente CONTRADICE explícitamente algo de esta lista, sí "
+            f"obsérvalo — esto es contexto de apoyo, no reemplaza verificar los documentos.\n"
+            + "\n".join(lineas) + "\n")
 
 
 # ── Documentos obligatorios de admisibilidad (según las bases del concurso) ─────

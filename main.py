@@ -816,6 +816,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             criterios_aprendidos=criterios,
             criterios_enfasis=enfasis,
             consultor=consultor,
+            resumen=proyecto.get("resumen", {}),
             datos_verificacion_hidraulica=datos_verificacion_hidraulica,
             datos_verificacion_agronomica=datos_verificacion_agronomica,
             n_sistemas=n_sistemas,

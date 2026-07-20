@@ -336,6 +336,35 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 `nombre_proyecto` es `tipo: "textarea"` (no "text") — un `<input>` de una línea no muestra
 nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 
+**El Resumen se inyecta como contexto en TODO análisis de ítem (implementado, jul-2026):** bug
+real reportado por el usuario — en "Prueba de bombeo" la IA observaba que faltaba la inscripción
+del derecho de agua, pese a que el Resumen del proyecto ya declaraba "No tiene derechos de agua
+inscritos" (campo `daa`). Causa raíz: ningún análisis de ítem recibía `proyecto["resumen"]` como
+contexto — cada ítem solo veía sus propios documentos, a ciegas de lo que el revisor ya había
+confirmado en el formulario, así que asumía incumplimientos por ausencia sin poder cruzarlos.
+Solución GENERALIZABLE (no un parche puntual para este caso): `_construir_bloque_resumen(resumen)`
+(analyzer.py) arma un bloque con los campos no vacíos de `RESUMEN_SECCIONES` — etiquetado
+explícitamente "YA VALIDADO por el revisor humano, no observes su ausencia; si un documento lo
+CONTRADICE sí obsérvalo" — y se inyecta en **todo** `analizar_item()` (parámetro `resumen`,
+wireado desde `revisar_item()` en main.py con `proyecto.get("resumen", {})`). Va en el prompt
+por-llamada (NO en los bloques `system_con_cache`), porque a diferencia de las bases del concurso
+(compartidas entre proyectos) el Resumen es específico de CADA proyecto — mezclarlo en el system
+cacheado rompería la reutilización de caché entre proyectos del mismo concurso. Al ser genérico
+por diseño, de paso corrige el mismo patrón de falso positivo con cualquier otro campo del
+Resumen (Servidumbres, INDAP, uso de suelo, etc.), no solo con derechos de agua.
+**Costo:** despreciable — el Resumen son ~25 campos cortos (tope 500 caracteres cada uno,
+`MAX_CHARS_CAMPO_RESUMEN`), nada comparable a los 45.000–120.000 caracteres de los documentos.
+
+**Checklist de "Pruebas de Bombeo" — aclarado el alcance (jul-2026):** junto con el bug de
+arriba, el usuario corrigió una primera hipótesis mía: NO es cierto que "si el agua está
+inscrita no se requiere prueba de bombeo" — varias bases la exigen igual, con derechos inscritos
+o no, para dar certeza técnica del caudal. Por eso el fix NO fue una regla de "cuándo se
+requiere" (sería falsa en algunos concursos), sino aclarar el ALCANCE del ítem: verifica SOLO
+aspectos técnicos (caudal, nivel dinámico, eficiencia del pozo) y NO debe observar el estado
+legal/inscripción del derecho de agua — eso es de otro ítem (Antecedentes legales). Si el
+expediente presenta la prueba, se revisa por sus méritos técnicos sin cuestionar si correspondía
+exigirla o no.
+
 **Botón "Ver en Google Maps" junto a Huso (implementado, jul-2026):** el Resumen guarda un punto
 en `coord_e`, `coord_n`, `coord_h` (Este/Norte/Huso). **El formato de esos 3 campos varía
 mucho** — normalmente los llena el botón "Autocompletar con IA" copiando tal cual lo que
