@@ -138,7 +138,7 @@ UPLOAD_DIR          → /storage/uploads
 
 ```
 main.py          Rutas FastAPI — toda la lógica de negocio vive aquí
-analyzer.py      Llamadas a Claude (análisis, invalidación cruzada, consulta libre)
+analyzer.py      Llamadas a Claude (análisis por ítem, chat de refinamiento, consulta libre)
 extractor.py     Extracción de texto de PDF / Word / Excel / ZIP + clasificación de anexos
 database.py      Capa dual: PostgreSQL si hay DATABASE_URL, si no JSON local
 auth.py          bcrypt + JWT
