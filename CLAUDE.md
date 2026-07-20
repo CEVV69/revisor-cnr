@@ -204,11 +204,13 @@ es un envoltorio delgado sobre él.
 2. **Texto vs imagen** — docs con `texto_extraido` van como texto; escaneados/planos (texto
    `< MIN_CHARS_TEXTO` = 300, o `__PDF_ESCANEADO__`) van por **visión** si el archivo físico
    existe (`render_pdf_as_images`, JPEG, tope global `MAX_IMG_EJE=10`). Coherencia NO usa visión.
-3. **Presupuesto de caracteres** — `MAX_CHARS_EJE_TOTAL=45000` repartido entre los docs del
-   grupo (`_truncar_inteligente`). **Ampliado a 120.000** (`MAX_CHARS_POR_ITEM`, jul-2026) para
-   los ítems densos en datos a pedido del usuario: `diseno_hidraulico` (incluye el agronómico),
-   `diseno_fotovoltaico`, `presupuesto`, `presupuesto_electrico` y `coherencia` — así 2-3
-   archivos grandes (40.000 c/u) entran casi completos; el resto de los ítems sigue en 45.000.
+3. **Presupuesto de caracteres** — `MAX_CHARS_EJE_TOTAL=45000` repartido EQUITATIVAMENTE entre
+   los docs del grupo (`max_chars_total // len(docs_texto)`, luego `_truncar_inteligente` por
+   documento). **Ampliado a 120.000** (`MAX_CHARS_POR_ITEM`, jul-2026) para los ítems densos en
+   datos: `diseno_hidraulico` (incluye el agronómico), `diseno_fotovoltaico`, `presupuesto`,
+   `presupuesto_electrico`, `coherencia` y `especificaciones_tecnicas` (este último agregado más
+   tarde — ver el bug dedicado más abajo, el detonante ahí no es 2-3 archivos grandes sino MUCHOS
+   documentos repartiéndose el mismo presupuesto) — el resto de los ítems sigue en 45.000.
 4. **Manifiesto del expediente** — se inyecta la lista de TODOS los tipos de documento presentes,
    para que la IA detecte faltantes obligatorios ("Se sugiere declarar no admitido.").
 5. **System cacheado** — `SYSTEM_PROMPT` (normativa) + bases del concurso, con
@@ -1447,8 +1449,9 @@ eliminarlo:
 **Invernaderos — criterios inyectados vía normativa, SIN ítem propio (implementado, jul-2026):**
 el invernadero es una obra anexa/complementaria que NO aparece siempre, y cuando aparece el
 consultor la agrupa en carpetas distintas según el caso (Planos de tecnificación, Planos de
-obras civiles, Estudios complementarios o el Presupuesto) — no tiene un `tipo_doc` propio en el
-SEP ni conviene forzarle uno. El usuario aportó la "Planilla de verificación de invernaderos"
+obras civiles, Estudios complementarios, Especificaciones técnicas o el Presupuesto) — no tiene
+un `tipo_doc` propio en el SEP ni conviene forzarle uno. El usuario aportó la "Planilla de
+verificación de invernaderos"
 que usa la CNR (Excel con geometría de cercha, cubicación de perfiles METALCON, tabla de
 sobrecarga de nieve y combinación de cargas estructurales) y se evaluó portar el cálculo
 completo como se hizo con hidráulica/agronómico/FV — **se descartó a propósito**: es un salto de
@@ -1468,6 +1471,22 @@ proyecto, proporcionalidad de la superficie). Es solo CRITERIO para la IA (como 
 `normativa/`) — no hay verificación numérica determinística ni módulo Python nuevo, cero cambio
 de código en `main.py`/ítems/rutas. Costo extra: ninguno apreciable (el bloque va cacheado con
 `cache_control: ephemeral`, igual que el resto de `NORMATIVA_CNR`).
+
+**Bug resuelto — "Especificaciones técnicas" se quedaba corta con muchos documentos (jul-2026):**
+caso real: 8 documentos clasificados bajo este ítem, entre ellos las especificaciones y el
+cálculo estructural de un invernadero (ver entrada anterior) intercalados con los demás. El
+análisis "no los tomó en cuenta" — solo referenció los documentos que el revisor identificó como
+el primero y el último. Causa: este ítem seguía con el presupuesto por defecto
+`MAX_CHARS_EJE_TOTAL=45.000` repartido EQUITATIVAMENTE entre los documentos del grupo — con 8
+documentos, ~5.600 caracteres cada uno. Los documentos SÍ entraban al prompt (no se excluía
+ninguno por posición ni orden), pero un documento denso (memoria de cálculo estructural, con
+tablas de cubicación y sobrecarga de nieve/viento) truncado a ~5.600 caracteres perdía casi todo
+su contenido relevante en el recorte — la IA no tenía de dónde sacar observaciones sobre él,
+dando la apariencia de que se hubiera "saltado" ese documento. A diferencia de los otros 5 ítems
+ampliados a 120.000 (donde el detonante son 2-3 archivos GRANDES), acá el detonante es la
+CANTIDAD de documentos — el mismo presupuesto total dividido entre más documentos deja menos
+espacio a cada uno. Arreglado agregando `especificaciones_tecnicas` a `MAX_CHARS_POR_ITEM`
+(120.000) — con 8 documentos, ~15.000 caracteres cada uno (2,7× más).
 
 ---
 

@@ -277,12 +277,22 @@ MAX_CHARS_EJE_TOTAL = 45000
 # que 2-3 archivos grandes entren casi completos en el análisis. Solo pagan más tokens los
 # ítems que realmente tengan tanto texto; el resto sigue con MAX_CHARS_EJE_TOTAL.
 # "diseno_hidraulico" cubre también el diseño agronómico (mismo ítem SEP).
+# "especificaciones_tecnicas" agregado jul-2026: bug real reportado por el usuario — con 8
+# documentos clasificados bajo este ítem (el consultor había metido ahí, además de las
+# especificaciones generales, las especificaciones y el cálculo estructural de un invernadero),
+# el presupuesto por defecto (45.000 / 8 ≈ 5.600 caracteres por documento) truncaba tan fuerte
+# los documentos más densos que su contenido relevante (tablas de cubicación, sobrecarga de
+# nieve/viento) quedaba cortado — la IA no los "veía" pese a que el documento SÍ entraba al
+# prompt, solo que gutted. Con más documentos por ítem (no solo 2-3 archivos grandes), el
+# presupuesto por defecto se queda corto más rápido — mismo criterio de "denso en datos" que
+# los otros 5, solo que el detonante acá es la CANTIDAD de documentos, no el tamaño de uno solo.
 MAX_CHARS_POR_ITEM = {
-    "diseno_hidraulico":    120000,
-    "diseno_fotovoltaico":  120000,
-    "presupuesto":          120000,
-    "presupuesto_electrico":120000,
-    "coherencia":           120000,
+    "diseno_hidraulico":         120000,
+    "diseno_fotovoltaico":       120000,
+    "presupuesto":               120000,
+    "presupuesto_electrico":     120000,
+    "coherencia":                120000,
+    "especificaciones_tecnicas": 120000,
 }
 
 
