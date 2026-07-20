@@ -519,6 +519,7 @@ function actualizarEtiqueta(input) {
 
 {% set item_ok = request.query_params.get('item_ok') %}
 {% set item_sin_docs = request.query_params.get('item_sin_docs') %}
+{% set item_invalidadas = request.query_params.get('item_invalidadas', 0)|int %}
 
 <!-- ══════════ PÁGINA: REVISIÓN POR ÍTEMS SEP ══════════ -->
 {% if pagina == 'items' %}
@@ -530,6 +531,9 @@ function actualizarEtiqueta(input) {
   </div>
   {% if item_sin_docs %}
   <div class="alert alert-error" style="margin:0.5rem 0;">Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
+  {% endif %}
+  {% if item_invalidadas %}
+  <div class="alert alert-success" style="margin:0.5rem 0;">Este ítem resolvió {{ item_invalidadas }} observación{{ 'es' if item_invalidadas != 1 else '' }} pendiente{{ 's' if item_invalidadas != 1 else '' }} de otro{{ 's' if item_invalidadas != 1 else '' }} ítem{{ 's' if item_invalidadas != 1 else '' }} — se auto-descartaron (revísalas si quieres confirmarlo).</div>
   {% endif %}
 
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">

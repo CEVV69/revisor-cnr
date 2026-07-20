@@ -782,6 +782,15 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             if o.get("item") and o.get("item") != "coherencia" and o.get("estado") != "descartada"
         ]
 
+    # Invalidación cruzada: observaciones PENDIENTES de OTROS ítems (no las aprobadas — una
+    # observación que el revisor ya confirmó no se toca automáticamente, y no las descartadas —
+    # ya no aplican). Si el contenido de ESTE ítem las resuelve, se auto-descartan más abajo.
+    observaciones_pendientes_otros = [
+        {"id": o.get("id"), "item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+        for o in proyecto.get("observaciones", [])
+        if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
+    ]
+
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
 
     try:
@@ -800,6 +809,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
             datos_verificacion_fv=datos_verificacion_fv,
             tabla_precios=tabla_precios,
             observaciones_previas=observaciones_previas,
+            observaciones_pendientes_otros=observaciones_pendientes_otros,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
@@ -843,9 +853,22 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
     }
 
+    # Invalidación cruzada: auto-descartar observaciones PENDIENTES de OTROS ítems que el
+    # contenido de este ítem resolvió (ver analyzer.revisar_invalidacion_cruzada). Solo toca
+    # "pendiente" — si el revisor ya la aprobó o ya la había descartado, no se toca.
+    ids_invalidadas = resultado.get("invalidadas") or []
+    n_invalidadas = 0
+    if ids_invalidadas:
+        for o in proyecto["observaciones"]:
+            if o.get("id") in ids_invalidadas and o.get("estado") == "pendiente":
+                o["estado"] = "descartada"
+                o["texto"] = o["texto"] + f'\n\n[Auto-descartada: resuelta al revisar "{nombre_item}"]'
+                n_invalidadas += 1
+
     db.save_proyecto(proyecto)
+    extra = f"&item_invalidadas={n_invalidadas}" if n_invalidadas else ""
     return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
+        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}{extra}#item-{item_key}", status_code=302)
 
 
 async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str, mensaje: str):

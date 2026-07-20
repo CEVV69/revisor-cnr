@@ -1524,6 +1524,70 @@ DOCUMENTOS DEL GRUPO (texto):
             "sin_documentos": False}
 
 
+# ─── Invalidación cruzada: auto-descartar observaciones que otro ítem resuelve ────────────────
+# Equivalente al que existía en el método viejo de análisis documento-por-documento (eliminado
+# jul-2026 junto con ese método), portado a la unidad de trabajo actual (ítem, no documento).
+
+async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nuevo: str,
+                                       observaciones_pendientes_otras: list) -> list:
+    """Tras revisar un ítem, determina si su contenido resuelve observaciones PENDIENTES de
+    OTROS ítems ya revisados (ej.: "Especificaciones técnicas" aclara un dato que "Diseño
+    hidráulico" había marcado como ambiguo). Retorna la lista de IDs a auto-descartar.
+
+    Llamada barata con Haiku (lectura + comparación, no razonamiento técnico — regla de costo
+    de siempre) y con un resumen corto del ítem (no el presupuesto completo de caracteres del
+    análisis principal) — se ejecuta en paralelo a `_analizar_grupo`, no agrega latencia.
+
+    Deliberadamente CONSERVADORA: ante la duda, no invalida (mismo criterio de la app para
+    generar observaciones). Un falso positivo acá esconde un hallazgo real sin que el revisor
+    lo note; un falso negativo solo deja una observación ya resuelta visible de más, que el
+    revisor descarta a mano igual que siempre — el costo de equivocarse no es simétrico."""
+    if not observaciones_pendientes_otras or not texto_resumen_nuevo.strip():
+        return []
+
+    client = _get_client()
+    lista_obs = "\n".join(
+        f'- ID: {o.get("id","")} | Ítem: {o.get("item_nombre","")} | '
+        f'Observación: {(o.get("texto","") or "")[:250]}'
+        for o in observaciones_pendientes_otras[:150]
+    )
+
+    prompt = f"""Se acaba de revisar el ítem "{item_nombre_nuevo}" de un expediente CNR (Ley 18.450).
+
+CONTENIDO REVISADO EN ESTE ÍTEM:
+{texto_resumen_nuevo}
+
+OBSERVACIONES PENDIENTES DE OTROS ÍTEMS (generadas antes, sobre otros documentos del mismo
+expediente):
+{lista_obs}
+
+TAREA: Determina cuáles de esas observaciones pendientes quedan RESUELTAS por el contenido de
+arriba — la información que faltaba o la ambigüedad que señalaban queda aclarada o corregida
+por lo que dice este ítem.
+
+SÉ CONSERVADOR: ante la duda, NO la marques como resuelta. Solo marca una observación si el
+contenido de arriba la resuelve de forma DIRECTA y explícita, no por relación tangencial o
+parecido superficial.
+
+Responde SOLO en JSON, sin texto adicional:
+{{"resueltas": ["id_obs_1", "id_obs_2"], "justificaciones": {{"id_obs_1": "razón breve"}}}}
+
+Si ninguna se resuelve, responde: {{"resueltas": [], "justificaciones": {{}}}}"""
+
+    try:
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=MODELO_HAIKU, max_tokens=800,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = _extraer_json_simple(_texto_respuesta(response))
+        ids = data.get("resueltas", [])
+        return ids if isinstance(ids, list) else []
+    except Exception as e:
+        print(f"⚠️ revisar_invalidacion_cruzada falló, se omite: {e}")
+        return []
+
+
 async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         concurso_id: str = "", feedback_concurso: list = None,
                         criterios_aprendidos: str = "", criterios_enfasis: str = "",
@@ -1534,6 +1598,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         datos_verificacion_fv: dict = None,
                         tabla_precios: list = None,
                         observaciones_previas: list = None,
+                        observaciones_pendientes_otros: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
 
@@ -1549,7 +1614,13 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     `observaciones_previas`: solo se usa para `item_key == "coherencia"` — las observaciones ya
     generadas en los OTROS ítems del mismo proyecto ([{item_nombre, texto}, ...]), para que el
     cierre transversal no repita hallazgos puntuales ya cubiertos y se concentre en lo que solo
-    se ve mirando el expediente completo (ver `_analizar_grupo`)."""
+    se ve mirando el expediente completo (ver `_analizar_grupo`).
+
+    `observaciones_pendientes_otros`: observaciones PENDIENTES de OTROS ítems ya revisados
+    ([{id, item_nombre, texto}, ...]) — si el contenido de ESTE ítem las resuelve, se devuelven
+    sus IDs en el resultado (`invalidadas`) para que el llamador las auto-descarte (ver
+    `revisar_invalidacion_cruzada`). Corre en paralelo al análisis principal, sin agregar
+    latencia."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
@@ -1592,7 +1663,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     except Exception as e:
         print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
 
-    return await _analizar_grupo(
+    analisis_task = _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
         observaciones_previas=observaciones_previas if item_key == "coherencia" else None,
@@ -1603,6 +1674,21 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         consultor=consultor,
         max_chars_total=MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL),
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
+
+    # Invalidación cruzada: corre en PARALELO al análisis principal (asyncio.gather) — no agrega
+    # latencia — y solo si hay observaciones pendientes de otros ítems para revisar.
+    if observaciones_pendientes_otros:
+        texto_resumen = _texto_grupo_para_extraccion(docs_grupo, max_chars=8000)
+        resultado, invalidadas = await asyncio.gather(
+            analisis_task,
+            revisar_invalidacion_cruzada(item["nombre"], texto_resumen, observaciones_pendientes_otros)
+        )
+    else:
+        resultado = await analisis_task
+        invalidadas = []
+
+    resultado["invalidadas"] = invalidadas
+    return resultado
 
 
 ACCIONES_CHAT_VALIDAS = {"descartar", "reclasificar_nota", "editar", "eliminar", "mantener"}

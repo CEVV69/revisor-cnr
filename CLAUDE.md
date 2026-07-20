@@ -1298,6 +1298,50 @@ superficie inconsistente) al mirar los mismos documentos de nuevo. Arreglado en 
    punto sobre la secuencia constructiva (cronograma/obras civiles/tecnificación/energización con
    orden lógico y ejecutable).
 
+**Invalidación cruzada — auto-descartar observaciones que otro ítem resuelve (implementado,
+jul-2026):** el método viejo de análisis documento-por-documento (eliminado antes de que Ítems
+SEP fuera el único método) SÍ tenía esto: al analizar cada documento nuevo, revisaba si su
+contenido resolvía observaciones pendientes de documentos ya analizados y las auto-descartaba
+(`revisar_observaciones_previas`, borrado junto con ese método). El usuario notó que ya no pasa
+y pidió reincorporarlo sin disparar el costo — se portó a la unidad de trabajo actual (ítem, no
+documento):
+- `analyzer.revisar_invalidacion_cruzada(item_nombre_nuevo, texto_resumen_nuevo,
+  observaciones_pendientes_otras)` — dado el resumen del ítem recién revisado, decide cuáles
+  observaciones PENDIENTES de OTROS ítems quedan resueltas. **Barata a propósito:** usa
+  **Haiku** (no Sonnet — misma regla de costo de siempre: leer texto y devolver JSON
+  estructurado es tarea de Haiku), `max_tokens=800`, y un resumen corto del ítem —
+  `_texto_grupo_para_extraccion(docs_grupo, max_chars=8000)`, la MISMA función ya usada para las
+  extracciones numéricas (reparto equitativo entre documentos, no el presupuesto completo de
+  120.000 caracteres del análisis principal). **Corre en PARALELO** al análisis principal
+  (`asyncio.gather` en `analizar_item()`), así que no agrega latencia — el revisor no espera más
+  por esto. Y **solo se llama si hay observaciones pendientes de OTROS ítems** — en un proyecto
+  recién empezado (nada revisado aún) esta llamada extra ni siquiera ocurre, cero costo.
+- **Deliberadamente conservadora**, incluso más que el resto de la app: el prompt insiste "ante
+  la duda, NO la marques como resuelta" y exige una resolución DIRECTA y explícita, no una
+  relación tangencial. Motivo: acá el costo de equivocarse NO es simétrico con generar una
+  observación de más — un falso positivo (invalidar algo que en realidad seguía pendiente)
+  esconde un hallazgo real sin que el revisor lo note; un falso negativo (dejarla pendiente
+  aunque ya esté resuelta) solo deja una observación de más, que el revisor descarta a mano
+  igual que siempre.
+- **Alcance:** solo toca observaciones con `estado == "pendiente"` — una observación que el
+  revisor ya **aprobó** NO se auto-descarta nunca (el visto bueno humano tiene prioridad), y una
+  ya **descartada** no se vuelve a tocar. Al auto-descartar, se le agrega al texto de la
+  observación `[Auto-descartada: resuelta al revisar "{ítem}"]` (mismo patrón que el método
+  viejo) — reversible por el revisor igual que cualquier descarte manual (puede volver a marcarla
+  pendiente si no está de acuerdo).
+- **Wiring:** `main.py` → `revisar_item()` arma `observaciones_pendientes_otros` (pendientes de
+  cualquier ítem distinto al que se está revisando) y se lo pasa a `analizar_item()`, que
+  devuelve `resultado["invalidadas"]` (lista de IDs). Tras guardar las observaciones nuevas del
+  ítem, se aplican esos IDs sobre `proyecto["observaciones"]` (respetando el filtro
+  `estado=="pendiente"` una segunda vez, por si cambió entre medio). El redirect agrega
+  `?item_invalidadas=N` si hubo alguna; `proyecto.html` muestra un banner verde
+  (`alert-success`) avisando cuántas se resolvieron, para que el revisor sepa que pasó y pueda
+  confirmarlo si quiere — no queda en silencio como antes de este cambio.
+- **No se aplica a `criterios_aprendidos`/feedback de consultor:** a diferencia de un descarte
+  manual del revisor (que sí alimenta el aprendizaje del ítem/consultor), un auto-descarte por
+  invalidación cruzada NO registra feedback — es una corrección automática del sistema, no una
+  señal de juicio del revisor, y mezclarla contaminaría esa fuente de aprendizaje.
+
 **Revisión por Ejes eliminada por completo (jul-2026):** existió como método alternativo que
 convivía con Ítems SEP — 9 ejes temáticos (`EJES_REVISION`/`EJES_ORDEN`: Superficie,
 Agronómico, Hidrológico, Hidráulico, Energético/Fotovoltaico, Obras civiles, Presupuesto y
