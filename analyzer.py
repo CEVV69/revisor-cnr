@@ -1437,15 +1437,23 @@ DOCUMENTOS DEL GRUPO (texto):
                                    "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": b64}})
 
-    async def _llamar(max_tokens):
-        return await asyncio.to_thread(
-            client.messages.create,
+    def _stream_final(max_tokens):
+        # Streaming (no create()) para peticiones con mucho input y max_tokens alto — el ítem
+        # Presupuesto reparte hasta 120.000 caracteres y pide hasta 20.000 tokens de salida: una
+        # llamada create() sin streaming choca contra el timeout HTTP del SDK y la app queda
+        # "colgada" varios minutos sin respuesta. get_final_message() devuelve el Message completo
+        # (mismo objeto que create()), así que .stop_reason y _texto_respuesta() siguen igual.
+        with client.messages.stream(
             model=MODELO_SONNET,
             max_tokens=max_tokens,
             system=system_con_cache,
             messages=[{"role": "user", "content": content_blocks}],
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
-        )
+        ) as stream:
+            return stream.get_final_message()
+
+    async def _llamar(max_tokens):
+        return await asyncio.to_thread(_stream_final, max_tokens)
 
     response = await _llamar(MAX_TOKENS_SONNET)
     content = _texto_respuesta(response)
