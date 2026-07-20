@@ -1333,7 +1333,42 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
         if t not in ("", "__PDF_ESCANEADO__"):
             docs_texto.append(d)
 
+    # Documentos del grupo que NO entraron ni como texto ni como imagen — caso: escaneado
+    # ("__PDF_ESCANEADO__", cero texto extraíble) Y sin archivo físico disponible para visión
+    # (se perdió tras un redeploy y no se pudo restaurar desde Postgres, o nunca se guardó ahí).
+    # Antes desaparecían del análisis SIN NINGÚN AVISO — ni en el prompt, ni en "archivos
+    # usados", ni en Railway — así que un documento crítico (ej. cálculo estructural de un
+    # invernadero) podía faltar del todo sin que el revisor se enterara. Ahora se detecta y se
+    # avisa por DOS vías: (1) nota informativa determinística (no depende de que la IA lo
+    # mencione) y (2) aparece en "archivos usados" marcado como no leído, para que el revisor
+    # sepa que tiene que resubirlo. Calculado ANTES del return temprano de abajo para que
+    # también avise si TODOS los documentos del grupo quedaron excluidos (antes ahí no había
+    # ningún aviso — solo el banner genérico "sin documentos disponibles").
+    ids_incluidos = ({d.get("id") for d in docs_texto}
+                      | {d.get("id") for d, _ in docs_imagen})
+    docs_excluidos = [d for d in docs_grupo if d.get("id") not in ids_incluidos]
+    observaciones_excluidos = []
+    docs_incluidos_excluidos = []
+    for d in docs_excluidos:
+        label_doc = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
+        nombre_doc = d.get("nombre_original", "")
+        print(f"⚠️ Grupo '{nombre}': documento excluido del análisis (sin texto extraíble y "
+              f"sin archivo disponible para visión) — {label_doc} ({nombre_doc}), "
+              f"id={d.get('id')}")
+        observaciones_excluidos.append({
+            "texto": (f'El documento "{nombre_doc}" ({label_doc}) no pudo leerse — no tiene '
+                      f"texto extraíble (parece escaneado) y su archivo físico no está "
+                      f"disponible (probablemente se perdió tras un redeploy). Debe resubirse "
+                      f"para poder evaluarlo."),
+            "categoria": "administrativa", "severidad": "informativa", "referencia_normativa": "",
+        })
+        docs_incluidos_excluidos.append({"id": d.get("id"), "nombre": nombre_doc,
+                                         "label": label_doc + " (NO SE PUDO LEER)"})
+
     if not docs_texto and not docs_imagen:
+        if observaciones_excluidos:
+            return {"observaciones": observaciones_excluidos,
+                    "docs_incluidos": docs_incluidos_excluidos, "sin_documentos": False}
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     client = _get_client()
@@ -1386,6 +1421,9 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                                        "label": label + " (imagen)"})
 
     if not bloque_docs and not imagenes_por_doc:
+        if observaciones_excluidos:
+            return {"observaciones": observaciones_excluidos,
+                    "docs_incluidos": docs_incluidos_excluidos, "sin_documentos": False}
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
 
     bloque_bases    = _construir_bloque_bases(bases_texto, concurso_id)
@@ -1547,11 +1585,14 @@ DOCUMENTOS DEL GRUPO (texto):
         except Exception:
             observaciones = []
 
-    if not observaciones:
+    if not observaciones and not observaciones_excluidos:
         print(f"⚠️ Grupo '{nombre}': 0 observaciones — stop_reason={response.stop_reason}, "
               f"content_len={len(content)}, preview={content[:200]!r}")
 
-    return {"observaciones": observaciones, "docs_incluidos": docs_incluidos,
+    # Se agregan al final las notas deterministas de documentos que no se pudieron leer (ver
+    # más arriba) — así el revisor las ve igual que cualquier otra observación del ítem.
+    return {"observaciones": observaciones + observaciones_excluidos,
+            "docs_incluidos": docs_incluidos + docs_incluidos_excluidos,
             "sin_documentos": False}
 
 

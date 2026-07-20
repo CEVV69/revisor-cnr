@@ -1515,6 +1515,50 @@ algo habitual en cualquier ítem, no solo Especificaciones técnicas.
   lo lleva el documento que sí lo requiere. Si la demanda total de un grupo es menor al
   presupuesto (documentos cortos en su mayoría), TODOS entran completos, sin truncar nada.
 
+**Bug resuelto — documentos escaneados sin archivo disponible desaparecían del análisis SIN
+NINGÚN AVISO (implementado, jul-2026):** con el reparto adaptativo ya desplegado, el usuario
+seguía sin ver el cálculo estructural del invernadero mencionado en las observaciones. Al
+investigar, confirmó que el "Ver archivos usados en este análisis" del ítem mostraba 5 de los 8
+documentos declarados — el cálculo estructural (y otros 2) simplemente no aparecía, pese a estar
+bien clasificado y verse "en verde" (sin necesidad de resubir) en la página Documentos.
+- **Causa encontrada en el código:** en `_analizar_grupo`, un documento queda TOTALMENTE
+  excluido (ni texto ni imagen) solo en un caso puntual: `texto_extraido == "__PDF_ESCANEADO__"`
+  (cero texto extraíble, típico de un PDF escaneado/con cálculos manuscritos o firmados) **Y**
+  `pdf_disponible` es `False` en ese momento — que se calcula chequeando el archivo en DISCO
+  (`_os.path.exists`), no en Postgres. `_restaurar_archivos_necesarios()` (main.py) debería
+  haber copiado el archivo desde Postgres al disco ANTES de este chequeo (si `necesita_vision`
+  detecta el caso escaneado, que sí lo hace) — pero si esa copia falla o el archivo nunca se
+  guardó en Postgres para ese documento puntual (aunque `archivo_presente` en la página
+  Documentos muestre "verde" por otra razón, o el archivo siga siendo visible vía
+  `ver_documento()` sirviendo directo desde Postgres sin escribir a disco), el resultado es el
+  mismo: `pdf_disponible=False`, `es_imagen=True` → el documento no entra a `docs_texto` (no
+  tiene texto real) NI a `docs_imagen` (no hay archivo para renderizar) — **desaparece del
+  prompt sin dejar rastro**, ni en "archivos usados", ni en ningún log.
+- **Arreglado con una red de seguridad, no adivinando la causa exacta de cada caso:** en vez de
+  perseguir todos los motivos posibles por los que la restauración pudo fallar (pueden ser
+  varios y distintos según el documento), `_analizar_grupo` ahora **detecta explícitamente**
+  cualquier documento del grupo que no haya entrado ni a `docs_texto` ni a `docs_imagen`
+  (`docs_excluidos`, comparando IDs contra `docs_grupo` completo) y, por cada uno:
+  1. Loguea un `print()` de diagnóstico en Railway con el nombre exacto del documento y el
+     motivo — mismo patrón que los demás avisos de diagnóstico de este archivo.
+  2. Genera una **observación informativa DETERMINÍSTICA** ("El documento '...' no pudo
+     leerse... Debe resubirse para poder evaluarlo") — no depende de que la IA decida
+     mencionarlo, se agrega siempre en código, así nunca puede "olvidarse" de avisar.
+  3. Se agrega a `docs_incluidos` con la etiqueta `"... (NO SE PUDO LEER)"`, así aparece en el
+     `<details>` "Ver archivos usados" de la página Ítems SEP, visible para el revisor.
+  Esto corre INCLUSO en los casos donde el grupo queda sin ningún documento legible en absoluto
+  (antes esos casos devolvían silenciosamente `sin_documentos: True`, un banner genérico sin
+  explicar por qué) — se movió el cálculo de `docs_excluidos` ANTES de los `return` tempranos de
+  la función para cubrir también ese caso extremo.
+- **Alcance de este fix:** garantiza que el revisor SIEMPRE se entera cuando un documento no se
+  pudo leer, sin importar la causa exacta de fondo (restauración fallida, nunca respaldado en
+  Postgres, archivo corrupto, etc.) — es una red de seguridad de visibilidad, no una corrección
+  de la causa raíz de por qué la restauración específica falló en este caso. Si el problema
+  persiste tras resubir el documento (ver el nuevo aviso/nota que ahora aparece explicando cuál
+  falló), revisar el log de Railway por el nuevo `print()` de diagnóstico para investigar la
+  causa puntual (ej. comparar si `db.obtener_archivo()` realmente devuelve contenido para ese
+  documento).
+
 ---
 
 ## Restricciones y gotchas
