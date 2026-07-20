@@ -291,6 +291,21 @@ fecha (`item_reciente`, calculado en `_render_proyecto()` con `max(revisados.ite
 key=fecha)`); el resto queda contraído pero expandible a mano. El grupo se identifica por
 `grupo.key` (item_key), agregado en `_agrupar()`.
 
+**Bug resuelto — aprobar/descartar una observación cerraba el ítem y saltaba a otro (jul-2026):**
+las rutas `POST /proyecto/{id}/observacion/{obs_id}/estado` (aprobar/descartar/pendiente) y
+`.../eliminar` (`actualizar_observacion`/`eliminar_observacion`, main.py) redirigían a
+`/proyecto/{id}/items` a secas, sin `item_ok`. Como `abrir_item = item_ok or item_reciente`
+(ver arriba), sin `item_ok` el `<details>` que se auto-abre pasaba a ser `item_reciente` (el
+ítem más recientemente ANALIZADO por fecha, no el que el revisor tenía abierto) — el ítem en el
+que estaba trabajando se colapsaba y la página "saltaba" a otro. Arreglado: ambas rutas ahora
+capturan `item_key = obs.get("item")` ANTES de aplicar el cambio y redirigen con
+`?item_ok={item_key}#item-{item_key}` (mismo patrón que `revisar_item()`), así el mismo ítem
+queda abierto. De paso se le agregó `id="item-{{ grupo.key }}"` (`bloque_observaciones`) /
+`id="item-nota-{{ grupo.key }}"` (`bloque_notas`, prefijo distinto para no duplicar id cuando un
+ítem tiene ambos tipos) a los `<details>` — el ancla `#item-...` no apuntaba a nada antes de
+esto (no rompía nada, pero tampoco hacía scroll). Si `obs.get("item")` es `None` (observación
+histórica de Ejes, sin `item`/`item_nombre`), cae al comportamiento anterior sin `item_ok`.
+
 **Mensaje de cumplimiento cuando no hay observaciones:** si un ítem fue revisado y no generó
 ninguna observación ni nota, antes no aparecía nada — ahora `bloque_cumplimiento()` muestra una
 tarjeta verde "Cumple con la normativa" listando esos ítems (calculado en `_render_proyecto()`:
@@ -460,7 +475,8 @@ deploys, para ver planos/escaneados hay que tenerlos subidos en la sesión actua
 Coherencia Global es solo texto (no visión, por costo).
 
 **Análisis de PLANOS en alta resolución (implementado, jul-2026):** los tipos en
-`TIPOS_PLANO_VISION` (`planos_tecnificacion`, `planos_obras_civiles`, `plano_ubicacion`) van a
+`TIPOS_PLANO_VISION` (`planos_tecnificacion`, `planos_obras_civiles`, `plano_ubicacion`,
+`identificacion_riego` — este último agregado más tarde, ver entrada dedicada más abajo) van a
 visión **siempre** que el archivo PDF exista — aunque tengan capa de texto extraíble (un plano
 exportado de AutoCAD trae las cotas/rótulos como texto, pero el trazado solo se ve en imagen):
 entran por AMBOS canales a la vez (texto + imagen; en "archivos usados" aparece "(texto +
@@ -476,6 +492,36 @@ plantación, viñeta/escala, y dimensiones acotadas vs. cubicaciones/presupuesto
 civiles — la ausencia de rotulado clave ES observación. **Sobre AutoCAD nativo:** DWG es
 formato binario propietario — no se puede leer directo; DXF sí sería parseable (ezdxf) si el
 consultor lo entregara, pero el SEP recibe PDF — no implementado.
+
+**"Identificación del área de riego" agregado a `TIPOS_PLANO_VISION` (jul-2026):** el usuario
+reportó que la revisión de ese ítem observaba que la superficie no constaba, cuando en realidad
+SÍ estaba anotada — pero gráficamente, sobre el mapa/plano de delimitación del área (polígonos
+con rótulos de hectáreas), no como texto plano extraíble del PDF. Ese tipo de documento no
+estaba en `TIPOS_PLANO_VISION`, así que nunca iba a visión (solo texto), y la IA no podía "ver"
+esas anotaciones. Se agregó `identificacion_riego` al set — mismo tratamiento que los planos:
+visión siempre que el archivo exista (aunque tenga texto), renderizado con
+`render_plano_tiles()` (vista completa + cuadrantes ampliados). El texto de aviso de imágenes
+en el prompt (`nota_imagenes`, `_analizar_grupo`) se generalizó de "planos" a "planos/mapas de
+delimitación de áreas" y ahora menciona explícitamente leer "SUPERFICIES/hectáreas rotuladas",
+no solo diámetros/longitudes (antes redactado pensando solo en planos de tecnificación/obras).
+
+**Bug resuelto — el archivo físico de un plano no se restauraba tras un redeploy pese a tener
+texto (jul-2026):** reportado junto con lo anterior para "Plano de Ubicación del proyecto"
+(`plano_ubicacion`, que YA estaba en `TIPOS_PLANO_VISION` desde antes — el problema no era falta
+de cobertura sino que la visión nunca llegaba a dispararse). Causa: `_restaurar_archivos_
+necesarios()` (main.py) — el helper que recupera desde Postgres el archivo físico perdido tras
+un redeploy de Railway antes de analizar — solo restauraba documentos "escaneados o con poco
+texto" (`texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO`), sin considerar que los
+tipos de `TIPOS_PLANO_VISION` necesitan el archivo físico SIEMPRE (van a visión aunque tengan
+texto). Un plano con harto texto extraíble (ej. exportado de AutoCAD, con las cotas como texto)
+cuyo archivo se perdía en un redeploy quedaba sin restaurar — la visión nunca se disparaba pese
+a que el código la esperaba siempre para ese tipo, y no había ningún aviso: el análisis simplemente
+seguía solo con el texto, silenciosamente. Arreglado: `_restaurar_archivos_necesarios()` ahora
+también restaura si `doc.tipo_doc in TIPOS_PLANO_VISION` (importado de `analyzer.py`). Mismo fix
+aplicado al indicador 🔴 "necesita resubir" de la página Documentos (`doc["necesita_archivo"]`
+en `_render_proyecto()`), que tenía la misma omisión — antes un plano con texto pero sin archivo
+en ningún lado (ni disco ni Postgres) no se marcaba como "necesita resubir", dejando al revisor
+sin forma de notar que la visión no estaba disponible para ese documento.
 
 **Chat de refinamiento por ÍTEM (implementado):** núcleo `_chatear_grupo()` en `analyzer.py`;
 `chatear_item()` es su envoltorio (mismo patrón que `_analizar_grupo`). Ruta

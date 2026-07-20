@@ -27,7 +27,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
-                      _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc)
+                      _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
+                      TIPOS_PLANO_VISION)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -202,13 +203,22 @@ def _doc_disponible_analisis(d: dict, permite_vision: bool = True) -> bool:
 
 
 def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
-    """Si el archivo físico de un documento que necesita visión (escaneado/con poco texto) se
-    perdió tras un redeploy de Railway, lo recupera desde PostgreSQL antes de analizar — así
-    no hay que resubirlo a mano mientras siga guardado en la base."""
+    """Si el archivo físico de un documento que necesita visión se perdió tras un redeploy de
+    Railway, lo recupera desde PostgreSQL antes de analizar — así no hay que resubirlo a mano
+    mientras siga guardado en la base.
+
+    "Necesita visión" son dos casos (mismo criterio que `_analizar_grupo` en analyzer.py):
+    escaneado/con poco texto, O un tipo de PLANO (`TIPOS_PLANO_VISION` — va a visión SIEMPRE que
+    el archivo exista, aunque tenga texto). Antes este helper solo cubría el primer caso, así
+    que un plano con harto texto (ej. exportado de AutoCAD con cotas como texto) que perdía su
+    archivo físico en un redeploy quedaba sin restaurar — la visión nunca se disparaba pese a que
+    el código la esperaba siempre para ese tipo, y el revisor no tenía forma de notarlo sin
+    revisar manualmente el indicador de la página Documentos."""
     carpeta = UPLOAD_DIR / proyecto_id
     for d in documentos:
         texto = d.get("texto_extraido", "").strip()
-        necesita_vision = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO)
+        necesita_vision = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
+                            or d.get("tipo_doc") in TIPOS_PLANO_VISION)
         if not necesita_vision:
             continue
         filepath = carpeta / d.get("filename", "")
@@ -510,13 +520,16 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             for k in concurso["documentos_obligatorios"] if k not in tipos_presentes
         ]
     # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
-    # Solo importa re-subir los que necesitan visión (escaneados/planos con poco texto);
-    # el resto ya tiene su texto extraído guardado y no requiere el archivo físico.
+    # Solo importa re-subir los que necesitan visión: escaneados/con poco texto, O un tipo de
+    # PLANO (`TIPOS_PLANO_VISION` — va a visión SIEMPRE aunque tenga texto, ver
+    # _restaurar_archivos_necesarios); el resto ya tiene su texto extraído guardado y no
+    # requiere el archivo físico.
     carpeta_proyecto = UPLOAD_DIR / proyecto_id
     ids_guardados_db = db.ids_con_archivo(proyecto_id)
     for doc in proyecto["documentos"]:
         texto = doc.get("texto_extraido", "").strip()
-        doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO)
+        doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
+                                    or doc.get("tipo_doc") in TIPOS_PLANO_VISION)
         doc["archivo_presente"] = ((carpeta_proyecto / doc.get("filename", "")).exists()
                                     or doc["id"] in ids_guardados_db)
     n_faltan_resubir = len([d for d in proyecto["documentos"]
@@ -1925,7 +1938,11 @@ async def actualizar_observacion(
     if obs_actualizada and estado in ("aprobada", "descartada"):
         _registrar_feedback_obs(proyecto, obs_actualizada, estado, user)
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+    # Volver al MISMO ítem que ya estaba abierto (no saltar al más recientemente analizado) —
+    # mismo patrón que revisar_item(): item_ok controla qué <details> queda expandido.
+    item_key = obs_actualizada.get("item") if obs_actualizada else None
+    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/eliminar")
@@ -1940,13 +1957,17 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
         raise HTTPException(status_code=404)
 
     obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+    item_key = None
     if obs:
+        item_key = obs.get("item")
         # Misma señal de aprendizaje que descartar (no era válida) antes de borrarla.
         _registrar_feedback_obs(proyecto, obs, "descartada", user)
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o["id"] != obs_id]
         db.save_proyecto(proyecto)
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+    # Mismo criterio que actualizar_observacion(): no saltar al ítem más recientemente analizado.
+    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

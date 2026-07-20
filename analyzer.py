@@ -546,7 +546,12 @@ MAX_IMG_EJE = 10   # tope de imágenes (páginas) por revisión de grupo, para c
 # tenga capa de texto — un plano exportado de AutoCAD suele traer las cotas/textos extraíbles,
 # pero la geometría del trazado solo se ve en imagen), y se renderizan en ALTA RESOLUCIÓN con
 # cuadrantes ampliados (render_plano_tiles) en vez del renderizado básico de página completa.
-TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion"}
+# "identificacion_riego" se agregó jul-2026: ese documento delimita el área de riego sobre un
+# plano/mapa del predio con las superficies anotadas gráficamente (polígonos, rótulos de
+# hectáreas) — el texto extraído del PDF no captura esas anotaciones, así que sin visión la IA
+# no las "ve" y puede observar por error que la superficie no está declarada.
+TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion",
+                       "identificacion_riego"}
 
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
@@ -1394,13 +1399,15 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     if imagenes_por_doc:
         nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
-                         f"(planos o escaneados) — analízalos visualmente: {nombres_img}."
-                         f"\nOJO con los PLANOS: cada página viene como una vista completa MÁS "
-                         f"4 cuadrantes AMPLIADOS de esa MISMA página (para leer cotas, "
+                         f"(planos, mapas de delimitación de áreas o escaneados) — analízalos "
+                         f"visualmente: {nombres_img}."
+                         f"\nOJO con los PLANOS/MAPAS: cada página viene como una vista completa "
+                         f"MÁS 4 cuadrantes AMPLIADOS de esa MISMA página (para leer cotas, "
                          f"diámetros y textos chicos) — los cuadrantes NO son páginas ni "
                          f"láminas distintas, no dupliques conteos ni superficies. Lee "
-                         f"diámetros, longitudes y números de la simbología y las cotas "
-                         f"anotadas; NO intentes medir a escala sobre la imagen.")
+                         f"diámetros, longitudes, SUPERFICIES/hectáreas rotuladas y números de "
+                         f"la simbología y las cotas anotadas; NO intentes medir a escala sobre "
+                         f"la imagen.")
 
     bloque_enfasis = ""
     if criterios_enfasis and criterios_enfasis.strip():
