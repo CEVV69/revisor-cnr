@@ -164,7 +164,10 @@ CINCO colecciones guardadas como JSON: `users`, `proyectos`, `concursos`, `consu
     analizado (bool), fecha_subida`.
   - `observaciones[]`: `id, texto, categoria, severidad (mayor|menor|informativa),
     referencia_normativa, estado (pendiente|aprobada|descartada), numero, fecha`, y
-    `item`+`item_nombre`. **Nota histórica:** proyectos revisados antes de jul-2026 (cuando
+    `item`+`item_nombre`. Las observaciones **aprobadas** pueden llevar además `subsanacion:
+    {rondas: [{ronda, respuesta, evaluacion (resuelta|reiterada), comentario, fecha, por}]}` —
+    el hilo de respuestas del consultor (ver sección "Subsanación" más abajo). **Nota
+    histórica:** proyectos revisados antes de jul-2026 (cuando
     existía el método por Ejes, ver más abajo) pueden tener observaciones antiguas con
     `eje`+`eje_nombre` en vez de `item`/`item_nombre` — la ficha las sigue mostrando (agrupadas
     al final, sin orden específico), pero ya no se pueden generar más ni gestionar desde la UI.
@@ -271,8 +274,9 @@ contexto; hay una ruta GET por página:
 - `/proyecto/{id}/documentos` → subida + gestión + tabla de documentos.
 - `/proyecto/{id}/items` → 18 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + chat + obs de ítem.
 
-Una quinta página, `/proyecto/{id}/calculos` (Chequeo de Cálculos), tiene su propia plantilla y
-ruta, fuera de `_render_proyecto()` — ver la sección dedicada más abajo.
+Dos páginas más, `/proyecto/{id}/calculos` (Chequeo de Cálculos) y `/proyecto/{id}/respuestas`
+(Respuestas del consultor / subsanación), tienen su propia plantilla y ruta, fuera de
+`_render_proyecto()` — ver las secciones dedicadas más abajo.
 
 Núcleo de análisis en `_analizar_grupo()`; `analizar_item()` es su envoltorio. Obs de ítem:
 `obs.item`/`obs.item_nombre`. Ruta de análisis: `POST /proyecto/{id}/revisar-item/{key}`.
@@ -424,7 +428,9 @@ adivina ni se muestra un pin en un lugar incorrecto.
   observación (descartar/reclasificar a nota/editar) directamente desde la conversación
 - Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
-- Estados del proyecto: En revisión / Revisado / Observado / Rechazado
+- Estados del proyecto: En revisión / Revisado / Observado / Aprobado Técnicamente / Rechazado
+  (el estado "Aprobado Técnicamente" se agregó jul-2026 junto con la subsanación — ver sección
+  dedicada más abajo)
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
@@ -476,6 +482,52 @@ adivina ni se muestra un pin en un lugar incorrecto.
   qué documentos son obligatorios (`/admin/concursos/{id}`) — requiere VB explícito del
   revisor antes de usarse. Si al proyecto le falta alguno confirmado, se muestra un banner
   rojo (no bloqueante) al entrar — ver sección dedicada más abajo.
+
+---
+
+## Subsanación — revisión de las respuestas del consultor (implementado, jul-2026)
+
+Nueva **página aparte** `/proyecto/{id}/respuestas` (`templates/respuestas.html`, standalone como
+`calculos.html`, misma nav de tabs, fuera de `_render_proyecto`). Cubre la fase POSTERIOR a
+generar observaciones: una vez enviadas al consultor, este tiene 10 días hábiles para responder
+(fuera de la app, vía SEP), y el revisor revisa esas respuestas para verificar que resuelven cada
+punto. Decisiones de diseño confirmadas con el usuario: (1) página aparte, no dentro de Ítems SEP;
+(2) el consultor NO usa la app — el revisor **transcribe** la respuesta y sube los antecedentes
+nuevos por la página Documentos; (3) tras las 2 rondas sin resolver, el punto queda "no resuelta"
+y el revisor decide a mano (no hay rechazo automático).
+- **Qué observaciones entran:** SOLO las `estado == "aprobada"` (las que efectivamente se
+  enviaron con la ficha). Las pendientes/descartadas no aparecen. Se agrupan por ítem (mismo
+  `orden_item` de `ITEMS_ORDEN`).
+- **Modelo de datos:** cada observación aprobada gana `obs["subsanacion"]["rondas"]` — lista de
+  `{ronda, respuesta, evaluacion (resuelta|reiterada), comentario, fecha, por}`. No hay estado
+  guardado aparte: `_estado_subsanacion(obs)` (main.py) lo **deriva** de las rondas → `esperando`
+  (falta la respuesta de la ronda actual) | `resuelta` (última ronda resuelta) | `no_resuelta`
+  (2 rondas y la última reiterada). `MAX_RONDAS_SUBSANACION = 2`.
+- **Rutas (main.py):** `GET .../respuestas` (`pagina_respuestas`), `POST
+  .../observacion/{id}/responder` (registra una ronda: `respuesta`+`evaluacion`+`comentario`;
+  valida que la obs sea aprobada, que `puede_responder`, y que la respuesta no esté vacía),
+  `POST .../observacion/{id}/subsanacion/deshacer` (borra la última ronda, por si el revisor se
+  equivocó), `POST .../aprobar-tecnicamente` (marca el proyecto "Aprobado Técnicamente", **solo
+  si TODAS las aprobadas quedaron resueltas** — guard en el backend, no solo en la UI).
+- **UI:** tarjeta de resumen arriba (X de Y resueltas · esperando · no resueltas) con el botón
+  "Dar por Aprobado Técnicamente" (visible solo si `todas_resueltas`); si hay `no_resuelta`, un
+  aviso de que decida a mano con el menú de estado (Rechazar u otra vía). Cada observación es una
+  tarjeta con su texto (solo lectura), su hilo de rondas ya registradas (respuesta + veredicto +
+  nota + fecha/por), y —si `puede_responder`— un formulario con textarea de respuesta + nota
+  opcional + dos botones ("Marcar como resuelta" / "Reiterar"). Ancla `#obs-{id}` para volver a
+  la misma observación tras cada acción.
+- **Estado del proyecto:** se agregó **"Aprobado Técnicamente"** a `estados_validos`
+  (`cambiar_estado_proyecto`) y al menú/badge de estado en `proyecto.html` (verde, como
+  "Revisado"). El botón guardado de la página Respuestas es el camino previsto; el menú de estado
+  sigue permitiendo fijarlo a mano (el revisor es la autoridad).
+- **Retención:** el proyecto, sus antecedentes y las observaciones deben permanecer disponibles
+  hasta Aprobado/Rechazado. Nada se borra automáticamente — la única purga es el botón manual
+  "Liberar archivos" del concurso (`/admin/concursos/{id}`), que NO debe usarse hasta cerrar el
+  proyecto. La subsanación no agrega ninguna limpieza automática.
+- **Alcance actual (v1):** el revisor transcribe la respuesta como texto; los archivos nuevos van
+  por Documentos (se puede re-revisar el ítem si hace falta). No hay: recordatorio del plazo de
+  10 días hábiles, ni versión imprimible del pliego de reiteración para el SEP, ni acceso del
+  consultor — quedan como posibles iteraciones futuras.
 
 ---
 

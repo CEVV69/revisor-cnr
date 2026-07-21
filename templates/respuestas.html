@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Respuestas — {{ proyecto.codigo_sep }} — Revisor CNR{% endblock %}
+{% block content %}
+
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border); flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+
+  .sub-badge { font-size:0.72rem; font-weight:700; padding:0.15rem 0.55rem; border-radius:999px;
+    white-space:nowrap; }
+  .sub-esperando { background:#fffaf0; color:#c05621; border:1px solid rgba(192,86,33,.3); }
+  .sub-resuelta  { background:#f0fff4; color:#276749; border:1px solid rgba(39,103,73,.3); }
+  .sub-noresuelta{ background:#fff0f0; color:#c41230; border:1px solid rgba(196,18,48,.3); }
+
+  .obs-card { border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  .ronda-box { border:1px solid var(--border); border-radius:8px; padding:0.7rem 0.85rem;
+    margin:0.6rem 0; background:rgba(128,128,128,0.04); }
+  .ronda-titulo { font-size:0.8rem; font-weight:700; color:var(--text-2); margin-bottom:0.3rem; }
+  .resp-txt { white-space:pre-wrap; font-size:0.88rem; line-height:1.5; }
+  .form-resp textarea { width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
+    font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:vertical; }
+</style>
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
+  <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Respuestas del consultor</h1>
+</div>
+
+<nav class="proj-nav">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">Documentos</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
+  <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas</a>
+</nav>
+
+<div class="card" style="border-left:4px solid #2b6cb0;">
+  <p class="text-muted" style="font-size:0.85rem; margin:0;">
+    Aquí se revisan las respuestas del consultor a las observaciones ya <strong>aprobadas</strong>
+    (las que se enviaron con la ficha). El consultor responde por fuera (SEP); tú
+    <strong>transcribes</strong> su respuesta a cada punto y la evalúas: si la resuelve, el punto
+    se cierra; si no, se reitera. Hay hasta <strong>2 rondas</strong> por observación. Cuando
+    <strong>todas</strong> quedan resueltas, puedes dar el proyecto por
+    <strong>Aprobado Técnicamente</strong>. Si algún antecedente nuevo llega como archivo, súbelo
+    en la página <strong>Documentos</strong> (y vuelve a revisar el ítem si corresponde).
+  </p>
+</div>
+
+{% if total == 0 %}
+<div class="card">
+  <p style="margin:0; font-size:0.9rem;">
+    Aún no hay observaciones aprobadas. Aprueba las observaciones que correspondan en la página
+    <a href="/proyecto/{{ proyecto.id }}/items">Revisión por Ítems SEP</a> — solo las
+    <strong>aprobadas</strong> entran a este proceso de subsanación.
+  </p>
+</div>
+{% else %}
+
+<div class="card">
+  <div style="display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;">
+    <div style="font-size:0.9rem;">
+      <strong>{{ n_resueltas }}</strong> de <strong>{{ total }}</strong> resueltas
+      {% if n_esperando %}&nbsp;·&nbsp; <strong>{{ n_esperando }}</strong> esperando respuesta{% endif %}
+      {% if n_no_resueltas %}&nbsp;·&nbsp; <span style="color:#c41230;"><strong>{{ n_no_resueltas }}</strong> no resueltas</span>{% endif %}
+    </div>
+    <span style="flex:1;"></span>
+    {% if todas_resueltas %}
+    <form method="post" action="/proyecto/{{ proyecto.id }}/aprobar-tecnicamente"
+          onsubmit="return confirm('¿Dar el proyecto por Aprobado Técnicamente? Todas las observaciones quedaron resueltas.')">
+      <button type="submit" class="btn btn-success btn-sm">Dar por Aprobado Técnicamente</button>
+    </form>
+    {% else %}
+    <span class="text-muted" style="font-size:0.82rem;">
+      El botón "Aprobado Técnicamente" se habilita cuando todas las observaciones estén resueltas.
+    </span>
+    {% endif %}
+  </div>
+  {% if n_no_resueltas %}
+  <p class="text-muted" style="font-size:0.82rem; margin:0.6rem 0 0;">
+    Hay {{ n_no_resueltas }} observación(es) que no se resolvieron tras las 2 rondas. Decide a mano
+    con el menú de estado del proyecto: <strong>Rechazar</strong>, o resolver la situación por otra
+    vía antes de aprobar.
+  </p>
+  {% endif %}
+</div>
+
+{% for grupo in grupos %}
+<div class="card">
+  <h2 style="margin:0 0 0.8rem; border:none; padding:0; font-size:1rem; color:#2b6cb0;">{{ grupo.nombre }}</h2>
+  {% for par in grupo.obs %}
+  {% set obs = par.obs %}
+  {% set sub = par.sub %}
+  <div class="obs-card" id="obs-{{ obs.id }}"
+    {% if sub.estado == 'resuelta' %}style="border-left:4px solid #276749;"
+    {% elif sub.estado == 'no_resuelta' %}style="border-left:4px solid #c41230;"
+    {% else %}style="border-left:4px solid #c05621;"{% endif %}>
+
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+      <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
+        <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
+        <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+        <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
+      </div>
+      <span class="sub-badge
+        {% if sub.estado == 'resuelta' %}sub-resuelta{% elif sub.estado == 'no_resuelta' %}sub-noresuelta{% else %}sub-esperando{% endif %}">
+        {% if sub.estado == 'resuelta' %}Resuelta
+        {% elif sub.estado == 'no_resuelta' %}No resuelta (2 rondas)
+        {% else %}Esperando respuesta (ronda {{ sub.ronda_actual }}){% endif %}
+      </span>
+    </div>
+
+    <div class="resp-txt" style="margin-bottom:0.3rem;">{{ obs.texto }}</div>
+    {% if obs.referencia_normativa %}
+    <p class="text-muted" style="font-size:0.8rem; margin:0 0 0.4rem;">Ref. normativa: {{ obs.referencia_normativa }}</p>
+    {% endif %}
+
+    {% for r in sub.rondas %}
+    <div class="ronda-box">
+      <div class="ronda-titulo">
+        Ronda {{ r.ronda }} — respuesta del consultor
+        {% if r.evaluacion == 'resuelta' %}
+        <span class="sub-badge sub-resuelta" style="margin-left:0.4rem;">La resuelve</span>
+        {% else %}
+        <span class="sub-badge sub-noresuelta" style="margin-left:0.4rem;">Reiterada</span>
+        {% endif %}
+      </div>
+      <div class="resp-txt">{{ r.respuesta }}</div>
+      {% if r.comentario %}
+      <div style="font-size:0.82rem; color:var(--text-2); margin-top:0.35rem;">
+        <strong>Nota del revisor:</strong> {{ r.comentario }}
+      </div>
+      {% endif %}
+      <div class="text-muted" style="font-size:0.75rem; margin-top:0.3rem;">
+        {{ r.fecha | fecha_hora }}{% if r.por %} · {{ r.por }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if sub.puede_responder %}
+    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/responder" class="form-resp" style="margin-top:0.6rem;">
+      <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;">
+        Respuesta del consultor (ronda {{ sub.ronda_actual }})
+      </label>
+      <textarea name="respuesta" rows="3" required
+        placeholder="Transcribe o resume qué respondió el consultor a este punto..."></textarea>
+      <label style="display:block; font-size:0.82rem; font-weight:600; margin:0.5rem 0 0.3rem;">
+        Nota del revisor (opcional)
+      </label>
+      <textarea name="comentario" rows="2"
+        placeholder="Por qué la das por resuelta, o qué sigue faltando si la reiteras..."></textarea>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+        <button type="submit" name="evaluacion" value="resuelta" class="btn btn-success btn-sm">Marcar como resuelta</button>
+        <button type="submit" name="evaluacion" value="reiterada" class="btn btn-danger btn-sm">
+          {% if sub.ronda_actual == 1 %}Reiterar (no la resuelve){% else %}Reiterar — última ronda{% endif %}
+        </button>
+      </div>
+    </form>
+    {% endif %}
+
+    {% if sub.rondas %}
+    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/subsanacion/deshacer"
+          onsubmit="return confirm('¿Deshacer la última evaluación registrada de esta observación?')"
+          style="margin-top:0.5rem;">
+      <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--text-2); font-size:0.78rem;">Deshacer última ronda</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

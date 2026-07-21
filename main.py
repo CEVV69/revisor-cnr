@@ -235,7 +235,7 @@ def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> s
     para volver a ella tras acciones del encabezado (estado). Si no se puede, usa `defecto`."""
     ref = request.headers.get("referer", "") or ""
     base = f"/proyecto/{proyecto_id}/"
-    for pag in ("resumen", "documentos", "items", "calculos"):
+    for pag in ("resumen", "documentos", "items", "calculos", "respuestas"):
         if base + pag in ref:
             return base + pag
     return base + defecto
@@ -671,7 +671,8 @@ async def cambiar_estado_proyecto(
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    estados_validos = {"En revisión", "Revisado", "Observado", "Rechazado"}
+    estados_validos = {"En revisión", "Revisado", "Observado", "Rechazado",
+                       "Aprobado Técnicamente"}
     if estado in estados_validos:
         proyecto["estado"] = estado
         proyecto["fecha_estado"] = _ahora().isoformat()
@@ -1969,6 +1970,137 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
     # Mismo criterio que actualizar_observacion(): no saltar al ítem más recientemente analizado.
     extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
+
+
+# ─── Subsanación: revisión de las respuestas del consultor a las observaciones ────────────────
+# Tras enviar las observaciones APROBADAS al consultor (fuera de la app, vía SEP), este tiene 10
+# días hábiles para responder. El revisor transcribe cada respuesta acá y la evalúa: la resuelve
+# (cierra el punto) o no la resuelve (reitera). Hasta 2 rondas por observación. El proyecto pasa
+# a "Aprobado Técnicamente" solo cuando TODAS las observaciones enviadas quedan resueltas.
+
+MAX_RONDAS_SUBSANACION = 2
+
+def _estado_subsanacion(obs: dict) -> dict:
+    """Estado derivado del hilo de respuestas de UNA observación aprobada:
+      estado: "esperando" (falta la respuesta de la ronda actual) | "resuelta" | "no_resuelta"
+      ronda_actual: N° de la próxima ronda a responder (1 o 2), solo si estado=="esperando"
+      puede_responder: si el revisor todavía puede registrar una respuesta
+      rondas: rondas ya registradas."""
+    rondas = (obs.get("subsanacion") or {}).get("rondas", [])
+    if not rondas:
+        return {"estado": "esperando", "ronda_actual": 1, "puede_responder": True, "rondas": []}
+    ultima = rondas[-1]
+    if ultima.get("evaluacion") == "resuelta":
+        return {"estado": "resuelta", "ronda_actual": None, "puede_responder": False, "rondas": rondas}
+    # La última respuesta fue "reiterada": si aún quedan rondas, se espera la siguiente.
+    if len(rondas) >= MAX_RONDAS_SUBSANACION:
+        return {"estado": "no_resuelta", "ronda_actual": None, "puede_responder": False, "rondas": rondas}
+    return {"estado": "esperando", "ronda_actual": len(rondas) + 1, "puede_responder": True, "rondas": rondas}
+
+
+@app.get("/proyecto/{proyecto_id}/respuestas", response_class=HTMLResponse)
+async def pagina_respuestas(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    # Solo entran al flujo las observaciones APROBADAS (las que se enviaron al consultor).
+    aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]
+    orden_item = {ITEMS_SEP[k]["nombre"]: i for i, k in enumerate(ITEMS_ORDEN)}
+    grupos = {}
+    for o in aprobadas:
+        nombre = o.get("item_nombre") or "Otras observaciones"
+        grupos.setdefault(nombre, {"key": o.get("item", ""), "obs": []})
+        grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o)})
+    grupos_lista = [{"nombre": n, "key": g["key"], "obs": g["obs"]}
+                    for n, g in sorted(grupos.items(), key=lambda kv: orden_item.get(kv[0], 999))]
+
+    estados = [_estado_subsanacion(o)["estado"] for o in aprobadas]
+    total = len(aprobadas)
+    n_resueltas = estados.count("resuelta")
+    n_no_resueltas = estados.count("no_resuelta")
+    n_esperando = estados.count("esperando")
+    todas_resueltas = total > 0 and n_resueltas == total
+
+    return templates.TemplateResponse("respuestas.html", {
+        "request": request, "user": user, "proyecto": proyecto,
+        "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
+        "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
+        "todas_resueltas": todas_resueltas,
+    })
+
+
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/responder")
+async def registrar_respuesta_subsanacion(
+    request: Request, proyecto_id: str, obs_id: str,
+    respuesta: str = Form(...), evaluacion: str = Form(...), comentario: str = Form("")
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+    if not obs or obs.get("estado") != "aprobada":
+        raise HTTPException(status_code=404, detail="Observación no válida para subsanación")
+    if evaluacion not in ("resuelta", "reiterada"):
+        raise HTTPException(status_code=400, detail="Evaluación no válida")
+
+    sub = _estado_subsanacion(obs)
+    if sub["puede_responder"] and respuesta.strip():
+        obs.setdefault("subsanacion", {}).setdefault("rondas", [])
+        obs["subsanacion"]["rondas"].append({
+            "ronda": sub["ronda_actual"],
+            "respuesta": respuesta.strip(),
+            "evaluacion": evaluacion,
+            "comentario": comentario.strip(),
+            "fecha": _ahora().isoformat(),
+            "por": user["nombre"],
+        })
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/subsanacion/deshacer")
+async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs_id: str):
+    """Borra la ÚLTIMA ronda registrada (por si el revisor se equivocó al evaluar). Solo quita
+    el último registro, conserva los anteriores."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+    if obs and (obs.get("subsanacion") or {}).get("rondas"):
+        obs["subsanacion"]["rondas"].pop()
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/aprobar-tecnicamente")
+async def aprobar_tecnicamente(request: Request, proyecto_id: str):
+    """Marca el proyecto 'Aprobado Técnicamente' — solo si TODAS las observaciones aprobadas
+    (enviadas al consultor) quedaron resueltas. Si falta alguna, no hace nada."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]
+    todas_resueltas = bool(aprobadas) and all(
+        _estado_subsanacion(o)["estado"] == "resuelta" for o in aprobadas)
+    if todas_resueltas:
+        proyecto["estado"] = "Aprobado Técnicamente"
+        proyecto["fecha_estado"] = _ahora().isoformat()
+        proyecto["estado_por"] = user["nombre"]
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

@@ -203,7 +203,7 @@
       <span class="badge badge-legal">Tipo revisión: Legal</span>
     {% endif %}
     <!-- Badge estado con color dinámico -->
-    {% if proyecto.estado == 'Revisado' %}
+    {% if proyecto.estado in ['Revisado', 'Aprobado Técnicamente'] %}
       <span class="badge badge-tecnica">{{ proyecto.estado }}</span>
     {% elif proyecto.estado in ['Rechazado', 'Observado'] %}
       <span class="badge badge-mayor">{{ proyecto.estado }}</span>
@@ -216,14 +216,14 @@
     <!-- Botón de estado -->
     <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
       <button onclick="toggleMenuEstado()" class="btn btn-sm"
-              style="background:{% if proyecto.estado == 'Revisado' %}#276749{% elif proyecto.estado == 'En revisión' %}#2b6cb0{% else %}#c05621{% endif %};color:white;white-space:nowrap;">
+              style="background:{% if proyecto.estado in ['Revisado', 'Aprobado Técnicamente'] %}#276749{% elif proyecto.estado == 'En revisión' %}#2b6cb0{% else %}#c05621{% endif %};color:white;white-space:nowrap;">
         {% if proyecto.estado == 'Revisado' %}Revisado ▾
         {% elif proyecto.estado == 'En revisión' %}● En revisión ▾
         {% else %}{{ proyecto.estado }} ▾{% endif %}
       </button>
       <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
            border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:50;min-width:160px;overflow:hidden;">
-        {% for est in [('En revisión','#2b6cb0'),('Revisado','#276749'),('Observado','#c05621'),('Rechazado','#c41230')] %}
+        {% for est in [('En revisión','#2b6cb0'),('Revisado','#276749'),('Observado','#c05621'),('Aprobado Técnicamente','#276749'),('Rechazado','#c41230')] %}
         <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
           <button type="submit" name="estado" value="{{ est[0] }}"
                   style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
@@ -305,6 +305,7 @@
   <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab {% if pagina == 'documentos' %}activa{% endif %}">Documentos{% if n_faltan_resubir %} <span class="nav-badge">{{ n_faltan_resubir }}</span>{% endif %}</a>
   <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab {% if pagina == 'items' %}activa{% endif %}">Revisión por Ítems SEP</a>
   <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
+  <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas</a>
 </nav>
 
 {% if pagina == 'documentos' %}
