@@ -24,6 +24,36 @@
 </style>
 
 {# ═══ Macros de observaciones de la pestaña de ítems ═══ #}
+
+{# Formulario compacto para agregar una observación a mano a un ítem — reutilizado al final de
+   cada grupo de observaciones y en el banner "Cumple con la normativa". #}
+{% macro _form_obs_manual(proyecto_id, item_key) %}
+<details style="font-size:0.78rem; margin-top:0.5rem;">
+  <summary style="cursor:pointer; color:var(--text-2); user-select:none;">+ Agregar observación manual</summary>
+  <form method="post" action="/proyecto/{{ proyecto_id }}/item/{{ item_key }}/observacion/agregar-manual"
+        style="margin-top:0.4rem; display:flex; flex-direction:column; gap:0.35rem; max-width:420px;">
+    <textarea name="texto" rows="3" required placeholder="Texto de la observación..."
+              style="font-size:0.8rem; padding:0.4rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+    <div style="display:flex; gap:0.35rem;">
+      <select name="categoria" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
+        <option value="tecnica">Técnica</option>
+        <option value="legal">Legal</option>
+        <option value="presupuesto">Presupuesto</option>
+        <option value="administrativa">Administrativa</option>
+      </select>
+      <select name="severidad" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
+        <option value="mayor">Mayor</option>
+        <option value="menor">Menor</option>
+        <option value="informativa">Informativa</option>
+      </select>
+    </div>
+    <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
+           style="font-size:0.78rem; padding:0.35rem; width:100%; box-sizing:border-box;">
+    <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-start;">Agregar</button>
+  </form>
+</details>
+{% endmacro %}
+
 {% macro bloque_observaciones(grupos, cont, proyecto_id, abrir_key) %}
 {% if grupos %}
 <div class="card">
@@ -85,6 +115,7 @@
           style="display:none;"></form>
   </div>
   {% endfor %}
+  {{ _form_obs_manual(proyecto_id, grupo.key) }}
   </div>
   </details>
   {% endfor %}
@@ -139,17 +170,21 @@
 {% endif %}
 {% endmacro %}
 
-{% macro bloque_cumplimiento(lista) %}
+{% macro bloque_cumplimiento(lista, proyecto_id) %}
 {% if lista %}
 <div class="card" style="border-left:4px solid #276749; background:#f0fff4;">
   <h2 style="color:#276749; margin:0 0 0.5rem; border:none; padding:0;">Cumple con la normativa</h2>
   <p style="font-size:0.85rem; color:#4a5568; margin-bottom:0.75rem;">
     Estos ítems fueron revisados y no presentan observaciones: cumplen con la normativa CNR,
-    los manuales e instructivos vigentes.
+    los manuales e instructivos vigentes. Si igual tienes una observación para alguno, agrégala
+    a mano — el ítem pasa a la lista de observados.
   </p>
   <ul style="margin:0; padding-left:1.3rem; font-size:0.88rem; color:#276749; line-height:1.8;">
     {% for g in lista %}
-    <li><strong>{{ g.nombre }}</strong></li>
+    <li>
+      <strong>{{ g.nombre }}</strong>
+      {{ _form_obs_manual(proyecto_id, g.key) }}
+    </li>
     {% endfor %}
   </ul>
 </div>
@@ -572,30 +607,6 @@ function actualizarEtiqueta(input) {
         </ul>
       </details>
       {% endif %}
-      <details style="font-size:0.74rem;">
-        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">+ Agregar observación manual</summary>
-        <form method="post" action="/proyecto/{{ proyecto.id }}/item/{{ item.key }}/observacion/agregar-manual"
-              style="margin-top:0.4rem; display:flex; flex-direction:column; gap:0.35rem;">
-          <textarea name="texto" rows="3" required placeholder="Texto de la observación..."
-                    style="font-size:0.8rem; padding:0.4rem; resize:vertical;"></textarea>
-          <div style="display:flex; gap:0.35rem;">
-            <select name="categoria" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
-              <option value="tecnica">Técnica</option>
-              <option value="legal">Legal</option>
-              <option value="presupuesto">Presupuesto</option>
-              <option value="administrativa">Administrativa</option>
-            </select>
-            <select name="severidad" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
-              <option value="mayor">Mayor</option>
-              <option value="menor">Menor</option>
-              <option value="informativa">Informativa</option>
-            </select>
-          </div>
-          <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
-                 style="font-size:0.78rem; padding:0.35rem;">
-          <button type="submit" class="btn btn-outline btn-sm">Agregar</button>
-        </form>
-      </details>
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-item/{{ item.key }}"
             {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazan las observaciones generadas por la IA anteriormente — las que agregaste a mano NO se borran.')"{% endif %}>
         <button type="submit"
@@ -618,7 +629,7 @@ function actualizarEtiqueta(input) {
    todos cerrados, el revisor decide cuál desplegar. #}
 {{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok) }}
 {{ bloque_notas(grupos_notas_item, proyecto.id, item_ok) }}
-{{ bloque_cumplimiento(items_cumplen) }}
+{{ bloque_cumplimiento(items_cumplen, proyecto.id) }}
 
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"

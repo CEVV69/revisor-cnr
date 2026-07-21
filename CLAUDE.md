@@ -681,12 +681,22 @@ después de esto** (sin el error de respuesta vacía), ya no sería un problema 
 de que el modelo no está incluyendo el marcador pese a la instrucción — reforzar el prompt.
 
 **Observaciones agregadas A MANO por el revisor (implementado, jul-2026):** botón "+ Agregar
-observación manual" (`<details>` desplegable) en cada tarjeta de ítem de la página Ítems SEP —
-formulario simple (texto, categoría, severidad, referencia normativa opcional) → `POST
+observación manual" (`<details>` desplegable, macro `_form_obs_manual()`) → formulario simple
+(texto, categoría, severidad, referencia normativa opcional) → `POST
 /proyecto/{id}/item/{item_key}/observacion/agregar-manual`. Pensado para cuando el revisor ya
 sabe que algo debe observarse (sin depender de que la IA lo detecte) y quiere dejarlo junto con
 el resto en vez de anotarlo aparte en el SEP — así se beneficia del mismo seguimiento
 (subsanación) y queda todo en un solo lugar.
+- **Ubicación (ajustada tras probarla — no en la tarjeta de selección del ítem, que ya estaba
+  sobrecargada):** al FINAL de la lista de observaciones de cada ítem, dentro de su `<details>`
+  ya desplegado (`bloque_observaciones()`) — y también junto al nombre de cada ítem en el banner
+  verde "Cumple con la normativa" (`bloque_cumplimiento()`, que ahora recibe `proyecto_id`), para
+  el caso en que la IA no haya encontrado nada pero el revisor sí tenga algo que observar. En
+  cuanto se agrega una manual a un ítem que estaba en ese banner, dejar de estar "en cumplimiento"
+  es automático: la ruta incrementa `items_revisados[item_key]["n_obs"/"n_notas"]`, y el filtro de
+  `items_cumplen` (`n_obs==0 and n_notas==0`) ya lo excluye sin código adicional — en el siguiente
+  render el ítem sale del banner y aparece en su posición normal junto a los demás observados
+  (mismo `orden_item` de `ITEMS_ORDEN` que usa `_agrupar()`).
 - **"La IA la hace suya para todos los efectos" — por diseño, sin código especial en ningún otro
   lado.** La observación manual se guarda con EXACTAMENTE la misma forma que una de la IA (`item`,
   `item_nombre`, `estado="pendiente"`, `categoria`, `severidad`, `texto`, `referencia_normativa`,
