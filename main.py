@@ -1674,6 +1674,13 @@ TIPO_DOC_LABELS = {
     "otro":                     "Otro documento",
 }
 
+# Catálogo para "Documentos obligatorios de admisibilidad" (checklist + extracción IA):
+# excluye "diseno_agronomico" — no es un anexo propio del SEP (mismo Anexo 9.5 que
+# diseno_hidraulico, ver CLAUDE.md), así que no debe poder marcarse como obligatorio aparte.
+# Se mantiene en TIPO_DOC_LABELS solo para no romper el display de documentos ya
+# clasificados así en proyectos antiguos.
+TIPO_DOC_LABELS_OBLIGATORIOS = {k: v for k, v in TIPO_DOC_LABELS.items() if k != "diseno_agronomico"}
+
 
 @app.post("/proyecto/{proyecto_id}/documento/{doc_id}/tipo")
 async def actualizar_tipo_documento(
@@ -2403,8 +2410,8 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
     # confirmado por el revisor — ver documentos_obligatorios_revisado).
     obligatorios_actuales = set(concurso.get("documentos_obligatorios", []))
     checklist_doc_obligatorios = [
-        {"key": k, "label": TIPO_DOC_LABELS[k], "checked": k in obligatorios_actuales}
-        for k in sorted(TIPO_DOC_LABELS, key=lambda k: TIPO_DOC_ORDEN.get(k, 999))
+        {"key": k, "label": TIPO_DOC_LABELS_OBLIGATORIOS[k], "checked": k in obligatorios_actuales}
+        for k in sorted(TIPO_DOC_LABELS_OBLIGATORIOS, key=lambda k: TIPO_DOC_ORDEN.get(k, 999))
     ]
     return templates.TemplateResponse("admin_concurso_detalle.html", {
         "request": request, "user": user, "concurso": concurso, "msg_ok": msg_ok,
@@ -2464,7 +2471,7 @@ async def extraer_doc_obligatorios(request: Request, concurso_id: str):
     if not concurso.get("bases_texto", "").strip():
         return RedirectResponse(url=f"/admin/concursos/{concurso_id}?error=sin_bases", status_code=302)
 
-    resultado = await extraer_documentos_obligatorios(concurso["bases_texto"], TIPO_DOC_LABELS)
+    resultado = await extraer_documentos_obligatorios(concurso["bases_texto"], TIPO_DOC_LABELS_OBLIGATORIOS)
     concurso["documentos_obligatorios"] = resultado["obligatorios"]
     concurso["documentos_obligatorios_referencia"] = resultado["referencia"]
     concurso["documentos_obligatorios_revisado"] = False   # requiere VB explícito antes de advertir
@@ -2484,7 +2491,7 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
         raise HTTPException(status_code=404)
 
     form = await request.form()
-    seleccionados = [k for k in TIPO_DOC_LABELS if form.get(f"doc__{k}") == "on"]
+    seleccionados = [k for k in TIPO_DOC_LABELS_OBLIGATORIOS if form.get(f"doc__{k}") == "on"]
     concurso["documentos_obligatorios"] = seleccionados
     concurso["documentos_obligatorios_referencia"] = (form.get("referencia") or "").strip()
     concurso["documentos_obligatorios_revisado"] = True

@@ -1483,6 +1483,20 @@ documento a la primera opción de la lista sin querer, si el formulario se guard
 campo). El botón "subir-multiple" (auto-clasificación por nombre de archivo, `extractor.
 detectar_anexo`/`ANEXOS_SEP`) NUNCA asignó "diseno_agronomico" — ya mapeaba "9.5" directo a
 "diseno_hidraulico", así que no necesitó cambios.
+**Seguimiento — también sacado del checklist de "Documentos obligatorios" del concurso:** ese
+checklist (`/admin/concursos/{id}`, sección "Documentos obligatorios (admisibilidad)") recorría
+`TIPO_DOC_LABELS` completo (todos los tipo_doc, con "diseno_agronomico" incluido) tanto para
+mostrar el checklist como para el catálogo que se le pasa a la IA en la extracción sugerida
+(`extraer_documentos_obligatorios`) — el usuario pidió sacarlo de ahí también, "para no causar
+inconveniente inconsistencias", ya que no tiene sentido poder marcarlo obligatorio por separado
+de "Diseño y cálculos hidráulicos" si ya no es seleccionable al clasificar un documento. Se
+agregó `TIPO_DOC_LABELS_OBLIGATORIOS` (main.py, justo después de `TIPO_DOC_LABELS`) — el mismo
+diccionario sin esa clave — y se usa en los 3 puntos de esta función: armar
+`checklist_doc_obligatorios`, el catálogo pasado a `extraer_documentos_obligatorios`, y el
+filtro de `seleccionados` al guardar. `TIPO_DOC_LABELS` (el diccionario completo) se dejó
+intacto — lo sigue usando el resto de la app (tabla de Documentos, selects de clasificación
+para docs ya clasificados así, etc.) donde SÍ hace falta poder mostrar/reclasificar documentos
+antiguos.
 **Deliberadamente NO se tocó nada más** (compatibilidad con proyectos ya cargados, incluido el
 concurso 202-2026 en curso): `ITEMS_SEP["diseno_hidraulico"]["tipo_docs"]` sigue incluyendo
 `"diseno_agronomico"` (así que cualquier documento ya clasificado así sigue agrupándose y
