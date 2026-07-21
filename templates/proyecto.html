@@ -56,6 +56,9 @@
         <strong style="white-space:nowrap;">Obs. {{ obs.numero }}</strong>
         <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
         <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
+        {% if obs.manual %}
+        <span class="badge badge-administrativa" title="Agregada a mano por el revisor{% if obs.agregada_por %} ({{ obs.agregada_por }}){% endif %}">manual</span>
+        {% endif %}
       </div>
       <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
             style="white-space:nowrap;">{{ obs.estado }}</span>
@@ -107,6 +110,9 @@
     <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.4rem;">
       <span class="badge badge-informativa">informativa</span>
       <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
+      {% if obs.manual %}
+      <span class="badge badge-administrativa" title="Agregada a mano por el revisor{% if obs.agregada_por %} ({{ obs.agregada_por }}){% endif %}">manual</span>
+      {% endif %}
     </div>
     <form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
       <textarea name="texto_editado" rows="2" class="auto-expand"
@@ -566,8 +572,32 @@ function actualizarEtiqueta(input) {
         </ul>
       </details>
       {% endif %}
+      <details style="font-size:0.74rem;">
+        <summary style="cursor:pointer; color:var(--text-2); user-select:none;">+ Agregar observación manual</summary>
+        <form method="post" action="/proyecto/{{ proyecto.id }}/item/{{ item.key }}/observacion/agregar-manual"
+              style="margin-top:0.4rem; display:flex; flex-direction:column; gap:0.35rem;">
+          <textarea name="texto" rows="3" required placeholder="Texto de la observación..."
+                    style="font-size:0.8rem; padding:0.4rem; resize:vertical;"></textarea>
+          <div style="display:flex; gap:0.35rem;">
+            <select name="categoria" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
+              <option value="tecnica">Técnica</option>
+              <option value="legal">Legal</option>
+              <option value="presupuesto">Presupuesto</option>
+              <option value="administrativa">Administrativa</option>
+            </select>
+            <select name="severidad" style="font-size:0.76rem; padding:0.3rem; flex:1 1 0; min-width:0;">
+              <option value="mayor">Mayor</option>
+              <option value="menor">Menor</option>
+              <option value="informativa">Informativa</option>
+            </select>
+          </div>
+          <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
+                 style="font-size:0.78rem; padding:0.35rem;">
+          <button type="submit" class="btn btn-outline btn-sm">Agregar</button>
+        </form>
+      </details>
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-item/{{ item.key }}"
-            {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazarán sus observaciones anteriores.')"{% endif %}>
+            {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazan las observaciones generadas por la IA anteriormente — las que agregaste a mano NO se borran.')"{% endif %}>
         <button type="submit"
                 class="btn btn-sm {% if item.revisado %}btn-ghost{% else %}btn-primary{% endif %}"
                 style="width:100%;"

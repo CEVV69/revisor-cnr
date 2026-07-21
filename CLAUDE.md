@@ -680,6 +680,33 @@ si aun así no se puede parsear. **Si el patrón "dice que lo hizo pero no pasó
 después de esto** (sin el error de respuesta vacía), ya no sería un problema de tokens sino
 de que el modelo no está incluyendo el marcador pese a la instrucción — reforzar el prompt.
 
+**Observaciones agregadas A MANO por el revisor (implementado, jul-2026):** botón "+ Agregar
+observación manual" (`<details>` desplegable) en cada tarjeta de ítem de la página Ítems SEP —
+formulario simple (texto, categoría, severidad, referencia normativa opcional) → `POST
+/proyecto/{id}/item/{item_key}/observacion/agregar-manual`. Pensado para cuando el revisor ya
+sabe que algo debe observarse (sin depender de que la IA lo detecte) y quiere dejarlo junto con
+el resto en vez de anotarlo aparte en el SEP — así se beneficia del mismo seguimiento
+(subsanación) y queda todo en un solo lugar.
+- **"La IA la hace suya para todos los efectos" — por diseño, sin código especial en ningún otro
+  lado.** La observación manual se guarda con EXACTAMENTE la misma forma que una de la IA (`item`,
+  `item_nombre`, `estado="pendiente"`, `categoria`, `severidad`, `texto`, `referencia_normativa`,
+  `numero`) — solo se le agrega `manual: True` + `agregada_por`. Como toda la lógica que ya trata
+  "las observaciones del proyecto" (Coherencia Global para no repetirlas, la invalidación cruzada
+  para auto-descartarla si otro ítem la resuelve, `_registrar_feedback_obs` para alimentar el
+  aprendizaje del ítem/consultor al aprobar/descartar, la ficha de revisión, y el flujo de
+  Respuestas/subsanación una vez aprobada) opera sobre `proyecto["observaciones"]` sin mirar el
+  origen, una observación manual entra automáticamente a TODOS esos mecanismos apenas se crea —
+  no hizo falta tocar ninguno de ellos.
+- **Se conserva al re-analizar el ítem** (`obs.get("manual")` excluye la observación del borrado
+  que hace `revisar_item()` antes de insertar los resultados nuevos de la IA) — a diferencia de
+  las observaciones de la IA, no es un resultado del análisis que deba reemplazarse.
+- **Numeración:** continúa la secuencia de "Obs. N" ya existente en ese ítem (`max(numero) + 1`).
+  El contador del badge de la tarjeta ("N obs") se incrementa igual al agregar una manual, sin
+  necesidad de re-analizar para que se refleje.
+- **Indicador visual:** badge gris "manual" (con el nombre del revisor en el `title`) junto a
+  categoría/severidad, en `bloque_observaciones()` y `bloque_notas()` — para distinguir de un
+  vistazo cuáles observaciones vinieron de la IA y cuáles se escribieron a mano.
+
 **Aprendizaje por ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku) destila
 el `feedback[]` de un ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
 `concurso["criterios_aprendidos"]["item_"+item_key]`. Se dispara desde `/admin/concursos/{id}`

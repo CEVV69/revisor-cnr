@@ -838,9 +838,12 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         return RedirectResponse(
             url=f"/proyecto/{proyecto_id}/items?item_sin_docs={item_key}", status_code=302)
 
-    # Reemplazar observaciones previas de este ítem
+    # Reemplazar observaciones previas de este ítem — las AGREGADAS A MANO por el revisor
+    # (obs["manual"]) se conservan: no son un resultado del análisis, así que re-analizar no
+    # debe borrarlas.
     proyecto["observaciones"] = [
-        o for o in proyecto.get("observaciones", []) if o.get("item") != item_key
+        o for o in proyecto.get("observaciones", [])
+        if o.get("item") != item_key or o.get("manual")
     ]
 
     nombre_item  = ITEMS_SEP[item_key]["nombre"]
@@ -884,6 +887,77 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     extra = f"&item_invalidadas={n_invalidadas}" if n_invalidadas else ""
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}{extra}#item-{item_key}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/item/{item_key}/observacion/agregar-manual")
+async def agregar_observacion_manual(
+    request: Request, proyecto_id: str, item_key: str,
+    texto: str = Form(...), categoria: str = Form(...), severidad: str = Form(...),
+    referencia_normativa: str = Form("")
+):
+    """El revisor agrega una observación a mano en un ítem (ej. algo que ya sabe sin necesidad
+    de re-analizar, o que la IA no captó). Queda marcada `manual=True` para que revisar_item()
+    NUNCA la borre al re-analizar el ítem — a diferencia de las observaciones de la IA, no es
+    un resultado del análisis, es juicio directo del revisor.
+
+    A partir de acá se trata EXACTAMENTE igual que cualquier observación (mismos campos: item,
+    estado, categoria, severidad) — por eso, sin código extra en ningún otro lado, ya queda
+    cubierta por todo lo que ya trata "toda observación del proyecto" igual sin mirar su origen:
+    Coherencia Global la ve para no repetirla, la invalidación cruzada puede auto-descartarla si
+    otro ítem la resuelve, al aprobarla/descartarla alimenta el aprendizaje del ítem/consultor
+    igual que una de la IA, aparece en la ficha de revisión, y si se aprueba entra al flujo de
+    Respuestas/subsanación como cualquier otra."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    if item_key not in ITEMS_SEP:
+        raise HTTPException(status_code=404, detail="Ítem no válido")
+    if categoria not in ("tecnica", "legal", "presupuesto", "administrativa"):
+        raise HTTPException(status_code=400, detail="Categoría no válida")
+    if severidad not in ("mayor", "menor", "informativa"):
+        raise HTTPException(status_code=400, detail="Severidad no válida")
+    texto = texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="El texto no puede estar vacío")
+
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    nombre_item = ITEMS_SEP[item_key]["nombre"]
+    obs_item = [o for o in proyecto.get("observaciones", []) if o.get("item") == item_key]
+    numero = max([o.get("numero", 0) for o in obs_item], default=0) + 1
+
+    proyecto.setdefault("observaciones", []).append({
+        "id": str(uuid.uuid4())[:8],
+        "numero": numero,
+        "categoria": categoria,
+        "severidad": severidad,
+        "texto": texto,
+        "referencia_normativa": referencia_normativa.strip(),
+        "item": item_key,
+        "item_nombre": nombre_item,
+        "doc_id": "",
+        "doc_nombre": f"Ítem SEP: {nombre_item} (agregada manualmente)",
+        "fecha": _ahora().isoformat(),
+        "estado": "pendiente",
+        "manual": True,
+        "agregada_por": user["nombre"],
+    })
+
+    # El contador de la tarjeta del ítem (badge "N obs") es un conteo acumulado desde el último
+    # análisis — se incrementa igual al sumar una manual, para que se refleje sin re-analizar.
+    proyecto.setdefault("items_revisados", {})
+    rev = proyecto["items_revisados"].setdefault(
+        item_key, {"fecha": _ahora().isoformat(), "n_obs": 0, "n_notas": 0, "docs": []})
+    if severidad == "informativa":
+        rev["n_notas"] = rev.get("n_notas", 0) + 1
+    else:
+        rev["n_obs"] = rev.get("n_obs", 0) + 1
+
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
 
 
 async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str, mensaje: str):
