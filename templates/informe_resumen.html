@@ -36,6 +36,12 @@
     .tabla-datos .valor { background: white; white-space: pre-wrap; }
     .tabla-datos .valor.vacio { color: #999; font-style: italic; }
 
+    /* Fuerza que "Características de obras" empiece en hoja nueva — hoy queda cortada al
+       final de la primera. Sin @media print: html2canvas (Descargar PDF) no dispara @media
+       print de forma confiable, así que la regla debe ser base para que la respete también
+       ahí (modo 'css' de html2pdf, sin efecto visual en pantalla). */
+    .salto-pagina { page-break-before: always; break-before: page; }
+
     /* Notas — SOLO aparece en la versión impresa/PDF, nunca en pantalla */
     .notas-print { display: none; }
     @media print {
@@ -69,7 +75,7 @@
 </div>
 
 {% for sec in resumen_secciones %}
-<div class="titulo-seccion">{{ sec.titulo }}</div>
+<div class="titulo-seccion{% if sec.titulo == 'Características de obras' %} salto-pagina{% endif %}">{{ sec.titulo }}</div>
 <table class="tabla-datos">
   {% for campo in sec.campos %}
   {% set valor = resumen.get(campo.key, '') %}
@@ -85,7 +91,7 @@
 <div class="notas-print">
   <div class="notas-titulo">Notas</div>
   <div class="notas-lineas">
-    {% for _ in range(24) %}
+    {% for _ in range(32) %}
     <div class="notas-linea"></div>
     {% endfor %}
   </div>

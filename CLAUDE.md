@@ -480,6 +480,15 @@ adivina ni se muestra un pin en un lugar incorrecto.
   en producción sin problemas) pero la lógica es la misma (padding base + margin:0 = 2cm exactos,
   sin doble suma) y quedó verificado indirectamente confirmando que el `padding-left` de la regla
   BASE (la que usa html2canvas) es exactamente 2cm.
+  **Ajuste posterior con datos reales (jul-2026):** 24→32 líneas de Notas (a pedido del usuario,
+  volvió a quedar corto tras usarlo con proyectos reales del 202-2026). Además, "Características
+  de obras" (última sección del Resumen) quedaba cortada a mitad entre la primera y la segunda
+  hoja al imprimir — se le agregó la clase `.salto-pagina` (`page-break-before: always; break-
+  before: page;`) a su `.titulo-seccion` para forzar que arranque siempre en hoja nueva. La regla
+  se dejó FUERA de `@media print` a propósito (sin efecto visual en pantalla, pero necesaria para
+  que el modo `pagebreak: {mode: ['css', ...]}` de html2pdf —usado en "Descargar PDF"— la
+  respete; si quedara solo dentro de `@media print`, html2canvas no la vería, mismo motivo por el
+  que la sección Notas se fuerza a mano vía JS en vez de depender de `@media print`).
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —
