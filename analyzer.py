@@ -226,7 +226,7 @@ Responde SIEMPRE en formato JSON exacto:
       "categoria": "técnica|legal|presupuesto|administrativa",
       "severidad": "mayor|menor|informativa",
       "texto": "Descripción directa de qué falta o qué está incorrecto y por qué importa",
-      "referencia_normativa": "IL-01, DT-04, Art. X Ley 18.450, etc."
+      "referencia_normativa": "Manual/Instructivo/Base que respalda la observación (ver prioridad abajo)"
     }}
   ],
   "resumen": "Evaluación general del documento en 2-3 oraciones"
@@ -248,6 +248,20 @@ REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO):
     • "Se sugiere declarar no admitido." → SOLO cuando falta un documento obligatorio
       exigido por las bases como imprescindible para postular.
   Las notas informativas no requieren este cierre.
+
+PRIORIDAD DE LA "referencia_normativa" (OBLIGATORIO — esta cita se copia al SEP):
+La observación se sube al SEP y el consultor debe poder ir a la fuente citada. Por eso, al
+llenar "referencia_normativa", cita SIEMPRE la fuente de MAYOR jerarquía que respalde el punto,
+en este orden de prioridad:
+  1º MANUALES oficiales CNR (ej. Manual de Supervisión de Obras) — máxima prioridad.
+  2º INSTRUCTIVOS oficiales CNR (DT-##, IL-##, ITT-##, FL-##, y la Ley N° 18.450 / su reglamento).
+  3º BASES del concurso (cita el punto/numeral exacto, ej. "Bases 6.3").
+  4º Solo si NINGUNA de las anteriores aplica, un criterio técnico general — pero NO cites como
+     referencia los "criterios aprendidos", "criterios de énfasis" ni los extractos de criterios
+     destilados: son guía interna del revisor, no una fuente oficial citable ante el consultor.
+Cita el código exacto del documento (no "el manual" a secas). Si un punto se respalda en varias
+fuentes, cita la de mayor jerarquía primero. Si de verdad no hay respaldo normativo oficial
+para el punto, deja "referencia_normativa" vacía en vez de inventar o citar guía interna.
 
 Si el documento está correcto o cumple con lo esencial, devuelve lista vacía en observaciones."""
 
