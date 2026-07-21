@@ -2023,9 +2023,14 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         else:
             claves_td = list(TIPO_DOC_LABELS.keys())
         opciones_td = [{"key": k, "label": TIPO_DOC_LABELS.get(k, k)} for k in claves_td]
+        # Preselección: el tipo cuyo nombre coincide con el ítem observado (ej. observación en
+        # "Plano de ubicación" → tipo_doc "plano_ubicacion" ya elegido); si no, el primero. El
+        # revisor puede cambiarlo — casi siempre el respaldo es del mismo ítem de la observación.
+        preselect = o.get("item") if o.get("item") in claves_td else (claves_td[0] if claves_td else "")
         pendientes = (o.get("subsanacion") or {}).get("adjuntos_pendientes", [])
         grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o),
-                                      "tipo_docs": opciones_td, "adjuntos_pendientes": pendientes})
+                                      "tipo_docs": opciones_td, "preselect": preselect,
+                                      "adjuntos_pendientes": pendientes})
     grupos_lista = [{"nombre": n, "key": g["key"], "obs": g["obs"]}
                     for n, g in sorted(grupos.items(), key=lambda kv: orden_item.get(kv[0], 999))]
 

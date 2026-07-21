@@ -183,7 +183,7 @@
         <div style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
           <input type="file" id="file-{{ obs.id }}" accept=".pdf,.doc,.docx,.xls,.xlsx" style="font-size:0.8rem; max-width:100%;">
           <select id="tipo-{{ obs.id }}" style="font-size:0.8rem; padding:0.3rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
-            {% for op in par.tipo_docs %}<option value="{{ op.key }}">{{ op.label }}</option>{% endfor %}
+            {% for op in par.tipo_docs %}<option value="{{ op.key }}"{% if op.key == par.preselect %} selected{% endif %}>{{ op.label }}</option>{% endfor %}
           </select>
           <button type="button" class="btn btn-outline btn-sm" id="adj-btn-{{ obs.id }}" onclick="adjuntar('{{ obs.id }}')">Adjuntar</button>
         </div>
