@@ -410,7 +410,6 @@
           <option value="estudio_hidrologico">Anexo 9.4 — Análisis Hidrológico</option>
           <option value="pruebas_bombeo">Anexo 9.4.2 — Prueba de bombeo</option>
           <option value="diseno_hidraulico">Anexo 9.5 — Diseño y cálculos hidráulicos</option>
-          <option value="diseno_agronomico">Anexo 9.5 — Diseño agronómico</option>
           <option value="diseno_fotovoltaico">Anexo 9.5 — Diseño fotovoltaico</option>
           <option value="reporte_explorador_solar">Anexo 9.5 — Reporte Explorador Solar</option>
           <option value="estudios_complementarios">Anexo 9.6 — Estudios complementarios</option>
@@ -520,7 +519,7 @@ function actualizarEtiqueta(input) {
                 <option value="estudio_hidrologico" {% if doc.tipo_doc=='estudio_hidrologico' %}selected{% endif %}>Anexo 9.4 — Análisis Hidrológico</option>
                 <option value="pruebas_bombeo" {% if doc.tipo_doc=='pruebas_bombeo' %}selected{% endif %}>Anexo 9.4.2 — Prueba de bombeo</option>
                 <option value="diseno_hidraulico" {% if doc.tipo_doc=='diseno_hidraulico' %}selected{% endif %}>Anexo 9.5 — Diseño y cálculos hidráulicos</option>
-                <option value="diseno_agronomico" {% if doc.tipo_doc=='diseno_agronomico' %}selected{% endif %}>Anexo 9.5 — Diseño agronómico</option>
+                {% if doc.tipo_doc=='diseno_agronomico' %}<option value="diseno_agronomico" selected>Anexo 9.5 — Diseño agronómico (clasificación antigua)</option>{% endif %}
                 <option value="diseno_fotovoltaico" {% if doc.tipo_doc=='diseno_fotovoltaico' %}selected{% endif %}>Anexo 9.5 — Diseño fotovoltaico</option>
                 <option value="reporte_explorador_solar" {% if doc.tipo_doc=='reporte_explorador_solar' %}selected{% endif %}>Anexo 9.5 — Reporte Explorador Solar</option>
                 <option value="estudios_complementarios" {% if doc.tipo_doc=='estudios_complementarios' %}selected{% endif %}>Anexo 9.6 — Estudios complementarios</option>

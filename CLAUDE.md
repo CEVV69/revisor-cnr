@@ -1465,6 +1465,33 @@ los archivos de FV — aunque en el SEP real son un anexo aparte (Anexo 9.5, seg
 Si aparece un caso similar en otro ítem (documentos agrupados que no correspondan), revisar el
 `tipo_docs` de `ITEMS_SEP` contra el `tipo_doc_label` real de `TIPO_DOC_LABELS` en `main.py`.
 
+**"Diseño agronómico" eliminado como opción de clasificación (jul-2026):** el usuario pidió
+eliminar "el ítem Diseño Agronómico" porque no existe como anexo propio en el SEP real — es el
+MISMO Anexo 9.5 que "Diseño y cálculos hidráulicos" (`TIPO_DOC_LABELS["diseno_agronomico"]` ya
+decía literalmente "Anexo 9.5 — Diseño agronómico", mismo número que `diseno_hidraulico`).
+Investigado antes de tocar nada: no existía como ítem separado en `ITEMS_SEP`/`ITEMS_ORDEN`
+(nunca lo fue) — lo que el usuario llamaba "ítem" era la OPCIÓN del `<select>` de clasificación
+de documentos, que sí permitía marcar un archivo como "diseno_agronomico" en vez de
+"diseno_hidraulico" pese a compartir el mismo anexo. Se quitó la opción de los dos `<select>` de
+`proyecto.html`: (1) el de subida individual (línea ~413), sin condición — ya no se puede elegir
+para un documento nuevo; (2) el de reclasificar un documento existente (línea ~522), con
+condición `{% if doc.tipo_doc=='diseno_agronomico' %}` — la opción solo aparece (marcada
+`selected`, etiquetada "clasificación antigua") si el documento YA está clasificado así, para
+que el revisor la vea y pueda cambiarla a "Diseño y cálculos hidráulicos" si quiere, pero sin que
+el `<select>` quede sin ninguna opción coincidente (lo que habría arriesgado reclasificar el
+documento a la primera opción de la lista sin querer, si el formulario se guardara sin tocar el
+campo). El botón "subir-multiple" (auto-clasificación por nombre de archivo, `extractor.
+detectar_anexo`/`ANEXOS_SEP`) NUNCA asignó "diseno_agronomico" — ya mapeaba "9.5" directo a
+"diseno_hidraulico", así que no necesitó cambios.
+**Deliberadamente NO se tocó nada más** (compatibilidad con proyectos ya cargados, incluido el
+concurso 202-2026 en curso): `ITEMS_SEP["diseno_hidraulico"]["tipo_docs"]` sigue incluyendo
+`"diseno_agronomico"` (así que cualquier documento ya clasificado así sigue agrupándose y
+analizándose normalmente dentro de "Diseño y cálculos hidráulicos", sin necesidad de
+reclasificarlo a mano), igual que `DOCS_VERIFICACION["hidraulico"/"agronomico"]` (Chequeo de
+Cálculos) y `TIPO_DOC_LABELS`/`TIPO_DOC_ORDEN` en `main.py` (para que la tabla de Documentos siga
+mostrando la etiqueta y el orden correctos de los documentos ya clasificados así). El cambio es
+puramente de UI hacia adelante — nada se migra ni se rompe hacia atrás.
+
 **"Coherencia Global" como ÍTEM, al final de `ITEMS_ORDEN` (jul-2026):** cuando este método
 convivía con el de Ejes, se agregó `ITEMS_SEP["coherencia"]` como el equivalente al eje
 homónimo (que hacía de cierre transversal): usa TODOS los documentos con texto del proyecto
