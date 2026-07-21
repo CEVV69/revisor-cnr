@@ -481,7 +481,9 @@ adivina ni se muestra un pin en un lugar incorrecto.
   sin doble suma) y quedó verificado indirectamente confirmando que el `padding-left` de la regla
   BASE (la que usa html2canvas) es exactamente 2cm.
   **Ajuste posterior con datos reales (jul-2026):** 24→32 líneas de Notas (a pedido del usuario,
-  volvió a quedar corto tras usarlo con proyectos reales del 202-2026). Además, "Características
+  volvió a quedar corto tras usarlo con proyectos reales del 202-2026) — con 32 el documento se
+  corría a una 3ª hoja, así que se bajó a 28 (en prueba, el usuario puede seguir ajustando el
+  número exacto). Además, "Características
   de obras" (última sección del Resumen) quedaba cortada a mitad entre la primera y la segunda
   hoja al imprimir — se le agregó la clase `.salto-pagina` (`page-break-before: always; break-
   before: page;`) a su `.titulo-seccion` para forzar que arranque siempre en hoja nueva. La regla
