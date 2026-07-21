@@ -434,6 +434,20 @@ adivina ni se muestra un pin en un lugar incorrecto.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
+  **Sin badges de Mayor/Menor ni de categoría por observación (jul-2026):** el usuario pidió
+  quitarlos porque el SEP no tiene esa categorización — se eliminaron los `<span class="badge
+  badge-{{ obs.severidad }}">`/`badge-{{ obs.categoria }}"` de cada ítem de observación (y el
+  CSS `.badge*` que quedó sin uso). El resumen de arriba ("Resumen observaciones aprobadas:
+  Mayor: X · Menor: Y") NO se tocó — es una ayuda interna para juzgar admisibilidad, no un
+  rótulo que se copie punto por punto al SEP, que es lo que pidió eliminar el usuario.
+  **Margen izquierdo +0,5cm para perforar y archivar (jul-2026):** mismo bug de doble margen ya
+  resuelto antes en `informe_resumen.html` (ver esa entrada más abajo) — `ficha.html` es el
+  template MÁS ANTIGUO con ese patrón (standalone, Imprimir/Descargar PDF con html2pdf), y no
+  tenía el fix. Aplicado igual: `@page { margin: 0; }` + `padding: 1.5cm 1.5cm 2cm 2cm` (el
+  cambio real: left 1,5→2cm, el resto intacto) como ÚNICA fuente de margen en los dos caminos —
+  se quitó el `body { padding: 0; }` que tenía `@media print` (dejaba el margen nativo del
+  navegador, no controlado) y se cambió `margin: [10,10,10,10]` a `margin: 0` en el `opt` de
+  `descargarPDF()` (sumaba con el padding del body, doblando el margen en el PDF descargado).
 - **Informe Resumen** (`/proyecto/{id}/resumen/informe`, jul-2026): versión imprimible de la
   página Resumen (`templates/informe_resumen.html`, mismo patrón standalone que `ficha.html` —
   no extiende `base.html`, botones Imprimir/Descargar PDF con html2pdf.js). Encabezado con

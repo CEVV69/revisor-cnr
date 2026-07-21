@@ -5,14 +5,19 @@
   <title>Ficha de Revisión — {{ proyecto.codigo_sep }}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm; }
+    /* Margen izquierdo más ancho que el resto — deja espacio para perforar y archivar. El
+       padding del body es la ÚNICA fuente de margen (@page margin:0 anula el margen propio
+       del navegador, y descargarPDF() usa margin:0 en html2pdf) — evita que se sumen dos
+       márgenes distintos y el resultado impreso quede más ancho de lo pedido. */
+    @page { margin: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
 
     /* Botón imprimir — solo en pantalla */
     .no-print { text-align: right; margin-bottom: 1rem; }
     .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
                  border-radius: 4px; cursor: pointer; font-size: 13px; }
     .btn-print:hover { background: #2c5282; }
-    @media print { .no-print { display: none; } body { padding: 0; } }
+    @media print { .no-print { display: none; } }
 
     /* Encabezado */
     .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
@@ -38,13 +43,6 @@
     .obs-anexo { font-style: italic; color: #555; font-size: 10px; }
     .grupo-eje { font-size: 12px; font-weight: bold; color: #2b6cb0; margin: 0.7rem 0 0.35rem;
                  page-break-after: avoid; }
-    .badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; }
-    .badge-mayor { background: #fed7d7; color: #9b2c2c; border: 1px solid #fc8181; }
-    .badge-menor { background: #fefcbf; color: #744210; border: 1px solid #f6e05e; }
-    .badge-tecnica  { background: #c6f6d5; color: #22543d; }
-    .badge-legal    { background: #e9d8fd; color: #44337a; }
-    .badge-presupuesto { background: #feebc8; color: #7b341e; }
-    .badge-administrativa { background: #e2e8f0; color: #4a5568; }
     .obs-texto { margin-top: 2px; line-height: 1.5; }
     .obs-ref { font-size: 9.5px; color: #555; margin-top: 3px; font-style: italic; }
 
@@ -134,8 +132,6 @@
     <div class="obs-item">
       <div class="obs-header">
         <span class="obs-num">{{ loop.index }})</span>
-        <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad|upper }}</span>
-        <span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>
       </div>
       <div class="obs-texto">{{ obs.texto }}</div>
       {% if obs.referencia_normativa %}
@@ -156,7 +152,7 @@ function descargarPDF() {
   botones.style.display = 'none';
   var nombre = 'Ficha_{{ proyecto.codigo_sep }}_{{ fecha_ficha }}.pdf'.replace(/\//g, '-');
   var opt = {
-    margin:       [10, 10, 10, 10],
+    margin:       0,
     filename:     nombre,
     image:        { type: 'jpeg', quality: 0.97 },
     html2canvas:  { scale: 2, useCORS: true },
