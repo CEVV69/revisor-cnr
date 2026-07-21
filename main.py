@@ -28,7 +28,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
-                      TIPOS_PLANO_VISION)
+                      TIPOS_PLANO_VISION, evaluar_respuesta_subsanacion)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -2036,7 +2036,8 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/responder")
 async def registrar_respuesta_subsanacion(
     request: Request, proyecto_id: str, obs_id: str,
-    respuesta: str = Form(...), evaluacion: str = Form(...), comentario: str = Form("")
+    respuesta: str = Form(...), evaluacion: str = Form(...), comentario: str = Form(""),
+    ia_recomendacion: str = Form(""), ia_fundamento: str = Form("")
 ):
     user = get_current_user(request)
     if not user:
@@ -2053,16 +2054,62 @@ async def registrar_respuesta_subsanacion(
     sub = _estado_subsanacion(obs)
     if sub["puede_responder"] and respuesta.strip():
         obs.setdefault("subsanacion", {}).setdefault("rondas", [])
-        obs["subsanacion"]["rondas"].append({
+        ronda = {
             "ronda": sub["ronda_actual"],
             "respuesta": respuesta.strip(),
             "evaluacion": evaluacion,
             "comentario": comentario.strip(),
             "fecha": _ahora().isoformat(),
             "por": user["nombre"],
-        })
+        }
+        # Si el revisor consultó a la IA antes de decidir, se guarda su recomendación como
+        # registro (queda visible en el hilo, junto al veredicto humano).
+        if ia_recomendacion in ("resuelta", "no_resuelta"):
+            ronda["ia_recomendacion"] = ia_recomendacion
+            ronda["ia_fundamento"] = (ia_fundamento or "").strip()
+        obs["subsanacion"]["rondas"].append(ronda)
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/evaluar-respuesta")
+async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
+    """AJAX: la IA evalúa si la respuesta del consultor (aún sin guardar) resuelve la
+    observación, usando todos los antecedentes del proyecto. Devuelve JSON con recomendación +
+    fundamento — es un apoyo, la decisión final la toma el revisor."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
+    try:
+        proyecto = db.get_proyecto(proyecto_id)
+        if not proyecto:
+            return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
+        obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+        if not obs:
+            return JSONResponse({"ok": False, "error": "observación no encontrada"}, status_code=404)
+        form = await request.form()
+        respuesta = (form.get("respuesta") or "").strip()
+        if not respuesta:
+            return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
+
+        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+        concurso = db.get_concurso(concurso_id)
+        bases_texto = concurso.get("bases_texto", "") if concurso else ""
+
+        resultado = await evaluar_respuesta_subsanacion(
+            observacion_texto=obs.get("texto", ""),
+            referencia=obs.get("referencia_normativa", ""),
+            respuesta_consultor=respuesta, item_key=obs.get("item", ""),
+            documentos=proyecto.get("documentos", []), resumen=proyecto.get("resumen", {}),
+            bases_texto=bases_texto, concurso_id=concurso_id,
+        )
+        return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
+                             "fundamento": resultado.get("fundamento", "")})
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en evaluar-respuesta {obs_id}: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
 
 
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/subsanacion/deshacer")

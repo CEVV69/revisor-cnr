@@ -2467,3 +2467,95 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         texto = ("La IA no devolvió respuesta (posible corte). Intenta reformular la "
                  "consulta de forma más breve o vuelve a intentar.")
     return texto
+
+
+# ── Evaluación IA de la respuesta del consultor a una observación (subsanación) ──────────────
+# Parte del PROCESO de revisión, que solo termina al aprobar/rechazar el proyecto: la IA ayuda al
+# revisor a juzgar si la respuesta del consultor RESUELVE la observación, cruzándola con TODOS los
+# antecedentes actuales del proyecto (que ya incluyen cualquier documento nuevo o corregido que el
+# consultor haya presentado y el revisor haya vuelto a subir). Es un APOYO: la decisión final
+# (marcar resuelta / reiterar) la toma siempre el revisor.
+
+async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
+                                        respuesta_consultor: str, item_key: str,
+                                        documentos: list, resumen: dict = None,
+                                        bases_texto: str = "", concurso_id: str = "") -> dict:
+    """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}."""
+    if not (respuesta_consultor or "").strip():
+        return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
+
+    client = _get_client()
+
+    # Antecedentes del ítem observado (para 'coherencia' o ítem desconocido, todos los que tengan
+    # texto). Mismo criterio de selección que el análisis; reparto adaptativo, solo texto.
+    item = ITEMS_SEP.get(item_key)
+    if item and item_key != "coherencia" and item.get("tipo_docs"):
+        tipos = set(item["tipo_docs"])
+        docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    else:
+        docs_grupo = list(documentos)
+    contexto_docs = _texto_grupo_para_extraccion(docs_grupo, max_chars=80000)
+    if not contexto_docs.strip():
+        contexto_docs = "(No hay antecedentes con texto extraíble para este ítem.)"
+
+    bloque_resumen = _construir_bloque_resumen(resumen)
+    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
+    bloque_bases = _construir_bloque_bases(bases_texto, concurso_id)
+    if bloque_bases.strip():
+        system_con_cache.append({"type": "text", "text": bloque_bases,
+                                 "cache_control": {"type": "ephemeral", "ttl": "1h"}})
+
+    nombre_item = item["nombre"] if item else item_key
+    prompt = f"""{bloque_resumen}
+Estás revisando la RESPUESTA del consultor a una observación de un proyecto CNR (Ley 18.450).
+Determina si la respuesta, CONSIDERANDO LOS ANTECEDENTES ACTUALES del expediente (que ya
+incluyen cualquier documento nuevo o corregido que el consultor haya presentado), RESUELVE la
+observación.
+
+OBSERVACIÓN ORIGINAL (ítem: {nombre_item}):
+{observacion_texto}
+{f'Referencia citada: {referencia}' if referencia else ''}
+
+RESPUESTA DEL CONSULTOR (transcrita por el revisor):
+{respuesta_consultor.strip()}
+
+ANTECEDENTES ACTUALES DEL ÍTEM:
+{contexto_docs}
+
+CRITERIOS:
+- "resuelta": la respuesta aporta lo que faltaba, corrige lo observado o aclara satisfactoriamente
+  el punto, de forma verificable en los antecedentes.
+- "no_resuelta": no resuelve, resuelve solo parcialmente, o no aporta evidencia suficiente. Si
+  resuelve a medias, es "no_resuelta" y explica qué falta.
+Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), pero exige respaldo
+REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
+refleja en los antecedentes.
+
+Responde SOLO este JSON, sin texto adicional:
+{{"recomendacion": "resuelta"|"no_resuelta", "fundamento": "2-4 líneas explicando por qué, citando la norma/base si aplica"}}"""
+
+    def _stream_final(max_tokens):
+        with client.messages.stream(
+            model=MODELO_SONNET, max_tokens=max_tokens, system=system_con_cache,
+            messages=[{"role": "user", "content": prompt}],
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+        ) as stream:
+            return stream.get_final_message()
+
+    try:
+        response = await asyncio.to_thread(_stream_final, 2500)
+    except Exception as e:
+        print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
+        return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
+
+    content = _texto_respuesta(response)
+    data = _extraer_json_tolerante(content)
+    rec = data.get("recomendacion", "")
+    if rec not in ("resuelta", "no_resuelta"):
+        rec = ""
+    fund = (data.get("fundamento", "") or "").strip()
+    if not rec and not fund:
+        print(f"⚠️ evaluar_respuesta_subsanacion: respuesta vacía — stop_reason={response.stop_reason}")
+        fund = "La IA no devolvió una evaluación clara. Revísalo manualmente."
+    return {"recomendacion": rec, "fundamento": fund}

@@ -23,6 +23,12 @@
   .resp-txt { white-space:pre-wrap; font-size:0.88rem; line-height:1.5; }
   .form-resp textarea { width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
     font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:vertical; }
+  .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
+    font-size:0.85rem; line-height:1.45; }
+  .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
+  .ia-si { background:#f0fff4; color:#276749; border:1px solid rgba(39,103,73,.3); }
+  .ia-no { background:#fff0f0; color:#c41230; border:1px solid rgba(196,18,48,.3); }
+  .ia-ronda { margin-top:0.35rem; font-size:0.8rem; color:var(--text-2); }
 </style>
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
@@ -134,6 +140,13 @@
         <strong>Nota del revisor:</strong> {{ r.comentario }}
       </div>
       {% endif %}
+      {% if r.ia_recomendacion %}
+      <div class="ia-ronda">
+        <strong>IA sugirió:</strong>
+        {% if r.ia_recomendacion == 'resuelta' %}<span style="color:#276749;">resuelve</span>{% else %}<span style="color:#c41230;">no resuelve</span>{% endif %}
+        {% if r.ia_fundamento %}— {{ r.ia_fundamento }}{% endif %}
+      </div>
+      {% endif %}
       <div class="text-muted" style="font-size:0.75rem; margin-top:0.3rem;">
         {{ r.fecha | fecha_hora }}{% if r.por %} · {{ r.por }}{% endif %}
       </div>
@@ -141,13 +154,26 @@
     {% endfor %}
 
     {% if sub.puede_responder %}
-    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/responder" class="form-resp" style="margin-top:0.6rem;">
+    <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/responder"
+          id="form-resp-{{ obs.id }}" class="form-resp" style="margin-top:0.6rem;">
       <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;">
         Respuesta del consultor (ronda {{ sub.ronda_actual }})
       </label>
-      <textarea name="respuesta" rows="3" required
+      <textarea name="respuesta" rows="3" required oninput="limpiarIA('{{ obs.id }}')"
         placeholder="Transcribe o resume qué respondió el consultor a este punto..."></textarea>
-      <label style="display:block; font-size:0.82rem; font-weight:600; margin:0.5rem 0 0.3rem;">
+      <input type="hidden" name="ia_recomendacion" id="ia-rec-{{ obs.id }}">
+      <input type="hidden" name="ia_fundamento" id="ia-fund-{{ obs.id }}">
+      <div style="margin-top:0.5rem;">
+        <button type="button" class="btn btn-outline btn-sm" id="ia-btn-{{ obs.id }}"
+                onclick="evaluarIA('{{ obs.id }}')" style="border-color:#2b6cb0; color:#2b6cb0;">
+          Evaluar respuesta con IA
+        </button>
+        <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">
+          La IA la cruza con los antecedentes del proyecto y te recomienda — tú decides.
+        </span>
+      </div>
+      <div class="ia-box" id="ia-result-{{ obs.id }}"></div>
+      <label style="display:block; font-size:0.82rem; font-weight:600; margin:0.6rem 0 0.3rem;">
         Nota del revisor (opcional)
       </label>
       <textarea name="comentario" rows="2"
@@ -173,5 +199,59 @@
 </div>
 {% endfor %}
 {% endif %}
+
+<script>
+function limpiarIA(obsId) {
+  // Si el revisor edita la respuesta, la evaluación previa deja de corresponder.
+  var box = document.getElementById('ia-result-' + obsId);
+  if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  var rec = document.getElementById('ia-rec-' + obsId);
+  var fund = document.getElementById('ia-fund-' + obsId);
+  if (rec) rec.value = '';
+  if (fund) fund.value = '';
+}
+
+async function evaluarIA(obsId) {
+  var form = document.getElementById('form-resp-' + obsId);
+  var resp = form.querySelector('textarea[name=respuesta]').value.trim();
+  var box = document.getElementById('ia-result-' + obsId);
+  box.style.display = 'block';
+  if (!resp) {
+    box.className = 'ia-box ia-neutral';
+    box.textContent = 'Escribe primero la respuesta del consultor.';
+    return;
+  }
+  var btn = document.getElementById('ia-btn-' + obsId);
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Evaluando…';
+  box.className = 'ia-box ia-neutral';
+  box.textContent = 'La IA está evaluando la respuesta con los antecedentes del proyecto…';
+  try {
+    var fd = new FormData();
+    fd.append('respuesta', resp);
+    var r = await fetch('/proyecto/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
+      { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
+    var data = await r.json();
+    if (!data.ok) {
+      box.className = 'ia-box ia-neutral';
+      box.textContent = 'No se pudo evaluar: ' + (data.error || 'error desconocido');
+    } else {
+      var rec = data.recomendacion || '';
+      document.getElementById('ia-rec-' + obsId).value = rec;
+      document.getElementById('ia-fund-' + obsId).value = data.fundamento || '';
+      var etiqueta = rec === 'resuelta' ? 'La IA sugiere: RESUELVE la observación'
+        : (rec === 'no_resuelta' ? 'La IA sugiere: NO la resuelve' : 'Recomendación de la IA');
+      box.className = 'ia-box ' + (rec === 'resuelta' ? 'ia-si' : (rec === 'no_resuelta' ? 'ia-no' : 'ia-neutral'));
+      var fund = (data.fundamento || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      box.innerHTML = '<strong>' + etiqueta + '</strong>' + (fund ? '<br>' + fund : '') +
+        '<br><span style="font-size:0.78rem; opacity:0.8;">Es solo una recomendación — la decisión final es tuya.</span>';
+    }
+  } catch (e) {
+    box.className = 'ia-box ia-neutral';
+    box.textContent = 'Error al evaluar: ' + e;
+  }
+  btn.disabled = false; btn.textContent = orig;
+}
+</script>
 
 {% endblock %}

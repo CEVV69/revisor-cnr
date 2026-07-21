@@ -516,6 +516,22 @@ y el revisor decide a mano (no hay rechazo automático).
   nota + fecha/por), y —si `puede_responder`— un formulario con textarea de respuesta + nota
   opcional + dos botones ("Marcar como resuelta" / "Reiterar"). Ancla `#obs-{id}` para volver a
   la misma observación tras cada acción.
+- **Evaluación con IA (parte del proceso de revisión, no solo transcripción):** botón "Evaluar
+  respuesta con IA" en el formulario de cada observación → AJAX `POST
+  .../observacion/{id}/evaluar-respuesta` → `analyzer.evaluar_respuesta_subsanacion()` (Sonnet 5,
+  streaming). La IA cruza la respuesta transcrita con TODOS los antecedentes ACTUALES del ítem
+  (los documentos ya incluyen lo que el consultor haya presentado/corregido y el revisor haya
+  vuelto a subir) + el Resumen + las bases, y devuelve `{recomendacion: resuelta|no_resuelta,
+  fundamento}`. Es SOLO un apoyo — la decisión final (marcar resuelta / reiterar) la toma el
+  revisor. Selección de documentos: los del `tipo_docs` del ítem (todos con texto para
+  "coherencia"/ítem desconocido), reparto adaptativo, solo texto (sin visión, por costo/latencia
+  — se puede sumar visión en una iteración futura). El JS muestra la recomendación en un recuadro
+  verde/rojo y rellena dos hidden inputs (`ia_recomendacion`/`ia_fundamento`) que, al registrar la
+  ronda, se guardan JUNTO al veredicto humano (quedan visibles en el hilo como "IA sugirió:
+  resuelve/no resuelve — <fundamento>", para auditoría). Si el revisor edita la respuesta después
+  de evaluar, `limpiarIA()` borra la recomendación previa (ya no corresponde). Regla de siempre:
+  la llamada usa streaming + `get_final_message()` (input grande) y va envuelta en
+  `asyncio.to_thread`.
 - **Estado del proyecto:** se agregó **"Aprobado Técnicamente"** a `estados_validos`
   (`cambiar_estado_proyecto`) y al menú/badge de estado en `proyecto.html` (verde, como
   "Revisado"). El botón guardado de la página Respuestas es el camino previsto; el menú de estado
@@ -524,10 +540,11 @@ y el revisor decide a mano (no hay rechazo automático).
   hasta Aprobado/Rechazado. Nada se borra automáticamente — la única purga es el botón manual
   "Liberar archivos" del concurso (`/admin/concursos/{id}`), que NO debe usarse hasta cerrar el
   proyecto. La subsanación no agrega ninguna limpieza automática.
-- **Alcance actual (v1):** el revisor transcribe la respuesta como texto; los archivos nuevos van
-  por Documentos (se puede re-revisar el ítem si hace falta). No hay: recordatorio del plazo de
-  10 días hábiles, ni versión imprimible del pliego de reiteración para el SEP, ni acceso del
-  consultor — quedan como posibles iteraciones futuras.
+- **Alcance actual (v1):** el revisor transcribe la respuesta como texto y puede pedir la
+  evaluación con IA (ver arriba); los archivos nuevos van por Documentos (se puede re-revisar el
+  ítem si hace falta). No hay: recordatorio del plazo de 10 días hábiles, ni versión imprimible
+  del pliego de reiteración para el SEP, ni acceso del consultor, ni visión en la evaluación IA —
+  quedan como posibles iteraciones futuras.
 
 ---
 
