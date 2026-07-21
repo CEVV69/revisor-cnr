@@ -39,7 +39,7 @@
     <strong>{{ cont.desc }}</strong> descartadas
   </p>
   {% for grupo in grupos %}
-  <details id="item-{{ grupo.key }}" {% if grupo.key == abrir_key or (not abrir_key and loop.first) %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
+  <details id="item-{{ grupo.key }}" {% if grupo.key == abrir_key %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
               font-weight:700; color:#2b6cb0; font-size:0.95rem; user-select:none;">
     {{ grupo.nombre }}
@@ -583,9 +583,11 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
 
-{% set abrir_item = item_ok or item_reciente %}
-{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, abrir_item) }}
-{{ bloque_notas(grupos_notas_item, proyecto.id, abrir_item) }}
+{# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok, del redirect tras
+   analizar/aprobar/descartar). Al entrar a la página sin acción previa NO se abre ninguno —
+   todos cerrados, el revisor decide cuál desplegar. #}
+{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok) }}
+{{ bloque_notas(grupos_notas_item, proyecto.id, item_ok) }}
 {{ bloque_cumplimiento(items_cumplen) }}
 
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->
