@@ -113,11 +113,11 @@
   <span style="color:#744210;">Menor: <strong>{{ n_menor }}</strong></span>
   <span>Total: <strong>{{ obs_aprobadas|length }}</strong></span>
   {% if n_mayor == 0 and n_menor == 0 %}
-  &nbsp;&nbsp; <strong style="color:#276749;">Sin observaciones que impidan la admisión.</strong>
+  &nbsp;&nbsp; <strong style="color:#276749;">Sin observaciones que impidan la aprobación.</strong>
   {% elif n_mayor == 0 %}
-  &nbsp;&nbsp; <strong style="color:#744210;">Proyecto admisible con observaciones menores a subsanar.</strong>
+  &nbsp;&nbsp; <strong style="color:#744210;">Proyecto aprobable con observaciones menores a subsanar.</strong>
   {% else %}
-  &nbsp;&nbsp; <strong style="color:#9b2c2c;">Proyecto presenta observaciones mayores — requiere subsanación antes de admisión.</strong>
+  &nbsp;&nbsp; <strong style="color:#9b2c2c;">Proyecto presenta observaciones mayores — requiere subsanación antes de su aprobación.</strong>
   {% endif %}
 </div>
 
