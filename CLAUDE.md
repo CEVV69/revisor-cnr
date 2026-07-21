@@ -536,6 +536,25 @@ y el revisor decide a mano (no hay rechazo automático).
   (`cambiar_estado_proyecto`) y al menú/badge de estado en `proyecto.html` (verde, como
   "Revisado"). El botón guardado de la página Respuestas es el camino previsto; el menú de estado
   sigue permitiendo fijarlo a mano (el revisor es la autoridad).
+- **Documentos de respaldo del consultor (implementado, jul-2026):** la respuesta puede ser solo
+  texto, o texto + archivos (una nueva prueba de bombeo, cálculo estructural corregido, etc.).
+  Decisión de diseño: esos archivos SON documentos del proyecto (única fuente de verdad — es lo
+  que leen la evaluación IA y el re-análisis), pero se suben **directo desde la página
+  Respuestas**, sin cambiar a Documentos. Botón "Adjuntar" en el formulario de cada observación →
+  AJAX `POST .../observacion/{id}/adjuntar-respaldo` (multipart: archivo + tipo_doc) → reusa el
+  MISMO pipeline de subida que la página Documentos (extracción de texto en `to_thread`, respaldo
+  en Postgres, `truncar_texto_guardado`), agrega el doc a `proyecto["documentos"]` con
+  `origen_subsanacion=obs_id`, y lo enlaza a la observación en
+  `obs["subsanacion"]["adjuntos_pendientes"]`. El `tipo_doc` se elige de un `<select>` con las
+  opciones del ítem observado (todas si es "coherencia") — así cae en su grupo y el re-análisis
+  lo ve. Al registrar la ronda, los `adjuntos_pendientes` pasan a `ronda["adjuntos"]` (quedan
+  visibles en el hilo como "Documentos adjuntados: X"). **Importante:** la evaluación IA
+  (`evaluar_respuesta_subsanacion`, parámetro `doc_ids_extra`) incluye SIEMPRE esos adjuntos
+  aunque su `tipo_doc` no pertenezca al ítem observado (ej. una prueba de bombeo adjuntada a una
+  observación de Diseño hidráulico) — si no, el respaldo quedaría invisible para el juicio. Flujo:
+  adjuntar (AJAX, no recarga, preserva el texto) → evaluar con IA (ya ve el doc nuevo) → decidir.
+  El JS avisa subirlo ANTES de evaluar; `adjuntar()` llama a `limpiarIA()` porque una evaluación
+  previa no consideraba el documento recién subido.
 - **Retención:** el proyecto, sus antecedentes y las observaciones deben permanecer disponibles
   hasta Aprobado/Rechazado. Nada se borra automáticamente — la única purga es el botón manual
   "Liberar archivos" del concurso (`/admin/concursos/{id}`), que NO debe usarse hasta cerrar el

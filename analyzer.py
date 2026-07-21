@@ -2479,8 +2479,14 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
 async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                                         respuesta_consultor: str, item_key: str,
                                         documentos: list, resumen: dict = None,
-                                        bases_texto: str = "", concurso_id: str = "") -> dict:
-    """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}."""
+                                        bases_texto: str = "", concurso_id: str = "",
+                                        doc_ids_extra: list = None) -> dict:
+    """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
+
+    `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
+    nueva prueba de bombeo). Se incluyen SIEMPRE en el contexto, aunque su tipo_doc no pertenezca
+    al ítem observado — si no, un respaldo clasificado bajo otro tipo quedaría invisible para la
+    evaluación."""
     if not (respuesta_consultor or "").strip():
         return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
 
@@ -2494,6 +2500,12 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
     else:
         docs_grupo = list(documentos)
+    # Sumar los adjuntos de esta respuesta que no hayan quedado ya incluidos por su tipo_doc.
+    ids_extra = set(doc_ids_extra or [])
+    if ids_extra:
+        ya = {d.get("id") for d in docs_grupo}
+        docs_grupo = docs_grupo + [d for d in documentos
+                                   if d.get("id") in ids_extra and d.get("id") not in ya]
     contexto_docs = _texto_grupo_para_extraccion(docs_grupo, max_chars=80000)
     if not contexto_docs.strip():
         contexto_docs = "(No hay antecedentes con texto extraíble para este ítem.)"

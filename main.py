@@ -2014,7 +2014,18 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     for o in aprobadas:
         nombre = o.get("item_nombre") or "Otras observaciones"
         grupos.setdefault(nombre, {"key": o.get("item", ""), "obs": []})
-        grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o)})
+        # Opciones de tipo_doc para clasificar un respaldo del consultor: las del ítem observado
+        # (todas si es "coherencia" o el ítem no está mapeado), para que el respaldo caiga en su
+        # grupo y la IA lo vea al re-analizar.
+        item_o = ITEMS_SEP.get(o.get("item"))
+        if item_o and o.get("item") != "coherencia" and item_o.get("tipo_docs"):
+            claves_td = item_o["tipo_docs"]
+        else:
+            claves_td = list(TIPO_DOC_LABELS.keys())
+        opciones_td = [{"key": k, "label": TIPO_DOC_LABELS.get(k, k)} for k in claves_td]
+        pendientes = (o.get("subsanacion") or {}).get("adjuntos_pendientes", [])
+        grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o),
+                                      "tipo_docs": opciones_td, "adjuntos_pendientes": pendientes})
     grupos_lista = [{"nombre": n, "key": g["key"], "obs": g["obs"]}
                     for n, g in sorted(grupos.items(), key=lambda kv: orden_item.get(kv[0], 999))]
 
@@ -2067,6 +2078,12 @@ async def registrar_respuesta_subsanacion(
         if ia_recomendacion in ("resuelta", "no_resuelta"):
             ronda["ia_recomendacion"] = ia_recomendacion
             ronda["ia_fundamento"] = (ia_fundamento or "").strip()
+        # Documentos de respaldo que el consultor entregó junto a esta respuesta (subidos antes
+        # vía adjuntar-respaldo) — pasan de "pendientes" a formar parte de esta ronda.
+        pendientes = obs["subsanacion"].get("adjuntos_pendientes", [])
+        if pendientes:
+            ronda["adjuntos"] = pendientes
+            obs["subsanacion"]["adjuntos_pendientes"] = []
         obs["subsanacion"]["rondas"].append(ronda)
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
@@ -2096,18 +2113,76 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         concurso = db.get_concurso(concurso_id)
         bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
+        # Incluir siempre los adjuntos que el consultor entregó con esta respuesta, aunque su
+        # tipo_doc no sea del ítem observado.
+        pendientes = (obs.get("subsanacion") or {}).get("adjuntos_pendientes", [])
+        doc_ids_extra = [a.get("id") for a in pendientes]
+
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=obs.get("texto", ""),
             referencia=obs.get("referencia_normativa", ""),
             respuesta_consultor=respuesta, item_key=obs.get("item", ""),
             documentos=proyecto.get("documentos", []), resumen=proyecto.get("resumen", {}),
-            bases_texto=bases_texto, concurso_id=concurso_id,
+            bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
         )
         return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
                              "fundamento": resultado.get("fundamento", "")})
     except Exception as e:
         import traceback
         print(f"❌ ERROR en evaluar-respuesta {obs_id}: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
+
+
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/adjuntar-respaldo")
+async def adjuntar_respaldo_subsanacion(
+    request: Request, proyecto_id: str, obs_id: str,
+    archivo: UploadFile = File(...), tipo_doc: str = Form(...)
+):
+    """AJAX: sube un documento de respaldo que el consultor entregó con su respuesta. El archivo
+    se agrega como documento del proyecto (canónico, con extracción + respaldo en Postgres, igual
+    que la página Documentos) y se enlaza a la observación como adjunto PENDIENTE de la respuesta
+    en curso — así la IA lo ve al evaluar y queda registrado en la ronda al decidir."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
+    try:
+        proyecto = db.get_proyecto(proyecto_id)
+        if not proyecto:
+            return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
+        obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+        if not obs:
+            return JSONResponse({"ok": False, "error": "observación no encontrada"}, status_code=404)
+        if not archivo.filename:
+            return JSONResponse({"ok": False, "error": "sin archivo"}, status_code=400)
+
+        ext = Path(archivo.filename).suffix.lower()
+        doc_id = str(uuid.uuid4())[:8]
+        filename = f"{doc_id}{ext}"
+        filepath = UPLOAD_DIR / proyecto_id / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        content = await archivo.read()
+        with open(filepath, "wb") as f:
+            f.write(content)
+        db.guardar_archivo(proyecto_id, doc_id, filename, content)
+        texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+        label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc)
+        doc = {
+            "id": doc_id, "nombre_original": archivo.filename, "filename": filename,
+            "tipo_doc": tipo_doc, "tipo_doc_label": label,
+            "fecha_subida": _ahora().isoformat(),
+            "texto_extraido": truncar_texto_guardado(texto),
+            "analizado": False, "origen_subsanacion": obs_id,
+        }
+        proyecto.setdefault("documentos", []).append(doc)
+        obs.setdefault("subsanacion", {}).setdefault("adjuntos_pendientes", []).append(
+            {"id": doc_id, "nombre": archivo.filename, "tipo_label": label})
+        db.save_proyecto(proyecto)
+        return JSONResponse({"ok": True, "doc": {"id": doc_id, "nombre": archivo.filename,
+                                                 "tipo_label": label}})
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en adjuntar-respaldo {obs_id}: {type(e).__name__}: {e}")
         print(traceback.format_exc())
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
 

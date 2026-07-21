@@ -135,6 +135,12 @@
         {% endif %}
       </div>
       <div class="resp-txt">{{ r.respuesta }}</div>
+      {% if r.adjuntos %}
+      <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.35rem;">
+        <strong>Documentos adjuntados:</strong>
+        {% for a in r.adjuntos %}{{ a.nombre }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </div>
+      {% endif %}
       {% if r.comentario %}
       <div style="font-size:0.82rem; color:var(--text-2); margin-top:0.35rem;">
         <strong>Nota del revisor:</strong> {{ r.comentario }}
@@ -163,6 +169,25 @@
         placeholder="Transcribe o resume qué respondió el consultor a este punto..."></textarea>
       <input type="hidden" name="ia_recomendacion" id="ia-rec-{{ obs.id }}">
       <input type="hidden" name="ia_fundamento" id="ia-fund-{{ obs.id }}">
+
+      <div style="margin-top:0.6rem; border:1px dashed var(--border); border-radius:8px; padding:0.6rem 0.7rem;">
+        <div style="font-size:0.82rem; font-weight:600; margin-bottom:0.25rem;">Documentos de respaldo del consultor (opcional)</div>
+        <div style="font-size:0.78rem; color:var(--text-2); margin-bottom:0.4rem;">
+          Si el consultor entregó un documento nuevo o corregido (ej. una nueva prueba de bombeo
+          o cálculo estructural), súbelo acá: se agrega al expediente y la IA lo tendrá a la vista
+          al evaluar. Súbelo <strong>antes</strong> de evaluar con IA.
+        </div>
+        <ul id="adjuntos-{{ obs.id }}" style="margin:0 0 0.4rem; padding-left:1.1rem; font-size:0.82rem;{% if not par.adjuntos_pendientes %} display:none;{% endif %}">
+          {% for a in par.adjuntos_pendientes %}<li>{{ a.nombre }} <span class="text-muted">({{ a.tipo_label }})</span></li>{% endfor %}
+        </ul>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
+          <input type="file" id="file-{{ obs.id }}" accept=".pdf,.doc,.docx,.xls,.xlsx" style="font-size:0.8rem; max-width:100%;">
+          <select id="tipo-{{ obs.id }}" style="font-size:0.8rem; padding:0.3rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+            {% for op in par.tipo_docs %}<option value="{{ op.key }}">{{ op.label }}</option>{% endfor %}
+          </select>
+          <button type="button" class="btn btn-outline btn-sm" id="adj-btn-{{ obs.id }}" onclick="adjuntar('{{ obs.id }}')">Adjuntar</button>
+        </div>
+      </div>
       <div style="margin-top:0.5rem;">
         <button type="button" class="btn btn-outline btn-sm" id="ia-btn-{{ obs.id }}"
                 onclick="evaluarIA('{{ obs.id }}')" style="border-color:#2b6cb0; color:#2b6cb0;">
@@ -209,6 +234,37 @@ function limpiarIA(obsId) {
   var fund = document.getElementById('ia-fund-' + obsId);
   if (rec) rec.value = '';
   if (fund) fund.value = '';
+}
+
+async function adjuntar(obsId) {
+  var fileInput = document.getElementById('file-' + obsId);
+  if (!fileInput.files.length) { alert('Elige un archivo primero.'); return; }
+  var tipo = document.getElementById('tipo-' + obsId).value;
+  var btn = document.getElementById('adj-btn-' + obsId);
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Subiendo…';
+  try {
+    var fd = new FormData();
+    fd.append('archivo', fileInput.files[0]);
+    fd.append('tipo_doc', tipo);
+    var r = await fetch('/proyecto/{{ proyecto.id }}/observacion/' + obsId + '/adjuntar-respaldo',
+      { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
+    var data = await r.json();
+    if (!data.ok) {
+      alert('No se pudo subir: ' + (data.error || 'error desconocido'));
+    } else {
+      var ul = document.getElementById('adjuntos-' + obsId);
+      ul.style.display = '';
+      var li = document.createElement('li');
+      li.textContent = data.doc.nombre + ' (' + data.doc.tipo_label + ')';
+      ul.appendChild(li);
+      fileInput.value = '';
+      limpiarIA(obsId);  // la evaluación previa no consideraba este documento nuevo
+    }
+  } catch (e) {
+    alert('Error al subir: ' + e);
+  }
+  btn.disabled = false; btn.textContent = orig;
 }
 
 async function evaluarIA(obsId) {
