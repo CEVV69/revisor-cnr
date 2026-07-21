@@ -178,13 +178,16 @@
         <ul id="adjuntos-{{ obs.id }}" style="margin:0 0 0.4rem; padding-left:1.1rem; font-size:0.82rem;{% if not par.adjuntos_pendientes %} display:none;{% endif %}">
           {% for a in par.adjuntos_pendientes %}<li>{{ a.nombre }} <span class="text-muted">({{ a.tipo_label }})</span></li>{% endfor %}
         </ul>
-        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+        <!-- width:auto inline anula la regla global `input,select{width:100%}` que, si no, apila
+             los controles en 3 líneas; flex-wrap:nowrap los mantiene en una sola fila. -->
+        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:nowrap;">
           <input type="file" id="file-{{ obs.id }}" accept=".pdf,.doc,.docx,.xls,.xlsx"
-                 style="font-size:0.8rem; flex:1 1 150px; min-width:0;">
-          <select id="tipo-{{ obs.id }}" style="font-size:0.8rem; padding:0.3rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); flex:0 1 auto; max-width:100%;">
+                 style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+          <select id="tipo-{{ obs.id }}"
+                  style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
             {% for op in par.tipo_docs %}<option value="{{ op.key }}"{% if op.key == par.preselect %} selected{% endif %}>{{ op.label }}</option>{% endfor %}
           </select>
-          <button type="button" class="btn btn-outline btn-sm" id="adj-btn-{{ obs.id }}" onclick="adjuntar('{{ obs.id }}')" style="flex:0 0 auto;">Adjuntar</button>
+          <button type="button" class="btn btn-outline btn-sm" id="adj-btn-{{ obs.id }}" onclick="adjuntar('{{ obs.id }}')" style="flex:0 0 auto; white-space:nowrap;">Adjuntar</button>
         </div>
       </div>
       <div style="margin-top:0.5rem;">

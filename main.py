@@ -2017,16 +2017,18 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         # Opciones de tipo_doc para clasificar un respaldo del consultor: las del ítem observado
         # (todas si es "coherencia" o el ítem no está mapeado), para que el respaldo caiga en su
         # grupo y la IA lo vea al re-analizar.
+        # Opciones = catálogo COMPLETO de tipos de documento (el revisor puede clasificar el
+        # respaldo en cualquiera), pero preseleccionando el tipo del ítem observado — casi
+        # siempre el respaldo corresponde a ese mismo ítem.
+        opciones_td = [{"key": k, "label": v} for k, v in TIPO_DOC_LABELS.items()]
         item_o = ITEMS_SEP.get(o.get("item"))
-        if item_o and o.get("item") != "coherencia" and item_o.get("tipo_docs"):
-            claves_td = item_o["tipo_docs"]
+        item_tds = item_o.get("tipo_docs", []) if item_o else []
+        if o.get("item") in TIPO_DOC_LABELS:
+            preselect = o.get("item")            # el ítem coincide con un tipo_doc (caso usual)
+        elif item_tds:
+            preselect = item_tds[0]              # ítem con varios tipos → el principal
         else:
-            claves_td = list(TIPO_DOC_LABELS.keys())
-        opciones_td = [{"key": k, "label": TIPO_DOC_LABELS.get(k, k)} for k in claves_td]
-        # Preselección: el tipo cuyo nombre coincide con el ítem observado (ej. observación en
-        # "Plano de ubicación" → tipo_doc "plano_ubicacion" ya elegido); si no, el primero. El
-        # revisor puede cambiarlo — casi siempre el respaldo es del mismo ítem de la observación.
-        preselect = o.get("item") if o.get("item") in claves_td else (claves_td[0] if claves_td else "")
+            preselect = ""                       # ej. "coherencia": sin preselección
         pendientes = (o.get("subsanacion") or {}).get("adjuntos_pendientes", [])
         grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o),
                                       "tipo_docs": opciones_td, "preselect": preselect,
