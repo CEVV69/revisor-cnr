@@ -476,6 +476,23 @@ adivina ni se muestra un pin en un lugar incorrecto.
   se quitó el `body { padding: 0; }` que tenía `@media print` (dejaba el margen nativo del
   navegador, no controlado) y se cambió `margin: [10,10,10,10]` a `margin: 0` en el `opt` de
   `descargarPDF()` (sumaba con el padding del body, doblando el margen en el PDF descargado).
+  **Margen superior desde la 2ª hoja (jul-2026):** mismo síntoma que en `informe_resumen.html`
+  (título/texto pegado arriba en las hojas siguientes a la 1ª) pero con una diferencia clave: en
+  `ficha.html` los saltos de página son NATURALES, no forzados por una clase `.salto-pagina` en
+  un elemento fijo — el N° de hojas depende de cuántas observaciones tenga el proyecto (2 o 3
+  hojas típicamente), así que no hay un único elemento al que agregarle `padding-top` como se
+  hizo en el otro informe. Solución distinta, general para cualquier cantidad de hojas: `@page`
+  pasó de `margin: 0` a `margin: 0.5cm 0 0 0` — a diferencia del padding del body (que solo
+  empuja el inicio del flujo en la primera hoja), el margen de `@page` lo repite el navegador en
+  CADA hoja automáticamente, así que cubre la 2ª, 3ª o las que hagan falta sin depender de dónde
+  caiga el corte. Mismo criterio aplicado al camino de "Descargar PDF": el `opt.margin` de
+  html2pdf (que sí se había dejado en `0` a propósito para no doblar el margen del body en la
+  1ª hoja) pasó a `[5, 0, 0, 0]` (formato `[top, left, bottom, right]` en mm) — html2pdf también
+  repite ese margen en cada página del PDF generado, a diferencia del padding del body. Efecto
+  secundario esperado y aceptado: la 1ª hoja también gana ese medio centímetro extra arriba
+  (1,5cm de padding + 0,5cm de `@page`/html2pdf = 2cm), igual que ya ocurría en la versión
+  aceptada de `informe_resumen.html` — el usuario no había objetado eso, solo la falta de margen
+  en las hojas siguientes.
 - **Informe Resumen** (`/proyecto/{id}/resumen/informe`, jul-2026): versión imprimible de la
   página Resumen (`templates/informe_resumen.html`, mismo patrón standalone que `ficha.html` —
   no extiende `base.html`, botones Imprimir/Descargar PDF con html2pdf.js). Encabezado con

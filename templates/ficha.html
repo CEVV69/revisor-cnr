@@ -6,10 +6,14 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Margen izquierdo más ancho que el resto — deja espacio para perforar y archivar. El
-       padding del body es la ÚNICA fuente de margen (@page margin:0 anula el margen propio
-       del navegador, y descargarPDF() usa margin:0 en html2pdf) — evita que se sumen dos
-       márgenes distintos y el resultado impreso quede más ancho de lo pedido. */
-    @page { margin: 0; }
+       padding del body es la ÚNICA fuente de margen izquierdo/derecho/inferior (evita que se
+       sumen dos márgenes distintos y el resultado impreso quede más ancho de lo pedido).
+       El margen SUPERIOR es distinto: acá los saltos de página son NATURALES (el N° de
+       observaciones varía, pueden ser 2 o 3 hojas) — no hay un elemento fijo al que agregarle
+       padding como en informe_resumen.html. Por eso @page sí lleva un margin-top (0,5cm),
+       que el navegador repite automáticamente en CADA hoja impresa (a diferencia del padding
+       del body, que solo empuja el inicio del flujo en la primera). */
+    @page { margin: 0.5cm 0 0 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
 
     /* Botón imprimir — solo en pantalla */
@@ -148,7 +152,10 @@ function descargarPDF() {
   botones.style.display = 'none';
   var nombre = 'Ficha_{{ proyecto.codigo_sep }}_{{ fecha_ficha }}.pdf'.replace(/\//g, '-');
   var opt = {
-    margin:       0,
+    // margin: [top, left, bottom, right] en mm (unidad del jsPDF de abajo) — solo top (5mm =
+    // 0,5cm) porque left/bottom/right ya los da el padding del body. html2pdf repite este
+    // margen en CADA página del PDF (a diferencia del padding, que solo actúa en la 1ª).
+    margin:       [5, 0, 0, 0],
     filename:     nombre,
     image:        { type: 'jpeg', quality: 0.97 },
     html2canvas:  { scale: 2, useCORS: true },
