@@ -663,6 +663,38 @@ en el prompt (`nota_imagenes`, `_analizar_grupo`) se generalizó de "planos" a "
 delimitación de áreas" y ahora menciona explícitamente leer "SUPERFICIES/hectáreas rotuladas",
 no solo diámetros/longitudes (antes redactado pensando solo en planos de tecnificación/obras).
 
+**"Pruebas de Bombeo" agregado a visión SIEMPRE — nuevo `TIPOS_SIEMPRE_VISION` separado de
+`TIPOS_PLANO_VISION` (jul-2026):** el usuario reportó que este ítem "no conocía la mitad de la
+información" — el informe trae una tabla de datos (caudal, tiempos, niveles) y la curva de
+descenso/recuperación como GRÁFICO, ninguno de los dos capturable por texto extraído, así que si
+el PDF tenía algo de texto narrativo (metodología, antecedentes) el ítem se analizaba solo con
+eso, sin ver la tabla ni la curva — mismo patrón de bug que `identificacion_riego`/
+`plano_ubicacion`, pero en `pruebas_bombeo` no aplicaba porque ese tipo no estaba en
+`TIPOS_PLANO_VISION`.
+- **No se agregó directo a `TIPOS_PLANO_VISION`** porque ese set además dispara
+  `render_plano_tiles()` (vista completa + 4 cuadrantes ampliados, pensado para dibujos técnicos
+  grandes donde el texto se pierde a escala normal) — un informe de prueba de bombeo es un
+  documento tamaño carta con una tabla y un gráfico, no necesita cuadrantes de zoom, así que
+  forzarlo habría gastado cupo de `MAX_IMG_EJE` sin necesidad. Se creó `TIPOS_SIEMPRE_VISION =
+  TIPOS_PLANO_VISION | {"pruebas_bombeo"}` — el set amplio decide QUÉ documentos van a visión
+  siempre (aunque tengan texto); `TIPOS_PLANO_VISION` (sin cambios en su contenido) sigue
+  decidiendo, dentro de ese subconjunto, cuáles además usan cuadrantes. `pruebas_bombeo` entra al
+  primero pero no al segundo → visión sí, pero con el renderizado básico de página completa
+  (`render_pdf_as_images`).
+- Los 3 puntos que antes leían `TIPOS_PLANO_VISION` para decidir "necesita el archivo físico
+  siempre" pasaron a leer `TIPOS_SIEMPRE_VISION`: `_analizar_grupo` (analyzer.py, decisión de
+  incluir en `docs_imagen`), `_restaurar_archivos_necesarios()` y el cálculo de
+  `doc["necesita_archivo"]` en `_render_proyecto()` (ambos en main.py) — así una prueba de bombeo
+  con archivo perdido tras un redeploy también se restaura desde Postgres antes de analizar, y
+  también se marca "necesita resubir" en la página Documentos si no hay ninguna copia disponible.
+- `nota_imagenes` (el aviso que ve la IA sobre las imágenes adjuntas) ahora distingue: el aviso de
+  "cada página viene con 4 cuadrantes, no dupliques conteos" solo se agrega si de verdad se usó
+  `render_plano_tiles` en al menos un documento del grupo (nuevo `ids_con_tiles`, poblado en el
+  loop de render) — antes era un texto fijo pensado solo para planos y le habría dicho a la IA
+  que esperara cuadrantes que no existen para una prueba de bombeo. La instrucción de qué leer se
+  generalizó para cubrir también "valores de TABLAS, y la forma de CURVAS o gráficos (ej.
+  descenso/recuperación de una prueba de bombeo)", no solo diámetros/longitudes/superficies.
+
 **Bug resuelto — el archivo físico de un plano no se restauraba tras un redeploy pese a tener
 texto (jul-2026):** reportado junto con lo anterior para "Plano de Ubicación del proyecto"
 (`plano_ubicacion`, que YA estaba en `TIPOS_PLANO_VISION` desde antes — el problema no era falta

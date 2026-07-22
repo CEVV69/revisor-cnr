@@ -28,7 +28,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
-                      TIPOS_PLANO_VISION, evaluar_respuesta_subsanacion)
+                      TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -208,17 +208,17 @@ def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
     mientras siga guardado en la base.
 
     "Necesita visión" son dos casos (mismo criterio que `_analizar_grupo` en analyzer.py):
-    escaneado/con poco texto, O un tipo de PLANO (`TIPOS_PLANO_VISION` — va a visión SIEMPRE que
-    el archivo exista, aunque tenga texto). Antes este helper solo cubría el primer caso, así
-    que un plano con harto texto (ej. exportado de AutoCAD con cotas como texto) que perdía su
-    archivo físico en un redeploy quedaba sin restaurar — la visión nunca se disparaba pese a que
-    el código la esperaba siempre para ese tipo, y el revisor no tenía forma de notarlo sin
-    revisar manualmente el indicador de la página Documentos."""
+    escaneado/con poco texto, O un tipo de `TIPOS_SIEMPRE_VISION` (planos + pruebas de bombeo —
+    van a visión SIEMPRE que el archivo exista, aunque tengan texto). Antes este helper solo
+    cubría el primer caso, así que un plano con harto texto (ej. exportado de AutoCAD con cotas
+    como texto) que perdía su archivo físico en un redeploy quedaba sin restaurar — la visión
+    nunca se disparaba pese a que el código la esperaba siempre para ese tipo, y el revisor no
+    tenía forma de notarlo sin revisar manualmente el indicador de la página Documentos."""
     carpeta = UPLOAD_DIR / proyecto_id
     for d in documentos:
         texto = d.get("texto_extraido", "").strip()
         necesita_vision = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
-                            or d.get("tipo_doc") in TIPOS_PLANO_VISION)
+                            or d.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
         if not necesita_vision:
             continue
         filepath = carpeta / d.get("filename", "")
@@ -521,15 +521,15 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         ]
     # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
     # Solo importa re-subir los que necesitan visión: escaneados/con poco texto, O un tipo de
-    # PLANO (`TIPOS_PLANO_VISION` — va a visión SIEMPRE aunque tenga texto, ver
-    # _restaurar_archivos_necesarios); el resto ya tiene su texto extraído guardado y no
-    # requiere el archivo físico.
+    # `TIPOS_SIEMPRE_VISION` (planos + pruebas de bombeo — van a visión SIEMPRE aunque tenga
+    # texto, ver _restaurar_archivos_necesarios); el resto ya tiene su texto extraído guardado y
+    # no requiere el archivo físico.
     carpeta_proyecto = UPLOAD_DIR / proyecto_id
     ids_guardados_db = db.ids_con_archivo(proyecto_id)
     for doc in proyecto["documentos"]:
         texto = doc.get("texto_extraido", "").strip()
         doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
-                                    or doc.get("tipo_doc") in TIPOS_PLANO_VISION)
+                                    or doc.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
         doc["archivo_presente"] = ((carpeta_proyecto / doc.get("filename", "")).exists()
                                     or doc["id"] in ids_guardados_db)
     n_faltan_resubir = len([d for d in proyecto["documentos"]

@@ -745,13 +745,22 @@ MAX_IMG_EJE = 14   # tope de imágenes (páginas) por revisión de grupo, para c
 # Tipos de documento que son PLANOS: van a visión SIEMPRE que el archivo exista (aunque el PDF
 # tenga capa de texto — un plano exportado de AutoCAD suele traer las cotas/textos extraíbles,
 # pero la geometría del trazado solo se ve en imagen), y se renderizan en ALTA RESOLUCIÓN con
-# cuadrantes ampliados (render_plano_tiles) en vez del renderizado básico de página completa.
+# cuadrantes ampliados (render_plano_tiles) en vez del renderizado básico de página completa —
+# pensado para dibujos grandes donde el texto/cotas se pierden a escala normal.
 # "identificacion_riego" se agregó jul-2026: ese documento delimita el área de riego sobre un
 # plano/mapa del predio con las superficies anotadas gráficamente (polígonos, rótulos de
 # hectáreas) — el texto extraído del PDF no captura esas anotaciones, así que sin visión la IA
 # no las "ve" y puede observar por error que la superficie no está declarada.
 TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion",
                        "identificacion_riego"}
+
+# Tipos que van a visión SIEMPRE que el archivo exista, igual que TIPOS_PLANO_VISION, pero SIN
+# el renderizado en cuadrantes (no son dibujos grandes — usan el renderizado básico de página
+# completa). "pruebas_bombeo" se agregó jul-2026: el informe suele traer una tabla de datos
+# (caudal, tiempos, niveles) y la curva de descenso/recuperación como GRÁFICO — ninguno de los
+# dos se captura en el texto extraído del PDF, así que sin visión la IA solo "conocía" la mitad
+# del documento (la parte narrativa), sin poder leer la tabla ni ver la forma de la curva.
+TIPOS_SIEMPRE_VISION = TIPOS_PLANO_VISION | {"pruebas_bombeo"}
 
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
@@ -1497,19 +1506,20 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     """
     import os as _os
 
-    # Separar documentos con texto de documentos-imagen (escaneados / planos). Los PLANOS van
-    # a visión aunque tengan texto extraíble (texto E imagen a la vez): la capa de texto trae
-    # cotas y rótulos, pero el trazado/geometría solo se ve en la imagen.
+    # Separar documentos con texto de documentos-imagen (escaneados / planos / pruebas de bombeo).
+    # Los tipos en TIPOS_SIEMPRE_VISION van a visión aunque tengan texto extraíble (texto E
+    # imagen a la vez): la capa de texto trae cotas/rótulos/narrativa, pero el trazado, o una
+    # tabla/gráfico incrustado como imagen, solo se ve en la imagen.
     docs_texto  = []
     docs_imagen = []   # (doc, filepath)
     for d in docs_grupo:
         t = d.get("texto_extraido", "").strip()
         es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
-        es_plano = d.get("tipo_doc") in TIPOS_PLANO_VISION
+        es_siempre_vision = d.get("tipo_doc") in TIPOS_SIEMPRE_VISION
         fp = _os.path.join(ruta_uploads, d.get("filename", "")) if ruta_uploads else ""
         pdf_disponible = (fp and d.get("filename", "").lower().endswith(".pdf")
                           and _os.path.exists(fp))
-        if not es_coherencia and pdf_disponible and (es_imagen or es_plano):
+        if not es_coherencia and pdf_disponible and (es_imagen or es_siempre_vision):
             docs_imagen.append((d, fp))
             if es_imagen:
                 continue
@@ -1576,6 +1586,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     from extractor import render_pdf_as_images, render_plano_tiles
     imagenes_por_doc = []   # (label, nombre_original, [(etiqueta_imagen, b64), ...])
     ids_imagen_lograda = set()
+    ids_con_tiles = set()   # docs renderizados con render_plano_tiles (vista + 4 cuadrantes)
     motivo_fallo_imagen = {}   # doc_id -> "tope" | "cuota" | "error: <detalle>"
     # Cuota FIJA por documento (no water-filling): reserva de entrada un cupo parejo para cada
     # documento que necesita visión, para que el primero de la lista no consuma TODO el tope
@@ -1596,6 +1607,8 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
             if es_plano and cuota_doc >= 5:
                 pags = min(2, cuota_doc // 5)
                 imgs = await asyncio.to_thread(render_plano_tiles, fp, max_pages=pags)
+                if imgs:
+                    ids_con_tiles.add(doc_id)
             else:
                 # Sin cuota suficiente para el renderizado en alta resolución de planos
                 # (render_plano_tiles pide mínimo 5 imágenes por página) — degrada a la
@@ -1705,15 +1718,19 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     if imagenes_por_doc:
         nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
         nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
-                         f"(planos, mapas de delimitación de áreas o escaneados) — analízalos "
-                         f"visualmente: {nombres_img}."
-                         f"\nOJO con los PLANOS/MAPAS: cada página viene como una vista completa "
-                         f"MÁS 4 cuadrantes AMPLIADOS de esa MISMA página (para leer cotas, "
-                         f"diámetros y textos chicos) — los cuadrantes NO son páginas ni "
-                         f"láminas distintas, no dupliques conteos ni superficies. Lee "
-                         f"diámetros, longitudes, SUPERFICIES/hectáreas rotuladas y números de "
-                         f"la simbología y las cotas anotadas; NO intentes medir a escala sobre "
-                         f"la imagen.")
+                         f"(planos, mapas de delimitación de áreas, pruebas de bombeo o "
+                         f"escaneados) — analízalos visualmente: {nombres_img}."
+                         f"\nLee SOLO lo efectivamente anotado/rotulado en la imagen: diámetros, "
+                         f"longitudes, SUPERFICIES/hectáreas rotuladas, números de la simbología "
+                         f"y las cotas anotadas, valores de TABLAS, y la forma de CURVAS o "
+                         f"gráficos (ej. descenso/recuperación de una prueba de bombeo) — nunca "
+                         f"midas a escala ni estimes a ojo.")
+        if ids_con_tiles:
+            nota_imagenes += (f"\nOJO con los PLANOS/MAPAS: cada página viene como una vista "
+                              f"completa MÁS 4 cuadrantes AMPLIADOS de esa MISMA página (para "
+                              f"leer cotas, diámetros y textos chicos) — los cuadrantes NO son "
+                              f"páginas ni láminas distintas, no dupliques conteos ni "
+                              f"superficies.")
 
     bloque_enfasis = ""
     if criterios_enfasis and criterios_enfasis.strip():
