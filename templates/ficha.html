@@ -10,11 +10,17 @@
        sumen dos márgenes distintos y el resultado impreso quede más ancho de lo pedido).
        El margen SUPERIOR es distinto: acá los saltos de página son NATURALES (el N° de
        observaciones varía, pueden ser 2 o 3 hojas) — no hay un elemento fijo al que agregarle
-       padding como en informe_resumen.html. Por eso @page sí lleva un margin-top (0,5cm),
-       que el navegador repite automáticamente en CADA hoja impresa (a diferencia del padding
-       del body, que solo empuja el inicio del flujo en la primera). */
+       padding como en informe_resumen.html. Por eso @page lleva un margin-top (0,5cm), que el
+       navegador repite automáticamente en CADA hoja impresa — PERO eso también sumaría ese
+       medio centímetro a la 1ª hoja, que ya estaba bien (mismo reclamo que en informe_resumen:
+       ahí la 1ª hoja no se tocó). Para que la 1ª hoja quede EXACTAMENTE igual, justo antes de
+       imprimir/exportar se le resta ese mismo 0,5cm al padding-top del body por JS (eventos
+       `beforeprint`/`afterprint` para Imprimir; directo en `descargarPDF()` para el PDF) — así
+       la 1ª hoja queda en 1cm (body) + 0,5cm (@page) = 1,5cm de siempre, y las hojas 2+, que no
+       heredan el padding del body, quedan en 0 + 0,5cm = el margen nuevo pedido. */
     @page { margin: 0.5cm 0 0 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
+    @media print { body.imprimiendo { padding-top: 1cm; } }
 
     /* Botón imprimir — solo en pantalla */
     .no-print { text-align: right; margin-bottom: 1rem; }
@@ -147,14 +153,30 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
+// Imprimir nativo (window.print()): la clase .imprimiendo (@media print, ver <style>) resta
+// del body el mismo 0,5cm que @page agrega en cada hoja — así la 1ª hoja no cambia y las
+// siguientes ganan el margen nuevo. html2canvas (Descargar PDF) no respeta @media print, por
+// eso ese camino ajusta el padding directo por JS más abajo, no con esta clase.
+window.addEventListener('beforeprint', function() {
+  document.body.classList.add('imprimiendo');
+});
+window.addEventListener('afterprint', function() {
+  document.body.classList.remove('imprimiendo');
+});
+
 function descargarPDF() {
   var botones = document.querySelector('.no-print');
   botones.style.display = 'none';
+  // Mismo ajuste que la clase .imprimiendo, pero aplicado directo (html2canvas no dispara
+  // @media print de forma confiable, mismo motivo por el que otras secciones de este tipo de
+  // informe se fuerzan a mano vía JS en vez de depender de @media print).
+  document.body.style.paddingTop = '1cm';
   var nombre = 'Ficha_{{ proyecto.codigo_sep }}_{{ fecha_ficha }}.pdf'.replace(/\//g, '-');
   var opt = {
     // margin: [top, left, bottom, right] en mm (unidad del jsPDF de abajo) — solo top (5mm =
     // 0,5cm) porque left/bottom/right ya los da el padding del body. html2pdf repite este
-    // margen en CADA página del PDF (a diferencia del padding, que solo actúa en la 1ª).
+    // margen en CADA página del PDF (a diferencia del padding, que solo actúa en la 1ª) — por
+    // eso el padding-top del body se resta justo arriba, para no doblar el margen en la 1ª hoja.
     margin:       [5, 0, 0, 0],
     filename:     nombre,
     image:        { type: 'jpeg', quality: 0.97 },
@@ -163,6 +185,7 @@ function descargarPDF() {
   };
   html2pdf().set(opt).from(document.body).save().then(function() {
     botones.style.display = '';
+    document.body.style.paddingTop = '';
   });
 }
 </script>

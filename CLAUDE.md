@@ -481,18 +481,29 @@ adivina ni se muestra un pin en un lugar incorrecto.
   `ficha.html` los saltos de página son NATURALES, no forzados por una clase `.salto-pagina` en
   un elemento fijo — el N° de hojas depende de cuántas observaciones tenga el proyecto (2 o 3
   hojas típicamente), así que no hay un único elemento al que agregarle `padding-top` como se
-  hizo en el otro informe. Solución distinta, general para cualquier cantidad de hojas: `@page`
-  pasó de `margin: 0` a `margin: 0.5cm 0 0 0` — a diferencia del padding del body (que solo
-  empuja el inicio del flujo en la primera hoja), el margen de `@page` lo repite el navegador en
-  CADA hoja automáticamente, así que cubre la 2ª, 3ª o las que hagan falta sin depender de dónde
-  caiga el corte. Mismo criterio aplicado al camino de "Descargar PDF": el `opt.margin` de
-  html2pdf (que sí se había dejado en `0` a propósito para no doblar el margen del body en la
-  1ª hoja) pasó a `[5, 0, 0, 0]` (formato `[top, left, bottom, right]` en mm) — html2pdf también
-  repite ese margen en cada página del PDF generado, a diferencia del padding del body. Efecto
-  secundario esperado y aceptado: la 1ª hoja también gana ese medio centímetro extra arriba
-  (1,5cm de padding + 0,5cm de `@page`/html2pdf = 2cm), igual que ya ocurría en la versión
-  aceptada de `informe_resumen.html` — el usuario no había objetado eso, solo la falta de margen
-  en las hojas siguientes.
+  hizo en el otro informe. Solución general para cualquier cantidad de hojas: `@page` pasó de
+  `margin: 0` a `margin: 0.5cm 0 0 0` — a diferencia del padding del body (que solo empuja el
+  inicio del flujo en la primera hoja), el margen de `@page` lo repite el navegador en CADA hoja
+  automáticamente, así que cubre la 2ª, 3ª o las que hagan falta sin depender de dónde caiga el
+  corte. Mismo criterio en "Descargar PDF": el `opt.margin` de html2pdf pasó de `0` a
+  `[5, 0, 0, 0]` (formato `[top, left, bottom, right]` en mm) — html2pdf también repite ese
+  margen en cada página del PDF generado.
+  **Corrección — la 1ª hoja NO debía tocarse (jul-2026):** la primera versión de este fix dejaba
+  que la 1ª hoja también ganara el medio centímetro extra (efecto secundario asumido por
+  analogía con `informe_resumen.html`, donde sí se había aceptado) — pero el usuario aclaró que
+  acá, igual que allá, la 1ª hoja YA estaba bien y no debía cambiar; solo faltaba margen desde la
+  2ª en adelante. Como `@page margin` y `opt.margin` de html2pdf se aplican PAREJO a todas las
+  páginas (no hay forma nativa de excluir "solo la primera" con `opt.margin` de html2pdf, y
+  `@page :first` para excluirla en impresión nativa tiene soporte inconsistente entre navegadores
+  — no se usó por eso), la solución fue restarle a la 1ª hoja, por JS, el mismo 0,5cm que
+  `@page`/html2pdf le suman a todas: se agregó la clase `body.imprimiendo { padding-top: 1cm; }`
+  (dentro de `@media print`, así no afecta la pantalla) que se activa/desactiva con los eventos
+  nativos `beforeprint`/`afterprint` para el camino de Imprimir — la 1ª hoja queda en 1cm (body)
+  + 0,5cm (`@page`) = 1,5cm de siempre, y las hojas 2+ (que no heredan el padding del body) en
+  0 + 0,5cm = el margen nuevo. Para "Descargar PDF", como html2canvas no dispara `@media print`
+  de forma confiable (mismo motivo documentado para la sección Notas de `informe_resumen.html`),
+  `descargarPDF()` hace el mismo ajuste directo por JS (`document.body.style.paddingTop = '1cm'`
+  antes de llamar a html2pdf, restaurado a `''` en el `.then()`) en vez de depender de la clase.
 - **Informe Resumen** (`/proyecto/{id}/resumen/informe`, jul-2026): versión imprimible de la
   página Resumen (`templates/informe_resumen.html`, mismo patrón standalone que `ficha.html` —
   no extiende `base.html`, botones Imprimir/Descargar PDF con html2pdf.js). Encabezado con
