@@ -522,6 +522,16 @@ adivina ni se muestra un pin en un lugar incorrecto.
   **Ajuste 28→26 líneas (jul-2026):** al agregar el campo "Características obras" (ver sección
   "Resumen del proyecto" más arriba) se le restaron 2 líneas a Notas para darle espacio en la
   hoja al contenido nuevo, a pedido explícito del usuario.
+  **Margen superior de la 2ª hoja (jul-2026):** el usuario reportó que el título de
+  "Características de obras" (que arranca la 2ª hoja gracias a `.salto-pagina`) quedaba pegado
+  arriba del todo, con parte del texto cortado — el padding del `body` NO se repite en cada
+  hoja impresa (solo empuja el inicio del flujo en la 1ª), así que una hoja que arranca por un
+  salto de página explícito no hereda ningún margen superior. Se agregó `padding-top: 0.5cm`
+  directo a la regla `.salto-pagina` (no a `@page`, que sigue en `margin: 0` a propósito, ver
+  nota del margen izquierdo) — al estar DENTRO del elemento que arranca la hoja nueva, el
+  padding se renderiza como espacio en blanco antes del título tanto en impresión nativa
+  (`window.print()`) como en el PDF descargado (html2canvas capta el padding porque es parte
+  del layout real del DOM, a diferencia de un margen `@page` que no ve).
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —

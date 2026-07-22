@@ -39,8 +39,12 @@
     /* Fuerza que "Características de obras" empiece en hoja nueva — hoy queda cortada al
        final de la primera. Sin @media print: html2canvas (Descargar PDF) no dispara @media
        print de forma confiable, así que la regla debe ser base para que la respete también
-       ahí (modo 'css' de html2pdf, sin efecto visual en pantalla). */
-    .salto-pagina { page-break-before: always; break-before: page; }
+       ahí (modo 'css' de html2pdf, sin efecto visual en pantalla).
+       padding-top: el margen del body NO se repite en cada hoja (solo empuja el inicio del
+       flujo en la primera) — sin este padding el título queda pegado arriba en la 2ª hoja y
+       se ve cortado. Va DENTRO del elemento con el salto (no en @page) porque @page margin
+       está en 0 a propósito (ver nota de margen izquierdo más arriba). */
+    .salto-pagina { page-break-before: always; break-before: page; padding-top: 0.5cm; }
 
     /* Notas — SOLO aparece en la versión impresa/PDF, nunca en pantalla */
     .notas-print { display: none; }
