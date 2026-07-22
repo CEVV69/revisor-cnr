@@ -64,7 +64,7 @@ def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
         return MODELO_SONNET
     return MODELO_HAIKU
 MAX_TOKENS_HAIKU  = 2000   # Documentos simples
-MAX_TOKENS_SONNET = 12000  # Documentos complejos — Sonnet 5 gasta parte del cupo en thinking
+MAX_TOKENS_SONNET = 16000  # Documentos complejos — Sonnet 5 gasta parte del cupo en thinking
 MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
 
 # Páginas máximas para visión (PDFs escaneados / con imágenes)

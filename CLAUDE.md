@@ -857,6 +857,27 @@ por respuesta vacía + `max_tokens` no cambiaron. Se envuelve en un helper sínc
 (8.000 tokens) y la consulta libre (4.000) quedaron con `create()` por ahora — son más chicos y no
 se colgaron; si alguno empieza a hacerlo, aplicar el mismo patrón.
 
+**Seguimiento — "Error Interno del Servidor" en Presupuesto pese a que el análisis SÍ terminó bien
+(jul-2026):** el streaming de arriba evita el timeout propio del SDK/httpx esperando a Anthropic,
+pero no evita que una solicitud MUY larga desde el navegador choque con un timeout de una capa
+más externa (el proxy de Railway — `uvicorn` corre sin ningún flag de timeout propio en
+`railway.toml`, así que no es la app). El usuario reportó ver una página en blanco con error al
+revisar Presupuesto, pero al volver a entrar las observaciones YA estaban guardadas — confirma
+que el proceso en el servidor siguió corriendo hasta el final y guardó todo con normalidad; solo
+se cortó la respuesta HTTP de vuelta al navegador. Causa de fondo: el log mostró el reintento ya
+documentado arriba (`respuesta vacía por max_tokens — reintentando con más cupo`) — el primer
+intento (12.000 tokens) se quedó corto pensando y el reintento completo (20.000) sí funcionó, pero
+la SUMA de ambos intentos secuenciales (uno desperdiciado + uno completo) puede tardar varios
+minutos, suficiente para topar con el timeout externo. Coincide con que el checklist de
+Presupuesto se había ampliado poco antes (de una línea a las 11 reglas a–k con montos/porcentajes,
+ver la sección de checklists más abajo) — más exigencia de razonamiento por partida, más chance de
+quedarse corto en el primer intento. Mitigación aplicada: `MAX_TOKENS_SONNET` 12.000→16.000 (el
+reintento pasa a 24.000) — reduce cuántas veces hace falta el segundo llamado completo, que es lo
+que dobla el tiempo total de la solicitud. No es una solución completa (un Excel muy grande/con
+muchas partidas puede seguir necesitando el reintento) — si vuelve a pasar, el dato clave para el
+usuario es que **igual se guarda en el servidor aunque el navegador muestre error**: conviene
+esperar un momento y volver a entrar antes de asumir que hay que revisar el ítem de nuevo.
+
 **Criterios de énfasis por ítem (implementado, jul-2026):** distinto del "aprendizaje"
 automático de abajo. Es un campo `concurso["criterios_enfasis"]["item_"+item_key]` (misma clave
 que `criterios_aprendidos`) que el revisor **escribe y edita a mano** en
