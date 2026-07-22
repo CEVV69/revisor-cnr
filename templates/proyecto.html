@@ -56,7 +56,27 @@
 </details>
 {% endmacro %}
 
-{% macro bloque_observaciones(grupos, cont, proyecto_id, abrir_key) %}
+{# Formulario para derivar una observación de Coherencia Global (ítem que NO existe en el SEP
+   real) a alguno de los 18 ítems reales — incluso a uno que no tenga documentos/no se haya
+   podido evaluar, ya que esa misma ausencia puede ser justamente la observación a derivar. #}
+{% macro _form_derivar_item(proyecto_id, obs_id, items_info) %}
+<form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs_id }}/derivar-item"
+      style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; margin-top:0.6rem;
+             padding-top:0.6rem; border-top:1px dashed #cbd5e0;">
+  <label style="font-size:0.78rem; color:var(--text-2);">Derivar a ítem del SEP:</label>
+  <select name="item_key" style="width:auto; font-size:0.78rem; padding:0.25rem 0.4rem;" required>
+    <option value="" disabled selected>Elegir ítem...</option>
+    {% for it in items_info %}
+    {% if it.key != 'coherencia' %}
+    <option value="{{ it.key }}">{{ it.nombre }}</option>
+    {% endif %}
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-outline btn-sm">Derivar</button>
+</form>
+{% endmacro %}
+
+{% macro bloque_observaciones(grupos, cont, proyecto_id, abrir_key, items_info) %}
 {% if grupos %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
@@ -91,6 +111,9 @@
         {% if obs.manual %}
         <span class="badge badge-administrativa" title="Agregada a mano por el revisor{% if obs.agregada_por %} ({{ obs.agregada_por }}){% endif %}">manual</span>
         {% endif %}
+        {% if obs.derivada_de %}
+        <span class="badge badge-administrativa" title="Derivada desde {{ obs.derivada_de }}">derivada</span>
+        {% endif %}
       </div>
       <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
             style="white-space:nowrap;">{{ obs.estado }}</span>
@@ -115,6 +138,9 @@
     <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta observación por completo? A diferencia de Descartar, no queda ningún registro y no se puede deshacer.')"
           style="display:none;"></form>
+    {% if grupo.key == 'coherencia' %}
+    {{ _form_derivar_item(proyecto_id, obs.id, items_info) }}
+    {% endif %}
   </div>
   {% endfor %}
   {{ _form_obs_manual(proyecto_id, grupo.key) }}
@@ -125,7 +151,7 @@
 {% endif %}
 {% endmacro %}
 
-{% macro bloque_notas(grupos, proyecto_id, abrir_key) %}
+{% macro bloque_notas(grupos, proyecto_id, abrir_key, items_info) %}
 {% if grupos %}
 <div class="card" style="border-left:4px solid #4299e1; background:#ebf8ff;">
   <h2 style="color:#2b6cb0;">Notas para el revisor</h2>
@@ -146,6 +172,9 @@
       {% if obs.manual %}
       <span class="badge badge-administrativa" title="Agregada a mano por el revisor{% if obs.agregada_por %} ({{ obs.agregada_por }}){% endif %}">manual</span>
       {% endif %}
+      {% if obs.derivada_de %}
+      <span class="badge badge-administrativa" title="Derivada desde {{ obs.derivada_de }}">derivada</span>
+      {% endif %}
     </div>
     <form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
       <textarea name="texto_editado" rows="2" class="auto-expand"
@@ -160,6 +189,9 @@
       <button type="submit" form="elim-{{ obs.id }}" class="btn btn-sm"
               style="background:transparent; color:#c0392b; font-size:0.78rem;">Eliminar</button>
     </form>
+    {% if grupo.key == 'coherencia' %}
+    {{ _form_derivar_item(proyecto_id, obs.id, items_info) }}
+    {% endif %}
     <form id="elim-{{ obs.id }}" method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta nota por completo? No se puede deshacer.')"
           style="display:none;"></form>
@@ -636,8 +668,8 @@ function actualizarEtiqueta(input) {
 {# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok, del redirect tras
    analizar/aprobar/descartar). Al entrar a la página sin acción previa NO se abre ninguno —
    todos cerrados, el revisor decide cuál desplegar. #}
-{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok) }}
-{{ bloque_notas(grupos_notas_item, proyecto.id, item_ok) }}
+{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok, items_info) }}
+{{ bloque_notas(grupos_notas_item, proyecto.id, item_ok, items_info) }}
 {{ bloque_cumplimiento(items_cumplen, proyecto.id) }}
 
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->

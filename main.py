@@ -2053,6 +2053,48 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
 
+@app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/derivar-item")
+async def derivar_observacion_item(
+    request: Request, proyecto_id: str, obs_id: str, item_key: str = Form(...)
+):
+    """"Coherencia Global" no existe como ítem en el SEP real — es un cierre transversal interno
+    de la app. Cuando una observación de ese grupo (incluida la falta de un documento completo,
+    de un ítem que ni siquiera se pudo evaluar) debe copiarse al SEP, el revisor la deriva acá al
+    ítem real que corresponde, para poder trasladarla directo. El ítem destino no necesita haber
+    sido revisado (puede no tener documentos) — derivar es solo una reclasificación de a quién
+    pertenece la observación, no depende de que exista un análisis previo de ese ítem."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    if item_key not in ITEMS_SEP or item_key == "coherencia":
+        raise HTTPException(status_code=400, detail="Ítem destino no válido")
+
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+    if not obs:
+        raise HTTPException(status_code=404, detail="Observación no encontrada")
+
+    origen_key = obs.get("item")
+    origen_nombre = obs.get("item_nombre")
+    # Solo se guarda la primera vez — si ya se había derivado antes, conserva el origen real.
+    if origen_key == "coherencia" and not obs.get("derivada_de"):
+        obs["derivada_de"] = origen_nombre
+
+    obs["item"] = item_key
+    obs["item_nombre"] = ITEMS_SEP[item_key]["nombre"]
+    obs_destino = [o for o in proyecto.get("observaciones", [])
+                   if o.get("item") == item_key and o["id"] != obs_id]
+    obs["numero"] = max([o.get("numero", 0) for o in obs_destino], default=0) + 1
+    obs["revisado_por"] = user["nombre"]
+
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
+
+
 # ─── Subsanación: revisión de las respuestas del consultor a las observaciones ────────────────
 # Tras enviar las observaciones APROBADAS al consultor (fuera de la app, vía SEP), este tiene 10
 # días hábiles para responder. El revisor transcribe cada respuesta acá y la evalúa: la resuelve

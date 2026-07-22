@@ -1634,6 +1634,39 @@ la tarjeta del ítem). Al eliminar el método por Ejes (ver siguiente entrada), 
 Coherencia Global se inlineó directamente en `ITEMS_SEP["coherencia"]` (antes lo tomaba de
 `EJES_REVISION["coherencia"]["checklist"]`).
 
+**Derivar observaciones de Coherencia Global a un ítem real del SEP (implementado, jul-2026):**
+"Coherencia Global" no existe como ítem en el SEP real — es un cierre transversal interno de la
+app (ver entrada anterior). El revisor necesita poder trasladar cada observación de este grupo al
+ítem del SEP que realmente le corresponde para copiarla ahí, incluyendo el caso de que la propia
+observación sea "falta tal documento" de un ítem que ni siquiera se pudo evaluar (0 documentos,
+nunca analizado) — esa ausencia es justamente la observación a derivar, así que el ítem destino
+NO necesita tener un análisis previo.
+- Botón/selector **"Derivar a ítem del SEP"** (`_form_derivar_item()`, macro nueva en
+  `proyecto.html`) — aparece SOLO en las observaciones y notas cuyo `grupo.key == 'coherencia'`
+  (tanto en `bloque_observaciones()` como en `bloque_notas()`, que ahora reciben `items_info`
+  como parámetro nuevo para armar el `<select>`). Lista los 18 ítems reales (excluye
+  "coherencia" — no tiene sentido derivar a sí mismo).
+- Ruta `POST /proyecto/{id}/observacion/{obs_id}/derivar-item` (`derivar_observacion_item`,
+  main.py) — valida que el ítem destino exista en `ITEMS_SEP` y no sea "coherencia", reasigna
+  `obs["item"]`/`obs["item_nombre"]` al ítem elegido, y recalcula `obs["numero"]` como
+  `max(numero de las obs YA existentes en el ítem destino) + 1` (mismo criterio que
+  `agregar_observacion_manual`) — así la observación derivada continúa la numeración real de ese
+  ítem en vez de arrastrar el número que tenía en Coherencia Global.
+- **Auditoría del origen:** `obs["derivada_de"]` guarda el nombre del ítem de origen ("Coherencia
+  Global") la PRIMERA vez que se deriva — si se vuelve a derivar después (de un ítem a otro), no
+  se pisa con el ítem intermedio, conserva el origen real. Se muestra como badge gris "derivada"
+  (mismo estilo que el badge "manual") con el origen en el `title`, en ambos macros.
+  **Deliberadamente NO se resta la observación de Coherencia Global** hacia atrás ni se
+  recalculan `items_revisados["coherencia"]["n_obs"]`/`n_notas` al derivar — esos contadores
+  reflejan lo que la IA generó en su momento (auditable), y la observación simplemente pasa a
+  contarse en el ítem destino en el siguiente render (que agrupa por `obs.item` actual, no por lo
+  que fue al crearse) — sin código adicional, mismo patrón ya usado para observaciones
+  manuales/invalidadas.
+- **Sin restricción sobre el origen real de la observación** en el backend (cualquier
+  observación puede derivarse a cualquier ítem que no sea "coherencia") — la UI solo expone el
+  control para las de Coherencia Global porque es el único caso real hoy (es el único ítem sin
+  equivalente en el SEP), pero no hay una regla que lo impida a nivel de ruta.
+
 **Bug resuelto — Coherencia Global repetía observaciones ya hechas en otros ítems (jul-2026):**
 con un proyecto real (12 de 21 documentos entran a este ítem), de 6 observaciones generadas 3
 eran duplicados de hallazgos ya registrados al revisar Memoria de superficies, Presupuesto, etc.
