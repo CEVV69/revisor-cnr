@@ -603,7 +603,15 @@ function actualizarEtiqueta(input) {
         <summary style="cursor:pointer; color:var(--text-2); user-select:none;">Ver los {{ item.revisado.docs|length }} archivo{{ 's' if item.revisado.docs|length != 1 else '' }} usados en este análisis</summary>
         <ul style="margin:0.3rem 0 0; padding-left:1.1rem; color:var(--text-2);">
           {% for d in item.revisado.docs %}
-          <li>{{ d.nombre if d is mapping else d }}{% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}</li>
+          <li>
+            {% if d is mapping and d.id %}
+            <a href="/proyecto/{{ proyecto.id }}/documento/{{ d.id }}/ver" target="_blank" title="Ver documento"
+               style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ d.nombre }}</a>
+            {% else %}
+            {{ d.nombre if d is mapping else d }}
+            {% endif %}
+            {% if d is mapping and d.label %} <span class="text-muted">({{ d.label }})</span>{% endif %}
+          </li>
           {% endfor %}
         </ul>
       </details>

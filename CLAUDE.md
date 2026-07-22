@@ -333,6 +333,11 @@ asignación de documentos a cada ítem fue correcta. Se guarda `docs_incluidos` 
 nombre, label}` por documento, devuelto por `_analizar_grupo()`). La plantilla soporta ambos
 formatos (`{% if d is mapping %}`) para no romper con proyectos que ya tenían el formato viejo
 (lista de strings) guardado antes de ese cambio.
+**Cada archivo del listado es un link al documento (jul-2026):** el nombre de archivo en ese
+`<details>` ahora es un `<a href="/proyecto/{id}/documento/{doc_id}/ver" target="_blank">` —
+misma ruta `ver_documento()` que ya usaba la página Documentos, sin lógica nueva en el backend.
+Solo aplica si `d is mapping and d.id` (formato nuevo con id); el formato legado (string, sin id)
+sigue mostrándose como texto plano porque no hay id para armar el link.
 **Si un ítem "solo declara 1" documento existiendo 2 clasificados con ese tipo_doc:** revisar
 en la página Documentos si el que falta tiene el indicador rojo "necesita resubir" — un
 documento escaneado/con poco texto cuyo archivo físico ya no existe (post-deploy) se descarta
