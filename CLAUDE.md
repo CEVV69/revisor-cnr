@@ -356,6 +356,20 @@ nombre) se pre-rellenan desde el propio proyecto si están vacíos. Rutas:
 `nombre_proyecto` es `tipo: "textarea"` (no "text") — un `<input>` de una línea no muestra
 nombres de proyecto largos completos, había que hacer scroll dentro del campo.
 
+**Campo "Características obras" — resumen en prosa autocompletado por IA (implementado,
+jul-2026):** primer campo de la sección "Características de obras" (antes de Volumen embalsado,
+FV, N° placas, etc.), `textarea` de tope 300 caracteres donde la IA explica de qué se trata el
+proyecto (qué construye/instala y para qué), no una lista de datos sueltos. Se agregó un
+mecanismo GENERALIZABLE en `RESUMEN_SECCIONES` (antes solo existía el caso especial `tipo:
+"sino"` para Sí/No): cualquier campo puede llevar `maxlen` (int) + `resumen_ia` (instrucción de
+estilo/contenido para la IA) — `resumir_proyecto()` arma `campos_lista` agregando
+`(máx {maxlen} caracteres — {resumen_ia})` a la línea de ese campo en el prompt, igual que ya
+hacía con `(responde "Sí" o "No")`. El límite de 300 se refuerza también en la UI
+(`maxlength="{{ campo.maxlen }}"` en el `<textarea>` de `proyecto.html`, condicional a que el
+campo declare `maxlen`) para que una edición manual del revisor tampoco pueda superarlo. Sirve
+de patrón reutilizable para futuros campos de resumen con restricción de longitud/estilo, sin
+tocar la lógica de `resumir_proyecto()` de nuevo.
+
 **El Resumen se inyecta como contexto en TODO análisis de ítem (implementado, jul-2026):** bug
 real reportado por el usuario — en "Prueba de bombeo" la IA observaba que faltaba la inscripción
 del derecho de agua, pese a que el Resumen del proyecto ya declaraba "No tiene derechos de agua
@@ -505,6 +519,9 @@ adivina ni se muestra un pin en un lugar incorrecto.
   que el modo `pagebreak: {mode: ['css', ...]}` de html2pdf —usado en "Descargar PDF"— la
   respete; si quedara solo dentro de `@media print`, html2canvas no la vería, mismo motivo por el
   que la sección Notas se fuerza a mano vía JS en vez de depender de `@media print`).
+  **Ajuste 28→26 líneas (jul-2026):** al agregar el campo "Características obras" (ver sección
+  "Resumen del proyecto" más arriba) se le restaron 2 líneas a Notas para darle espacio en la
+  hoja al contenido nuevo, a pedido explícito del usuario.
 - Ver documento: si el archivo físico no existe (post-deploy), muestra el texto extraído
 - **Verificación de precios** en Presupuesto/Presupuesto electrificación contra una tabla de
   precios referenciales PROMEDIO subida a mano (`/admin/precios`, no oficial de la CNR) —

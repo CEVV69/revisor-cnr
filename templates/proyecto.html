@@ -695,6 +695,7 @@ function actualizarEtiqueta(input) {
           </select>
         {% elif campo.tipo == 'textarea' %}
           <textarea name="{{ campo.key }}" rows="2" class="auto-expand"
+                    {% if campo.maxlen %}maxlength="{{ campo.maxlen }}"{% endif %}
                     style="width:100%; padding:0.45rem 0.55rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; resize:vertical; overflow:hidden;">{{ resumen.get(campo.key, '') }}</textarea>
         {% else %}
           <input type="text" name="{{ campo.key }}" value="{{ resumen.get(campo.key, '') }}"

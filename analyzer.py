@@ -697,6 +697,9 @@ RESUMEN_SECCIONES = [
         {"key": "cultivo_superficie", "label": "Cultivo y superficie", "tipo": "textarea"},
     ]},
     {"titulo": "Características de obras", "campos": [
+        {"key": "caracteristicas_obras_resumen", "label": "Características obras", "tipo": "textarea",
+         "maxlen": 300, "resumen_ia": "resumen breve, en prosa, explicando de qué se trata el "
+         "proyecto — qué construye/instala y para qué (no una lista de datos sueltos)"},
         {"key": "volumen_embalsado",   "label": "Volumen embalsado (m³)", "tipo": "text"},
         {"key": "fv_kwp",              "label": "FV (KWp)",               "tipo": "text"},
         {"key": "n_placas",            "label": "N° placas",              "tipo": "text"},
@@ -2212,7 +2215,9 @@ async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id:
         bloque += f"\n\n--- {label} ---\n{_truncar_inteligente(d.get('texto_extraido', ''), budget)}"
 
     campos_lista = "\n".join(
-        f'- {c["key"]}: {c["label"]}' + (" (responde \"Sí\" o \"No\")" if c["tipo"] == "sino" else "")
+        f'- {c["key"]}: {c["label"]}'
+        + (" (responde \"Sí\" o \"No\")" if c["tipo"] == "sino" else "")
+        + (f' (máx {c["maxlen"]} caracteres — {c["resumen_ia"]})' if c.get("maxlen") else "")
         for sec in RESUMEN_SECCIONES for c in sec["campos"])
 
     prompt = f"""Extrae del expediente CNR los datos para el RESUMEN del proyecto.
