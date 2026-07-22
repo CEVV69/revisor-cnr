@@ -319,137 +319,301 @@ ITEMS_SEP = {
     "plano_ubicacion": {
         "nombre": "Plano de ubicación del proyecto",
         "tipo_docs": ["plano_ubicacion"],
-        "checklist": "Verifica que el plano ubique el predio con coordenadas, comuna y acceso, "
-                     "coherente con los demás antecedentes del expediente.",
+        "checklist": """Verifica que el plano ubique el predio con coordenadas UTM, comuna, deslindes y vía de
+acceso, coherente con la comuna/dirección declarada en el Resumen y con las coordenadas usadas en
+otros documentos (identificación del área de riego, memoria de superficies). Debe permitir
+identificar sin ambigüedad el predio dentro de la comuna — no basta una imagen satelital sin
+cotas ni referencias. (Ref: Manual técnico de obras de tecnificación, punto 3.1)""",
     },
     "identificacion_riego": {
         "nombre": "Identificación del área de riego",
         "tipo_docs": ["identificacion_riego"],
-        "checklist": "Verifica que delimite el área de riego actual y de nuevo riego, con "
-                     "superficies coherentes con la memoria de cálculo y los planos.",
+        "checklist": """Verificar que el mapa/plano delimite por separado la Superficie de Riego Actual (SRA) y
+la Superficie de Riego Futura (SRF). La SRF no debe ser inferior a la SRA (salvo disminución
+declarada explícitamente). Verificar que la superficie regable máxima respete el título de
+dominio y la clasificación de capacidad de uso de suelo por rol (CIREN/SII). Si una máquina de
+riego (pivote/avance frontal) cubre predios vecinos, exigir la servidumbre correspondiente. Las
+superficies (SRA/SRF/superficie regable máxima) deben coincidir exactamente con las de Memoria de
+cálculo de superficies. Deberá contener la disposición general de las obras asociadas al
+proyecto, coherente con el plano de tecnificación. (Ref: Manual técnico de tecnificación, punto 3.2)""",
     },
     "hidrologico": {
         "nombre": "Análisis Hidrológico",
         "tipo_docs": ["estudio_hidrologico"],
-        "checklist": "Caudal disponible al 85% de seguridad, fuente y metodología (DT-01/DT-02). "
-                     "Debe respaldar el caudal usado en el diseño y cubrir la demanda hídrica.",
+        "checklist": """Verificar que el caudal de diseño esté respaldado según el orden de prevalencia del ITT-01:
+(a) si el derecho está inscrito en volumen/tiempo sin equivalencia (l/s, m³/temporada), basta el
+certificado de inscripción, sin análisis hidrológico;
+(b) si la fuente figura en DT-01 (tabla de caudales 85% por cuenca/canal), revisar que la
+equivalencia acción-canal o acción-río aplicada sea la correcta;
+(c) si se usa DT-02 (estaciones SIIR), verificar que la estación sea representativa y que el
+caudal sea el promedio del Q85% de los 3 meses de máxima ETo diaria;
+(d) si hay análisis de frecuencia propio: mínimo 15 años de estadística consecutivos, distribución
+declarada (Normal/Log-Normal/Gumbel/Pearson III/Log-Pearson III — Log-Normal es la más común en
+Chile), y factor de seguridad de 0,5 sobre el caudal si el estudio NO fue elaborado por
+CNR/DOH/DGA/organización de usuarios;
+(e) en aguas subterráneas (pozos), el caudal disponible tiene tope en lo indicado en la
+Inscripción de Dominio;
+(f) en vertientes/lagos menores (art. 20 Código de Aguas), exigir 3 aforos cada 15 días durante la
+temporada de riego, con informe firmado por el profesional responsable.
+El resultado debe cargarse como Anexo 9.4 y ser coherente con el caudal usado en el balance de
+superficie.""",
     },
     "pruebas_bombeo": {
         "nombre": "Pruebas de Bombeo",
         "tipo_docs": ["pruebas_bombeo"],
-        "checklist": "Caudal, nivel dinámico y eficiencia del pozo. Debe respaldar el caudal y "
-                     "la selección de bomba del diseño hidráulico. "
-                     "ALCANCE: este ítem revisa SOLO estos aspectos TÉCNICOS de la prueba — NO "
-                     "corresponde observar aquí el estado legal ni la inscripción del derecho de "
-                     "agua (eso se revisa en Antecedentes legales, otro ítem). Tampoco asumas que "
-                     "la prueba de bombeo no se requiere por tener derechos inscritos: varias "
-                     "bases la exigen igual, con derechos inscritos o no, para dar certeza "
-                     "técnica del caudal disponible — si el expediente la presenta, revísala por "
-                     "sus méritos técnicos sin cuestionar si correspondía o no exigirla.",
+        "checklist": """Caudal, nivel dinámico y eficiencia del pozo. Debe respaldar el caudal y la selección de
+bomba del diseño hidráulico.
+ALCANCE: este ítem revisa SOLO estos aspectos TÉCNICOS de la prueba — NO corresponde observar
+aquí el estado legal ni la inscripción del derecho de agua (eso se revisa en Antecedentes
+legales, otro ítem). Tampoco asumas que la prueba de bombeo no se requiere por tener derechos
+inscritos: varias bases la exigen igual, con derechos inscritos o no, para dar certeza técnica
+del caudal disponible — si el expediente la presenta, revísala por sus méritos técnicos sin
+cuestionar si correspondía o no exigirla.
+Si se presenta una prueba de bombeo revisar el caudal de bombeo, los tiempos y las curvas de
+descenso y recuperación de la fuente, observar cualquier anomalía o manipulación de datos.""",
     },
     "diseno_hidraulico": {
         "nombre": "Diseño y cálculos hidráulicos",
         "tipo_docs": ["diseno_hidraulico", "diseno_agronomico"],
-        "checklist": "Demanda agronómica, caudal de diseño, diámetros, presiones y velocidades "
-                     "en norma (DT-04/05/06).",
+        "checklist": """Verifica que la memoria incluya, como mínimo lo exigido por ITT-03:
+Diseño agronómico — cultivo, ETo, Kc en periodo de máxima demanda, demandas neta y bruta, tipo de
+riego y emisores por sector, marco de plantación, marco/espaciamiento de emisores, caudal del
+emisor, precipitación del equipo, N° de laterales por hilera, N° de sectores/bloques, tiempos de
+riego por sector y total, superficies y caudales por sector — idealmente en un Cuadro Resumen.
+Cálculos hidráulicos — sectorización, características de la red por tramo (nodos, longitud,
+diámetro, Presión Nominal PN y material), cálculo de pérdidas de carga, presión requerida vs.
+disponible y caudal, potencia del equipo de bombeo y Cuadro de Carga Dinámica Total (CDT) — estos
+dos últimos NO se recalculan automáticamente en la app, verifica que estén presentes y sean
+coherentes con el diseño.
+Si el caudal de diseño de un sector supera el caudal continuo disponible, confirma que se declare
+un acumulador (excepción: aguas superficiales con diferencia <20%). Si se incluyen equipos de
+capacidad mayor a la necesidad hídrica, exige declaración jurada del solicitante aceptando los
+costos operacionales. En aducciones californianas, exige el detalle de sus componentes (red,
+válvulas, cámaras reguladoras, campanas) y los cálculos que lo fundamenten. En aspersión
+móvil/semimóvil no automatizada, verifica que el tiempo de riego diario considere la capacidad
+operativa para los cambios de postura.""",
     },
     "diseno_fotovoltaico": {
         "nombre": "Diseño Fotovoltaico",
         "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar"],
-        "checklist": "Dimensionamiento del sistema FV (paneles, inversor, cableado) coherente "
-                     "con la potencia de la bomba del diseño hidráulico y con la radiación del "
-                     "Explorador Solar. Ítems del presupuesto FV completos (paneles, inversor, "
-                     "cableado DC/AC, estructura, protecciones, puesta a tierra). Certificación "
-                     "SEC según corresponda (on-grid/off-grid).",
+        "checklist": """Verifica que el proyecto ERNC incluya, como mínimo (ITT-03 4.5.1.1): diseño del sistema y su
+memoria de cálculo, plano de la estructura de soporte, plano del proyecto eléctrico, elementos de
+protección, e inversor (salvo bomba de corriente continua). El diseño debe demostrar que la
+generación cubre el 100% de la energía requerida en la temporada de riego, o la fracción
+complementaria declarada — coherente con el consumo de la bomba del diseño hidráulico
+(dimensionamiento básico ya verificado por la app: N° de paneles, kWp, sección de cable DC). La
+capacidad de generación debe basarse en el Explorador Solar del Ministerio de Energía — exige el
+reporte y que los kWh/año declarados sean consistentes con él.
+El proyecto eléctrico debe estar firmado por profesional acreditado SEC y detallar
+cubicación/precios de sus componentes (postes, cable de conducción, subestación, elementos de
+protección y medida, costos de tramitación SEC). Verifica certificación/tramitación SEC según
+corresponda (on-grid/off-grid). Ítems del presupuesto completos: paneles, inversor, cableado
+DC/AC, estructura, protecciones, puesta a tierra. Un sistema ERNC no puede reemplazar una fuente
+convencional existente sin ampliar la operación (no genera superficie de nuevo riego).""",
     },
     "estudios_complementarios": {
         "nombre": "Estudios y diseños complementarios",
         "tipo_docs": ["estudios_complementarios"],
-        "checklist": "Verifica pertinencia y consistencia técnica de los estudios complementarios "
-                     "con el resto del proyecto.",
+        "checklist": """Verifica que cada estudio complementario presentado (geotécnico, hidrogeológico, de suelos,
+estructural de obras anexas como invernaderos, ambiental, etc.) sea pertinente al tipo de obra
+proyectada, esté firmado por el profesional competente, y que sus conclusiones/parámetros
+(capacidad de suelo, nivel freático, sobrecarga de diseño, etc.) sean consistentes con los
+supuestos usados en el diseño hidráulico, agronómico o estructural del resto del expediente. La
+ausencia de un estudio que la obra proyectada claramente requiere (ej. fundaciones sin estudio de
+suelo, pozo sin estudio hidrogeológico) es observable.""",
     },
     "especificaciones_tecnicas": {
         "nombre": "Especificaciones técnicas de construcción e instalación",
         "tipo_docs": ["especificaciones_tecnicas"],
-        "checklist": "Deben respaldar los materiales y procedimientos del diseño y las obras "
-                     "civiles. Sin especificaciones no hay respaldo constructivo.",
+        "checklist": """Verifica que las especificaciones sean consistentes con el diseño/cálculos hidráulicos y con
+las partidas del presupuesto detallado (mismos diámetros, materiales, PN, marcas/modelos). Exige
+catálogos legibles con modelo específico (no genérico) al menos para bombas, filtros, emisores y
+máquinas de riego. Si hay fertirriego, verifica los 4 componentes mínimos: caudalímetro,
+dispositivo de inyección de fertilizantes, estanque, fitting de conexión. Para filtros, la
+presión de entrada especificada debe estar dentro del rango recomendado por el fabricante. Los
+equipos deben cumplir la norma chilena vigente aplicable a equipos y elementos de riego mecánico
+— su ausencia en equipos mecánicos/eléctricos ES observable.
+En goteo: exige cabezal de control (filtraje/regulación/dosificación) y tablero de programación
+con sectorización y válvulas si corresponde según diseño; tuberías (principal/secundaria/lateral)
+con diámetro y clase; distancia y fijación de goteros. En aspersión: exige la presión necesaria
+en tuberías para el caudal/presión de riego del cultivo, disposición de aspersores, y capacidad
+del equipo de bombeo. En ambos casos, goteo o aspersión, si no están acá esos datos, deben estar
+en Diseño y cálculo hidráulico. Si el proyecto incluye invernadero, la memoria de cálculo
+estructural debe estar respaldada aquí o en Estudios complementarios — no debe faltar.""",
     },
     "cronograma": {
         "nombre": "Cronograma",
         "tipo_docs": ["cronograma"],
-        "checklist": "Plazos coherentes con la magnitud de las obras y con el período de "
-                     "ejecución que permiten las bases.",
+        "checklist": """Verifica que el cronograma desglose el plazo por ítem del presupuesto (no solo etapas
+genéricas) y que la secuencia constructiva sea lógica y ejecutable (obras civiles →
+tecnificación/red hidráulica → energización/FV → puesta en marcha, sin traslapes imposibles). El
+plazo total no debe exceder el máximo reglamentario según el costo del proyecto: 12 meses si es
+≤15.000 UF (prorrogable a 24) o 36 meses si es >15.000 UF (prorrogable a 72), contado desde la
+fecha de emisión del CBRD — o el plazo específico que fijen las bases del concurso si es más
+restrictivo. Si el proyecto contempla sistema fotovoltaico, el cronograma debe incluir
+explícitamente su instalación y las gestiones de conexión/certificación SEC.""",
     },
     "presupuesto": {
         "nombre": "Presupuesto detallado de obras",
         "tipo_docs": ["presupuesto"],
-        "checklist": "Partidas corresponden a las obras cubicadas; precios unitarios (APU, DT-18) "
-                     "de mercado, sin sobreprecios ni valores anormalmente bajos.",
+        "checklist": """Partidas corresponden a las obras cubicadas y descritas técnicamente (material, diámetro,
+marca/modelo cuando aplique — no descripciones genéricas), agrupadas en Sistema de Riego
+(materiales) y Obras Civiles según el formato FT-01 de la CNR. Precios unitarios deben ser de
+mercado: verifica que el costo directo (materiales + mano de obra + equipos) sea razonable
+considerando la distancia al centro de abastecimiento, el tipo de acceso y la altura (s.n.m.) del
+predio, según la metodología DT-18 — sobreprecios injustificados o valores anormalmente bajos
+frente a esos factores son observables. El costo unitario por hectárea (Total presupuesto obras /
+superficie) es un indicador útil de proporcionalidad frente a proyectos comparables. Los gastos
+generales/utilidades del proyecto deben ser razonables frente al costo directo total (la CNR
+aplica un porcentaje decreciente a mayor monto de obra, no un % fijo parejo).
+Verifica además el cumplimiento de estas reglas específicas — señala cualquier ítem que incumpla
+o esté cerca del límite, con el monto y la regla infringida:
+a. Cotizaciones/facturas con menos de 6 meses de antigüedad; precios de obras civiles según DT-18.
+b. Gastos Generales: deben detallarse si superan el 5% del costo total o UF 150. No corresponde
+   GG en ítems subcontratados.
+c. Imprevistos deben ir separados en el presupuesto general.
+d. La utilidad solo corresponde en partidas con análisis de precio unitario (APU), no en
+   subcontratos.
+e. Costo de instalación ≤ $1.000.000 (hasta 5 ha) o + $200.000/ha adicional, para sistemas de
+   goteo/microaspersión/cinta.
+f. Costo de estudio ≤ los topes por tipo de estudio/superficie; honorarios del consultor ≤
+   $4.000.000.
+g. La inspección técnica de obras debe ser un profesional externo, inscrito en el Registro de
+   Consultores CNR.
+h. Límite del 15%: (Gastos Generales + Imprevistos + Estudio + ITO) / Costo Total del proyecto ≤
+   15%.
+i. El IVA va excluido del presupuesto, salvo excepción INDAP justificada.
+j. No debe incluir costos prohibidos: pólizas, cercos, caminos interiores, obras a nivel de
+   potrero, camellones, instalación de faenas, estudios ya bonificados en otra postulación.
+k. Invernaderos: costo máximo por m² de $70.000 si la estructura es de metalcón con cubierta de
+   policarbonato, o de $50.000 si la cubierta es de polietileno.""",
     },
     "presupuesto_electrico": {
         "nombre": "Presupuesto detallado electrificación",
         "tipo_docs": ["presupuesto_electrico"],
-        "checklist": "Corresponde a los equipos del diseño eléctrico/FV; precios razonables y "
-                     "cantidades consistentes con el diseño.",
+        "checklist": """Corresponde a los equipos del diseño eléctrico/fotovoltaico definidos en ese ítem (paneles,
+inversor, estructura de montaje, tablero eléctrico, protecciones, cierre perimetral, cableado
+DC/AC, bomba si aplica) con cantidades y especificaciones (marca, modelo, potencia) consistentes
+con el dimensionamiento declarado. A diferencia de obras civiles, la CNR no tiene una tabla DT-18
+de precios unitarios para equipos eléctricos/FV — la verificación de precio razonable depende de
+las cotizaciones/facturas de respaldo y de la tabla de precios referenciales de la app; observa
+solo si el precio se aparta claramente de esas referencias, no por ausencia de un DT-18
+aplicable.""",
     },
     "cotizaciones_facturas": {
         "nombre": "Cotizaciones y Facturas",
         "tipo_docs": ["cotizaciones_facturas", "cotizaciones"],
-        "checklist": "Respaldan los ítems relevantes del presupuesto; vigentes y coherentes con "
-                     "los precios usados.",
+        "checklist": """Verifica que las cotizaciones/facturas estén a nombre del postulante (o su
+representante/organización, según el tipo de beneficiario) y que su detalle de bienes/servicios
+(marca, modelo, cantidad, especificación técnica) coincida con lo señalado en el presupuesto del
+proyecto — no debe haber ítems del presupuesto sin respaldo ni compensación entre partidas. Las
+boletas de honorarios por elaboración del proyecto deben corresponder al consultor responsable;
+si hay boleta de inspección técnica de obras, el profesional debe ser distinto del que ejecuta la
+obra, sin relación de dependencia laboral ni vínculo societario con el contratista. Verifica
+vigencia razonable de las cotizaciones respecto a la fecha de postulación.""",
     },
     "declaracion_iva": {
         "nombre": "Declaración No Contribuyente IVA",
         "tipo_docs": ["declaracion_iva"],
-        "checklist": "Verifica que la declaración corresponda al postulante y sea coherente con "
-                     "el tratamiento del IVA en el presupuesto.",
+        "checklist": """Verifica que la declaración de no contribuyente de IVA corresponda al mismo postulante/RUT
+identificado en el proyecto y sea coherente con el tratamiento del IVA en el presupuesto. Para
+postulantes usuarios de INDAP, la CNR incluye el IVA en la bonificación, pero deben tener inicio
+de actividades. Si NO son usuarios de INDAP, el IVA debe ser pagado por el postulante aunque se
+incluya en el presupuesto — observa si el tratamiento del IVA en el presupuesto no corresponde al
+tipo de beneficiario declarado.""",
     },
     "planos_tecnificacion": {
         "nombre": "Planos Proyecto tecnificación",
         "tipo_docs": ["planos_tecnificacion"],
-        "checklist": "Analiza el plano visualmente, en detalle:\n"
-                     "- Trazado de la red (matriz, secundarias, laterales): diámetros y "
-                     "longitudes ROTULADOS por tramo — deben coincidir con los tramos del "
-                     "diseño hidráulico (mismos diámetros, largos y materiales/PN).\n"
-                     "- Cambios de diámetro marcados; nodos, válvulas, filtros y equipo de "
-                     "bombeo ubicados y identificados en la simbología.\n"
-                     "- Sectores de riego delimitados: número de sectores coherente con el "
-                     "diseño (tiempo de riego × horas disponibles).\n"
-                     "- Marco de plantación/espaciamiento de emisores o aspersores anotado y "
-                     "coherente con el diseño agronómico.\n"
-                     "- Viñeta/rótulo: escala, norte, fecha, profesional; superficie total "
-                     "coincidente con la memoria de superficies.\n"
-                     "Lee SOLO lo rotulado/acotado — si un dato clave (diámetro o longitud de "
-                     "un tramo principal) no está rotulado en el plano, esa ausencia ES una "
-                     "observación (el plano debe bastarse para construir).",
+        "checklist": """Analiza el plano visualmente, en detalle:
+- Trazado de la red (matriz, secundarias, laterales): diámetros y longitudes ROTULADOS por tramo
+  — deben coincidir con los tramos del diseño hidráulico (mismos diámetros, largos y
+  materiales/PN).
+- Cambios de diámetro marcados; nodos, válvulas, filtros y equipo de bombeo ubicados e
+  identificados en la simbología.
+- Sectores de riego delimitados: número de sectores coherente con el diseño (tiempo de riego ×
+  horas disponibles).
+- Marco de plantación/espaciamiento de emisores o aspersores anotado y coherente con el diseño
+  agronómico.
+- Viñeta/rótulo: escala, norte, fecha, profesional; superficie total coincidente con la memoria
+  de superficies.
+- Debe incluir el Cuadro 1 Resumen (diseño hidráulico y agronómico) en el mismo plano.
+- Escala acorde a la superficie: 1-3 ha → 1:500 · 3-20 ha → 1:1000 · 20-40 ha → 1:2000 · >40 ha →
+  1:2500 (o una escala legible si el predio es muy irregular/alargado/con ladera).
+- Curvas de nivel acotadas, equidistancia máxima 1 m (0,5 m si la pendiente es muy baja);
+  topografía y diseño en el mismo plano.
+- Al menos un lateral por sector dibujado con su orientación, y orientación de la plantación
+  señalada.
+- Ubicación del cabezal de control.
+- Simbología utilizada declarada.
+Lee SOLO lo rotulado/acotado — si un dato clave (diámetro o longitud de un tramo principal) no
+está rotulado en el plano, esa ausencia ES una observación (el plano debe bastarse para
+construir).""",
     },
     "planos_obras_civiles": {
         "nombre": "Planos Obras Civiles proy. de tecnificación",
         "tipo_docs": ["planos_obras_civiles"],
-        "checklist": "Analiza el plano visualmente, en detalle:\n"
-                     "- Caseta de bombeo, estanque/embalse, cámaras y obras de arte: "
-                     "dimensiones ACOTADAS (planta y cortes/elevaciones) y materiales "
-                     "especificados.\n"
-                     "- Las dimensiones acotadas deben cuadrar con las cubicaciones y el "
-                     "presupuesto (volúmenes de excavación/hormigón, m² de caseta).\n"
-                     "- Electrificación/FV: ubicación de paneles, inversor y tableros si "
-                     "corresponde.\n"
-                     "- Viñeta/rótulo con escala y profesional responsable.\n"
-                     "Lee SOLO lo rotulado/acotado — si una obra del presupuesto no aparece "
-                     "dibujada/acotada, o las cotas no permiten verificar la cubicación, "
-                     "genera observación.",
+        "checklist": """Analiza el plano visualmente, en detalle:
+- Caseta de bombeo, estanque/embalse, cámaras y obras de arte: dimensiones ACOTADAS (planta,
+  elevación y cortes) y materiales especificados. El plano de detalle debe traer un cuadro de
+  especificaciones técnicas (tipo de hormigón, calidad del acero, recubrimientos, traslapos) y,
+  si hay armadura, un cuadro de cubicación de la enfierradura — su ausencia es observable.
+- Si el proyecto incluye tranques/embalse con muro (tierra u hormigón): debe mostrarse un corte
+  transversal tipo con nivel de aguas máximas, ancho de coronamiento, taludes, revancha (borde
+  libre) y, si es de tierra, grado de compactación del relleno. Observar si la revancha graficada
+  es menor a 30 cm sin cálculo que la respalde, o si el ancho de coronamiento no guarda relación
+  con la altura del muro. Verificar además que el diseño contemple cerco perimetral y salida(s)
+  de emergencia/escalera de seguridad — exigencia explícita para toda obra de acumulación.
+- Diseño estructural en hormigón armado (caseta/estanque/cámaras): la memoria/plano debe dejar
+  constancia de las combinaciones de carga consideradas y, si corresponde, del análisis sísmico —
+  observar si una obra de cierta envergadura se presenta sin ningún respaldo de cálculo
+  estructural.
+- Las dimensiones acotadas deben cuadrar con las cubicaciones y el presupuesto (volúmenes de
+  excavación/hormigón, m² de caseta, kg de acero si hay cuadro de enfierradura).
+- Electrificación/FV: ubicación de paneles, inversor y tableros si corresponde.
+- Viñeta/rótulo con escala, profesional responsable y firma — debe identificar claramente quién
+  proyecta y quién revisa.
+Lee SOLO lo rotulado/acotado — si una obra del presupuesto no aparece dibujada/acotada, o las
+cotas no permiten verificar la cubicación, genera observación.""",
     },
     "memoria_superficies": {
         "nombre": "Memoria de cálculo de superficies",
         "tipo_docs": ["memoria_superficies"],
-        "checklist": "Método y números del cálculo de superficies; sumas parciales cuadran con "
-                     "totales; coincide con planos e identificación del área de riego.",
+        "checklist": """Verificar el método y los números del balance hídrico según ITT-02:
+(1) Superficie = Q85% / Demanda(ETo/eficiencia), calculado por separado para situación actual
+(SRA) y futura (SRF);
+(2) SNR = SRF − SRA y SENR = superficie por caudal excedentario (SRQex) — no deben invertirse ni
+sumarse mal;
+(3) la eficiencia de aplicación usada debe corresponder a la Tabla N°1 del ITT-02 según método de
+riego (goteo 90%, microaspersión/microjet 85%, aspersión 75%, surco 45-50%, tendido 30-35%,
+etc.); si hay más de un método, la eficiencia ponderada debe calcularse según la pauta DT-04;
+(4) la superficie de postulación (SNR+SENR) no puede superar la superficie regable máxima del
+predio ni la superficie física del proyecto;
+(5) si hay asimilación de suelos, la superficie asimilada debe coincidir con el Informe de
+Asimilación;
+(6) los resultados deben cuadrar exactamente con los usados en Identificación del área de riego y
+ser consistentes con el monto bonificable/presupuesto.""",
     },
     "estudio_suelos": {
         "nombre": "Estudio de suelo - Informe de asimilación",
         "tipo_docs": ["estudio_suelos"],
-        "checklist": "Clasificación y capacidad de uso (DT-03); la superficie de riego no debe "
-                     "exceder la capacidad de uso del suelo.",
+        "checklist": """Verificar que el Informe de Asimilación cumpla los requisitos técnicos DT-19:
+(1) plano topográfico con el mismo formato/escala/gráfica que el proyecto de riego, con viñeta de
+achurados, delimitando el área Clase VI o VII (y VIII si corresponde) que se incorpora al riego
+según clasificación CIREN, indicando la fuente de agua;
+(2) en laderas/pendientes pronunciadas, trazado de la zanja superior de drenaje que delimita el
+huerto y obras de control de erosión en quebradas/cauces/caminos;
+(3) descripción de perfil de suelos por calicata o barreno, mínimo 1 punto cada 4 ha, con
+profundidad, horizontes, estructura, textura, pendiente y capacidad de retención de agua
+aproximada (Manual SAG);
+(4) obras de drenaje de aguas lluvias y revegetación cuando corresponda;
+(5) si hay camellones, verificar largo, orientación respecto a la pendiente y talud de la pared
+aguas abajo.
+La clasificación de Capacidad de Uso citada (Clase I-VIII, subclases s/w/e/cl) debe ajustarse a
+los criterios técnicos de la Pauta SAG 2011 (DT-17) — profundidad, pendiente, pedregosidad,
+drenaje, textura, erosión, salinidad/sodicidad con sus tablas de símbolos —, más detallada que la
+pauta antigua DT-03/AT-07. La superficie de riego declarada no debe exceder la capacidad de uso
+del suelo ni la superficie asimilada aprobada.""",
     },
     "coherencia": {
         "nombre": "Coherencia Global",
@@ -469,6 +633,11 @@ Ejemplos de la relación entre documentos que hay que verificar (no es una lista
 - El monto solicitado de bonificación es proporcional a la superficie de nuevo riego.
 - La secuencia constructiva (cronograma, obras civiles, tecnificación, energización) tiene un
   orden lógico y ejecutable, sin depender de una obra que aparece después de la que la necesita.
+- El plazo total del cronograma es compatible con el plazo reglamentario según el monto del
+  proyecto en UF (12 o 36 meses).
+- La estructura de partidas del presupuesto (Sistema de riego / Obras civiles) refleja lo
+  mostrado en planos y cubicaciones, sin ítems de un componente apareciendo solo en el otro
+  documento.
 Marca cualquier CONTRADICCIÓN entre documentos o quiebre en la lógica global del proyecto. Este
 es el cierre que atrapa los errores que se escapan al revisar documento por documento — NO es una
 segunda pasada que repite lo que cada ítem individual ya detectó por su cuenta.""",

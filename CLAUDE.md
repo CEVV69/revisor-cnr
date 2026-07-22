@@ -31,27 +31,52 @@ y en uso real, no solo probados con mocks. No hay ningún bug abierto conocido a
 si retomas y el usuario reporta algo raro, lo más probable es que sea un caso nuevo, no una
 regresión de lo ya resuelto.
 
-**Pendiente para la próxima sesión — revisión de los `checklist` fijos de `ITEMS_SEP`:** el
-usuario pidió una tabla con el texto fijo (hardcodeado en `analyzer.py`, se inyecta en TODO
-análisis de ese ítem, para todos los concursos/proyectos — a diferencia de "Criterios de
-énfasis", que es editable por concurso) de los 18 ítems del SEP, para revisarla con calma
-mientras avanza con proyectos reales y volver con pedidos puntuales de ajuste/refuerzo. La tabla
-se armó y se mostró en el chat (no se guardó en este archivo, para no duplicar el contenido real
-del código — ver `ITEMS_SEP` en `analyzer.py` línea ~318 como fuente de verdad). Al armarla salieron
-3 observaciones que quedaron sin resolver, para tenerlas presentes si el usuario vuelve con esto:
-- `diseno_hidraulico` es el checklist más corto y genérico de los 18 (una sola línea, sin el
-  detalle que sí tienen los ítems de planos o pruebas de bombeo) — candidato natural si el
-  usuario pide reforzar algo ahí (ej. mencionó querer que se revisen explícitamente los
-  cálculos/fórmulas de superficie de riego segura y caudal de diseño — que YA se verifican de
-  forma determinística en el Chequeo de Cálculos vía `calculos_riego.verificacion_diseno_riego()`,
-  así que el ajuste sería más bien narrativo/de citación en la observación, no una verificación
-  nueva).
-- `estudios_complementarios` también es muy genérico ("pertinencia y consistencia técnica"),
-  sin ejemplos concretos de qué mirar.
-- El patrón de **ALCANCE explícito** (aclarar qué NO debe observar el ítem, para evitar falsos
-  positivos cruzados con otro ítem) solo existe hoy en `pruebas_bombeo` — podría valer la pena
-  replicarlo en otros ítems si aparecen casos reales similares al de la prueba de bombeo/derecho
-  de agua (ver el bug ya resuelto documentado más abajo).
+**Checklists de los 18 ítems del SEP reescritos con normativa real (jul-2026):** el pendiente de
+la sesión anterior (revisar los `checklist` fijos de `ITEMS_SEP`) se cerró. Proceso: 4 lecturas
+en paralelo de la carpeta de normativa CNR en Drive (DT-01 a DT-20, IL-01/04, Instructivos de
+Tecnificación 2017 — ITT-01 a ITT-04, Instructivos de Obras Civiles 2019 — ITC-05/07/08, Manual
+de Supervisión de Obras, formatos FT-01/03/04), presentadas al usuario como propuesta en un
+Artifact HTML (tabla actual vs. propuesto + fuente citada + notas por ítem), que el usuario
+revisó, corrigió y devolvió con contenido adicional propio (topes numéricos de presupuesto,
+tratamiento de IVA por tipo de beneficiario, etc.) — ese texto final es el que quedó en
+`ITEMS_SEP`. Los 18 checklists ahora son considerablemente más técnicos y específicos que la
+versión anterior (genérica de una o dos líneas en la mayoría). Cambios más relevantes:
+- **`diseno_hidraulico`**: se sacó la cita "(DT-04/05/06)" que no correspondía al contenido real
+  de esos documentos (confirmado por el usuario) — ahora detalla lo exigido por ITT-03 (diseño
+  agronómico + cálculos hidráulicos, con nota explícita de que CDT y potencia de bomba NO se
+  recalculan automáticamente en la app, a diferencia de Hazen-Williams/cadena agronómica que sí).
+- **`presupuesto`**: pasó de una línea genérica a una lista de reglas concretas con montos y
+  porcentajes (a–k: antigüedad de cotizaciones, tope de Gastos Generales, límite del 15%
+  GG+Imprevistos+Estudio+ITO, costos prohibidos, tope de $/m² para invernaderos según tipo de
+  cubierta, etc.) — contenido aportado directamente por el usuario, no de los documentos leídos.
+- **`declaracion_iva`**: agregado el criterio real (usuarios INDAP: IVA incluido en la
+  bonificación si tienen inicio de actividades; no-INDAP: IVA lo paga el postulante aunque figure
+  en el presupuesto) — también aportado por el usuario, no había documento CNR que lo cubriera.
+- **`presupuesto_electrico`**: se confirmó (búsqueda en DT-18) que la CNR NO tiene tabla de
+  precios unitarios para equipos eléctricos/FV — el checklist ahora lo explicita, para que la
+  verificación de precio dependa solo de cotizaciones + la tabla de precios referenciales de la
+  app, sin asumir un DT-18 "eléctrico" que no existe.
+- **`pruebas_bombeo`**: se mantuvo el ALCANCE ya existente (solo aspectos técnicos, no legales) y
+  se sumó qué mirar en la curva de la prueba (caudal, tiempos, curvas de descenso/recuperación,
+  anomalías o manipulación de datos).
+- **`planos_tecnificacion`**: se fusionaron al checklist ya detallado los puntos nuevos de ITT-03
+  §4 (Cuadro 1 Resumen en el plano, escala según superficie, equidistancia de curvas de nivel,
+  etc.) en vez de dejarlos aparte.
+- **`planos_obras_civiles`**: el alcance de "obras civiles" para este revisor se confirmó con el
+  usuario — casetas, muros de protección, tranques/pequeños acumuladores y fundaciones de
+  invernaderos u otras obras del proyecto (no obras colectivas de conducción tipo canal/bocatoma,
+  que es el objeto principal de los Instructivos de Obras Civiles de donde salió el resto del
+  checklist).
+- **`cotizaciones_facturas`**: confirmado que el alcance de este ítem es solo la etapa de
+  POSTULACIÓN — la acreditación/supervisión posterior a la adjudicación (que regula IL-04, la
+  fuente usada para este checklist) queda fuera del trabajo de este revisor.
+**Corrección registrada para no repetir el error:** al repartir la lectura de documentos entre 4
+investigaciones en paralelo, el "Manual técnico de tecnificación" (`Manual de Tecnificacion
+2017.pdf` en Drive) se le pasó solo a una de las 4, así que las otras 3 (que sí lo necesitaban,
+para `plano_ubicacion` e `identificacion_riego`) reportaron el documento como "no disponible en
+la carpeta" — el usuario detectó el error y hay que tenerlo presente: antes de repartir lectura
+de normativa entre varias investigaciones paralelas, verificar que cada una tenga acceso a TODOS
+los documentos que puede necesitar, no solo a los "obviamente" temáticos de su grupo.
 
 ---
 
