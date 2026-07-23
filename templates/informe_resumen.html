@@ -81,12 +81,26 @@
 {% for sec in resumen_secciones %}
 <div class="titulo-seccion{% if sec.titulo == 'Características de obras' %} salto-pagina{% endif %}">{{ sec.titulo }}</div>
 <table class="tabla-datos">
+  {# Campos con "linea_con" (ej. Clase declarada en SEP + Superficie SEP) se imprimen juntos en
+     UNA fila, para no seguir haciendo crecer el informe verticalmente — mecanismo genérico,
+     reutilizable por cualquier otro par de campos futuro sin tocar este template de nuevo. #}
+  {% set combinados = sec.campos | selectattr('linea_con') | map(attribute='linea_con') | list %}
   {% for campo in sec.campos %}
+  {% if campo.key not in combinados %}
   {% set valor = resumen.get(campo.key, '') %}
   <tr>
     <td class="label">{{ campo.label }}</td>
+    {% if campo.linea_con %}
+    {% set campo2 = (sec.campos | selectattr('key', 'equalto', campo.linea_con) | list)[0] %}
+    {% set valor2 = resumen.get(campo.linea_con, '') %}
     <td class="valor{% if not valor %} vacio{% endif %}">{{ valor if valor else '—' }}</td>
+    <td class="label">{{ campo2.label }}</td>
+    <td class="valor{% if not valor2 %} vacio{% endif %}">{{ valor2 if valor2 else '—' }}</td>
+    {% else %}
+    <td class="valor{% if not valor %} vacio{% endif %}"{% if combinados %} colspan="3"{% endif %}>{{ valor if valor else '—' }}</td>
+    {% endif %}
   </tr>
+  {% endif %}
   {% endfor %}
 </table>
 {% endfor %}

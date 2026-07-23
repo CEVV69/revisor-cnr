@@ -678,17 +678,19 @@ RESUMEN_SECCIONES = [
         {"key": "proyectos_asociados", "label": "Proyectos asociados", "tipo": "textarea"},
     ]},
     {"titulo": "3. Predios", "campos": [
-        {"key": "superficie_predial", "label": "Superficie", "tipo": "text"},
-        {"key": "rol",                "label": "Rol",        "tipo": "text"},
-        {"key": "clase",              "label": "Clase",      "tipo": "text"},
-        {"key": "predio_bonificado",  "label": "Predio bonificado", "tipo": "text"},
-        {"key": "tenencia",           "label": "Tenencia",   "tipo": "text"},
+        {"key": "superficie_predial",   "label": "Superficie",             "tipo": "text"},
+        {"key": "rol",                  "label": "Rol",                    "tipo": "text"},
+        {"key": "clase",                "label": "Clase declarada en SEP", "tipo": "text",
+         "linea_con": "superficie_clase_sep"},
+        {"key": "superficie_clase_sep", "label": "Superficie (SEP)",       "tipo": "text"},
+        {"key": "predio_bonificado",    "label": "Predio bonificado",      "tipo": "text"},
+        {"key": "tenencia",             "label": "Tenencia",               "tipo": "text"},
     ]},
     {"titulo": "4. Derechos de agua (DAA)", "campos": [
         {"key": "daa", "label": "Derechos de aprovechamiento de aguas", "tipo": "textarea"},
     ]},
     {"titulo": "5. Uso actual del suelo", "campos": [
-        {"key": "uso_actual_suelo", "label": "Uso actual del suelo (revisar Rol)", "tipo": "textarea"},
+        {"key": "uso_actual_suelo", "label": "Uso Actual Suelo (SEP)", "tipo": "textarea"},
     ]},
     {"titulo": "6. Obras", "campos": [
         {"key": "obras", "label": "Obras del proyecto", "tipo": "textarea"},

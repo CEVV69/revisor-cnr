@@ -370,6 +370,32 @@ campo declare `maxlen`) para que una edición manual del revisor tampoco pueda s
 de patrón reutilizable para futuros campos de resumen con restricción de longitud/estilo, sin
 tocar la lógica de `resumir_proyecto()` de nuevo.
 
+**Campos de "3. Predios" y "5. Uso actual del suelo" — aclarados y ampliados (jul-2026):** a
+pedido del usuario, insumo directo para los ítems "Memoria de cálculo de superficies" y
+"Estudio de suelos":
+- `clase` renombrado de "Clase" a **"Clase declarada en SEP"** — evita confundirlo con el campo
+  siguiente.
+- Campo nuevo **`superficie_clase_sep`** ("Superficie (SEP)") en "3. Predios", justo después de
+  `clase` — la superficie declarada en el SEP POR esa clase de uso de suelo (no la superficie
+  predial total, que ya tiene su propio campo `superficie_predial` al inicio de la sección).
+- `uso_actual_suelo` renombrado de "Uso actual del suelo (revisar Rol)" a **"Uso Actual Suelo
+  (SEP)"** — el usuario aclaró que este campo NO es la clase de uso de suelo (clasificación,
+  campo `clase` de arriba) sino el CULTIVO/uso existente actualmente en el predio; el label
+  anterior ("revisar Rol") inducía a confundirlo con la clasificación de uso de suelo del Rol,
+  que es otro dato — de ahí la confusión que reportó el usuario.
+- **Fila combinada en el Informe Resumen impreso:** para que `clase` + `superficie_clase_sep`
+  no sigan agregando altura al informe (formulario ya bastante largo), se imprimen en LA MISMA
+  fila de la tabla en vez de una fila por campo. Mecanismo GENERALIZABLE nuevo en
+  `RESUMEN_SECCIONES` (mismo espíritu que `maxlen`/`resumen_ia`): cualquier campo puede llevar
+  `"linea_con": "otro_key"` para indicar que, en `informe_resumen.html`, se imprime junto al
+  campo referenciado en una sola fila de 4 celdas (label/valor/label/valor) en vez de 2 —
+  `clase` es hoy el único campo que lo usa (`"linea_con": "superficie_clase_sep"`). El loop de
+  `informe_resumen.html` calcula `combinados` (los `linea_con` de la sección) para saltarse el
+  campo ya combinado como fila propia, y les agrega `colspan="3"` a las filas normales de esa
+  misma sección para que el total de columnas cuadre con la fila de 4 celdas. **No afecta el
+  formulario de edición** (`proyecto.html`, página Resumen) — ahí cada campo sigue en su propia
+  línea como siempre, el mecanismo `linea_con` solo lo lee el informe impreso.
+
 **El Resumen se inyecta como contexto en TODO análisis de ítem (implementado, jul-2026):** bug
 real reportado por el usuario — en "Prueba de bombeo" la IA observaba que faltaba la inscripción
 del derecho de agua, pese a que el Resumen del proyecto ya declaraba "No tiene derechos de agua
