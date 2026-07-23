@@ -2014,6 +2014,69 @@ antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENE
      `/proyecto/{id}/ejes`**, página eliminada (404). Ahora siempre vuelve a `/items`;
      `_volver_a()` también dejó de listar "ejes" (y ganó "calculos").
 
+- **Auditoría de rendimiento — 2ª ronda (jul-2026):** el usuario reportó lentitud puntual —
+  "se demora en algunos cambios, guardado de observaciones, de resumen". Investigación (sin
+  acceso a la Postgres real de Railway desde este entorno — todo lo de abajo se verificó por
+  lógica/mocking, no midiendo tiempos reales):
+  1. **Causa raíz identificada — cada guardado "liviano" viaja con el peso completo del
+     proyecto.** `db.save_proyecto()`/`db.get_proyecto()` escriben/leen el JSON del proyecto
+     ENTERO en cada llamada — incluye `documentos[].texto_extraido` de TODOS los documentos
+     (hasta 60.000 caracteres cada uno, `MAX_CHARS_GUARDADO`, o hasta 120.000 en los ítems
+     ampliados). Guardar el Resumen (25 campos cortos) o aprobar UNA observación hoy paga el
+     mismo costo de red+serialización que si se guardara el proyecto completo — potencialmente
+     varios cientos de KB a MB por click en un proyecto con muchos documentos grandes. Además,
+     aprobar/descartar una observación llama a `_registrar_feedback_obs()`, que hace DOS
+     round-trips adicionales completos (leer+escribir el concurso, leer+escribir el consultor) —
+     hasta 6 lecturas/escrituras a Postgres por un solo clic de "Aprobar".
+  2. **Arreglado ahora — el dashboard cargaba el blob completo de TODOS los proyectos del
+     revisor solo para mostrar una tabla resumen.** `dashboard()` (la página más visitada — se
+     entra ahí en cada sesión y cada "volver") usaba `db.get_proyectos()`, que trae y
+     deserializa en Python el JSON íntegro de cada proyecto (con el texto de todos sus
+     documentos) aunque `dashboard.html` solo pinta 7 campos cortos. Nuevo método
+     `db.get_proyectos_ligero(campos, username=None)` (`database.py`) + `_pg_load_prefix_campos()`
+     — en PostgreSQL arma la proyección DENTRO de la query (`SELECT jsonb_build_object('id',
+     v->'id', ...) FROM (SELECT value::jsonb AS v FROM storage WHERE key LIKE %s) t`), así
+     Postgres devuelve solo los campos pedidos y Python nunca recibe ni parsea el texto de los
+     documentos. `campos` son SIEMPRE nombres fijos del propio código (nunca datos de un
+     request) — se insertan directo en el SQL sin parametrizar, por eso esta función no debe
+     llamarse jamás con una lista armada desde input externo. Aplicado en los 3 puntos que
+     llamaban a `get_proyectos()` sin necesitar el proyecto completo: `dashboard()` (8 campos),
+     el listado de "Archivos guardados" y el botón "Liberar archivos" de
+     `/admin/concursos/{id}` (solo `id`+`codigo_sep`, para filtrar por concurso). En modo JSON
+     local (Mac) no hay nada que optimizar (disco local) — `get_proyectos_ligero` ahí solo
+     recorta el dict en Python, mismo resultado, sin tocar rendimiento.
+  3. **Arreglado ahora — login bloqueaba el servidor entero ~100-300ms.** `bcrypt.checkpw` es
+     deliberadamente lento (diseño de seguridad) y se llamaba sincrónico dentro de la ruta
+     `async def login()` — mismo patrón de bug ya corregido para las llamadas Anthropic/PyMuPDF
+     en la 1ª ronda, aplicado ahora también acá: `await asyncio.to_thread(verify_password, ...)`.
+  4. **NO arreglado todavía — evaluado y descartado por alcance/riesgo en esta ronda:**
+     - **Separar `texto_extraido` del blob "caliente" del proyecto** (guardarlo en una clave
+       aparte por documento y traerlo solo cuando el análisis/autocompletar/consulta
+       efectivamente lo necesita) es la optimización de MAYOR impacto real — evitaría pagar el
+       costo del texto completo en cada guardado de observación/resumen, no solo en el
+       dashboard. Se evaluó pero se descartó implementarlo en esta ronda: toca ~15-20 puntos
+       distintos (las 3 rutas de subida, adjuntar-respaldo de subsanación, todas las rutas que
+       hoy leen `doc["texto_extraido"]` — análisis por ítem, autocompletar resumen, consulta
+       libre, Chequeo de Cálculos, evaluación de respuestas—, `_render_proyecto()` para el
+       indicador de "necesita resubir", y una migración de los proyectos YA guardados con el
+       formato viejo) y **no se puede probar contra la Postgres real de Railway desde este
+       entorno** — el riesgo de un error silencioso (un documento que la IA deja de "ver" sin
+       aviso, en un proyecto real en revisión) es demasiado alto para implementarlo a ciegas.
+       Pendiente: retomar esta refactor con el usuario, idealmente pudiendo probar contra un
+       proyecto real antes de dar por bueno el cambio.
+     - **Envolver las ~127 llamadas a `db.*` en el resto de las rutas con
+       `asyncio.to_thread`** (mismo patrón que Anthropic/PyMuPDF/bcrypt) — ayuda a que la app
+       no se "congele" para otros usuarios/pestañas mientras una request hace una llamada a la
+       base, pero NO acelera la latencia de la propia acción (el usuario sigue esperando el
+       mismo tiempo por SU click) — dado que el síntoma reportado es de latencia por acción, no
+       de bloqueo entre usuarios, se priorizó no tocar ~127 puntos del código por un beneficio
+       que no ataca directamente el síntoma. Además, requeriría antes un `threading.Lock()` (o
+       pool de conexiones) alrededor de `_pg_conn`, que hoy es una única conexión psycopg2
+       compartida — seguro mientras todo corre sincrónico en el mismo hilo, pero no
+       thread-safe si varias llamadas concurrentes empiezan a usarla desde hilos distintos.
+       Queda como mejora futura si el síntoma reportado resulta ser, en el fondo, contención
+       entre usuarios/pestañas en vez de tamaño del payload.
+
 - **Solo revisión técnica (jul-2026):** la app se usa exclusivamente para revisión técnica —
   se eliminó la opción "Revisión legal" del formulario de creación de proyecto
   (`nuevo_proyecto.html`); `crear_proyecto()` en `main.py` ahora fija `tipo_revision = "tecnica"`

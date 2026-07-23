@@ -85,6 +85,25 @@ def _pg_load_prefix(prefix: str) -> list:
         return [json.loads(r[0]) for r in cur.fetchall()]
 
 
+def _pg_load_prefix_campos(prefix: str, campos: list) -> list:
+    """Como _pg_load_prefix, pero le pide a Postgres que arme un objeto SOLO con los `campos`
+    pedidos (vía jsonb_build_object) en vez de traer y deserializar el JSON completo de cada
+    fila. Pensado para listados livianos (ej. el dashboard) donde el resto del dato — en
+    proyectos, el texto extraído de cada documento, que puede pesar varios MB por proyecto —
+    no hace falta: evita transferirlo por red y evita el `json.loads()` en Python de ese
+    volumen. `campos` son nombres de campo FIJOS definidos en el propio código (nunca datos de
+    un request) — se insertan directo en el SQL sin parametrizar, por eso esta función NUNCA
+    debe llamarse con una lista construida a partir de input externo."""
+    conn = _get_pg()
+    partes = ", ".join(f"'{c}', v -> '{c}'" for c in campos)
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT jsonb_build_object({partes})
+            FROM (SELECT value::jsonb AS v FROM storage WHERE key LIKE %s) t
+        """, (prefix + "%",))
+        return [r[0] for r in cur.fetchall()]
+
+
 def _pg_delete(key: str):
     conn = _get_pg()
     with conn.cursor() as cur:
@@ -184,6 +203,21 @@ class Database:
         if username:
             all_p = [p for p in all_p if p["revisor"] == username]
         return sorted(all_p, key=lambda x: x["fecha_creacion"], reverse=True)
+
+    def get_proyectos_ligero(self, campos: list, username: str = None) -> list:
+        """Como get_proyectos(), pero solo trae los `campos` pedidos — para listados donde no
+        hace falta el resto (dashboard, filtrar proyectos de un concurso, etc). En PostgreSQL
+        evita transferir y deserializar el blob completo de cada proyecto (ver
+        _pg_load_prefix_campos); en modo JSON local no vale la pena optimizar (disco local,
+        datos chicos), se recorta igual para que el shape de retorno sea consistente."""
+        if self._use_pg:
+            all_p = _pg_load_prefix_campos("proyecto:", campos)
+        else:
+            all_p = [{k: p.get(k) for k in campos}
+                     for p in _json_load(PROYECTOS_FILE).values()]
+        if username:
+            all_p = [p for p in all_p if p.get("revisor") == username]
+        return sorted(all_p, key=lambda x: x.get("fecha_creacion", ""), reverse=True)
 
     def get_proyecto(self, proyecto_id: str) -> dict:
         if self._use_pg:

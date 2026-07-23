@@ -417,7 +417,9 @@ async def login_page(request: Request):
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     user = db.get_user(username)
-    if not user or not verify_password(password, user["password_hash"]):
+    # bcrypt es deliberadamente lento (~100-300ms) — sin to_thread bloquea el event loop
+    # entero (toda la app) durante ese rato en cada login.
+    if not user or not await asyncio.to_thread(verify_password, password, user["password_hash"]):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Usuario o contraseña incorrectos"
@@ -442,7 +444,12 @@ async def dashboard(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    proyectos = db.get_proyectos(user["username"])
+    # Listado liviano: dashboard.html solo necesita estos campos — evita traer el texto
+    # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
+    proyectos = db.get_proyectos_ligero(
+        ["id", "codigo_sep", "nombre", "postulante", "tipo_revision", "estado",
+         "fecha_creacion", "revisor"],
+        username=user["username"])
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
@@ -2433,7 +2440,7 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
             })
     # Archivos guardados en la base para los proyectos de este concurso (para poder
     # "dar por terminado" el concurso y liberar ese espacio sin perder el análisis ya hecho).
-    proyectos_concurso = [p for p in db.get_proyectos()
+    proyectos_concurso = [p for p in db.get_proyectos_ligero(["id", "codigo_sep"])
                           if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
     resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
     # Criterios de énfasis: a diferencia de criterios_aprendidos (se destila solo del
@@ -2658,7 +2665,7 @@ async def liberar_archivos_concurso(request: Request, concurso_id: str):
     if not concurso:
         raise HTTPException(status_code=404)
 
-    proyecto_ids = [p["id"] for p in db.get_proyectos()
+    proyecto_ids = [p["id"] for p in db.get_proyectos_ligero(["id", "codigo_sep"])
                     if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
     db.eliminar_archivos_proyectos(proyecto_ids)
     import shutil
