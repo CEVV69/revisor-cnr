@@ -188,14 +188,21 @@ def _consultor_de_proyecto(proyecto: dict) -> tuple:
     return (_consultor_key(nombre), nombre) if nombre else ("", "")
 
 
+def _texto_len(texto: str) -> int:
+    """Longitud "útil" de un texto extraído — 0 si está vacío o es el sentinel de PDF
+    escaneado (`__PDF_ESCANEADO__`). Se guarda en el documento LIVIANO (`doc["texto_len"]`)
+    para poder decidir si un documento tiene texto usable sin cargar el texto completo desde
+    su clave aparte (ver la nota grande en `_con_texto()` más abajo)."""
+    return len(texto) if texto and texto != "__PDF_ESCANEADO__" else 0
+
+
 def _doc_disponible_analisis(d: dict, permite_vision: bool = True) -> bool:
     """Un documento está disponible para el análisis si tiene texto usable, o si es un PDF
     escaneado/plano cuyo archivo físico existe (disco o base) y el grupo admite visión (todos
     menos Coherencia global). Debe reflejar exactamente lo que usa `_analizar_grupo()` en
     analyzer.py, para que el contador de documentos de cada eje/ítem no subestime lo que
     realmente se analiza."""
-    texto = d.get("texto_extraido", "").strip()
-    if texto not in ("", "__PDF_ESCANEADO__"):
+    if d.get("texto_len", 0) > 0:
         return True
     if not permite_vision:
         return False
@@ -216,8 +223,7 @@ def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
     tenía forma de notarlo sin revisar manualmente el indicador de la página Documentos."""
     carpeta = UPLOAD_DIR / proyecto_id
     for d in documentos:
-        texto = d.get("texto_extraido", "").strip()
-        necesita_vision = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
+        necesita_vision = (d.get("texto_len", 0) < MIN_CHARS_TEXTO
                             or d.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
         if not necesita_vision:
             continue
@@ -228,6 +234,18 @@ def _restaurar_archivos_necesarios(proyecto_id: str, documentos: list):
         if contenido:
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_bytes(contenido)
+
+
+async def _con_texto(proyecto_id: str, documentos: list) -> list:
+    """Devuelve una COPIA de `documentos` con `texto_extraido` restaurado desde su clave
+    aparte en la base (`textos:{proyecto_id}`) — usar SOLO en el momento en que el texto
+    realmente hace falta (análisis de un ítem, chat, autocompletar Resumen, consulta libre,
+    Chequeo de Cálculos, evaluación de respuestas de subsanación). El proyecto guardado
+    (`proyecto["documentos"]`) NUNCA lleva el texto embebido — no tocar/reasignar esa lista
+    con el resultado de esta función, o el próximo `db.save_proyecto()` volvería a guardar el
+    texto completo dentro del blob liviano del proyecto, perdiendo el sentido de separarlo."""
+    textos = await asyncio.to_thread(db.get_textos_proyecto, proyecto_id)
+    return [dict(d, texto_extraido=textos.get(d["id"], "")) for d in documentos]
 
 
 def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> str:
@@ -351,6 +369,11 @@ async def startup_event():
             print(f"❌ Error PostgreSQL: {e}")
     else:
         print(f"📁 Modo: JSON local (DATA_DIR = {os.getenv('DATA_DIR', 'data')})")
+
+    try:
+        db.migrar_textos_documentos()
+    except Exception as e:
+        print(f"❌ Error migrando textos de documentos: {e}")
 
     if not db.get_user("admin"):
         db.create_user("admin", "admin123", "Administrador CNR", "admin")
@@ -534,8 +557,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     carpeta_proyecto = UPLOAD_DIR / proyecto_id
     ids_guardados_db = db.ids_con_archivo(proyecto_id)
     for doc in proyecto["documentos"]:
-        texto = doc.get("texto_extraido", "").strip()
-        doc["necesita_archivo"] = (texto == "__PDF_ESCANEADO__" or len(texto) < MIN_CHARS_TEXTO
+        doc["necesita_archivo"] = (doc.get("texto_len", 0) < MIN_CHARS_TEXTO
                                     or doc.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
         doc["archivo_presente"] = ((carpeta_proyecto / doc.get("filename", "")).exists()
                                     or doc["id"] in ids_guardados_db)
@@ -720,6 +742,7 @@ async def subir_documento(
     # Extraer texto (en un thread aparte — PyMuPDF/openpyxl bloquean y un PDF grande
     # congelaría el resto de la app mientras se procesa)
     texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+    texto_guardado = truncar_texto_guardado(texto)
 
     doc = {
         "id": doc_id,
@@ -728,12 +751,13 @@ async def subir_documento(
         "tipo_doc": tipo_doc,
         "tipo_doc_label": TIPO_DOC_LABELS.get(tipo_doc, tipo_doc),
         "fecha_subida": _ahora().isoformat(),
-        "texto_extraido": truncar_texto_guardado(texto),
+        "texto_len": _texto_len(texto_guardado),
         "analizado": False
     }
 
     proyecto["documentos"].append(doc)
     db.save_proyecto(proyecto)
+    await asyncio.to_thread(db.set_texto_documento, proyecto_id, doc_id, texto_guardado)
 
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
@@ -813,11 +837,12 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     ]
 
     _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
     try:
         resultado = await analizar_item(
             item_key=item_key,
-            documentos=proyecto.get("documentos", []),
+            documentos=documentos_con_texto,
             bases_texto=bases_texto,
             concurso_id=concurso_id,
             feedback_concurso=feedback_concurso,
@@ -1004,9 +1029,10 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get("item") == key]
         proyecto.setdefault("item_chats", {})
         historial = proyecto["item_chats"].get(key, [])
+        documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
         resultado = await chatear_item(
-            item_key=key, documentos=proyecto.get("documentos", []),
+            item_key=key, documentos=documentos_con_texto,
             observaciones_item=observaciones_grupo, historial=historial,
             mensaje=mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
         )
@@ -1268,7 +1294,8 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     if not proyecto:
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
-    docs_grupo = _documentos_para_verificacion("hidraulico", proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
     datos = await _extraer_datos_hidraulicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
@@ -1385,7 +1412,8 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     if not proyecto:
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
-    docs_grupo = _documentos_para_verificacion("agronomico", proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("agronomico", documentos_con_texto)
     datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
@@ -1450,7 +1478,8 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    docs_grupo = _documentos_para_verificacion("energetico", proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("energetico", documentos_con_texto)
     datos = await _extraer_datos_fv(docs_grupo)
     datos["validado"] = False
     proyecto.setdefault("verificacion_calculos", {})
@@ -1516,6 +1545,7 @@ async def subir_zip(
     archivos = await asyncio.to_thread(extract_zip, str(zip_path), dest_dir)
 
     # Registrar cada archivo como documento del proyecto
+    textos_nuevos = {}
     for arch in archivos:
         doc_id = str(uuid.uuid4())[:8]
         doc = {
@@ -1525,11 +1555,12 @@ async def subir_zip(
             "tipo_doc": arch["tipo_doc"],
             "tipo_doc_label": arch["label"],
             "fecha_subida": _ahora().isoformat(),
-            "texto_extraido": arch["texto_extraido"],
+            "texto_len": _texto_len(arch["texto_extraido"]),
             "analizado": False,
             "origen": "zip"
         }
         proyecto["documentos"].append(doc)
+        textos_nuevos[doc_id] = arch["texto_extraido"]
         archivo_extraido = UPLOAD_DIR / proyecto_id / arch["filename"]
         if archivo_extraido.exists():
             db.guardar_archivo(proyecto_id, doc_id, arch["filename"], archivo_extraido.read_bytes())
@@ -1538,6 +1569,8 @@ async def subir_zip(
     zip_path.unlink(missing_ok=True)
 
     db.save_proyecto(proyecto)
+    if textos_nuevos:
+        await asyncio.to_thread(db.set_textos_documentos, proyecto_id, textos_nuevos)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?zip_ok={len(archivos)}", status_code=302)
 
 
@@ -1560,6 +1593,7 @@ async def subir_multiple(
     from extractor import detectar_anexo
     FORMATOS_SOPORTADOS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
     registrados = 0
+    textos_nuevos = {}
 
     for archivo in archivos:
         ext = Path(archivo.filename).suffix.lower()
@@ -1579,6 +1613,7 @@ async def subir_multiple(
 
         tipo_doc, label = detectar_anexo(nombre)
         texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+        texto_guardado = truncar_texto_guardado(texto)
 
         doc = {
             "id": doc_id,
@@ -1587,14 +1622,17 @@ async def subir_multiple(
             "tipo_doc": tipo_doc,
             "tipo_doc_label": label,
             "fecha_subida": _ahora().isoformat(),
-            "texto_extraido": truncar_texto_guardado(texto),
+            "texto_len": _texto_len(texto_guardado),
             "analizado": False,
             "origen": "multiple"
         }
         proyecto["documentos"].append(doc)
+        textos_nuevos[doc_id] = texto_guardado
         registrados += 1
 
     db.save_proyecto(proyecto)
+    if textos_nuevos:
+        await asyncio.to_thread(db.set_textos_documentos, proyecto_id, textos_nuevos)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?multi_ok={registrados}", status_code=302)
 
 
@@ -1615,6 +1653,7 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         if filepath.exists():
             filepath.unlink()
         db.eliminar_archivo(proyecto_id, doc_id)
+        db.eliminar_texto_documento(proyecto_id, doc_id)
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
         db.save_proyecto(proyecto)
@@ -1746,7 +1785,8 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
                 media_type=media_type,
                 headers={"Content-Disposition": f'{disposition}; filename="{doc["nombre_original"]}"'}
             )
-        texto = doc.get("texto_extraido", "")
+        textos = await asyncio.to_thread(db.get_textos_proyecto, proyecto_id)
+        texto = textos.get(doc_id, "")
         if texto == "__PDF_ESCANEADO__":
             texto = "(Documento escaneado — sin texto extraíble)"
         html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -1892,8 +1932,9 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
     try:
+        documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
         datos = await resumir_proyecto(
-            documentos=proyecto.get("documentos", []),
+            documentos=documentos_con_texto,
             bases_texto=bases_texto,
             concurso_id=concurso_id,
         )
@@ -1941,7 +1982,8 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
     if not proyecto:
         raise HTTPException(status_code=404)
 
-    respuesta = await consultar_expediente(pregunta, proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    respuesta = await consultar_expediente(pregunta, documentos_con_texto)
 
     consulta = {
         "id": str(uuid.uuid4())[:8],
@@ -2255,11 +2297,12 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         pendientes = (obs.get("subsanacion") or {}).get("adjuntos_pendientes", [])
         doc_ids_extra = [a.get("id") for a in pendientes]
 
+        documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=obs.get("texto", ""),
             referencia=obs.get("referencia_normativa", ""),
             respuesta_consultor=respuesta, item_key=obs.get("item", ""),
-            documentos=proyecto.get("documentos", []), resumen=proyecto.get("resumen", {}),
+            documentos=documentos_con_texto, resumen=proyecto.get("resumen", {}),
             bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
         )
         return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
@@ -2303,18 +2346,20 @@ async def adjuntar_respaldo_subsanacion(
             f.write(content)
         db.guardar_archivo(proyecto_id, doc_id, filename, content)
         texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+        texto_guardado = truncar_texto_guardado(texto)
         label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc)
         doc = {
             "id": doc_id, "nombre_original": archivo.filename, "filename": filename,
             "tipo_doc": tipo_doc, "tipo_doc_label": label,
             "fecha_subida": _ahora().isoformat(),
-            "texto_extraido": truncar_texto_guardado(texto),
+            "texto_len": _texto_len(texto_guardado),
             "analizado": False, "origen_subsanacion": obs_id,
         }
         proyecto.setdefault("documentos", []).append(doc)
         obs.setdefault("subsanacion", {}).setdefault("adjuntos_pendientes", []).append(
             {"id": doc_id, "nombre": archivo.filename, "tipo_label": label})
         db.save_proyecto(proyecto)
+        await asyncio.to_thread(db.set_texto_documento, proyecto_id, doc_id, texto_guardado)
         return JSONResponse({"ok": True, "doc": {"id": doc_id, "nombre": archivo.filename,
                                                  "tipo_label": label}})
     except Exception as e:

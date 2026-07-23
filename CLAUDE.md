@@ -2049,33 +2049,82 @@ antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENE
      deliberadamente lento (diseño de seguridad) y se llamaba sincrónico dentro de la ruta
      `async def login()` — mismo patrón de bug ya corregido para las llamadas Anthropic/PyMuPDF
      en la 1ª ronda, aplicado ahora también acá: `await asyncio.to_thread(verify_password, ...)`.
-  4. **NO arreglado todavía — evaluado y descartado por alcance/riesgo en esta ronda:**
-     - **Separar `texto_extraido` del blob "caliente" del proyecto** (guardarlo en una clave
-       aparte por documento y traerlo solo cuando el análisis/autocompletar/consulta
-       efectivamente lo necesita) es la optimización de MAYOR impacto real — evitaría pagar el
-       costo del texto completo en cada guardado de observación/resumen, no solo en el
-       dashboard. Se evaluó pero se descartó implementarlo en esta ronda: toca ~15-20 puntos
-       distintos (las 3 rutas de subida, adjuntar-respaldo de subsanación, todas las rutas que
-       hoy leen `doc["texto_extraido"]` — análisis por ítem, autocompletar resumen, consulta
-       libre, Chequeo de Cálculos, evaluación de respuestas—, `_render_proyecto()` para el
-       indicador de "necesita resubir", y una migración de los proyectos YA guardados con el
-       formato viejo) y **no se puede probar contra la Postgres real de Railway desde este
-       entorno** — el riesgo de un error silencioso (un documento que la IA deja de "ver" sin
-       aviso, en un proyecto real en revisión) es demasiado alto para implementarlo a ciegas.
-       Pendiente: retomar esta refactor con el usuario, idealmente pudiendo probar contra un
-       proyecto real antes de dar por bueno el cambio.
-     - **Envolver las ~127 llamadas a `db.*` en el resto de las rutas con
-       `asyncio.to_thread`** (mismo patrón que Anthropic/PyMuPDF/bcrypt) — ayuda a que la app
-       no se "congele" para otros usuarios/pestañas mientras una request hace una llamada a la
-       base, pero NO acelera la latencia de la propia acción (el usuario sigue esperando el
-       mismo tiempo por SU click) — dado que el síntoma reportado es de latencia por acción, no
-       de bloqueo entre usuarios, se priorizó no tocar ~127 puntos del código por un beneficio
-       que no ataca directamente el síntoma. Además, requeriría antes un `threading.Lock()` (o
-       pool de conexiones) alrededor de `_pg_conn`, que hoy es una única conexión psycopg2
-       compartida — seguro mientras todo corre sincrónico en el mismo hilo, pero no
-       thread-safe si varias llamadas concurrentes empiezan a usarla desde hilos distintos.
-       Queda como mejora futura si el síntoma reportado resulta ser, en el fondo, contención
-       entre usuarios/pestañas en vez de tamaño del payload.
+  4. **Envolver las ~127 llamadas a `db.*` en el resto de las rutas con `asyncio.to_thread`**
+     (mismo patrón que Anthropic/PyMuPDF/bcrypt) — evaluado y descartado en esta ronda: ayuda
+     a que la app no se "congele" para otros usuarios/pestañas mientras una request hace una
+     llamada a la base, pero NO acelera la latencia de la propia acción (el usuario sigue
+     esperando el mismo tiempo por SU click) — dado que el síntoma reportado era de latencia
+     por acción, no de bloqueo entre usuarios, se priorizó no tocar ~127 puntos del código por
+     un beneficio que no atacaba directamente el síntoma. Además, requeriría antes un
+     `threading.Lock()` (o pool de conexiones) alrededor de `_pg_conn`, que hoy es una única
+     conexión psycopg2 compartida — segura mientras todo corre sincrónico en el mismo hilo,
+     pero no thread-safe si varias llamadas concurrentes empiezan a usarla desde hilos
+     distintos. Queda como mejora futura si en algún momento el síntoma resulta ser, en el
+     fondo, contención entre usuarios/pestañas en vez de tamaño del payload.
+
+- **Separar el texto extraído del blob "caliente" del proyecto (implementado, jul-2026):** la
+  optimización de MAYOR impacto identificada en la ronda anterior — se descartó implementarla
+  de inmediato por su alcance (~15-20 puntos del código) y porque no se podía probar contra la
+  Postgres real de Railway desde este entorno; el usuario pidió retomarla en la sesión
+  siguiente, y esta vez sí se implementó completa, con una batería de pruebas end-to-end
+  simuladas (sin acceso a la Postgres real, pero cubriendo tanto el camino PostgreSQL como el
+  JSON local con mocks) antes de dar por buena la migración de datos.
+  - **Problema de fondo:** `proyecto["documentos"][i]["texto_extraido"]` (hasta 60.000-120.000
+    caracteres por documento) viajaba dentro del blob del proyecto en CADA `get_proyecto()`/
+    `save_proyecto()` — aprobar una observación o guardar el Resumen (unos pocos campos
+    cortos) pagaba el mismo costo de red+serialización que si se reescribiera el proyecto
+    completo con todos sus documentos.
+  - **Solución:** el texto de cada documento ahora vive en una clave APARTE por proyecto,
+    `textos:{proyecto_id}` (PostgreSQL) / `data/textos/{proyecto_id}.json` (modo JSON local) —
+    `{doc_id: texto}`. `proyecto["documentos"][i]` ya NO lleva `texto_extraido` embebido, solo
+    `texto_len` (int — longitud del texto útil, 0 si está vacío o es el sentinel de PDF
+    escaneado `__PDF_ESCANEADO__`) — suficiente para decidir sin cargar el texto completo si
+    un documento tiene contenido analizable o necesita visión.
+  - **`database.py`** — métodos nuevos: `get_textos_proyecto(proyecto_id)`,
+    `set_texto_documento(proyecto_id, doc_id, texto)`, `set_textos_documentos(proyecto_id,
+    dict)` (variante en lote — una sola lectura+escritura para varios documentos a la vez, ej.
+    subida múltiple o de ZIP, en vez de una por documento), `eliminar_texto_documento`,
+    `eliminar_textos_proyecto` (llamado desde `delete_proyecto`). Reutilizan los mismos
+    `_pg_load`/`_pg_save`/`_pg_delete` de siempre — sin tocar el schema de Postgres, solo
+    claves nuevas en la misma tabla `storage`.
+  - **`main.py`** — `_texto_len(texto)` calcula el campo liviano; `_con_texto(proyecto_id,
+    documentos)` (async) es el único punto que RESTAURA el texto completo — trae
+    `get_textos_proyecto()` (en `asyncio.to_thread`) y devuelve una COPIA de `documentos` con
+    `texto_extraido` repoblado, para pasarla a `analyzer.py` sin que este necesite saber nada
+    del cambio. Se usa SOLO en los 8 puntos que de verdad necesitan leer contenido: revisar un
+    ítem, chat de refinamiento, autocompletar Resumen, consulta libre, las 3 rutas de
+    extracción de Chequeo de Cálculos, y evaluar una respuesta de subsanación. El proyecto
+    guardado (`proyecto["documentos"]`) nunca se reasigna con el resultado de `_con_texto()` —
+    si se hiciera, el próximo `save_proyecto()` volvería a embeber el texto completo,
+    perdiendo el sentido del cambio.
+  - **`_doc_disponible_analisis()` y `_restaurar_archivos_necesarios()`** (deciden si un
+    documento tiene texto usable / necesita visión, usados en CADA carga de página y antes de
+    cada análisis) pasaron de leer `texto_extraido` a leer `texto_len` — ya no necesitan el
+    texto completo para esa decisión.
+  - **Las 4 rutas de subida** (`subir`, `subir-multiple`, `subir-zip`, adjuntar-respaldo de
+    subsanación) ahora guardan el documento liviano en `proyecto["documentos"]` y, aparte,
+    escriben el texto real vía `set_texto_documento`/`set_textos_documentos`. `eliminar_documento`
+    también borra el texto de su clave aparte.
+  - **`ver_documento()`** — el fallback que muestra el texto extraído cuando no hay archivo
+    físico en disco ni en Postgres (caso raro) ahora lo trae de `get_textos_proyecto()` en vez
+    de leerlo del documento.
+  - **Migración de proyectos ya guardados** — `db.migrar_textos_documentos()`, llamada al
+    `startup_event()` (igual que `migrar_proyectos()`): recorre todos los proyectos, y para
+    cualquier documento que TODAVÍA tenga `texto_extraido` embebido (formato viejo), lo mueve a
+    su clave aparte y lo reemplaza por `texto_len` en el documento. Idempotente y con marcador
+    de "ya migrado" (clave `meta_textos_migrados`) para no repetir el recorrido completo en
+    cada deploy de Railway (son frecuentes en este proyecto) — sin el marcador, esta migración
+    (que lee el blob COMPLETO de cada proyecto) se pagaría de nuevo en cada arranque.
+  - **Verificado sin acceso a la Postgres real** (no disponible desde este entorno): batería de
+    pruebas con un `Database` real en modo JSON local (subida → documento liviano + texto
+    separado correctamente; `_con_texto()` reconstruye el texto para análisis sin mutar el
+    proyecto guardado; `_render_proyecto()` calcula `necesita_archivo`/`archivo_presente` bien
+    con el documento liviano; los 8 call sites que necesitan texto lo reciben completo,
+    verificado interceptando la llamada real a cada función de `analyzer.py`; `eliminar_documento`
+    y `delete_proyecto` limpian también el texto separado; `ver_documento()` fallback muestra
+    el texto correcto), más un mock de cursor psycopg2 para confirmar que la migración y los
+    métodos nuevos arman el SQL/las claves correctas también en el camino PostgreSQL, y un
+    escenario completo de un proyecto en formato LEGACY migrado por el `startup_event()` real.
 
 - **Solo revisión técnica (jul-2026):** la app se usa exclusivamente para revisión técnica —
   se eliminó la opción "Revisión legal" del formulario de creación de proyecto

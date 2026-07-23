@@ -14,6 +14,11 @@ PROYECTOS_FILE   = DATA_DIR / "proyectos.json"
 CONCURSOS_FILE   = DATA_DIR / "concursos.json"
 CONSULTORES_FILE = DATA_DIR / "consultores.json"
 PRECIOS_FILE     = DATA_DIR / "precios.json"
+META_FILE        = DATA_DIR / "meta.json"
+# Textos extraídos de los documentos, uno por proyecto (modo JSON local — en PostgreSQL van
+# bajo la clave "textos:{proyecto_id}" de la tabla storage). Ver la nota en
+# Database.get_textos_proyecto() sobre por qué viven aparte del proyecto.
+TEXTOS_DIR       = DATA_DIR / "textos"
 
 # ── Backend PostgreSQL ─────────────────────────────────────────────────────────
 _pg_conn = None
@@ -235,10 +240,97 @@ class Database:
     def delete_proyecto(self, proyecto_id: str):
         if self._use_pg:
             _pg_delete(f"proyecto:{proyecto_id}")
+            _pg_delete(f"textos:{proyecto_id}")
             return
         proyectos = _json_load(PROYECTOS_FILE)
         proyectos.pop(proyecto_id, None)
         _json_save(PROYECTOS_FILE, proyectos)
+        self.eliminar_textos_proyecto(proyecto_id)
+
+    # ── Textos extraídos de los documentos (aparte del blob "liviano" del proyecto) ─────────
+    # `proyecto["documentos"][i]` NO lleva `texto_extraido` embebido — solo `texto_len` (0 si
+    # no tiene texto usable). El texto real vive en su propia clave "textos:{proyecto_id}"
+    # ({doc_id: texto}), para que leer/guardar el proyecto (Resumen, aprobar/descartar una
+    # observación, el dashboard, etc.) NO tenga que transferir ni deserializar el texto de
+    # todos los documentos — puede pesar varios MB en un proyecto con muchos documentos
+    # grandes — en cada click. Solo se cargan estos textos cuando de verdad hacen falta:
+    # análisis de un ítem, chat, autocompletar Resumen, consulta libre, Chequeo de Cálculos y
+    # evaluación de respuestas de subsanación (ver `_con_texto()` en main.py).
+
+    def get_textos_proyecto(self, proyecto_id: str) -> dict:
+        """{doc_id: texto_extraido} de un proyecto. {} si no tiene ninguno guardado."""
+        if self._use_pg:
+            return _pg_load(f"textos:{proyecto_id}")
+        return _json_load(TEXTOS_DIR / f"{proyecto_id}.json")
+
+    def set_texto_documento(self, proyecto_id: str, doc_id: str, texto: str):
+        """Guarda/reemplaza el texto extraído de UN documento, sin tocar el resto de los
+        textos del proyecto ni el blob liviano del proyecto."""
+        self.set_textos_documentos(proyecto_id, {doc_id: texto})
+
+    def set_textos_documentos(self, proyecto_id: str, nuevos: dict):
+        """Como set_texto_documento(), pero para VARIOS documentos a la vez (subida múltiple o
+        de un ZIP) — una sola lectura + escritura del blob de textos en vez de una por
+        documento."""
+        if not nuevos:
+            return
+        textos = self.get_textos_proyecto(proyecto_id)
+        textos.update(nuevos)
+        if self._use_pg:
+            _pg_save(f"textos:{proyecto_id}", textos)
+        else:
+            _json_save(TEXTOS_DIR / f"{proyecto_id}.json", textos)
+
+    def eliminar_texto_documento(self, proyecto_id: str, doc_id: str):
+        textos = self.get_textos_proyecto(proyecto_id)
+        if doc_id not in textos:
+            return
+        del textos[doc_id]
+        if self._use_pg:
+            _pg_save(f"textos:{proyecto_id}", textos)
+        else:
+            _json_save(TEXTOS_DIR / f"{proyecto_id}.json", textos)
+
+    def eliminar_textos_proyecto(self, proyecto_id: str):
+        if self._use_pg:
+            _pg_delete(f"textos:{proyecto_id}")
+            return
+        filepath = TEXTOS_DIR / f"{proyecto_id}.json"
+        if filepath.exists():
+            filepath.unlink()
+
+    def migrar_textos_documentos(self):
+        """Migra el texto extraído embebido en `documentos[]` (formato legacy, de antes de
+        separar los textos en su propia clave) a `textos:{proyecto_id}`, dejando en el
+        documento liviano `texto_len` en vez del texto completo. Corre una vez al startup;
+        en los despliegues siguientes se salta de inmediato gracias al marcador de abajo (sin
+        el marcador, esta migración —que recorre el blob COMPLETO de cada proyecto— se
+        repetiría en cada deploy de Railway, que en este proyecto son frecuentes)."""
+        marcador = self._load("meta_textos_migrados", META_FILE)
+        if marcador.get("hecho"):
+            return
+        migrados = 0
+        for proyecto in self.get_proyectos():
+            cambios = False
+            textos = None
+            for doc in proyecto.get("documentos", []):
+                if "texto_extraido" not in doc:
+                    continue
+                if textos is None:
+                    textos = self.get_textos_proyecto(proyecto["id"])
+                texto = doc.pop("texto_extraido")
+                textos[doc["id"]] = texto
+                doc["texto_len"] = len(texto) if texto and texto != "__PDF_ESCANEADO__" else 0
+                cambios = True
+            if cambios:
+                if self._use_pg:
+                    _pg_save(f"textos:{proyecto['id']}", textos)
+                else:
+                    _json_save(TEXTOS_DIR / f"{proyecto['id']}.json", textos)
+                self.save_proyecto(proyecto)
+                migrados += 1
+        self._save("meta_textos_migrados", META_FILE, {"hecho": True})
+        print(f"✅ Migrados los textos de {migrados} proyecto(s) a su propia clave")
 
     # ── Concursos ─────────────────────────────────────────────────────────────
 
