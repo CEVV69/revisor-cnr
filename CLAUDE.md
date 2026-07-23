@@ -383,6 +383,9 @@ pedido del usuario, insumo directo para los ítems "Memoria de cálculo de super
   campo `clase` de arriba) sino el CULTIVO/uso existente actualmente en el predio; el label
   anterior ("revisar Rol") inducía a confundirlo con la clasificación de uso de suelo del Rol,
   que es otro dato — de ahí la confusión que reportó el usuario.
+- `superficie_predial` renombrado de "Superficie" a **"Superficie Cert. Avalúo"** — deja
+  explícito que ese dato sale del Certificado de Avalúo Fiscal del predio (superficie predial
+  total), distinto de `superficie_clase_sep` ("Superficie (SEP)", ver abajo).
 - **Fila combinada en el Informe Resumen impreso:** para que `clase` + `superficie_clase_sep`
   no sigan agregando altura al informe (formulario ya bastante largo), se imprimen en LA MISMA
   fila de la tabla en vez de una fila por campo. Mecanismo GENERALIZABLE nuevo en

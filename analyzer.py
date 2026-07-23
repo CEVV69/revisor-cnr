@@ -678,7 +678,7 @@ RESUMEN_SECCIONES = [
         {"key": "proyectos_asociados", "label": "Proyectos asociados", "tipo": "textarea"},
     ]},
     {"titulo": "3. Predios", "campos": [
-        {"key": "superficie_predial",   "label": "Superficie",             "tipo": "text"},
+        {"key": "superficie_predial",   "label": "Superficie Cert. Avalúo", "tipo": "text"},
         {"key": "rol",                  "label": "Rol",                    "tipo": "text"},
         {"key": "clase",                "label": "Clase declarada en SEP", "tipo": "text",
          "linea_con": "superficie_clase_sep"},
