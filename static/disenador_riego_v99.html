@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diseñador de Riego v98</title>
+<title>Diseñador de Riego v99</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Nunito+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -385,49 +385,74 @@ select option{background:var(--white)}
     <div class="fg">
       <div class="f"><label>Cultivo / Kc <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(DT-05 CNR)</span><span class="tip" onclick="showTip(this)" title="Coeficiente de cultivo Kc para el mes de máxima demanda, según Tabla DT-05 CNR. Seleccione el cultivo o ingrese manualmente." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="a-kc" style="width:100%;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="syncKcVal('a')">
   <option value="">— Seleccione cultivo —</option>
-  <optgroup label="Frutales">
-    <option value="1.15">Uva de mesa / vinificación — Kc 1.15</option>
-    <option value="1.10">Manzano / Peral — Kc 1.10</option>
-    <option value="1.10">Duraznero / Nectarino — Kc 1.10</option>
-    <option value="1.05">Ciruelo / Damasco — Kc 1.05</option>
-    <option value="1.00">Cerezo — Kc 1.00</option>
-    <option value="1.00">Nogal / Almendro — Kc 1.00</option>
-    <option value="0.85">Palto — Kc 0.85</option>
-    <option value="0.90">Olivo — Kc 0.90</option>
+  <optgroup label="Frutales (DT-05 CNR)">
+    <option value="1.15">Vid de mesa — Kc 1.15 (rango DT-05: 1.00–1.30)</option>
+    <option value="0.55">Vides viníferas — Kc 0.55 (rango DT-05: 0.50–0.60)</option>
+    <option value="1.15">Manzano — Kc 1.15 (rango DT-05: 1.05–1.25)</option>
+    <option value="1.08">Peral — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.08">Duraznero / Nectarino — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.03">Ciruelo — Kc 1.03 (rango DT-05: 0.90–1.15)</option>
+    <option value="0.98">Damasco — Kc 0.98 (rango DT-05: 0.80–1.15)</option>
+    <option value="1.13">Cerezo — Kc 1.13 (rango DT-05: 1.00–1.25)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="1.00">Almendro — Kc 1.00 (rango DT-05: 0.95–1.05)</option>
+    <option value="0.80">Palto — Kc 0.80 (rango DT-05: 0.75–0.85)</option>
+    <option value="0.60">Olivo para aceite — Kc 0.60 (rango DT-05: 0.40–0.80)</option>
+    <option value="0.65">Olivo para mesa — Kc 0.65 (rango DT-05: 0.50–0.80)</option>
+    <option value="0.30">Tuna — Kc 0.30 (rango DT-05: 0.25–0.35)</option>
+    <option value="1.15">Kiwi — Kc 1.15 (rango DT-05: 1.10–1.20)</option>
+    <option value="0.75">Naranjo — Kc 0.75 (rango DT-05: 0.65–0.90)</option>
+    <option value="0.70">Limonero — Kc 0.70 (rango DT-05: 0.60–0.80)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="0.80">Arándano — Kc 0.80 (rango DT-05: 0.60–1.00)</option>
+    <option value="0.75">Frambuesa — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.75">Avellano Europeo — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.88">Granado — Kc 0.88 (rango DT-05: 0.80–0.95)</option>
+    <option value="1.20">Pistacho — Kc 1.20 (rango DT-05: 1.10–1.30)</option>
   </optgroup>
-  <optgroup label="Hortalizas y anuales">
-    <option value="1.20">Maíz grano / choclo — Kc 1.20</option>
-    <option value="1.10">Tomate — Kc 1.10</option>
-    <option value="1.05">Papa — Kc 1.05</option>
-    <option value="1.05">Zanahoria / Remolacha — Kc 1.05</option>
-    <option value="1.00">Zapallo / Melón / Sandía — Kc 1.00</option>
-    <option value="0.95">Lechuga / Espinaca — Kc 0.95</option>
-    <option value="0.90">Cebolla / Ajo — Kc 0.90</option>
+  <optgroup label="Hortalizas y anuales (DT-05 CNR)">
+    <option value="1.05">Maíz — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Tomate — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Papas — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Remolacha — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Espárragos — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.10">Arroz — Kc 1.10 (rango DT-05: 1.05–1.15)</option>
+    <option value="1.03">Tabaco — Kc 1.03 (rango DT-05: 0.95–1.10)</option>
   </optgroup>
-  <optgroup label="Praderas y forrajeras">
-    <option value="1.00">Alfalfa — Kc 1.00</option>
-    <option value="0.85">Pradera permanente — Kc 0.85</option>
-    <option value="0.80">Pradera temporal — Kc 0.80</option>
-    <option value="1.00">Trébol — Kc 1.00</option>
+  <optgroup label="Praderas y forrajeras (DT-05 CNR)">
+    <option value="0.93">Alfalfa — Kc 0.93 (rango DT-05: 0.85–1.00)</option>
+    <option value="0.98">Pradera — Kc 0.98 (rango DT-05: 0.90–1.05)</option>
   </optgroup>
-  <optgroup label="Cereales">
-    <option value="1.10">Trigo / Cebada — Kc 1.10</option>
-    <option value="0.95">Avena — Kc 0.95</option>
+  <optgroup label="Sin valor oficial DT-05 — verificar con estudio local">
+    <option value="custom">Zanahoria (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Zapallo / Melón / Sandía (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Lechuga / Espinaca (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Cebolla / Ajo (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trigo / Cebada / Avena (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trébol (no está en DT-05; use Pradera o ingrese manual) — Ingresar manual</option>
   </optgroup>
   <optgroup label="Otro">
-    <option value="custom">Ingresar manualmente…</option>
+    <option value="custom">Ingresar manualmente… (respaldar con estudio local — ITT-03)</option>
   </optgroup>
 </select>
 <input id="a-kc-manual" type="number" step=".01" min=".3" max="1.3" placeholder="Kc manual" style="display:none;width:100%;margin-top:5px;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"></div>
       <div class="f"><label>ETo Mes Crítico [mm/mes]</label><div class="ig"><input id="a-etom" type="number" step=".1" placeholder="auto"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Días del Mes Crítico</label><div class="ig"><input id="a-dias" type="number" placeholder="31" min="28" max="31"><span class="isuf">días</span></div></div>
     </div>
-    <div class="sl">ETo trimestre crítico <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Dic · Ene · Feb)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Evapotranspiración de referencia (ETo) del trimestre de máxima demanda. Seleccione la zona CNR para cargar valores automáticamente, o ingréselos manualmente.">?</span></div>
+    <div class="sl">ETo mensual <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ingrese los 12 meses; el sistema toma el mayor)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Ingrese el ETo mensual (mm/mes) obtenido por el consultor para el punto GPS del proyecto (criterio CNR actual vía georreferenciación). El sistema selecciona automáticamente el mes de mayor demanda entre los 12 valores ingresados.">?</span></div>
     <div class="fg fg3">
-      <div class="f" style="grid-column:1/-1"><label>Zona ETp <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Agrimed/CNR 2016)</span><span class="tip" onclick="showTip(this)" title="Seleccione la zona agroclimática CNR correspondiente al predio. Los valores de ETo mensual (Dic, Ene, Feb) se pre-cargarán automáticamente." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><div style="display:flex;gap:8px;align-items:center"><select id="a-zona" style="flex:1;padding:6px 8px;border:1.5px solid var(--fog);border-radius:6px;font-family:var(--mono);font-size:.77rem;outline:none" onchange="fillEto('a')"><option value="">— Seleccione zona —</option><option value="I">Zona I (Arica-Iquique)</option><option value="II">Zona II (Antofagasta)</option><option value="III">Zona III (Atacama)</option><option value="IV">Zona IV (Coquimbo)</option><option value="V">Zona V (Valparaíso)</option><option value="VI">Zona VI (O'Higgins)</option><option value="VII">Zona VII (Maule)</option><option value="VIII">Zona VIII (Biobío)</option><option value="IX">Zona IX (La Araucanía)</option><option value="X">Zona X (Los Lagos)</option><option value="XI">Zona XI (Aysén)</option><option value="XVI">Zona XVI (Ñuble)</option></select><button class="btn bc" style="padding:6px 11px;font-size:.75rem" onclick="fillEto('a')">↺ Cargar ETo</button></div></div>
-      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="aeto" id="ae11" type="number" step=".1" placeholder="458"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Enero</label><div class="ig"><input class="aeto" id="ae0" type="number" step=".1" placeholder="486"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="aeto" id="ae1" type="number" step=".1" placeholder="422"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Enero</label><div class="ig"><input class="aeto" id="ae0" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="aeto" id="ae1" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Marzo</label><div class="ig"><input class="aeto" id="ae2" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Abril</label><div class="ig"><input class="aeto" id="ae3" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Mayo</label><div class="ig"><input class="aeto" id="ae4" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Junio</label><div class="ig"><input class="aeto" id="ae5" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Julio</label><div class="ig"><input class="aeto" id="ae6" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Agosto</label><div class="ig"><input class="aeto" id="ae7" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Septiembre</label><div class="ig"><input class="aeto" id="ae8" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Octubre</label><div class="ig"><input class="aeto" id="ae9" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Noviembre</label><div class="ig"><input class="aeto" id="ae10" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="aeto" id="ae11" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
     </div>
     
     <button class="btn bc" onclick="calcAA()">⚡ Calcular diseño agronómico</button>
@@ -677,48 +702,74 @@ select option{background:var(--white)}
     <div class="fg" style="margin-top:16px">
       <div class="f"><label>Cultivo / Kc <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(DT-05 CNR)</span><span class="tip" onclick="showTip(this)" title="Coeficiente de cultivo Kc para el mes de máxima demanda, según Tabla DT-05 CNR." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="c-kc" style="width:100%;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="syncKcVal('c')">
   <option value="">— Seleccione cultivo —</option>
-  <optgroup label="Frutales">
-    <option value="1.15">Uva de mesa / vinificación — Kc 1.15</option>
-    <option value="1.10">Manzano / Peral — Kc 1.10</option>
-    <option value="1.10">Duraznero / Nectarino — Kc 1.10</option>
-    <option value="1.05">Ciruelo / Damasco — Kc 1.05</option>
-    <option value="1.00">Cerezo — Kc 1.00</option>
-    <option value="1.00">Nogal / Almendro — Kc 1.00</option>
-    <option value="0.85">Palto — Kc 0.85</option>
-    <option value="0.90">Olivo — Kc 0.90</option>
+  <optgroup label="Frutales (DT-05 CNR)">
+    <option value="1.15">Vid de mesa — Kc 1.15 (rango DT-05: 1.00–1.30)</option>
+    <option value="0.55">Vides viníferas — Kc 0.55 (rango DT-05: 0.50–0.60)</option>
+    <option value="1.15">Manzano — Kc 1.15 (rango DT-05: 1.05–1.25)</option>
+    <option value="1.08">Peral — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.08">Duraznero / Nectarino — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.03">Ciruelo — Kc 1.03 (rango DT-05: 0.90–1.15)</option>
+    <option value="0.98">Damasco — Kc 0.98 (rango DT-05: 0.80–1.15)</option>
+    <option value="1.13">Cerezo — Kc 1.13 (rango DT-05: 1.00–1.25)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="1.00">Almendro — Kc 1.00 (rango DT-05: 0.95–1.05)</option>
+    <option value="0.80">Palto — Kc 0.80 (rango DT-05: 0.75–0.85)</option>
+    <option value="0.60">Olivo para aceite — Kc 0.60 (rango DT-05: 0.40–0.80)</option>
+    <option value="0.65">Olivo para mesa — Kc 0.65 (rango DT-05: 0.50–0.80)</option>
+    <option value="0.30">Tuna — Kc 0.30 (rango DT-05: 0.25–0.35)</option>
+    <option value="1.15">Kiwi — Kc 1.15 (rango DT-05: 1.10–1.20)</option>
+    <option value="0.75">Naranjo — Kc 0.75 (rango DT-05: 0.65–0.90)</option>
+    <option value="0.70">Limonero — Kc 0.70 (rango DT-05: 0.60–0.80)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="0.80">Arándano — Kc 0.80 (rango DT-05: 0.60–1.00)</option>
+    <option value="0.75">Frambuesa — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.75">Avellano Europeo — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.88">Granado — Kc 0.88 (rango DT-05: 0.80–0.95)</option>
+    <option value="1.20">Pistacho — Kc 1.20 (rango DT-05: 1.10–1.30)</option>
   </optgroup>
-  <optgroup label="Hortalizas y anuales">
-    <option value="1.20">Maíz grano / choclo — Kc 1.20</option>
-    <option value="1.10">Tomate — Kc 1.10</option>
-    <option value="1.05">Papa — Kc 1.05</option>
-    <option value="1.05">Zanahoria / Remolacha — Kc 1.05</option>
-    <option value="1.00">Zapallo / Melón / Sandía — Kc 1.00</option>
-    <option value="0.95">Lechuga / Espinaca — Kc 0.95</option>
-    <option value="0.90">Cebolla / Ajo — Kc 0.90</option>
+  <optgroup label="Hortalizas y anuales (DT-05 CNR)">
+    <option value="1.05">Maíz — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Tomate — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Papas — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Remolacha — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Espárragos — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.10">Arroz — Kc 1.10 (rango DT-05: 1.05–1.15)</option>
+    <option value="1.03">Tabaco — Kc 1.03 (rango DT-05: 0.95–1.10)</option>
   </optgroup>
-  <optgroup label="Praderas y forrajeras">
-    <option value="1.00">Alfalfa — Kc 1.00</option>
-    <option value="0.85">Pradera permanente — Kc 0.85</option>
-    <option value="0.80">Pradera temporal — Kc 0.80</option>
-    <option value="1.00">Trébol — Kc 1.00</option>
+  <optgroup label="Praderas y forrajeras (DT-05 CNR)">
+    <option value="0.93">Alfalfa — Kc 0.93 (rango DT-05: 0.85–1.00)</option>
+    <option value="0.98">Pradera — Kc 0.98 (rango DT-05: 0.90–1.05)</option>
   </optgroup>
-  <optgroup label="Cereales">
-    <option value="1.10">Trigo / Cebada — Kc 1.10</option>
-    <option value="0.95">Avena — Kc 0.95</option>
+  <optgroup label="Sin valor oficial DT-05 — verificar con estudio local">
+    <option value="custom">Zanahoria (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Zapallo / Melón / Sandía (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Lechuga / Espinaca (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Cebolla / Ajo (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trigo / Cebada / Avena (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trébol (no está en DT-05; use Pradera o ingrese manual) — Ingresar manual</option>
   </optgroup>
   <optgroup label="Otro">
-    <option value="custom">Ingresar manualmente…</option>
+    <option value="custom">Ingresar manualmente… (respaldar con estudio local — ITT-03)</option>
   </optgroup>
 </select>
 <input id="c-kc-manual" type="number" step=".01" min=".3" max="1.3" placeholder="Kc manual" style="display:none;width:100%;margin-top:5px;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"></div>
       <div class="f"><label>ETo Mes Crítico [mm/mes]</label><div class="ig"><input id="c-etom" type="number" step=".1" placeholder="auto"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Días del Mes Crítico</label><div class="ig"><input id="c-dias" type="number" placeholder="31"><span class="isuf">días</span></div></div>
     </div>
+    <div class="sl">ETo mensual <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ingrese los 12 meses; el sistema toma el mayor)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Ingrese el ETo mensual (mm/mes) obtenido por el consultor para el punto GPS del proyecto (criterio CNR actual vía georreferenciación). El sistema selecciona automáticamente el mes de mayor demanda entre los 12 valores ingresados.">?</span></div>
     <div class="fg fg3">
-      <div class="f" style="grid-column:1/-1"><label>Zona ETp <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Agrimed/CNR 2016)</span><span class="tip" onclick="showTip(this)" title="Seleccione la zona agroclimática CNR correspondiente al predio. Los valores de ETo mensual (Dic, Ene, Feb) se pre-cargarán automáticamente." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><div style="display:flex;gap:8px;align-items:center"><select id="c-zona" style="flex:1;padding:6px 8px;border:1.5px solid var(--fog);border-radius:6px;font-family:var(--mono);font-size:.77rem;outline:none" onchange="fillEto('c')"><option value="">— Seleccione zona —</option><option value="I">Zona I (Arica-Iquique)</option><option value="II">Zona II (Antofagasta)</option><option value="III">Zona III (Atacama)</option><option value="IV">Zona IV (Coquimbo)</option><option value="V">Zona V (Valparaíso)</option><option value="VI">Zona VI (O'Higgins)</option><option value="VII">Zona VII (Maule)</option><option value="VIII">Zona VIII (Biobío)</option><option value="IX">Zona IX (La Araucanía)</option><option value="X">Zona X (Los Lagos)</option><option value="XI">Zona XI (Aysén)</option><option value="XVI">Zona XVI (Ñuble)</option></select><button class="btn bc" style="padding:6px 11px;font-size:.75rem" onclick="fillEto('c')">↺ Cargar ETo</button></div></div>
-      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="ceto" id="ce11" type="number" step=".1" placeholder="458"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Enero</label><div class="ig"><input class="ceto" id="ce0" type="number" step=".1" placeholder="486"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="ceto" id="ce1" type="number" step=".1" placeholder="422"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Enero</label><div class="ig"><input class="ceto" id="ce0" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="ceto" id="ce1" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Marzo</label><div class="ig"><input class="ceto" id="ce2" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Abril</label><div class="ig"><input class="ceto" id="ce3" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Mayo</label><div class="ig"><input class="ceto" id="ce4" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Junio</label><div class="ig"><input class="ceto" id="ce5" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Julio</label><div class="ig"><input class="ceto" id="ce6" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Agosto</label><div class="ig"><input class="ceto" id="ce7" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Septiembre</label><div class="ig"><input class="ceto" id="ce8" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Octubre</label><div class="ig"><input class="ceto" id="ce9" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Noviembre</label><div class="ig"><input class="ceto" id="ce10" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="ceto" id="ce11" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
     </div>
     <div id="c-agro" style="margin-top:14px"></div>
     
@@ -950,37 +1001,54 @@ select option{background:var(--white)}
     <div class="fg" style="margin-top:16px">
       <div class="f"><label>Cultivo / Kc <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(DT-05 CNR)</span><span class="tip" onclick="showTip(this)" title="Coeficiente de cultivo Kc para el mes de máxima demanda, según Tabla DT-05 CNR." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="g-kc" style="width:100%;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="syncKcVal('g')">
   <option value="">— Seleccione cultivo —</option>
-  <optgroup label="Frutales">
-    <option value="1.15">Uva de mesa / vinificación — Kc 1.15</option>
-    <option value="1.10">Manzano / Peral — Kc 1.10</option>
-    <option value="1.10">Duraznero / Nectarino — Kc 1.10</option>
-    <option value="1.05">Ciruelo / Damasco — Kc 1.05</option>
-    <option value="1.00">Cerezo — Kc 1.00</option>
-    <option value="1.00">Nogal / Almendro — Kc 1.00</option>
-    <option value="0.85">Palto — Kc 0.85</option>
-    <option value="0.90">Olivo — Kc 0.90</option>
+  <optgroup label="Frutales (DT-05 CNR)">
+    <option value="1.15">Vid de mesa — Kc 1.15 (rango DT-05: 1.00–1.30)</option>
+    <option value="0.55">Vides viníferas — Kc 0.55 (rango DT-05: 0.50–0.60)</option>
+    <option value="1.15">Manzano — Kc 1.15 (rango DT-05: 1.05–1.25)</option>
+    <option value="1.08">Peral — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.08">Duraznero / Nectarino — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.03">Ciruelo — Kc 1.03 (rango DT-05: 0.90–1.15)</option>
+    <option value="0.98">Damasco — Kc 0.98 (rango DT-05: 0.80–1.15)</option>
+    <option value="1.13">Cerezo — Kc 1.13 (rango DT-05: 1.00–1.25)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="1.00">Almendro — Kc 1.00 (rango DT-05: 0.95–1.05)</option>
+    <option value="0.80">Palto — Kc 0.80 (rango DT-05: 0.75–0.85)</option>
+    <option value="0.60">Olivo para aceite — Kc 0.60 (rango DT-05: 0.40–0.80)</option>
+    <option value="0.65">Olivo para mesa — Kc 0.65 (rango DT-05: 0.50–0.80)</option>
+    <option value="0.30">Tuna — Kc 0.30 (rango DT-05: 0.25–0.35)</option>
+    <option value="1.15">Kiwi — Kc 1.15 (rango DT-05: 1.10–1.20)</option>
+    <option value="0.75">Naranjo — Kc 0.75 (rango DT-05: 0.65–0.90)</option>
+    <option value="0.70">Limonero — Kc 0.70 (rango DT-05: 0.60–0.80)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="0.80">Arándano — Kc 0.80 (rango DT-05: 0.60–1.00)</option>
+    <option value="0.75">Frambuesa — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.75">Avellano Europeo — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.88">Granado — Kc 0.88 (rango DT-05: 0.80–0.95)</option>
+    <option value="1.20">Pistacho — Kc 1.20 (rango DT-05: 1.10–1.30)</option>
   </optgroup>
-  <optgroup label="Hortalizas y anuales">
-    <option value="1.20">Maíz grano / choclo — Kc 1.20</option>
-    <option value="1.10">Tomate — Kc 1.10</option>
-    <option value="1.05">Papa — Kc 1.05</option>
-    <option value="1.05">Zanahoria / Remolacha — Kc 1.05</option>
-    <option value="1.00">Zapallo / Melón / Sandía — Kc 1.00</option>
-    <option value="0.95">Lechuga / Espinaca — Kc 0.95</option>
-    <option value="0.90">Cebolla / Ajo — Kc 0.90</option>
+  <optgroup label="Hortalizas y anuales (DT-05 CNR)">
+    <option value="1.05">Maíz — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Tomate — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Papas — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Remolacha — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Espárragos — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.10">Arroz — Kc 1.10 (rango DT-05: 1.05–1.15)</option>
+    <option value="1.03">Tabaco — Kc 1.03 (rango DT-05: 0.95–1.10)</option>
   </optgroup>
-  <optgroup label="Praderas y forrajeras">
-    <option value="1.00">Alfalfa — Kc 1.00</option>
-    <option value="0.85">Pradera permanente — Kc 0.85</option>
-    <option value="0.80">Pradera temporal — Kc 0.80</option>
-    <option value="1.00">Trébol — Kc 1.00</option>
+  <optgroup label="Praderas y forrajeras (DT-05 CNR)">
+    <option value="0.93">Alfalfa — Kc 0.93 (rango DT-05: 0.85–1.00)</option>
+    <option value="0.98">Pradera — Kc 0.98 (rango DT-05: 0.90–1.05)</option>
   </optgroup>
-  <optgroup label="Cereales">
-    <option value="1.10">Trigo / Cebada — Kc 1.10</option>
-    <option value="0.95">Avena — Kc 0.95</option>
+  <optgroup label="Sin valor oficial DT-05 — verificar con estudio local">
+    <option value="custom">Zanahoria (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Zapallo / Melón / Sandía (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Lechuga / Espinaca (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Cebolla / Ajo (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trigo / Cebada / Avena (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trébol (no está en DT-05; use Pradera o ingrese manual) — Ingresar manual</option>
   </optgroup>
   <optgroup label="Otro">
-    <option value="custom">Ingresar manualmente…</option>
+    <option value="custom">Ingresar manualmente… (respaldar con estudio local — ITT-03)</option>
   </optgroup>
 </select>
 <input id="g-kc-manual" type="number" step=".01" min=".3" max="1.3" placeholder="Kc manual" style="display:none;width:100%;margin-top:5px;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"></div>
@@ -988,12 +1056,20 @@ select option{background:var(--white)}
       <div class="f"><label>Días del Mes Crítico</label><div class="ig"><input id="g-dias" type="number" placeholder="31"><span class="isuf">días</span></div></div>
     </div>
     <hr class="sep">
-    <div class="sl">ETo trimestre crítico <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Dic · Ene · Feb)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Evapotranspiración de referencia (ETo) del trimestre de máxima demanda. Seleccione la zona CNR para cargar valores automáticamente, o ingréselos manualmente.">?</span></div>
+    <div class="sl">ETo mensual <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ingrese los 12 meses; el sistema toma el mayor)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Ingrese el ETo mensual (mm/mes) obtenido por el consultor para el punto GPS del proyecto (criterio CNR actual vía georreferenciación). El sistema selecciona automáticamente el mes de mayor demanda entre los 12 valores ingresados.">?</span></div>
     <div class="fg fg3">
-      <div class="f" style="grid-column:1/-1"><label>Zona ETp <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Agrimed/CNR 2016)</span><span class="tip" onclick="showTip(this)" title="Seleccione la zona agroclimática CNR correspondiente al predio. Los valores de ETo mensual (Dic, Ene, Feb) se pre-cargarán automáticamente." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><div style="display:flex;gap:8px;align-items:center"><select id="g-zona" style="flex:1;padding:6px 8px;border:1.5px solid var(--fog);border-radius:6px;font-family:var(--mono);font-size:.77rem;outline:none" onchange="fillEto('g')"><option value="">— Seleccione zona —</option><option value="I">Zona I (Arica-Iquique)</option><option value="II">Zona II (Antofagasta)</option><option value="III">Zona III (Atacama)</option><option value="IV">Zona IV (Coquimbo)</option><option value="V">Zona V (Valparaíso)</option><option value="VI">Zona VI (O'Higgins)</option><option value="VII">Zona VII (Maule)</option><option value="VIII">Zona VIII (Biobío)</option><option value="IX">Zona IX (La Araucanía)</option><option value="X">Zona X (Los Lagos)</option><option value="XI">Zona XI (Aysén)</option><option value="XVI">Zona XVI (Ñuble)</option></select><button class="btn bc" style="padding:6px 11px;font-size:.75rem" onclick="fillEto('g')">↺ Cargar ETo</button></div></div>
-      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="geto" id="ge11" type="number" step=".1" placeholder="458"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Enero</label><div class="ig"><input class="geto" id="ge0" type="number" step=".1" placeholder="486"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="geto" id="ge1" type="number" step=".1" placeholder="422"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Enero</label><div class="ig"><input class="geto" id="ge0" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="geto" id="ge1" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Marzo</label><div class="ig"><input class="geto" id="ge2" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Abril</label><div class="ig"><input class="geto" id="ge3" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Mayo</label><div class="ig"><input class="geto" id="ge4" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Junio</label><div class="ig"><input class="geto" id="ge5" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Julio</label><div class="ig"><input class="geto" id="ge6" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Agosto</label><div class="ig"><input class="geto" id="ge7" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Septiembre</label><div class="ig"><input class="geto" id="ge8" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Octubre</label><div class="ig"><input class="geto" id="ge9" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Noviembre</label><div class="ig"><input class="geto" id="ge10" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="geto" id="ge11" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
     </div>
     <button class="btn bc" onclick="calcGA()">⚡ Calcular diseño agronómico</button>
     <div id="g-agro" style="margin-top:14px"></div>
@@ -1243,49 +1319,74 @@ select option{background:var(--white)}
     <div class="fg">
       <div class="f"><label>Cultivo / Kc <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(DT-05 CNR)</span><span class="tip" onclick="showTip(this)" title="Coeficiente de cultivo Kc para el mes de máxima demanda, según Tabla DT-05 CNR." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="m-kc" style="width:100%;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="syncKcVal('m')">
   <option value="">— Seleccione cultivo —</option>
-  <optgroup label="Frutales">
-    <option value="1.15">Uva de mesa / vinificación — Kc 1.15</option>
-    <option value="1.10">Manzano / Peral — Kc 1.10</option>
-    <option value="1.10">Duraznero / Nectarino — Kc 1.10</option>
-    <option value="1.05">Ciruelo / Damasco — Kc 1.05</option>
-    <option value="1.00">Cerezo — Kc 1.00</option>
-    <option value="1.00">Nogal / Almendro — Kc 1.00</option>
-    <option value="0.85">Palto — Kc 0.85</option>
-    <option value="0.90">Olivo — Kc 0.90</option>
+  <optgroup label="Frutales (DT-05 CNR)">
+    <option value="1.15">Vid de mesa — Kc 1.15 (rango DT-05: 1.00–1.30)</option>
+    <option value="0.55">Vides viníferas — Kc 0.55 (rango DT-05: 0.50–0.60)</option>
+    <option value="1.15">Manzano — Kc 1.15 (rango DT-05: 1.05–1.25)</option>
+    <option value="1.08">Peral — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.08">Duraznero / Nectarino — Kc 1.08 (rango DT-05: 1.00–1.15)</option>
+    <option value="1.03">Ciruelo — Kc 1.03 (rango DT-05: 0.90–1.15)</option>
+    <option value="0.98">Damasco — Kc 0.98 (rango DT-05: 0.80–1.15)</option>
+    <option value="1.13">Cerezo — Kc 1.13 (rango DT-05: 1.00–1.25)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="1.00">Almendro — Kc 1.00 (rango DT-05: 0.95–1.05)</option>
+    <option value="0.80">Palto — Kc 0.80 (rango DT-05: 0.75–0.85)</option>
+    <option value="0.60">Olivo para aceite — Kc 0.60 (rango DT-05: 0.40–0.80)</option>
+    <option value="0.65">Olivo para mesa — Kc 0.65 (rango DT-05: 0.50–0.80)</option>
+    <option value="0.30">Tuna — Kc 0.30 (rango DT-05: 0.25–0.35)</option>
+    <option value="1.15">Kiwi — Kc 1.15 (rango DT-05: 1.10–1.20)</option>
+    <option value="0.75">Naranjo — Kc 0.75 (rango DT-05: 0.65–0.90)</option>
+    <option value="0.70">Limonero — Kc 0.70 (rango DT-05: 0.60–0.80)</option>
+    <option value="1.00">Nogal — Kc 1.00 (rango DT-05: 0.90–1.10)</option>
+    <option value="0.80">Arándano — Kc 0.80 (rango DT-05: 0.60–1.00)</option>
+    <option value="0.75">Frambuesa — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.75">Avellano Europeo — Kc 0.75 (rango DT-05: 0.70–0.80)</option>
+    <option value="0.88">Granado — Kc 0.88 (rango DT-05: 0.80–0.95)</option>
+    <option value="1.20">Pistacho — Kc 1.20 (rango DT-05: 1.10–1.30)</option>
   </optgroup>
-  <optgroup label="Hortalizas y anuales">
-    <option value="1.20">Maíz grano / choclo — Kc 1.20</option>
-    <option value="1.10">Tomate — Kc 1.10</option>
-    <option value="1.05">Papa — Kc 1.05</option>
-    <option value="1.05">Zanahoria / Remolacha — Kc 1.05</option>
-    <option value="1.00">Zapallo / Melón / Sandía — Kc 1.00</option>
-    <option value="0.95">Lechuga / Espinaca — Kc 0.95</option>
-    <option value="0.90">Cebolla / Ajo — Kc 0.90</option>
+  <optgroup label="Hortalizas y anuales (DT-05 CNR)">
+    <option value="1.05">Maíz — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Tomate — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Papas — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Remolacha — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.05">Espárragos — Kc 1.05 (rango DT-05: 1.00–1.10)</option>
+    <option value="1.10">Arroz — Kc 1.10 (rango DT-05: 1.05–1.15)</option>
+    <option value="1.03">Tabaco — Kc 1.03 (rango DT-05: 0.95–1.10)</option>
   </optgroup>
-  <optgroup label="Praderas y forrajeras">
-    <option value="1.00">Alfalfa — Kc 1.00</option>
-    <option value="0.85">Pradera permanente — Kc 0.85</option>
-    <option value="0.80">Pradera temporal — Kc 0.80</option>
-    <option value="1.00">Trébol — Kc 1.00</option>
+  <optgroup label="Praderas y forrajeras (DT-05 CNR)">
+    <option value="0.93">Alfalfa — Kc 0.93 (rango DT-05: 0.85–1.00)</option>
+    <option value="0.98">Pradera — Kc 0.98 (rango DT-05: 0.90–1.05)</option>
   </optgroup>
-  <optgroup label="Cereales">
-    <option value="1.10">Trigo / Cebada — Kc 1.10</option>
-    <option value="0.95">Avena — Kc 0.95</option>
+  <optgroup label="Sin valor oficial DT-05 — verificar con estudio local">
+    <option value="custom">Zanahoria (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Zapallo / Melón / Sandía (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Lechuga / Espinaca (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Cebolla / Ajo (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trigo / Cebada / Avena (no está en DT-05) — Ingresar manual</option>
+    <option value="custom">Trébol (no está en DT-05; use Pradera o ingrese manual) — Ingresar manual</option>
   </optgroup>
   <optgroup label="Otro">
-    <option value="custom">Ingresar manualmente…</option>
+    <option value="custom">Ingresar manualmente… (respaldar con estudio local — ITT-03)</option>
   </optgroup>
 </select>
 <input id="m-kc-manual" type="number" step=".01" min=".3" max="1.3" placeholder="Kc manual" style="display:none;width:100%;margin-top:5px;padding:5px 8px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"></div>
       <div class="f"><label>ETo Mes Crítico [mm/mes]</label><div class="ig"><input id="m-etom" type="number" step=".1" placeholder="auto"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Días del Mes Crítico</label><div class="ig"><input id="m-dias" type="number" placeholder="31"><span class="isuf">días</span></div></div>
     </div>
-    <div class="sl">ETo trimestre crítico <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Dic · Ene · Feb)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Evapotranspiración de referencia (ETo) del trimestre de máxima demanda. Seleccione la zona CNR para cargar valores automáticamente, o ingréselos manualmente.">?</span></div>
+    <div class="sl">ETo mensual <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ingrese los 12 meses; el sistema toma el mayor)</span><span class="tip" onclick="showTip(this)" style="cursor:pointer" title="Ingrese el ETo mensual (mm/mes) obtenido por el consultor para el punto GPS del proyecto (criterio CNR actual vía georreferenciación). El sistema selecciona automáticamente el mes de mayor demanda entre los 12 valores ingresados.">?</span></div>
     <div class="fg fg3">
-      <div class="f" style="grid-column:1/-1"><label>Zona ETp <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(Agrimed/CNR 2016)</span><span class="tip" onclick="showTip(this)" title="Seleccione la zona agroclimática CNR correspondiente al predio. Los valores de ETo mensual (Dic, Ene, Feb) se pre-cargarán automáticamente." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><div style="display:flex;gap:8px;align-items:center"><select id="m-zona" style="flex:1;padding:6px 8px;border:1.5px solid var(--fog);border-radius:6px;font-family:var(--mono);font-size:.77rem;outline:none" onchange="fillEto('m')"><option value="">— Seleccione zona —</option><option value="I">Zona I (Arica-Iquique)</option><option value="II">Zona II (Antofagasta)</option><option value="III">Zona III (Atacama)</option><option value="IV">Zona IV (Coquimbo)</option><option value="V">Zona V (Valparaíso)</option><option value="VI">Zona VI (O'Higgins)</option><option value="VII">Zona VII (Maule)</option><option value="VIII">Zona VIII (Biobío)</option><option value="IX">Zona IX (La Araucanía)</option><option value="X">Zona X (Los Lagos)</option><option value="XI">Zona XI (Aysén)</option><option value="XVI">Zona XVI (Ñuble)</option></select><button class="btn bc" style="padding:6px 11px;font-size:.75rem" onclick="fillEto('m')">↺ Cargar ETo</button></div></div>
-      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="meto" id="me11" type="number" step=".1" placeholder="458"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Enero</label><div class="ig"><input class="meto" id="me0" type="number" step=".1" placeholder="486"><span class="isuf">mm</span></div></div>
-      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="meto" id="me1" type="number" step=".1" placeholder="422"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Enero</label><div class="ig"><input class="meto" id="me0" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Febrero</label><div class="ig"><input class="meto" id="me1" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Marzo</label><div class="ig"><input class="meto" id="me2" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Abril</label><div class="ig"><input class="meto" id="me3" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Mayo</label><div class="ig"><input class="meto" id="me4" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Junio</label><div class="ig"><input class="meto" id="me5" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Julio</label><div class="ig"><input class="meto" id="me6" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Agosto</label><div class="ig"><input class="meto" id="me7" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Septiembre</label><div class="ig"><input class="meto" id="me8" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Octubre</label><div class="ig"><input class="meto" id="me9" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Noviembre</label><div class="ig"><input class="meto" id="me10" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>ETo Diciembre</label><div class="ig"><input class="meto" id="me11" type="number" step=".1" placeholder="—"><span class="isuf">mm</span></div></div>
     </div>
     
     <button class="btn bc" onclick="calcMA()">⚡ Calcular</button>
@@ -1985,12 +2086,7 @@ function autoS(p){const t=document.getElementById(p+'-tex').value;if(!t||!SDB[t]
 // ITT-03 §1 (CNR 2017): AD=(CC-PMP)/100×Da×Prof(m)×1000 [mm]
 // Dn=AD×(crit/100)  |  Fr=floor(Dn/ETc_día)
 // Se llama desde calcAA/CA/GA/MA para mantener datos actualizados en el informe
-function calcAD(p){
-  const cc=v(p+'-cc'), pmp=v(p+'-pmp'), da=v(p+'-da'), pr=v(p+'-pr');
-  if(!cc||!pmp||!da||!pr||pmp>=cc) return;
-  // Los valores quedan en R.AA/CA/GA/MA — no se necesita div extra aquí
-  // (los resultados AD/Dn/Fr ya se muestran en el D. Agronómico del paso 3)
-}
+
 function etoMax(cls){
   // ceto (carrete) usa ids ce0/ce1/ce11; los demás usan su prefijo
   var pfx=cls.charAt(0);
@@ -2031,9 +2127,12 @@ function calcAA(){
   const frAdj=Math.floor(fr)||1;
   const dnAdj=etc*frAdj;
   const db=dnAdj/(ef/100);
-  R.AA={etp,etc,ha,dn,fr,frAdj,dnAdj,db,kc,etoM,dias,mesC:em.mes,cc,pmp,da,pr,crit,ef,cultivo:document.getElementById('a-cult')?.value||'—'};
-  calcAD('a');
-  const d=document.getElementById('a-agro');
+  // Sup. de Riego Seguro (ITT-03 §1): SIEMPRE con demanda DIARIA, no con Db de Fr días
+  const dbDiario=etc/(ef/100);
+  const qDispA=v('a-q',3), demLsHaA=dbDiario/8.64, supSegA=qDispA/demLsHaA;
+  const supProyA=v('a-strie',2.3);
+  R.AA={etp,etc,ha,dn,fr,frAdj,dnAdj,db,kc,etoM,dias,mesC:em.mes,cc,pmp,da,pr,crit,ef,demLsHa:demLsHaA,supSeg:supSegA,cultivo:document.getElementById('a-cult')?.value||'—'};
+    const d=document.getElementById('a-agro');
   d.style.display='block';
   d.innerHTML=`
   <div class="calc-section">
@@ -2074,6 +2173,13 @@ function calcAA(){
     <tr><td>Dn ajustada</td><td class="un">ETc × Fr_adj</td><td class="vr">${fd(dnAdj,3)}</td><td class="un">mm</td></tr>
     <tr><td>Db (demanda bruta)</td><td class="un">Dn_adj / Ef</td><td class="vr">${fd(db,3)}</td><td class="un">mm</td></tr>
     </table>
+    ${fbox('Sup. de Riego Seguro (ITT-03 §1 — base diaria)',[
+      {eq:`Db_diario = ETc/Ef = ${fd(etc,3)}/${fd((ef/100),2)}`,res:`${fd(dbDiario,3)} mm/día`},
+      {eq:`q = Db_diario/8,64 = ${fd(dbDiario,4)}/8,64`,res:`${fd(demLsHaA,4)} l/s/ha`},
+      {eq:`A_segura = Q_disponible/q = ${qDispA}/${fd(demLsHaA,4)}`,res:`${fd(supSegA,4)} ha`},
+      {note:'Superficie máx. regable en 24h con el caudal disponible (independiente de la rotación por posturas)'}
+    ])}
+    ${supSegA<supProyA?al(`⚠ Sup. segura (${fd(supSegA,4)} ha) < Sup. proyecto (${supProyA} ha). Verificar caudal disponible.`,'w'):al(`✓ Caudal disponible (${qDispA} l/s) suficiente para regar ${fd(supSegA,4)} ha. Proyecto: ${supProyA} ha.`,'ok')}
   </div>`;
   setTimeout(()=>calcBalance('asp'),100);
 }
@@ -2212,9 +2318,12 @@ function calcCA(){
   const etp=etoM/dias, etc=etp*kc;
   const ha=(cc-pmp)*da*(pr/100)*10;
   const dn=ha*crit/100, fr=dn/etc, frAdj=Math.floor(fr)||1, dnAdj=etc*frAdj, db=dnAdj/(ef/100);
-  R.CA={etp,etc,ha,dn,fr,frAdj,dnAdj,db,kc,etoM,dias,mesC:em.mes,cultivo:document.getElementById('c-cult')?.value||'—'};
-  calcAD('c');
-  setTimeout(()=>calcBalance('car'),80);
+  // Sup. de Riego Seguro (ITT-03 §1): SIEMPRE con demanda DIARIA, no con Db de Fr días
+  const dbDiarioC=etc/(ef/100);
+  const qDispC=v('c-q',17.756), demLsHaC=dbDiarioC/8.64, supSegC=qDispC/demLsHaC;
+  const supProyC=v('c-supr',4.85);
+  R.CA={etp,etc,ha,dn,fr,frAdj,dnAdj,db,kc,etoM,dias,mesC:em.mes,demLsHa:demLsHaC,supSeg:supSegC,cultivo:document.getElementById('c-cult')?.value||'—'};
+    setTimeout(()=>calcBalance('car'),80);
   document.getElementById('c-agro').innerHTML=`
   <div class="calc-section">
     <div class="cs-title">Diseño Agronómico</div>
@@ -2237,6 +2346,13 @@ function calcCA(){
     <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → ⌊Fr⌋</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
     <tr><td>Db (demanda bruta)</td><td class="un">(ETc×Fr_adj) / Ef</td><td class="vr">${fd(db,3)}</td><td class="un">mm</td></tr>
     </table>
+    ${fbox('Sup. de Riego Seguro (ITT-03 §1 — base diaria)',[
+      {eq:`Db_diario = ETc/Ef = ${fd(etc,3)}/${fd((ef/100),2)}`,res:`${fd(dbDiarioC,3)} mm/día`},
+      {eq:`q = Db_diario/8,64 = ${fd(dbDiarioC,4)}/8,64`,res:`${fd(demLsHaC,4)} l/s/ha`},
+      {eq:`A_segura = Q_disponible/q = ${qDispC}/${fd(demLsHaC,4)}`,res:`${fd(supSegC,4)} ha`},
+      {note:'Superficie máx. regable en 24h con el caudal disponible (independiente de la rotación por posturas)'}
+    ])}
+    ${supSegC<supProyC?al(`⚠ Sup. segura (${fd(supSegC,4)} ha) < Sup. proyecto (${supProyC} ha). Verificar caudal disponible.`,'w'):al(`✓ Caudal disponible (${qDispC} l/s) suficiente para regar ${fd(supSegC,4)} ha. Proyecto: ${supProyC} ha.`,'ok')}
   </div>`;
 }
 function calcCarP(){
@@ -2370,8 +2486,7 @@ function calcGA(){
   const demLsHa=db/8.64;                    // CORRECTO: db[mm/día] / 8.64
   const supSeg=qDisp/demLsHa;
   R.GA={etp,etc,db,kc,etoM,dias,mesC:em.mes,demLsHa,supSeg,ef,cultivo:document.getElementById('g-cult')?.value||'—'};
-  calcAD('g');
-  const supProyecto=v('g-sup',0.144);
+    const supProyecto=v('g-sup',0.144);
   document.getElementById('g-agro').innerHTML=`
   <div class="calc-section">
     <div class="cs-title">Diseño Agronómico — Goteo</div>
@@ -3336,10 +3451,10 @@ function initSectores(sys){
 //  SISTEMA DE PROYECTOS — guardar y cargar
 // ════════════════════════════════════════════════════
 const FIELD_IDS = {
-  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-tex", "a-serie", "a-pend", "a-cc", "a-pmp", "a-da", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-hs", "a-dz", "ae0", "ae1",          "ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
-  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-tex", "c-serie", "c-cc", "c-pmp", "c-da", "c-pr", "c-crit", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0", "ce1",          "ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-pres", "c-desc", "c-radio", "c-vv", "c-fv", "c-lf", "c-va", "c-pb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
-  got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-tex", "g-serie", "g-cc", "g-pmp", "g-da", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-hs", "g-dz", "ge0", "ge1",          "ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
-  mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-hs","m-dz","me0","me1","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
+  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-tex", "a-serie", "a-pend", "a-cc", "a-pmp", "a-da", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
+  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-tex", "c-serie", "c-cc", "c-pmp", "c-da", "c-pr", "c-crit", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-pres", "c-desc", "c-radio", "c-vv", "c-fv", "c-lf", "c-va", "c-pb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
+  got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-tex", "g-serie", "g-cc", "g-pmp", "g-da", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
+  mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
 };
 
 
@@ -5289,43 +5404,9 @@ function showToast(msg){
 // M3/M4 — Datos ETp por Zona CNR (Agrimed/Corfo/U.Chile/CNR 2016)
 // Valores: ETo media Dic, Ene, Feb [mm/mes] para cada zona
 // ═══════════════════════════════════════════════════════════════════
-const ETO_ZONAS = {
-  // Fuente: FT-04 CNR Agrimed 2016 — ETo mm/día × días del mes (Dic=31, Ene=31, Feb=28)
-  'I':   {nom:'Zona I (Arica-Iquique)',    dic:313, ene:279, feb:244},
-  'II':  {nom:'Zona II (Antofagasta)',      dic:313, ene:294, feb:256},
-  'III': {nom:'Zona III (Atacama)',         dic:433, ene:451, feb:330},
-  'IV':  {nom:'Zona IV (Coquimbo)',         dic:426, ene:422, feb:315},
-  'V':   {nom:'Zona V (Valparaíso)',        dic:312, ene:362, feb:316},
-  'VI':  {nom:'Zona VI (O\'Higgins)',      dic:476, ene:506, feb:358},
-  'VII': {nom:'Zona VII (Maule)',           dic:499, ene:529, feb:359},
-  'VIII':{nom:'Zona VIII (Biobío)',         dic:512, ene:536, feb:359},
-  'IX':  {nom:'Zona IX (La Araucanía)',     dic:629, ene:509, feb:336},
-  'X':   {nom:'Zona X (Los Lagos)',         dic:532, ene:542, feb:372},
-  'XI':  {nom:'Zona XI (Aysén)',            dic:546, ene:540, feb:355},
-  'XVI': {nom:'Zona XVI (Ñuble)',            dic:512, ene:536, feb:359},
-};
 
-function fillEto(pfx){
-  // Leer zona desde el selector del paso 2 o del paso 3 (carrete tiene ambos)
-  const zonaEl = document.getElementById(pfx+'-zona') || document.getElementById(pfx+'-zona-3');
-  const zona = zonaEl?.value;
-  if(!zona || !ETO_ZONAS[zona]) return;
-  const z = ETO_ZONAS[zona];
-  const setV = (id, val) => { const el=document.getElementById(id); if(el) el.value=val; };
-  const mp = {a:'ae', g:'ge', m:'me', c:'ce'}[pfx] || pfx+'e';
-  setV(mp+'11', z.dic);
-  setV(mp+'0',  z.ene);
-  setV(mp+'1',  z.feb);
-  // Para goteo: también actualizar los inputs espejo en paso 3
-  // Sincronizar selectores espejo entre pasos 2 y 3
-  const mirror = document.getElementById(pfx+'-zona-3');
-  if(mirror && mirror !== zonaEl) mirror.value = zona;
-  const mirror2 = document.getElementById(pfx+'-zona');
-  if(mirror2 && mirror2 !== zonaEl) mirror2.value = zona;
-  const mirror3 = document.getElementById(pfx+'-zona-2');
-  if(mirror3 && mirror3 !== zonaEl) mirror3.value = zona;
-  lsSet('dr_zona_'+pfx, zona);
-}
+
+
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -5946,38 +6027,38 @@ function calcMA(){
   if(el_dias) el_dias.value=dias;
   var kc=getKcVal('m'), ef=v('m-ef',85), qDisp=v('m-q',0.4);
   var etp=etoM/dias, etc=etp*kc, db=etc/(ef/100);
+  // demLsHa/supSeg SIEMPRE con demanda DIARIA (db=ETc/Ef), nunca con la lámina Fr-días
+  // (microaspersión es riego localizado como goteo — ITT-03 no exige AD/Dn/Fr aquí;
+  //  se mantiene AD/Dn/Fr solo como dato informativo adicional, ver tabla de dudas)
   var demLsHa=db/8.64, supSeg=qDisp/demLsHa;
-  // AD/Dn/Fr — igual que goteo (ITT-03 §1)
   var cc=v('m-cc',22),pmp=v('m-pmp',10),da=v('m-da',1.4),pr=v('m-pr',60),crit=v('m-crit',50);
   var ha=(cc-pmp)*da*(pr/100)*10;
   var dn=ha*crit/100;
   var fr=dn/etc;
   var frAdj=Math.floor(fr)||1;
   var dnAdj=etc*frAdj;
-  var dbAdj=dnAdj/(ef/100);
-  R.MA={etp,etc,db:dbAdj,kc,etoM,dias,mesC:em.mes,demLsHa,supSeg,ef,
+  R.MA={etp,etc,db,kc,etoM,dias,mesC:em.mes,demLsHa,supSeg,ef,
         ha,dn,fr,frAdj,dnAdj,cc,pmp,da,pr,crit,
         cultivo:document.getElementById('m-cult')?document.getElementById('m-cult').value||'—':'—'};
-  calcAD('m');
-  var supProy=v('m-sup',0.5);
+    var supProy=v('m-sup',0.5);
   var elA=document.getElementById('m-agro');
   if(!elA) return;
   elA.innerHTML='<div class="calc-section"><div class="cs-title">Diseño Agronómico — Microaspersión</div>'
-    +fbox('ETo/ETc/Db',[
+    +fbox('ETo/ETc/Db (demanda DIARIA — riego localizado)',[
       {eq:'ETo='+fd(etoM,1)+'/'+dias,res:fd(etp,3)+' mm/día'},
       {eq:'ETc=ETo×Kc='+fd(etp,3)+'×'+kc,res:fd(etc,3)+' mm/día'},
-      {eq:'Db=ETc/Ef='+fd(etc,3)+'/'+fd((ef/100),2),res:fd(dbAdj,3)+' mm/día'},
+      {eq:'Db=ETc/Ef='+fd(etc,3)+'/'+fd((ef/100),2),res:fd(db,3)+' mm/día'},
       {note:'Ef. Microaspersión='+ef+'% | Mes crítico: '+em.mes}
     ])
-    +fbox('AD/Dn/Fr (suelo)',[
+    +fbox('AD/Dn/Fr (referencia informativa de suelo — NO se usa para Db)',[
       {eq:'AD=(CC−PMP)/100×Da×Prof(m)×1000=('+cc+'−'+pmp+')/100×'+da+'×'+fd(pr/100,2)+'×1000',res:fd(ha,2)+' mm'},
       {eq:'Dn=AD×fa='+fd(ha,2)+'×'+fd(crit/100,2),res:fd(dn,3)+' mm'},
       {eq:'Fr=Dn/ETc → ⌊Fr⌋='+fd(fr,2),res:frAdj+' días'},
       {eq:'Dn adj=ETc×Fr='+fd(etc,3)+'×'+frAdj,res:fd(dnAdj,3)+' mm'},
-      {note:'CC='+cc+'% | PMP='+pmp+'% | Da='+da+' | Prof='+pr+' cm | fa='+fd(crit/100,2)}
+      {note:'CC='+cc+'% | PMP='+pmp+'% | Da='+da+' | Prof='+pr+' cm | fa='+fd(crit/100,2)+' — Microaspersión es riego localizado (igual que goteo); Db diario no depende de Fr.'}
     ])
     +fbox('Sup. de Riego Seguro',[
-      {eq:'q=Db/8,64='+fd(dbAdj,4)+'/8,64',res:fd(demLsHa,4)+' l/s/ha'},
+      {eq:'q=Db/8,64='+fd(db,4)+'/8,64',res:fd(demLsHa,4)+' l/s/ha'},
       {eq:'A=Q/q='+qDisp+'/'+fd(demLsHa,4),res:fd(supSeg,4)+' ha'}
     ])
     +(supSeg<supProy?al('⚠ Sup.segura ('+fd(supSeg,4)+' ha) < Proyecto ('+supProy+' ha). Verificar caudal.','w'):al('✓ Q='+qDisp+' l/s suficiente para '+fd(supSeg,4)+' ha.','ok'))

@@ -1,5 +1,5 @@
 """Exporta los datos del Chequeo de Cálculos al formato de archivo del Diseñador de Riego
-(la app hermana del mismo usuario, `disenador_riego_v98.html`), para poder abrirlo ahí y seguir
+(la app hermana del mismo usuario, `disenador_riego_v99.html`), para poder abrirlo ahí y seguir
 evaluando aspectos que no cubre Revisor CNR — sin recargar Revisor con esos cálculos.
 
 REGLA: solo se exportan los datos que Revisor efectivamente tiene (extraídos/validados en el

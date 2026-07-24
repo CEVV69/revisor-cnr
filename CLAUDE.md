@@ -1330,6 +1330,13 @@ Agronómico de `calculos.html`.
   ANTES de importar (el prefijo de campos del archivo —g-/a-/…— debe coincidir con el sistema
   activo). Si se actualiza el HTML del Diseñador, reemplazar `static/disenador_riego_v97.html` (y
   si cambia el nombre de archivo, actualizar el enlace en `calculos.html`).
+  **Actualizado a v99 (jul-2026):** v97→v98 (ver entrada del Acumulador más abajo) y luego
+  v98→v99 — el usuario subió el archivo nuevo, se reemplazó `static/disenador_riego_v98.html`
+  por `static/disenador_riego_v99.html` (el archivo viejo se borra del repo, no se acumulan
+  versiones) y se actualizó el link en `calculos.html` + la referencia en el docstring de
+  `exportar_disenador.py`. No se abrió el archivo para verificar cambios de campos/fórmulas —
+  el usuario no reportó ninguno; si en el futuro pide portar un cambio puntual del Diseñador
+  (como con el Acumulador), ahí sí corresponde leer el HTML nuevo antes de tocar código.
 
 **Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
 exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en
