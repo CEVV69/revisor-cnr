@@ -485,6 +485,16 @@ adivina ni se muestra un pin en un lugar incorrecto.
   observación (descartar/reclasificar a nota/editar) directamente desde la conversación
 - Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
+  **Fix de destello blanco al navegar (jul-2026):** el cálculo de si toca modo oscuro vivía en
+  un `<script>` al final del `<body>` — con navegación de página completa (sin SPA), cada
+  cambio de página pintaba primero en claro y recién al final aplicaba `dark-mode`, un destello
+  molesto reportado por el usuario (más notorio ahora que la navegación entre páginas del
+  proyecto es más rápida, ver la separación del texto extraído del blob del proyecto más
+  arriba). Se movió el cálculo (localStorage + hora automática) a un `<script>` sincrónico al
+  inicio del `<head>`, antes de cualquier `<link>`/`<style>` — corre y aplica la clase
+  `dark-mode` al `<html>` antes de que el navegador pinte nada. El script del final del `<body>`
+  quedó solo con lo que sí necesita el DOM ya cargado: actualizar el ícono sol/luna y el
+  `toggleModo()` manual.
 - **Estados del proyecto (5, jul-2026):** En revisión · Observado · Con respuesta Observaciones ·
   Aprobado Técnicamente · Rechazado — única fuente de verdad: `ESTADOS_PROYECTO` (lista, define
   también el orden del selector) + `ESTADOS_PROYECTO_BADGE` (clase `badge-*` para el color) +
@@ -516,6 +526,9 @@ adivina ni se muestra un pin en un lugar incorrecto.
   pide el campo `tipo_revision` (un campo menos en la proyección liviana). El botón "Eliminar"
   de cada fila pasó a mostrar solo "×" (con `title="Eliminar proyecto"` para accesibilidad) —
   mismo `confirm()` de siempre, solo cambia el texto visible.
+  **Separado de "Abrir" (jul-2026):** al quedar tan angosto, el botón "×" terminó muy pegado a
+  "Abrir" — fácil de apretar por error. Se le agregó `margin-left:1.5rem` al form que lo
+  contiene para separarlo con claridad.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"

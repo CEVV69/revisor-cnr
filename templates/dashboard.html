@@ -30,7 +30,7 @@
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
         <td style="white-space:nowrap;">
           <a href="/proyecto/{{ p.id }}" class="btn btn-outline btn-sm">Abrir</a>
-          <form method="post" action="/proyecto/{{ p.id }}/eliminar" style="display:inline"
+          <form method="post" action="/proyecto/{{ p.id }}/eliminar" style="display:inline; margin-left:1.5rem;"
                 onsubmit="return confirm('¿Eliminar el proyecto {{ p.codigo_sep }}? Esta acción no se puede deshacer.')">
             <button type="submit" class="btn btn-danger btn-sm" title="Eliminar proyecto" style="padding-left:0.5rem; padding-right:0.5rem;">×</button>
           </form>
