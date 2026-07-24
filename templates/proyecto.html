@@ -289,8 +289,12 @@
         {% if proyecto.estado == 'En revisión' %}● En revisión ▾
         {% else %}{{ proyecto.estado }} ▾{% endif %}
       </button>
+      <!-- z-index alto a propósito: el selector genérico `nav { z-index:100 }` de base.html
+           (pensado para la barra superior del sitio) también alcanza a `.proj-nav` de acá abajo
+           (sigue siendo un <nav>), así que sin esto el menú quedaba tapado detrás de las
+           pestañas Chequeo de Cálculos / Respuestas. -->
       <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
-           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:50;min-width:180px;overflow:hidden;">
+           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
         {% for est in estados_proyecto_opciones %}
         <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
           <button type="submit" name="estado" value="{{ est[0] }}"

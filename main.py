@@ -495,8 +495,7 @@ async def dashboard(request: Request):
     # Listado liviano: dashboard.html solo necesita estos campos — evita traer el texto
     # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
     proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "nombre", "postulante", "tipo_revision", "estado",
-         "fecha_creacion", "revisor"],
+        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "revisor"],
         username=user["username"])
     return templates.TemplateResponse("dashboard.html", {
         "request": request,

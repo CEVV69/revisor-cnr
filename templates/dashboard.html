@@ -15,7 +15,6 @@
         <th style="white-space:nowrap;">Código SEP</th>
         <th>Nombre del proyecto</th>
         <th>Postulante</th>
-        <th style="white-space:nowrap;">Revisión</th>
         <th>Estado</th>
         <th style="white-space:nowrap;">Fecha</th>
         <th>Acciones</th>
@@ -27,20 +26,13 @@
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ p.codigo_sep }}</strong></td>
         <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>
-        <td>
-          {% if p.tipo_revision == 'tecnica' %}
-            <span class="badge badge-tecnica">Técnica</span>
-          {% else %}
-            <span class="badge badge-legal">Legal</span>
-          {% endif %}
-        </td>
         <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado }}</span></td>
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
         <td style="white-space:nowrap;">
           <a href="/proyecto/{{ p.id }}" class="btn btn-outline btn-sm">Abrir</a>
           <form method="post" action="/proyecto/{{ p.id }}/eliminar" style="display:inline"
                 onsubmit="return confirm('¿Eliminar el proyecto {{ p.codigo_sep }}? Esta acción no se puede deshacer.')">
-            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar proyecto" style="padding-left:0.5rem; padding-right:0.5rem;">×</button>
           </form>
         </td>
       </tr>

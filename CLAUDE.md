@@ -503,6 +503,19 @@ adivina ni se muestra un pin en un lugar incorrecto.
   en un proyecto antiguo no se migra, solo deja de poder volver a asignarse desde el selector.
   (El estado "Aprobado Técnicamente" se agregó originalmente junto con la subsanación — ver
   sección dedicada más abajo.)
+  **Bug de z-index resuelto (jul-2026):** el menú desplegable del selector (`#menu-estado`)
+  quedaba tapado detrás de las pestañas "Chequeo de Cálculos"/"Respuestas" — causa: el selector
+  genérico `nav { position:sticky; z-index:100; }` de `base.html` (pensado para la barra
+  superior del sitio) también alcanza a `<nav class="proj-nav">` (la barra de pestañas del
+  proyecto), porque sigue siendo un `<nav>`. Se subió el z-index del menú a `200` (por encima
+  de 100) en vez de tocar el selector genérico de `base.html`, para no arriesgar otras páginas.
+- **Dashboard — columna "Revisión" eliminada, botón Eliminar como "×" (jul-2026):** a pedido
+  del usuario, para dar más espacio al resto de la información de la tabla. Se quitó la
+  columna con el badge Técnica/Legal (ya no aporta nada — la app solo hace revisión técnica,
+  ver "Solo revisión técnica" más abajo) y `db.get_proyectos_ligero()` en `dashboard()` ya no
+  pide el campo `tipo_revision` (un campo menos en la proyección liviana). El botón "Eliminar"
+  de cada fila pasó a mostrar solo "×" (con `title="Eliminar proyecto"` para accesibilidad) —
+  mismo `confirm()` de siempre, solo cambia el texto visible.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
