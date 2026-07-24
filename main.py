@@ -1207,12 +1207,19 @@ def _agronomico_calculo(datos: dict):
     if datos and datos.get("sistema_riego") == "Aspersión":
         vib_check = calculos_riego.verificacion_vib(
             datos.get("vib_mmhr"), datos.get("precipitacion_sistema_mmhr")) or None
+    # Caudal de trabajo por postura — independiente del resto, solo Aspersión.
+    postura_check = None
+    if datos and datos.get("sistema_riego") == "Aspersión":
+        postura_check = calculos_riego.caudal_postura_aspersion(
+            datos.get("n_aspersores_postura"), datos.get("caudal_aspersor_m3h")) or None
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
         r = {}
         if kc_dt05:
             r["kc_dt05"] = kc_dt05
         if vib_check:
             r["vib_check"] = vib_check
+        if postura_check:
+            r["postura_check"] = postura_check
         return r or None
     r = calculos_riego.cadena_agronomica(
         datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
@@ -1230,6 +1237,8 @@ def _agronomico_calculo(datos: dict):
         r["kc_dt05"] = kc_dt05
     if vib_check:
         r["vib_check"] = vib_check
+    if postura_check:
+        r["postura_check"] = postura_check
     return r
 
 
@@ -1465,7 +1474,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",
-              "espaciamiento_laterales_m"]
+              "espaciamiento_laterales_m", "n_aspersores_postura", "caudal_aspersor_m3h"]
     sistemas = []
     for i in range(n_sistemas):
         p = f"s{i}_"

@@ -987,7 +987,9 @@ plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores 
 plantación del cultivo); si es Aspersión/Carrete, espaciamiento entre aspersores y entre
 laterales (NO el marco de plantación — en aspersión no aplica). Si el sistema es Aspersión,
 extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr) — para verificar que
-no la supere la precipitación/tasa de aplicación del sistema (riesgo de escorrentía).
+no la supere la precipitación/tasa de aplicación del sistema (riesgo de escorrentía) — y el N°
+de aspersores por postura y el caudal de un aspersor individual (m³/hr, dato de catálogo/ficha
+técnica del aspersor) — para verificar el caudal de trabajo que exige cada postura.
 {instr_sistemas}
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
@@ -1003,6 +1005,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
 "volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
+"n_aspersores_postura": number|null, "caudal_aspersor_m3h": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
 ]}}
@@ -1165,6 +1168,35 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"reducir el caudal del aspersor o aumentar el espaciamiento).")
             else:
                 texto += " VIB > Precipitación — dentro de rango, no lo menciones como observación."
+
+    # Caudal de trabajo por postura — solo Aspersión, independiente del resto de la cadena.
+    # Mismo criterio del Diseñador de Riego (calcAspP): Q_postura = N° aspersores × Q_aspersor
+    # (m³/hr) / 3,6 — el caudal que exige simultáneamente una postura, para contrastar contra el
+    # caudal de diseño que declara el consultor y detectar si el N° de aspersores por postura es
+    # coherente con lo que puede entregar la fuente/sistema.
+    n_asp = datos.get("n_aspersores_postura")
+    q_asp = datos.get("caudal_aspersor_m3h")
+    if datos.get("sistema_riego") == "Aspersión" and n_asp and q_asp:
+        postura = calculos_riego.caudal_postura_aspersion(n_asp, q_asp)
+        if postura:
+            texto += (f"\n\nVERIFICACIÓN CAUDAL DE TRABAJO POR POSTURA (cálculo determinístico — "
+                      f"mismo criterio del Diseñador de Riego): {n_asp} aspersores × {q_asp} m³/hr "
+                      f"/ 3,6 = {postura['caudal_postura_ls']} l/s por postura (caudal que exige "
+                      f"simultáneamente la postura completa).")
+            declarado_qdiseno = (datos.get("declarado") or {}).get("caudal_diseno_ls")
+            if declarado_qdiseno is not None and _diferencia_relevante(
+                    postura["caudal_postura_ls"], declarado_qdiseno, 10):
+                texto += (f" Caudal de diseño declarado = {declarado_qdiseno} l/s — no coincide "
+                          f"con el recálculo ({postura['caudal_postura_ls']} l/s). Genera una "
+                          f"observación citando estos números exactos.")
+            else:
+                texto += " Coincide con lo declarado (o no hay dato declarado para comparar) — no lo menciones como observación."
+            caudal_disp = datos.get("caudal_disponible_ls")
+            if caudal_disp is not None and postura["caudal_postura_ls"] > caudal_disp:
+                texto += (f" ADEMÁS: el caudal de la postura ({postura['caudal_postura_ls']} l/s) "
+                          f"SUPERA el caudal disponible declarado ({caudal_disp} l/s) — la fuente "
+                          f"no alcanza para regar los {n_asp} aspersores de la postura a la vez; "
+                          f"genera una observación citando estos números.")
 
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
     # calcGA del Diseñador). No requiere ni usa el criterio de riego.

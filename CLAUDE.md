@@ -1535,6 +1535,34 @@ usar la app con proyectos reales:
   vivo (alerta de escorrentía si Precipitación ≥ VIB, "OK" si no), y la exportación al Diseñador
   incluye `a-vib` y ya no incluye `a-deh`/`a-dsh`.
 
+**Caudal de trabajo por postura — solo Aspersión (implementado, jul-2026):** a pedido del
+usuario, el N° de aspersores por postura y el caudal del aspersor individual influyen en el
+caudal que exige la postura completa — dato que antes no se capturaba. Mismo criterio del
+Diseñador de Riego (`calcAspP`, leído directo del código para no adivinar la fórmula):
+```
+Q_postura[l/s] = N° aspersores × Q_aspersor[m³/hr] / 3,6
+```
+- `calculos_riego.caudal_postura_aspersion(n_aspersores, caudal_aspersor_m3h)` — nueva, aditiva
+  (`{}` si falta cualquiera de los dos datos), mismo patrón que `verificacion_vib()`.
+- Campos nuevos "N° aspersores por postura" y "Caudal del aspersor (m³/hr)" en "Datos base
+  declarados" — clase `campo-postura` con la MISMA regla de visibilidad que `campo-vib` (solo
+  Aspersión, o sin declarar/Mixto), no la más amplia `campo-aspersion` (que también cubre
+  Carrete) porque Carrete usa un único cañón regador, no "aspersores por postura".
+- `_extraer_datos_agronomicos()` (analyzer.py) extrae `n_aspersores_postura` y
+  `caudal_aspersor_m3h` cuando el sistema es Aspersión. `_bloque_verificacion_agronomica_sistema()`
+  arma un bloque independiente (mismo patrón que VIB/Kc-DT05) que recalcula Q_postura y lo
+  contrasta contra dos cosas: el caudal de diseño declarado (`declarado.caudal_diseno_ls`, si no
+  coincide con el recálculo) y el caudal disponible declarado (si Q_postura lo supera, la fuente
+  no alcanza para los aspersores de la postura a la vez — señal de que el N° de aspersores por
+  postura es excesivo para el sistema).
+- Fila nueva en la tabla de resultados ("Caudal de trabajo por postura (Aspersión)"), recálculo
+  en vivo en `recalcAgroSistema` (mismo patrón: fórmula duplicada a mano en el `<script>`,
+  verificada contra `calculos_riego.py` con los mismos casos de prueba) y exportado al Diseñador
+  como `{prefijo}-nasp`/`{prefijo}-qasp` (Aspersión únicamente).
+- `_agronomico_calculo()` (main.py) también lo calcula (`postura_check`) por paridad con
+  `vib_check`/`kc_dt05`, aunque —como esos dos— no se renderiza vía Jinja hoy (la tarjeta la
+  puebla el JS al cargar la página, no el preview Python); se mantiene por consistencia interna.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

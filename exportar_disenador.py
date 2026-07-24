@@ -124,6 +124,8 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     elif sys_code == "asp":
         put("easp", sistema_agro.get("espaciamiento_aspersores_m"))
         put("elat", sistema_agro.get("espaciamiento_laterales_m"))
+        put("nasp", sistema_agro.get("n_aspersores_postura"))
+        put("qasp", sistema_agro.get("caudal_aspersor_m3h"))
 
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
     for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"):

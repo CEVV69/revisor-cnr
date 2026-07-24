@@ -216,6 +216,17 @@ def verificacion_vib(vib_mmhr: float, precipitacion_mmhr: float) -> dict:
     return {"vib_ok": vib_mmhr > precipitacion_mmhr}
 
 
+def caudal_postura_aspersion(n_aspersores: float, caudal_aspersor_m3h: float) -> dict:
+    """Caudal de trabajo de una postura de aspersión — mismo criterio del Diseñador de Riego
+    (`calcAspP`): el caudal que exige simultáneamente una postura es la suma de todos los
+    aspersores abiertos a la vez, convertido de m³/hr a l/s:
+        Q_postura[l/s] = N° aspersores × Q_aspersor[m³/hr] / 3,6
+    Solo aplica a Aspersión (Carrete usa un único cañón regador, no "aspersores por postura")."""
+    if not n_aspersores or not caudal_aspersor_m3h:
+        return {}
+    return {"caudal_postura_ls": round(n_aspersores * caudal_aspersor_m3h / 3.6, 3)}
+
+
 def requiere_acumulador(caudal_diseno_ls: float, caudal_disponible_ls: float) -> bool:
     """ITT-03: si el caudal de diseño del sistema supera el caudal disponible en más de un
     20%, se requiere acumulador (estanque) — mismo criterio del Diseñador de Riego."""

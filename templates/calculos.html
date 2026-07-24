@@ -159,6 +159,8 @@
         <div class="sistema-riego-campo campo-goteo"><label>Espaciamiento entre emisores (Goteo, m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_emisores_m" name="{{ p }}espaciamiento_emisores_m" value="{{ agro.espaciamiento_emisores_m if agro.espaciamiento_emisores_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_aspersores_m" name="{{ p }}espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
+        <div class="campo-postura"><label>N° aspersores por postura</label><input type="number" step="1" id="{{ p }}n_aspersores_postura" name="{{ p }}n_aspersores_postura" value="{{ agro.n_aspersores_postura if agro.n_aspersores_postura is not none else '' }}"></div>
+        <div class="campo-postura"><label>Caudal del aspersor (m³/hr)</label><input type="number" step="0.01" id="{{ p }}caudal_aspersor_m3h" name="{{ p }}caudal_aspersor_m3h" value="{{ agro.caudal_aspersor_m3h if agro.caudal_aspersor_m3h is not none else '' }}"></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación (Goteo/Microaspersión) y espaciamiento del sistema: dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo (salvo VIB, que sí se verifica contra la Precipitación del sistema).</p>
 
@@ -191,6 +193,13 @@
             <td class="col-calc">
               <span id="{{ p }}agro-vib-calc">—</span>
               <span id="{{ p }}agro-vib-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-postura">
+            <td class="col-concepto">Caudal de trabajo por postura (Aspersión)</td><td id="{{ p }}agro-postura-decl">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-postura-calc">—</span>
+              <span id="{{ p }}agro-postura-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr>
@@ -568,6 +577,7 @@
         prof = numVal(p + "prof_radicular_cm"), kc = numVal(p + "kc"), eto = numVal(p + "eto_dia_mm"),
         fa = numVal(p + "factor_agotamiento_pct"), ef = numVal(p + "eficiencia_pct"),
         vib = numVal(p + "vib_mmhr");
+    var nAspPostura = numVal(p + "n_aspersores_postura"), qAsp = numVal(p + "caudal_aspersor_m3h");
     var declDn = numVal(p + "decl_dn"), declFr = numVal(p + "decl_fr"), declDb = numVal(p + "decl_db");
     var sup = numVal(p + "superficie_riego_ha"), caudalDisp = numVal(p + "caudal_disponible_ls"),
         precip = numVal(p + "precipitacion_sistema_mmhr"), horas = numVal(p + "horas_disponibles_dia");
@@ -586,10 +596,11 @@
     // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
     // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
     wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
-    // VIB (Velocidad de Infiltración Básica) solo aplica a Aspersión — Goteo/Microaspersión/
-    // Carrete no la usan en el Diseñador de Riego.
+    // VIB (Velocidad de Infiltración Básica) y datos del aspersor (N° por postura, caudal)
+    // solo aplican a Aspersión — Goteo/Microaspersión/Carrete no los usan en el Diseñador de
+    // Riego (Carrete usa un único cañón regador, no "aspersores por postura").
     var mostrarVib = !sistema || sistema === "Mixto" || sistema === "Aspersión";
-    wrap.querySelectorAll(".campo-vib").forEach(function(el) { el.style.display = mostrarVib ? "" : "none"; });
+    wrap.querySelectorAll(".campo-vib, .campo-postura").forEach(function(el) { el.style.display = mostrarVib ? "" : "none"; });
     var avisoEl = document.getElementById(p + "sistema-riego-aviso");
     if (sistema === "Mixto") {
       avisoEl.textContent = "Este proyecto declara más de un sistema de riego — el chequeo de "
@@ -630,6 +641,28 @@
     } else {
       setText(p + "agro-vib-calc", "—");
       nota(p + "agro-vib-nota", "");
+    }
+
+    // Caudal de trabajo por postura (Aspersión) — independiente del resto: N° aspersores ×
+    // caudal del aspersor (m³/hr) / 3,6, mismo criterio del Diseñador de Riego (calcAspP).
+    var posturaDecl = (nAspPostura !== null || qAsp !== null)
+      ? (nAspPostura !== null ? nAspPostura : "—") + " aspersores × " + (qAsp !== null ? fmt(qAsp, 2) : "—") + " m³/hr"
+      : "—";
+    setText(p + "agro-postura-decl", posturaDecl);
+    if (nAspPostura !== null && qAsp !== null) {
+      var qPostura = nAspPostura * qAsp / 3.6;
+      setText(p + "agro-postura-calc", fmt(qPostura, 3) + " l/s por postura");
+      var notaPostura = "";
+      if (declQdiseno !== null && diferenciaRelevante(qPostura, declQdiseno, 10)) {
+        notaPostura = "No coincide con el caudal de diseño declarado (" + fmt(declQdiseno, 2) + " l/s).";
+      }
+      if (caudalDisp !== null && qPostura > caudalDisp) {
+        notaPostura += (notaPostura ? " " : "") + "Supera el caudal disponible (" + fmt(caudalDisp, 2) + " l/s) — la fuente no alcanza para los " + nAspPostura + " aspersores de la postura a la vez.";
+      }
+      nota(p + "agro-postura-nota", notaPostura);
+    } else {
+      setText(p + "agro-postura-calc", "—");
+      nota(p + "agro-postura-nota", "");
     }
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
