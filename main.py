@@ -355,6 +355,31 @@ templates.env.filters["fecha"] = _fmt_fecha
 templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 
 
+# ── Estados del proyecto ────────────────────────────────────────────────────────
+# Única fuente de verdad para las 5 clasificaciones válidas — usada para validar el cambio de
+# estado, armar el selector del encabezado del proyecto y colorear el badge en el dashboard
+# (mismo color en los dos lugares). Reutiliza las clases `badge-*` ya existentes en base.html
+# (mismo criterio de color que ya usaban obs./items: azul=neutro, amarillo=alerta liviana,
+# morado=legal/en trámite, verde=aprobado, rojo=rechazo) en vez de definir CSS nuevo.
+ESTADOS_PROYECTO = ["En revisión", "Observado", "Con respuesta Observaciones",
+                    "Aprobado Técnicamente", "Rechazado"]
+ESTADOS_PROYECTO_BADGE = {
+    "En revisión":                 "badge-estado",    # celeste
+    "Observado":                   "badge-menor",      # amarillo
+    "Con respuesta Observaciones": "badge-legal",       # morado claro
+    "Aprobado Técnicamente":       "badge-tecnica",     # verde
+    "Rechazado":                   "badge-mayor",       # rojo
+}
+ESTADOS_PROYECTO_COLOR_SOLIDO = {
+    "En revisión":                 "#2b6cb0",
+    "Observado":                   "#c05621",
+    "Con respuesta Observaciones": "#5e35b1",
+    "Aprobado Técnicamente":       "#276749",
+    "Rechazado":                   "#c41230",
+}
+templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(e, "badge-estado")
+
+
 @app.on_event("startup")
 async def startup_event():
     from database import DATABASE_URL, db
@@ -662,6 +687,8 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "pagina": pagina,
         "url_precios_cnr": URL_PRECIOS_CNR,
         "url_ideminagri": URL_IDEMINAGRI,
+        # Selector de estado del encabezado — (nombre, color sólido para el botón/opciones)
+        "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
     })
 
 
@@ -700,9 +727,7 @@ async def cambiar_estado_proyecto(
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    estados_validos = {"En revisión", "Revisado", "Observado", "Rechazado",
-                       "Aprobado Técnicamente"}
-    if estado in estados_validos:
+    if estado in ESTADOS_PROYECTO:
         proyecto["estado"] = estado
         proyecto["fecha_estado"] = _ahora().isoformat()
         proyecto["estado_por"] = user["nombre"]

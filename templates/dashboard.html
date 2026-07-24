@@ -34,7 +34,7 @@
             <span class="badge badge-legal">Legal</span>
           {% endif %}
         </td>
-        <td><span class="badge badge-estado" style="white-space:nowrap;">{{ p.estado }}</span></td>
+        <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado }}</span></td>
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
         <td style="white-space:nowrap;">
           <a href="/proyecto/{{ p.id }}" class="btn btn-outline btn-sm">Abrir</a>

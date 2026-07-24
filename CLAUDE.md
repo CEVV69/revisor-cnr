@@ -485,9 +485,24 @@ adivina ni se muestra un pin en un lugar incorrecto.
   observación (descartar/reclasificar a nota/editar) directamente desde la conversación
 - Consulta libre al expediente
 - Dark mode automático 19:00–07:00 con toggle manual (localStorage)
-- Estados del proyecto: En revisión / Revisado / Observado / Aprobado Técnicamente / Rechazado
-  (el estado "Aprobado Técnicamente" se agregó jul-2026 junto con la subsanación — ver sección
-  dedicada más abajo)
+- **Estados del proyecto (5, jul-2026):** En revisión · Observado · Con respuesta Observaciones ·
+  Aprobado Técnicamente · Rechazado — única fuente de verdad: `ESTADOS_PROYECTO` (lista, define
+  también el orden del selector) + `ESTADOS_PROYECTO_BADGE` (clase `badge-*` para el color) +
+  `ESTADOS_PROYECTO_COLOR_SOLIDO` (hex, para el botón/opciones del selector), las 3 en main.py.
+  Se retiró **"Revisado"** (el usuario lo consideró redundante con el resto de la clasificación)
+  y se agregó **"Con respuesta Observaciones"** (el consultor ya respondió, en línea con la
+  página Respuestas/subsanación). `cambiar_estado_proyecto()` valida contra `ESTADOS_PROYECTO`
+  directamente (antes era un `set` hardcodeado aparte, quedaba fácil que se desincronizara del
+  selector). **Colores** (mismo criterio en el badge del dashboard y en el badge/selector del
+  encabezado del proyecto — filtro Jinja `estado_badge`, registrado junto a `fecha`/`fecha_hora`):
+  reutiliza las clases `badge-*` YA existentes en `base.html` en vez de CSS nuevo — En revisión
+  → `badge-estado` (celeste), Observado → `badge-menor` (amarillo), Con respuesta Observaciones
+  → `badge-legal` (morado claro), Aprobado Técnicamente → `badge-tecnica` (verde), Rechazado →
+  `badge-mayor` (rojo). Un valor legado que ya no está en la lista (ej. "Revisado" en un
+  proyecto viejo) cae al fallback neutro `badge-estado` en vez de romper — el estado guardado
+  en un proyecto antiguo no se migra, solo deja de poder volver a asignarse desde el selector.
+  (El estado "Aprobado Técnicamente" se agregó originalmente junto con la subsanación — ver
+  sección dedicada más abajo.)
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
@@ -655,10 +670,11 @@ y el revisor decide a mano (no hay rechazo automático).
   de evaluar, `limpiarIA()` borra la recomendación previa (ya no corresponde). Regla de siempre:
   la llamada usa streaming + `get_final_message()` (input grande) y va envuelta en
   `asyncio.to_thread`.
-- **Estado del proyecto:** se agregó **"Aprobado Técnicamente"** a `estados_validos`
-  (`cambiar_estado_proyecto`) y al menú/badge de estado en `proyecto.html` (verde, como
-  "Revisado"). El botón guardado de la página Respuestas es el camino previsto; el menú de estado
-  sigue permitiendo fijarlo a mano (el revisor es la autoridad).
+- **Estado del proyecto:** se agregó **"Aprobado Técnicamente"** a los estados válidos
+  (`cambiar_estado_proyecto`) y al menú/badge de estado en `proyecto.html` (verde). El botón
+  guardado de la página Respuestas es el camino previsto; el menú de estado sigue permitiendo
+  fijarlo a mano (el revisor es la autoridad). Ver la lista completa de los 5 estados vigentes
+  y sus colores en "Estados del proyecto", más arriba.
 - **Documentos de respaldo del consultor (implementado, jul-2026):** la respuesta puede ser solo
   texto, o texto + archivos (una nueva prueba de bombeo, cálculo estructural corregido, etc.).
   Decisión de diseño: esos archivos SON documentos del proyecto (única fuente de verdad — es lo
