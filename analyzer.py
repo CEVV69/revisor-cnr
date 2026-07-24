@@ -1171,9 +1171,14 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
 
     # Caudal de trabajo por postura — solo Aspersión, independiente del resto de la cadena.
     # Mismo criterio del Diseñador de Riego (calcAspP): Q_postura = N° aspersores × Q_aspersor
-    # (m³/hr) / 3,6 — el caudal que exige simultáneamente una postura, para contrastar contra el
-    # caudal de diseño que declara el consultor y detectar si el N° de aspersores por postura es
-    # coherente con lo que puede entregar la fuente/sistema.
+    # (m³/hr) / 3,6 — el caudal que exige simultáneamente una postura. La comparación contra el
+    # caudal de DISEÑO declarado es independiente (no necesita el resto de la cadena) y se hace
+    # acá mismo; la comparación contra el caudal DISPONIBLE se posterga más abajo, después de
+    # calcular el caudal EFECTIVO (que suma el acumulador si el proyecto declara uno) — comparar
+    # acá contra el caudal disponible crudo generaría una alerta falsa en un proyecto con
+    # acumulador (bug real reportado: 0,57 l/s de postura marcado como "supera 0,4 l/s" pese a
+    # que el acumulador sube el caudal instantáneo efectivo muy por encima de eso).
+    postura = None
     n_asp = datos.get("n_aspersores_postura")
     q_asp = datos.get("caudal_aspersor_m3h")
     if datos.get("sistema_riego") == "Aspersión" and n_asp and q_asp:
@@ -1191,12 +1196,6 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"observación citando estos números exactos.")
             else:
                 texto += " Coincide con lo declarado (o no hay dato declarado para comparar) — no lo menciones como observación."
-            caudal_disp = datos.get("caudal_disponible_ls")
-            if caudal_disp is not None and postura["caudal_postura_ls"] > caudal_disp:
-                texto += (f" ADEMÁS: el caudal de la postura ({postura['caudal_postura_ls']} l/s) "
-                          f"SUPERA el caudal disponible declarado ({caudal_disp} l/s) — la fuente "
-                          f"no alcanza para regar los {n_asp} aspersores de la postura a la vez; "
-                          f"genera una observación citando estos números.")
 
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
     # calcGA del Diseñador). No requiere ni usa el criterio de riego.
@@ -1328,6 +1327,21 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                   "\n\nSi hay una discrepancia relevante o falta el acumulador exigido por "
                   "ITT-03, genera una observación citando los números exactos. Si todo cuadra, "
                   "no lo menciones como observación.")
+
+    # Caudal de trabajo por postura vs. caudal EFECTIVO — parte diferida del bloque de arriba
+    # (ver el comentario en ese punto): recién acá se sabe si hay acumulador y cuál es el caudal
+    # instantáneo efectivo (diseno["caudal_acumulador_ls"] si el proyecto declara acumulador y la
+    # cadena agronómica pudo calcularse; si no, el caudal disponible declarado sin más).
+    if postura and postura.get("caudal_postura_ls") is not None:
+        caudal_efectivo_postura = caudal_para_diseno if diseno else datos.get("caudal_disponible_ls")
+        if caudal_efectivo_postura is not None and postura["caudal_postura_ls"] > caudal_efectivo_postura:
+            etiqueta = ("instantáneo (estanque + fuente)" if diseno and "caudal_estanque_ls" in diseno
+                        else "disponible declarado")
+            texto += (f"\n\nADEMÁS, sobre el caudal de trabajo por postura calculado más arriba "
+                      f"({postura['caudal_postura_ls']} l/s): SUPERA el caudal {etiqueta} "
+                      f"({caudal_efectivo_postura} l/s) — la fuente no alcanza para regar los "
+                      f"{n_asp} aspersores de la postura a la vez; genera una observación citando "
+                      f"estos números.")
     return texto
 
 

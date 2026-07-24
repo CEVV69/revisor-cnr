@@ -644,26 +644,26 @@
     }
 
     // Caudal de trabajo por postura (Aspersión) — independiente del resto: N° aspersores ×
-    // caudal del aspersor (m³/hr) / 3,6, mismo criterio del Diseñador de Riego (calcAspP).
+    // caudal del aspersor (m³/hr) / 3,6, mismo criterio del Diseñador de Riego (calcAspP). La
+    // comparación contra el caudal de DISEÑO declarado es independiente y se hace acá mismo; la
+    // comparación contra el caudal DISPONIBLE se posterga más abajo (ver "qPostura"/"notaPostura"),
+    // después de calcular el caudal EFECTIVO que suma el acumulador si el proyecto declara uno —
+    // compararla acá contra el caudal disponible crudo daba una alerta falsa con acumulador.
     var posturaDecl = (nAspPostura !== null || qAsp !== null)
       ? (nAspPostura !== null ? nAspPostura : "—") + " aspersores × " + (qAsp !== null ? fmt(qAsp, 2) : "—") + " m³/hr"
       : "—";
     setText(p + "agro-postura-decl", posturaDecl);
+    var qPostura = null, notaPostura = "";
     if (nAspPostura !== null && qAsp !== null) {
-      var qPostura = nAspPostura * qAsp / 3.6;
+      qPostura = nAspPostura * qAsp / 3.6;
       setText(p + "agro-postura-calc", fmt(qPostura, 3) + " l/s por postura");
-      var notaPostura = "";
       if (declQdiseno !== null && diferenciaRelevante(qPostura, declQdiseno, 10)) {
         notaPostura = "No coincide con el caudal de diseño declarado (" + fmt(declQdiseno, 2) + " l/s).";
       }
-      if (caudalDisp !== null && qPostura > caudalDisp) {
-        notaPostura += (notaPostura ? " " : "") + "Supera el caudal disponible (" + fmt(caudalDisp, 2) + " l/s) — la fuente no alcanza para los " + nAspPostura + " aspersores de la postura a la vez.";
-      }
-      nota(p + "agro-postura-nota", notaPostura);
     } else {
       setText(p + "agro-postura-calc", "—");
-      nota(p + "agro-postura-nota", "");
     }
+    nota(p + "agro-postura-nota", notaPostura);
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
 
@@ -722,6 +722,13 @@
     var caudalAcum = caudalEstanque !== null ? caudalEstanque + (caudalDisp || 0) : null;
     var caudalEfectivo = caudalAcum !== null ? caudalAcum : caudalDisp;
     var etiquetaCaudal = caudalAcum !== null ? "instantáneo (estanque + fuente)" : "disponible";
+
+    // Caudal de trabajo por postura vs. caudal EFECTIVO — parte diferida del bloque de arriba:
+    // recién acá se sabe si hay acumulador y cuál es el caudal instantáneo efectivo.
+    if (qPostura !== null && caudalEfectivo !== null && qPostura > caudalEfectivo) {
+      notaPostura += (notaPostura ? " " : "") + "Supera el caudal " + etiquetaCaudal + " (" + fmt(caudalEfectivo, 2) + " l/s) — la fuente no alcanza para los " + nAspPostura + " aspersores de la postura a la vez.";
+      nota(p + "agro-postura-nota", notaPostura);
+    }
 
     var demanda = db / 8.64;
     if (caudalEfectivo !== null && demanda) {

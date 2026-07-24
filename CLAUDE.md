@@ -1563,6 +1563,36 @@ Q_postura[l/s] = N° aspersores × Q_aspersor[m³/hr] / 3,6
   `vib_check`/`kc_dt05`, aunque —como esos dos— no se renderiza vía Jinja hoy (la tarjeta la
   puebla el JS al cargar la página, no el preview Python); se mantiene por consistencia interna.
 
+**Bug resuelto — la comparación contra "caudal disponible" ignoraba el acumulador (jul-2026):**
+reportado por el usuario con un caso real: acumulador de 10 m³ declarado, caudal de trabajo por
+postura calculado en 0,57 l/s, y la app lo marcaba como "supera el caudal disponible de 0,4 l/s"
+— pese a que ese 0,4 es solo el caudal de la FUENTE, no el caudal instantáneo efectivo (fuente +
+estanque) que ya calcula el bloque del Acumulador (ver esa sección más arriba). Causa: el chequeo
+de postura se diseñó como verificación "independiente" (mismo patrón que VIB/Kc-DT05) para poder
+mostrar su resultado incluso sin la cadena agronómica completa — por eso corría ANTES, tanto en
+`_bloque_verificacion_agronomica_sistema()` (analyzer.py) como en `recalcAgroSistema()`
+(calculos.html), del punto donde se calcula el caudal efectivo con acumulador. Comparaba siempre
+contra el caudal disponible crudo (`datos.get("caudal_disponible_ls")` / `caudalDisp`), sin
+enterarse nunca de que existía un acumulador.
+- **Fix — la comparación se partió en dos tiempos**, en ambos archivos: (1) la parte
+  verdaderamente independiente (Q_postura y su comparación contra el caudal de diseño declarado)
+  sigue corriendo de inmediato, sin depender de nada más; (2) la comparación contra el caudal
+  DISPONIBLE se movió a DESPUÉS del punto donde ya se sabe si hay acumulador y cuál es el caudal
+  efectivo — en `analyzer.py`, después del bloque `if diseno:` (usa `caudal_para_diseno`, que ya
+  es `diseno["caudal_acumulador_ls"]` cuando hay acumulador o el caudal disponible crudo si no);
+  en `calculos.html`, después de calcular `caudalEfectivo`/`etiquetaCaudal` (el mismo bloque que
+  ya usa la fila "Superficie de riego segura"). Si la cadena agronómica completa no está
+  disponible (early return), esta segunda comparación simplemente no se muestra — igual que ya
+  pasa con "Superficie de riego segura", que tiene la misma dependencia.
+- Verificado con el caso exacto del usuario (1 aspersor × 2,05 m³/hr, acumulador 10 m³, caudal
+  disponible 0,4 l/s, precipitación 8 mm/hr, 20 horas disponibles): antes daba falso positivo
+  (0,57 > 0,4); con el fix, el caudal efectivo calculado es 0,86 l/s (0,463 del estanque + 0,4 de
+  la fuente) y 0,57 < 0,86 — ya no se marca. Se verificó también que SÍ sigue marcando cuando el
+  caudal de postura realmente supera el efectivo (2 aspersores → 1,14 l/s > 0,86 l/s), y que sin
+  acumulador declarado el comportamiento es exactamente el de antes (compara contra el caudal
+  disponible crudo). Paridad numérica confirmada entre `analyzer.py` y el `<script>` de
+  `calculos.html` con los mismos 3 casos de prueba.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no
