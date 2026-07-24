@@ -1067,8 +1067,10 @@ exactamente la misma relación):
 Demanda[l/s/ha]         = Db / 8,64                              (1 mm/día/ha = 1/8,64 l/s/ha)
 Superficie riego segura = Caudal disponible / Demanda[l/s/ha]
 Tiempo de riego          = Db / Precipitación del sistema         [hr/día]
-N° de sectores           = ⌊Horas disponibles al día / Tiempo de riego⌋
+N° de sectores           = ⌊Horas disponibles al día / Tiempo de riego⌋   ← OBSOLETA, ver abajo
 ```
+> La fórmula de N° de sectores de arriba quedó **obsoleta** (jul-2026, Diseñador v102) — ver la
+> entrada "N° de sectores — fórmula actualizada por CAUDAL" más abajo para la vigente.
 
 `calculos_riego.verificacion_diseno_riego(db_mm_dia, superficie_ha, caudal_disponible_ls,
 precipitacion_mmhr, horas_disponibles_dia)` — usa el **Db recalculado** (no el declarado, para
@@ -1373,15 +1375,16 @@ Agronómico de `calculos.html`.
   activo). Si se actualiza el HTML del Diseñador, reemplazar `static/disenador_riego_v97.html` (y
   si cambia el nombre de archivo, actualizar el enlace en `calculos.html`).
   **Actualizaciones de versión (jul-2026):** v97→v98 (ver entrada del Acumulador más abajo),
-  v98→v99 (sin cambios de fórmula reportados, solo reemplazo de archivo), y v99→v101 (el
+  v98→v99 (sin cambios de fórmula reportados, solo reemplazo de archivo), v99→v101 (el
   usuario pidió expresamente portar el cambio de fórmula del acumulador — ver la entrada
-  "Acumulador — fórmula actualizada a 'suma'" más abajo). Cada vez: reemplazar
+  "Acumulador — fórmula actualizada a 'suma'" más abajo), y v101→v102 (cambio de fórmula del N°
+  de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo). Cada vez: reemplazar
   `static/disenador_riego_v{N}.html` (el archivo viejo se borra del repo, no se acumulan
   versiones), actualizar el link en `calculos.html` y la referencia en el docstring de
   `exportar_disenador.py`. Regla para el futuro: si el usuario NO pide portar ningún cambio
   puntual, basta con reemplazar el archivo/link sin abrir el HTML; si SÍ pide portar un cambio
-  (como con el Acumulador), hay que leer el código nuevo del Diseñador directamente — no
-  adivinar la fórmula a partir de lo que el usuario recuerda de palabra.
+  (como con el Acumulador o el N° de sectores), hay que leer el código nuevo del Diseñador
+  directamente — no adivinar la fórmula a partir de lo que el usuario recuerda de palabra.
 
 **Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
 exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en
@@ -1504,6 +1507,67 @@ código nuevo del Diseñador para no adivinar — cambio real de fondo, no solo 
   reordenó el cálculo de `tiempoRiego` para que corra ANTES del bloque del acumulador (que ahora
   lo necesita como T de vaciado) — verificado a mano contra `calculos_riego.py` con los mismos
   casos de prueba (T real, T estimado por fallback, y el límite exacto del llenado).
+
+**N° de sectores — fórmula actualizada por CAUDAL, no por horas/tiempo de riego (jul-2026,
+Diseñador v102):** el usuario subió `disenador_riego_v102.html` (reemplazó a v101 en `static/`,
+actualizar el link de "Abrir Diseñador de Riego" en `calculos.html` si se vuelve a actualizar el
+archivo) y avisó que se modificó la forma de calcular el N° de sectores de riego para Goteo y
+Microaspersión. Se leyó directo el código nuevo del Diseñador (`calcGE` para goteo, `calcME`
+para microaspersión) para no adivinar — el propio código lo explica: "El tiempo de riego por
+sector es independiente del área total — no determina el N° de sectores, solo si el diseño cabe
+en las horas disponibles". La fórmula anterior (`N_sectores = ⌊horas_disponibles /
+tiempo_riego⌋`) no tenía relación real con el N° de sectores — el Diseñador la reemplazó por un
+criterio de CAUDAL: si el caudal que exige regar TODA la superficie a la vez, al ritmo de
+precipitación del sistema, supera el caudal disponible, hay que dividir en sectores:
+```
+Q_requerido[l/s] = N° emisores totales × Q_emisor[l/hr] / 3.600   (fórmula real del Diseñador,
+                                                                     por conteo de emisores)
+N° de sectores    = ⌈Q_requerido / Q_disponible⌉  si Q_requerido > Q_disponible, si no, 1
+```
+Con el N° de sectores ya determinado por caudal, el Diseñador verifica APARTE si el tiempo total
+de regarlos todos en el día (`N_sectores × T_riego`) cabe en las horas disponibles declaradas —
+a diferencia del modelo anterior, ahora SÍ puede no caber (antes era imposible que no cupiera,
+por construcción de la fórmula — el modelo viejo no podía detectar un diseño inviable).
+- **Equivalencia usada en Revisor, en vez de contar emisores:** el Diseñador calcula
+  `Q_requerido` contando emisores reales (N° emisores × caudal por emisor), un dato que Revisor
+  no siempre puede extraer con confianza del expediente (depende del marco de plantación y del
+  N° de líneas de emisor, campos que ya están documentados como "de referencia, no conectados a
+  ninguna fórmula" — ver "Marco de plantación y espaciamiento" más arriba). Se usó en cambio una
+  relación matemáticamente equivalente, verificada con microaspersión (`calcME`: `nEmTotal =
+  ⌈sup×10000/(DE×DL)⌉×N_em`, y como `Pls=q_em×N_em/(DE×DL)`, entonces `Q_requerido =
+  nEmTotal×q_em/3600 ≈ Pls×sup×10000/3600` — se confirma algebraicamente que
+  `Q_requerido = Demanda_continua_24h[l/s] × sup × (24/T_riego)`, ya que `8,64×10000/3600 = 24`):
+  ```
+  Q_requerido[l/s] = Precipitación del sistema[mm/hr] × Superficie[ha] × 10.000 / 3.600
+  ```
+  Esto evita depender del conteo exacto de emisores y reutiliza datos que Revisor YA extrae
+  (`precipitacion_sistema_mmhr`, `superficie_riego_ha`) — para goteo hay una pequeña diferencia
+  respecto al código exacto del Diseñador (`calcGE` multiplica además por N° de líneas de
+  emisor, un factor que no aparece en su propio cálculo de precipitación — posible
+  inconsistencia menor del Diseñador, no replicada a propósito) pero coincide EXACTO con
+  microaspersión, y es la relación general que Revisor ya usa para todo el bloque "Verificación
+  de diseño base" (misma nota de siempre: es una referencia general, no un diseño exacto por
+  sistema — ver más arriba).
+- **El caudal usado es el EFECTIVO** (con acumulador si el proyecto lo declara — mismo
+  `caudal_acumulador_ls`/`caudalEfectivo` que ya usan "Superficie de riego segura" y "Caudal de
+  trabajo por postura"), no el caudal disponible crudo — mismo criterio de siempre, para no
+  repetir el bug de comparar contra el caudal de la fuente ignorando el acumulador.
+- `calculos_riego.verificacion_diseno_riego()`: el cálculo de `n_sectores` se movió a DESPUÉS del
+  bloque del acumulador (antes corría junto con `tiempo_riego_hr`, sin conocer el caudal
+  efectivo) y ahora depende de `superficie_ha` además de `precipitacion_mmhr`/`caudal` (antes
+  solo necesitaba `horas_disponibles_dia` + `tiempo_riego`) — resultado nuevo aditivo
+  `q_requerido_total_ls`, y `tiempo_total_dia_hr`/`cabe_en_horas_disponibles` para la
+  verificación de factibilidad horaria (antes imposible de detectar, ver más arriba).
+- `analyzer.py` (`_bloque_verificacion_agronomica_sistema`) y `calculos.html`
+  (`recalcAgroSistema`, fila "N° de sectores"): mismo patrón de siempre — la fórmula se
+  actualizó en ambos lados y se verificó paridad numérica con los mismos 3 casos de prueba (sin
+  acumulador con caudal insuficiente, caudal suficiente para N=1, y con acumulador) antes de
+  desplegar. El mensaje ahora también avisa si el diseño NO cabe en las horas disponibles
+  (`.calc-alerta`), caso que antes el modelo no podía producir.
+- **Alcance:** solo Goteo/Microaspersión, como pidió el usuario — Aspersión/Carrete siguen con
+  la misma función `verificacion_diseno_riego()` (ya rotulada como "referencia general, no el
+  diseño exacto" para esos sistemas desde que existe este bloque), así que el cambio de fórmula
+  los alcanza igual pero sin que eso sea un problema nuevo: nunca se les prometió exactitud.
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

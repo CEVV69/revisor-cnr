@@ -83,7 +83,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v101.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v102.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
@@ -761,10 +761,24 @@
     if (precip !== null) {
       setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr");
       nota(p + "agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");
-      if (horas !== null && tiempoRiego) {
-        var nSectores = Math.max(1, Math.floor(horas / tiempoRiego));
+      // N° de sectores — fórmula v102 del Diseñador de Riego (calcGE/calcME): ya NO se calcula
+      // dividiendo horas disponibles / tiempo de riego (esa relación no tiene sentido real — el
+      // propio Diseñador la corrigió). El criterio es de CAUDAL: si el caudal que exige regar
+      // TODA la superficie a la vez, al ritmo de precipitación del sistema, supera el caudal
+      // EFECTIVO disponible (fuente + acumulador si corresponde), hay que dividir en sectores.
+      if (sup !== null && caudalEfectivo !== null && tiempoRiego) {
+        var qRequerido = precip * sup * 10000 / 3600;
+        var nSectores = qRequerido > caudalEfectivo ? Math.ceil(qRequerido / caudalEfectivo) : 1;
         setText(p + "agro-nsec-calc", String(nSectores));
-        nota(p + "agro-nsec-nota", (declNsec !== null && declNsec !== nSectores) ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+        var notaNsec = "";
+        if (declNsec !== null && declNsec !== nSectores) {
+          notaNsec = "No coincide con lo declarado (" + fmt(declNsec, 0) + ").";
+        }
+        var tiempoTotalDia = nSectores * tiempoRiego;
+        if (horas !== null && tiempoTotalDia > horas) {
+          notaNsec += (notaNsec ? " " : "") + "El riego de los " + nSectores + " sectores (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles.";
+        }
+        nota(p + "agro-nsec-nota", notaNsec);
       } else {
         setText(p + "agro-nsec-calc", "—");
         nota(p + "agro-nsec-nota", "");

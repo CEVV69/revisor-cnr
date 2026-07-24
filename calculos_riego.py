@@ -141,7 +141,25 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     Demanda[l/s/ha]        = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
     Superficie riego segura = Caudal EFECTIVO / Demanda[l/s/ha]
     Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día]
-    N° de sectores          = ⌊Horas disponibles al día / Tiempo de riego⌋
+
+    N° de sectores (fórmula actualizada del Diseñador de Riego v102, `calcGE`/`calcME` para
+    goteo/microaspersión — la versión anterior dividía horas disponibles / tiempo de riego, lo
+    que NO tiene relación real con el N° de sectores; el propio Diseñador lo corrigió: "El
+    tiempo de riego por sector es independiente del área total — no determina el N° de
+    sectores, solo si el diseño cabe en las horas disponibles"). El criterio real es de CAUDAL:
+    si el caudal que exige regar TODA la superficie a la vez, al ritmo de precipitación del
+    sistema, supera el caudal EFECTIVO disponible, hay que dividir en sectores:
+        Q_requerido[l/s] = Precipitación del sistema[mm/hr] × Superficie[ha] × 10.000 / 3.600
+        N° de sectores    = ⌈Q_requerido / Caudal EFECTIVO⌉  si Q_requerido > Caudal EFECTIVO,
+                            si no, 1 (el caudal alcanza para regar todo a la vez)
+    Con el N° de sectores ya determinado por caudal, se verifica APARTE si el tiempo total que
+    exige regarlos todos en el día (N° sectores × Tiempo de riego) cabe en las horas disponibles
+    declaradas — a diferencia del modelo anterior, ahora SÍ puede no caber (señal real de que el
+    diseño no es viable con esas horas, que antes el modelo no podía detectar por construcción).
+    (El Diseñador calcula `Q_requerido` a partir del N° de emisores real; acá se deriva de
+    Precipitación×Superficie, matemáticamente equivalente — ver CLAUDE.md para la derivación —
+    y evita depender de datos de marco/emisores que no siempre se pueden extraer con
+    confianza del expediente.)
 
     Si el proyecto declara un ACUMULADOR (estanque/tranque regulador, `volumen_acumulador_m3`),
     el caudal EFECTIVO disponible durante el riego ya NO es solo el del acumulador — es la SUMA
@@ -167,8 +185,9 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
 
     Cada resultado solo se calcula si están los datos que necesita — es aditivo, no todo o
     nada. `superficie_ha`/`caudal_disponible_ls` (o el acumulador) habilitan la superficie
-    segura; `precipitacion_mmhr` habilita el tiempo de riego; `horas_disponibles_dia` (además de
-    precipitación) habilita el N° de sectores."""
+    segura; `precipitacion_mmhr` habilita el tiempo de riego; el N° de sectores necesita
+    precipitación + superficie + caudal (efectivo); `horas_disponibles_dia` además de eso
+    habilita la verificación de si el N° de sectores calculado cabe en el día."""
     r = {}
     if not db_mm_dia:
         return r
@@ -179,8 +198,6 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     if precipitacion_mmhr:
         tiempo_riego = db_mm_dia / precipitacion_mmhr
         r["tiempo_riego_hr"] = round(tiempo_riego, 2)
-        if horas_disponibles_dia and tiempo_riego:
-            r["n_sectores"] = max(1, math.floor(horas_disponibles_dia / tiempo_riego))
 
     caudal_efectivo_ls = caudal_disponible_ls
     if volumen_acumulador_m3:
@@ -203,6 +220,21 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
 
     if caudal_efectivo_ls and demanda_ls_ha:
         r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
+
+    # N° de sectores — fórmula v102 (ver docstring): por CAUDAL, no por horas/tiempo de riego.
+    # Necesita precipitación (para Q_requerido y el tiempo de riego por sector), superficie, y el
+    # caudal EFECTIVO (fuente + acumulador si corresponde).
+    if tiempo_riego and superficie_ha and caudal_efectivo_ls:
+        q_requerido_total_ls = precipitacion_mmhr * superficie_ha * 10000 / 3600
+        r["q_requerido_total_ls"] = round(q_requerido_total_ls, 4)
+        n_sectores = (math.ceil(q_requerido_total_ls / caudal_efectivo_ls)
+                      if q_requerido_total_ls > caudal_efectivo_ls else 1)
+        r["n_sectores"] = n_sectores
+        tiempo_total_dia = n_sectores * tiempo_riego
+        r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
+        if horas_disponibles_dia:
+            r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+
     return r
 
 

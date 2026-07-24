@@ -1312,11 +1312,29 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 linea += f" — declarado = {declarado_triego} hr/día, no coincide con el recálculo."
             lineas_diseno.append(linea)
         if "n_sectores" in diseno:
-            linea = f"N° de sectores = ⌊horas disponibles / tiempo de riego⌋ = {diseno['n_sectores']}"
+            # Fórmula v102 del Diseñador de Riego: por CAUDAL, no por horas/tiempo de riego (esa
+            # relación no tiene sentido real — el propio Diseñador la corrigió).
+            etiqueta_caudal_nsec = "instantáneo (estanque + fuente)" if "caudal_estanque_ls" in diseno else "disponible"
+            linea = (f"Q requerido para regar toda la superficie a la vez = Precipitación × "
+                      f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s — "
+                      f"caudal {etiqueta_caudal_nsec} = {caudal_para_diseno} l/s → "
+                      f"N° de sectores = {diseno['n_sectores']}")
             declarado_nsec = declarado.get("n_sectores")
             if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
                 linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
             lineas_diseno.append(linea)
+            if "tiempo_total_dia_hr" in diseno:
+                linea_tiempo = (f"Tiempo total para regar los {diseno['n_sectores']} sectores = "
+                                 f"N° sectores × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
+                if "cabe_en_horas_disponibles" in diseno:
+                    if diseno["cabe_en_horas_disponibles"]:
+                        linea_tiempo += f" — cabe en las {datos.get('horas_disponibles_dia')} hr/día disponibles declaradas."
+                    else:
+                        linea_tiempo += (f" — EXCEDE las {datos.get('horas_disponibles_dia')} hr/día disponibles declaradas: "
+                                          f"el diseño no es viable así, debe justificar/ajustar el "
+                                          f"caudal (ej. con acumulador), la superficie, o distribuir "
+                                          f"el riego en más días.")
+                lineas_diseno.append(linea_tiempo)
         texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores, "
                   "cálculo determinístico — nota: esta relación es la que usan los sistemas "
                   "localizados goteo/microaspersión del Diseñador de Riego; en aspersión/carrete "
@@ -1324,9 +1342,9 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                   "verificación como una referencia general, no como el diseño exacto si el "
                   "sistema es de aspersión o carrete):\n"
                   + "\n".join(f"- {l}" for l in lineas_diseno) +
-                  "\n\nSi hay una discrepancia relevante o falta el acumulador exigido por "
-                  "ITT-03, genera una observación citando los números exactos. Si todo cuadra, "
-                  "no lo menciones como observación.")
+                  "\n\nSi hay una discrepancia relevante, si el diseño no cabe en las horas "
+                  "disponibles, o falta el acumulador exigido por ITT-03, genera una observación "
+                  "citando los números exactos. Si todo cuadra, no lo menciones como observación.")
 
     # Caudal de trabajo por postura vs. caudal EFECTIVO — parte diferida del bloque de arriba
     # (ver el comentario en ese punto): recién acá se sabe si hay acumulador y cuál es el caudal

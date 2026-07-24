@@ -2532,10 +2532,16 @@ function calcGE(){
   const precip=(qem*nem)/(deh*dsh);
   // Db diaria = ETc / Ef (en decimal) [mm/día]
   const db_dia = etc/(ef/100);
-  // Tiempo de riego = Db_diaria / precipitación [hr/día] — CORRECTO
+  // Tiempo de riego = Db_diaria / precipitación [hr/día] (tiempo para regar TODA el área a la vez)
   const tRiego=db_dia/precip;
-  const nSec=Math.max(1,Math.floor(hrs/tRiego));  // Nº sectores = horas disponibles / tiempo por sector
-  R.GE={deh,dsh,mx,nPlHa,nPl,precip,tRiego,nSec,qem,nem,emisNombre:emis.nombre,db_dia};
+  // Nº sectores: SOLO se necesita dividir si el caudal requerido para regar todo a la vez
+  // supera el caudal disponible en la fuente — NO tiene relación con horas/tRiego
+  const qReqTotal=nEmTotal*qem/3600; // l/s
+  const qDispGE=v('g-q',0.4);
+  const nSec=qReqTotal>qDispGE ? Math.ceil(qReqTotal/qDispGE) : 1;
+  const tTotalDia=nSec*tRiego;
+  const cabeDia=tTotalDia<=hrs;
+  R.GE={deh,dsh,mx,nPlHa,nPl,precip,tRiego,nSec,qem,nem,emisNombre:emis.nombre,db_dia,qReqTotal,qDispGE,tTotalDia,cabeDia};
   const qi=document.getElementById('g-qem');
   if(qi)qi.value=qem;
   document.getElementById('g-em-r').innerHTML=`
@@ -2555,10 +2561,17 @@ function calcGE(){
       {eq:`T_riego = Db / I = ${fd(db_dia,3)} / ${fd(precip,3)}`,res:`${fd(tRiego,3)} hr/día`},
       {note:'Db = Demanda Bruta diaria [mm/día] | I = Precipitación [mm/hr]'}
     ])}
-    ${fbox('Número de Sectores',[
-      {eq:`N_sectores = ⌈T_riego / 1 hr⌉ = ⌈${fd(tRiego,3)}⌉`,res:`${nSec} sectores`},
-      {note:`Con ${hrs} hr disponibles/día: N = ⌊${hrs} / ${fd(tRiego,3)}⌋ = ${nSec}`}
+    ${fbox('Número de Sectores (según caudal, no según tiempo)',[
+      {eq:`Q_requerido (toda el área a la vez) = N_emisores × q_em / 3600 = ${nEmTotal} × ${qem} / 3600`,res:`${fd(qReqTotal,4)} l/s`},
+      {eq:`Q_disponible = ${fd(qDispGE,3)} l/s`,res:qReqTotal>qDispGE?'Insuficiente para 1 sector':'Suficiente para regar todo a la vez'},
+      {eq:qReqTotal>qDispGE?`N_sectores = ⌈Q_req/Q_disp⌉ = ⌈${fd(qReqTotal,4)}/${fd(qDispGE,3)}⌉`:'N_sectores = 1 (caudal disponible alcanza para toda el área)',res:`${nSec} sectores`},
+      {note:'El tiempo de riego por sector (T_riego) es independiente del área total — no determina el N° de sectores, solo si el diseño cabe en las horas disponibles.'}
     ])}
+    ${fbox('Verificación de tiempo diario',[
+      {eq:`T_total = N_sectores × T_riego = ${nSec} × ${fd(tRiego,3)}`,res:`${fd(tTotalDia,3)} hr`},
+      {note:`Horas disponibles declaradas: ${hrs} hr/día`}
+    ])}
+    ${cabeDia?al('✓ El riego de todos los sectores cabe en las '+hrs+' hr/día disponibles ('+fd(tTotalDia,2)+' hr requeridas).','ok'):al('⚠ El riego de todos los sectores ('+fd(tTotalDia,2)+' hr) EXCEDE las '+hrs+' hr/día disponibles. Aumente el caudal disponible (ej. con acumulador), reduzca el área, o distribuya el riego en más días.','w')}
     <div class="mg" style="margin-top:10px">
       ${mcard('m²/planta',fd(mx,4),'m²')}
       ${mcard('Plantas/ha',fd(nPlHa,0),'pl/ha')}
@@ -6088,13 +6101,19 @@ function calcME(){
   var etc=R.MA?R.MA.etc:6.1, ef=v('m-ef',85), hrs=v('m-hrs',14);
   var pls=(qem*nem)/(de*dl);
   var db_dia=etc/(ef/100), tRiego=db_dia/pls;
-  var nSec=Math.max(1,Math.floor(hrs/tRiego));
+  var supMic=v('m-sup',0.144);
+  var nEmTotalM=Math.ceil(supMic*10000/(de*dl))*nem;
+  var qReqTotalM=nEmTotalM*qem/3600;
+  var qDispME=v('m-q',0.4);
+  var nSec=qReqTotalM>qDispME ? Math.ceil(qReqTotalM/qDispME) : 1;
+  var tTotalDiaM=nSec*tRiego, cabeDiaM=tTotalDiaM<=hrs;
   var amMojada=Math.PI*radio*radio;
   var pctMojado=Math.min(100,amMojada/(de*dl)*100);
   var solapDist=2*radio-de, solapPct=solapDist>0?solapDist/de*100:0;
   var vibOk=pls<=vib;
   R.ME={de:de,dl:dl,qem:qem,nem:nem,pls:pls,db_dia:db_dia,tRiego:tRiego,nSec:nSec,
-        radio:radio,vib:vib,vibOk:vibOk,pctMojado:pctMojado,solapPct:solapPct,emisNombre:emis.nombre};
+        radio:radio,vib:vib,vibOk:vibOk,pctMojado:pctMojado,solapPct:solapPct,emisNombre:emis.nombre,
+        qReqTotal:qReqTotalM,qDisp:qDispME,tTotalDia:tTotalDiaM,cabeDia:cabeDiaM};
   calcSalidasM();
   var elR=document.getElementById('m-em-r');
   if(!elR) return;
@@ -6110,11 +6129,20 @@ function calcME(){
       {eq:'Solapamiento=2r−DE='+2*radio+'−'+de,res:solapDist>0?fd(solapDist,2)+' m ('+fd(solapPct,1)+'%)':'Sin solapamiento'},
       {note:'% mojado ≥ 25% recomendado (frutales)'}
     ])
-    +fbox('Tiempo y sectores',[
+    +fbox('Tiempo por sector',[
       {eq:'Db=ETc/Ef='+fd(etc,3)+'/'+fd((ef/100),2),res:fd(db_dia,3)+' mm/día'},
-      {eq:'T=Db/Pls='+fd(db_dia,3)+'/'+fd(pls,3),res:fd(tRiego,3)+' hr/día'},
-      {eq:'N_sec=⌊'+hrs+'/'+fd(tRiego,3)+'⌋',res:nSec+' sectores'}
+      {eq:'T=Db/Pls='+fd(db_dia,3)+'/'+fd(pls,3),res:fd(tRiego,3)+' hr/día'}
     ])
+    +fbox('Número de Sectores (según caudal)',[
+      {eq:'Q_requerido (toda el área a la vez) = '+nEmTotalM+' × '+qem+' / 3600',res:fd(qReqTotalM,4)+' l/s'},
+      {eq:'Q_disponible = '+fd(qDispME,3)+' l/s',res:qReqTotalM>qDispME?'Insuficiente para 1 sector':'Alcanza para toda el área'},
+      {eq:qReqTotalM>qDispME?'N_sectores=⌈Q_req/Q_disp⌉':'N_sectores=1',res:nSec+' sectores'}
+    ])
+    +fbox('Verificación de tiempo diario',[
+      {eq:'T_total = N_sectores × T_riego = '+nSec+' × '+fd(tRiego,3),res:fd(tTotalDiaM,3)+' hr'},
+      {note:'Horas disponibles declaradas: '+hrs+' hr/día'}
+    ])
+    +(cabeDiaM?al('✓ El riego de todos los sectores cabe en las '+hrs+' hr/día disponibles.','ok'):al('⚠ El riego total ('+fd(tTotalDiaM,2)+' hr) EXCEDE las '+hrs+' hr/día disponibles. Aumente el caudal, reduzca el área, o distribuya en más días.','w'))
     +'<div class="mg" style="margin-top:10px">'
     +mcard('Pluviometría',fd(pls,3),'mm/hr',vibOk?'':'warn')
     +mcard('VIB',fd(vib,0),'mm/hr')
