@@ -1372,13 +1372,16 @@ Agronómico de `calculos.html`.
   ANTES de importar (el prefijo de campos del archivo —g-/a-/…— debe coincidir con el sistema
   activo). Si se actualiza el HTML del Diseñador, reemplazar `static/disenador_riego_v97.html` (y
   si cambia el nombre de archivo, actualizar el enlace en `calculos.html`).
-  **Actualizado a v99 (jul-2026):** v97→v98 (ver entrada del Acumulador más abajo) y luego
-  v98→v99 — el usuario subió el archivo nuevo, se reemplazó `static/disenador_riego_v98.html`
-  por `static/disenador_riego_v99.html` (el archivo viejo se borra del repo, no se acumulan
-  versiones) y se actualizó el link en `calculos.html` + la referencia en el docstring de
-  `exportar_disenador.py`. No se abrió el archivo para verificar cambios de campos/fórmulas —
-  el usuario no reportó ninguno; si en el futuro pide portar un cambio puntual del Diseñador
-  (como con el Acumulador), ahí sí corresponde leer el HTML nuevo antes de tocar código.
+  **Actualizaciones de versión (jul-2026):** v97→v98 (ver entrada del Acumulador más abajo),
+  v98→v99 (sin cambios de fórmula reportados, solo reemplazo de archivo), y v99→v101 (el
+  usuario pidió expresamente portar el cambio de fórmula del acumulador — ver la entrada
+  "Acumulador — fórmula actualizada a 'suma'" más abajo). Cada vez: reemplazar
+  `static/disenador_riego_v{N}.html` (el archivo viejo se borra del repo, no se acumulan
+  versiones), actualizar el link en `calculos.html` y la referencia en el docstring de
+  `exportar_disenador.py`. Regla para el futuro: si el usuario NO pide portar ningún cambio
+  puntual, basta con reemplazar el archivo/link sin abrir el HTML; si SÍ pide portar un cambio
+  (como con el Acumulador), hay que leer el código nuevo del Diseñador directamente — no
+  adivinar la fórmula a partir de lo que el usuario recuerda de palabra.
 
 **Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
 exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en
@@ -1454,6 +1457,53 @@ que ambas apps den el mismo número si el revisor exporta/importa el mismo proye
 - **Alcance**: solo cubre la superficie segura y el chequeo ITT-03 — no toca el resto de la
   cadena agronómica (ETc/Dn/Fr/Db) ni el diseño hidráulico (tramos), que no dependen del caudal
   de la fuente en el modelo actual.
+
+**Acumulador — fórmula actualizada a "suma" en vez de "reemplazo" (jul-2026, Diseñador v101):**
+el usuario subió `disenador_riego_v101.html` (reemplazó a v99 en `static/`, actualizar el link
+de "Abrir Diseñador de Riego" en `calculos.html` si se vuelve a actualizar el archivo) y pidió
+portar al Chequeo el cambio de fórmula/razonamiento que le hizo al cálculo del caudal
+instantáneo desde el acumulador (`calcAcum`, línea ~6263 del HTML nuevo). Se leyó directo el
+código nuevo del Diseñador para no adivinar — cambio real de fondo, no solo cosmético:
+- **Antes:** el caudal del acumulador (`Vol×1000/(horas_disponibles_dia×3600)`) REEMPLAZABA al
+  caudal de la fuente — se asumía que mientras se regaba con el estanque, la fuente no aportaba
+  nada. **Ahora:** el Diseñador reconoce que la fuente sigue aportando SIMULTÁNEAMENTE mientras
+  el estanque se vacía, así que el caudal instantáneo real es la SUMA de ambos:
+  ```
+  Q_estanque    = Volumen[m³] × 1000 / (T × 3600)      (tasa de vaciado del estanque)
+  Q_instantáneo = Q_estanque + Q_fuente                 (caudal EFECTIVO durante el riego)
+  ```
+  La versión anterior subestimaba el caudal real disponible.
+- **Cambió también qué `T` se usa:** antes siempre "Horas Riego Disp." (Paso 1, declarado por
+  el consultor). Ahora el Diseñador prioriza el **tiempo de riego REAL** ya calculado en el
+  Paso 4 (Diseño de Emisores, sistemas localizados) y solo cae a "Horas Riego Disp." como
+  estimación preliminar si el diseño hidráulico todavía no se ha calculado. En Revisor, el
+  equivalente exacto del "tiempo de riego real" de un sistema localizado es `tiempo_riego_hr`
+  (`Db / precipitación del sistema`, ya calculado por la MISMA función) — se prioriza ese valor
+  y se cae a `horas_disponibles_dia` solo si `precipitacion_mmhr` no permitió calcularlo.
+- **Verificación nueva — factibilidad de llenado del estanque:** el modelo asume que el estanque
+  se vacía completo en cada riego (`Q_estanque = Vol/T`), así que debe volver a llenarse
+  COMPLETO usando solo el aporte de la fuente antes del próximo ciclo. Se agrega
+  `tiempo_llenado_hr = Vol×1000/(caudal_disponible_ls×3600)` comparado contra el tiempo libre
+  entre riegos (`24h − T`, asumiendo riego diario — esta función solo cubre sistemas
+  localizados, ver el alcance más arriba) → `llenado_estanque_ok`. Si no alcanza a llenarse, el
+  volumen declarado no está garantizado en cada ciclo.
+- `calculos_riego.verificacion_diseno_riego()`: el campo `caudal_acumulador_ls` ahora es el
+  TOTAL (estanque+fuente, no solo el estanque) para no romper a los consumidores que ya lo usan
+  como "el caudal efectivo" (`superficie_segura_ha`, `requiere_acumulador`) — se agregó
+  `caudal_estanque_ls` (solo el aporte del estanque, para mostrar el desglose) y
+  `estanque_tiempo_estimado` (bool — si se usó el fallback de horas en vez del tiempo real).
+- `analyzer.py` (`_bloque_verificacion_agronomica_sistema`): el texto para la IA ya no dice que
+  el acumulador "REEMPLAZA" a la fuente — explica la suma y el porqué (la fuente no se detiene),
+  y agrega el resultado de la verificación de llenado si corresponde.
+- **UI (`calculos.html`)**: el `<span id="{p}agro-sup-info">` ahora arma un desglose completo
+  (Q estanque + Q fuente = Q instantáneo, con T real/estimado) más la verificación de llenado —
+  mismo patrón textual que usa el propio Diseñador en su resumen de "Acumulación de Agua", para
+  que el revisor vea el mismo razonamiento en las dos apps. El caso "no alcanza a llenarse" se
+  resalta con la clase `.calc-alerta` ya existente (rojo) en vez de un símbolo/emoji nuevo —
+  regla de siempre del proyecto (sin emojis decorativos en la UI). `recalcAgroSistema` (JS)
+  reordenó el cálculo de `tiempoRiego` para que corra ANTES del bloque del acumulador (que ahora
+  lo necesita como T de vaciado) — verificado a mano contra `calculos_riego.py` con los mismos
+  casos de prueba (T real, T estimado por fallback, y el límite exacto del llenado).
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

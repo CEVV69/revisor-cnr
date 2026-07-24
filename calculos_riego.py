@@ -144,14 +144,26 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     N° de sectores          = ⌊Horas disponibles al día / Tiempo de riego⌋
 
     Si el proyecto declara un ACUMULADOR (estanque/tranque regulador, `volumen_acumulador_m3`),
-    el caudal EFECTIVO disponible para regar ya no es el de la fuente (`caudal_disponible_ls`)
-    sino el que entrega el acumulador repartido en las horas de riego disponibles del día —
-    misma fórmula que usa el Diseñador de Riego (`calcAcum`):
-        Q_acumulador = Volumen[m³] × 1000 / (horas_disponibles_dia × 3600)   [l/s]
-    Ese caudal reemplaza al de la fuente para la superficie de riego segura; el caudal de la
-    fuente pasa a ser solo el que recarga el acumulador entre riegos, no el que se usa durante
-    el riego. Sin acumulador declarado, el caudal efectivo sigue siendo el de la fuente
-    (comportamiento de siempre).
+    el caudal EFECTIVO disponible durante el riego ya NO es solo el del acumulador — es la SUMA
+    de dos aportes simultáneos, porque la fuente no deja de aportar mientras se riega (fórmula
+    actualizada del Diseñador de Riego v101, `calcAcum`; la versión anterior asumía que el
+    acumulador REEMPLAZABA a la fuente, lo que subestimaba el caudal real disponible):
+        Q_estanque     = Volumen[m³] × 1000 / (T × 3600)     [l/s — tasa de vaciado del estanque]
+        Q_instantáneo  = Q_estanque + Q_fuente               [l/s — caudal EFECTIVO durante el riego]
+    `T` es el tiempo de riego REAL (`tiempo_riego_hr`, calculado más abajo a partir de la
+    precipitación del sistema) cuando está disponible — mismo criterio que el Diseñador, que
+    usa el tiempo de riego real del Paso 4 para sistemas localizados. Si `precipitacion_mmhr`
+    no permite calcularlo todavía, se usa `horas_disponibles_dia` como estimación preliminar
+    (mismo fallback que el Diseñador; el resultado queda marcado con
+    `estanque_tiempo_estimado=True`).
+
+    Además se verifica que el estanque alcance a rellenarse COMPLETO con el aporte de la fuente
+    en el tiempo que queda libre entre riegos (24h − T, asumiendo riego diario — esta función
+    solo cubre sistemas localizados, ver más arriba): si no alcanza, el volumen declarado no
+    está garantizado en cada ciclo (`llenado_estanque_ok=False`).
+
+    Sin acumulador declarado, el caudal efectivo sigue siendo el de la fuente (comportamiento
+    de siempre).
 
     Cada resultado solo se calcula si están los datos que necesita — es aditivo, no todo o
     nada. `superficie_ha`/`caudal_disponible_ls` (o el acumulador) habilitan la superficie
@@ -163,19 +175,34 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     demanda_ls_ha = db_mm_dia / 8.64
     r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
 
-    caudal_efectivo_ls = caudal_disponible_ls
-    if volumen_acumulador_m3 and horas_disponibles_dia:
-        caudal_acumulador_ls = volumen_acumulador_m3 * 1000 / (horas_disponibles_dia * 3600)
-        r["caudal_acumulador_ls"] = round(caudal_acumulador_ls, 3)
-        caudal_efectivo_ls = caudal_acumulador_ls
-
-    if caudal_efectivo_ls and demanda_ls_ha:
-        r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
+    tiempo_riego = None
     if precipitacion_mmhr:
         tiempo_riego = db_mm_dia / precipitacion_mmhr
         r["tiempo_riego_hr"] = round(tiempo_riego, 2)
         if horas_disponibles_dia and tiempo_riego:
             r["n_sectores"] = max(1, math.floor(horas_disponibles_dia / tiempo_riego))
+
+    caudal_efectivo_ls = caudal_disponible_ls
+    if volumen_acumulador_m3:
+        # T de vaciado: tiempo de riego real si ya se pudo calcular, si no horas disponibles
+        # al día como estimación preliminar (mismo fallback que el Diseñador).
+        t_vaciado = tiempo_riego if tiempo_riego else horas_disponibles_dia
+        if t_vaciado:
+            caudal_estanque_ls = volumen_acumulador_m3 * 1000 / (t_vaciado * 3600)
+            r["caudal_estanque_ls"] = round(caudal_estanque_ls, 3)
+            r["estanque_tiempo_estimado"] = tiempo_riego is None
+            caudal_total_ls = caudal_estanque_ls + (caudal_disponible_ls or 0)
+            r["caudal_acumulador_ls"] = round(caudal_total_ls, 3)
+            caudal_efectivo_ls = caudal_total_ls
+
+            if caudal_disponible_ls:
+                tiempo_llenado = volumen_acumulador_m3 * 1000 / (caudal_disponible_ls * 3600)
+                downtime = 24 - t_vaciado
+                r["tiempo_llenado_hr"] = round(tiempo_llenado, 2)
+                r["llenado_estanque_ok"] = downtime > 0 and tiempo_llenado <= downtime
+
+    if caudal_efectivo_ls and demanda_ls_ha:
+        r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
     return r
 
 

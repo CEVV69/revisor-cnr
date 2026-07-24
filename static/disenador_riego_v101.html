@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diseñador de Riego v99</title>
+<title>Diseñador de Riego v101</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Nunito+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -2704,10 +2704,20 @@ function buildInfHtml(sys){
       const _acChk=document.getElementById(_pfxAc+'-acum-chk');
       if(!_acChk||!_acChk.checked) return '';
       const _acVol=parseFloat(document.getElementById(_pfxAc+'-acum-vol')?.value)||0;
-      const _acHrs=parseFloat(document.getElementById(_pfxAc+'-hrs')?.value)||14;
       if(_acVol<=0) return '';
-      const _acQ=(_acVol*1000)/(_acHrs*3600);
-      return irow('Acumulación de Agua',fd(_acVol,1)+' m³',' \u2192 Q equivalente = '+fd(_acQ,3)+' l/s en '+fd(_acHrs,1)+' hr/día','El proyecto contempla un estanque/tranque regulador; el caudal de diseño incorpora este volumen acumulado');
+      const _rAc={got:R.GE,mic:R.ME,asp:R.ASP,car:R.CAR}[sys];
+      const _tRealAc=sys==='asp'||sys==='car'?_rAc?.trp:_rAc?.tRiego;
+      const _estimAc=!(_tRealAc>0);
+      const _tAc=_estimAc?(parseFloat(document.getElementById(_pfxAc+'-hrs')?.value)||14):_tRealAc;
+      const _qEstanqueAc=(_acVol*1000)/(_tAc*3600);
+      const _qFuenteAc=parseFloat(document.getElementById(_pfxAc+'-q')?.value)||0;
+      const _qTotalAc=_qEstanqueAc+_qFuenteAc;
+      const _tLlenAc=(_acVol*1000)/(_qFuenteAc*3600||1e-9);
+      const _frAc=sys==='asp'?R.AA?.frAdj:sys==='car'?R.CA?.frAdj:null;
+      const _tCicAc=_frAc>0?24*_frAc:24;
+      const _downAc=_tCicAc-_tAc;
+      const _llenOkAc=_qFuenteAc>0&&_tLlenAc<=_downAc;
+      return irow('Acumulación de Agua',fd(_acVol,1)+' m³',' \u2192 Q estanque='+fd(_qEstanqueAc,3)+' + Q fuente='+fd(_qFuenteAc,3)+' = Q instantáneo='+fd(_qTotalAc,3)+' l/s (T='+fd(_tAc,3)+'h'+(_estimAc?', estimado':', real')+'). Tiempo de llenado del estanque: '+fd(_tLlenAc,2)+'h vs. '+fd(_downAc,2)+'h disponibles entre riegos — '+(_llenOkAc?'factible':'\u26a0 INSUFICIENTE, verificar volumen o frecuencia'),'El proyecto contempla un estanque/tranque regulador; la fuente sigue aportando durante el vaciado del estanque, por lo que el caudal instantáneo disponible es la suma de ambos aportes. Se verifica que el estanque alcance a rellenarse completo entre eventos de riego.');
     })()
     +(()=>{
       const _q85Labels={'der-inscrito':'Derecho inscrito (caudal en título)','dt01':'DT-01 — Canales con dotación CNR','dt02':'DT-02 — Estación fluviométrica SIIR','aforos':'Aforos directos (3 mediciones)','estudio':'Estudio hidrológico especial','pozo':'Pozo (caudal del título)'};
@@ -6254,24 +6264,66 @@ function calcAcum(pfx){
   var r=document.getElementById(pfx+'-acum-r');
   if(!r) return;
   var vol=v(pfx+'-acum-vol',0);
-  var hrs=v(pfx+'-hrs',14);
+  var qDispActual=v(pfx+'-q',0);
   if(vol<=0){
     r.innerHTML='<div style="font-size:.72rem;color:var(--slate);font-family:var(--mono)">Ingrese el volumen a acumular para calcular el caudal equivalente.</div>';
     return;
   }
-  if(hrs<=0){
-    r.innerHTML='<div style="font-size:.72rem;color:#c2410c;font-family:var(--mono)">\u26a0 No es posible calcular: revise las Horas de Riego Disponibles (Paso 1). Se usará solo el caudal disponible declarado.</div>';
+  // Usar el TIEMPO DE RIEGO REAL del sistema (calculado en Paso 4) si ya está disponible;
+  // si aún no se ha hecho el diseño hidráulico, usar Horas Riego Disp. (Paso 1) como estimación
+  // preliminar y advertir que debe recalcularse después.
+  var sysMap={g:'got',a:'asp',m:'mic',c:'car'};
+  var sys=sysMap[pfx];
+  var tReal=null, tFuente='';
+  if(sys==='got'&&R.GE&&R.GE.tRiego>0){tReal=R.GE.tRiego;tFuente='T. Riego real (Paso 4, Diseño de Emisores)';}
+  else if(sys==='mic'&&R.ME&&R.ME.tRiego>0){tReal=R.ME.tRiego;tFuente='T. Riego real (Paso 4, Diseño de Emisores)';}
+  else if(sys==='asp'&&R.ASP&&R.ASP.trp>0){tReal=R.ASP.trp;tFuente='T. por Postura real (Paso 4, Distribución y Posturas)';}
+  else if(sys==='car'&&R.CAR&&R.CAR.trp>0){tReal=R.CAR.trp;tFuente='T. por Postura real (Paso 4, Parámetros de Operación)';}
+  var esEstimado = (tReal===null);
+  var T = esEstimado ? v(pfx+'-hrs',14) : tReal;
+  if(T<=0){
+    r.innerHTML='<div style="font-size:.72rem;color:#c2410c;font-family:var(--mono)">\u26a0 No es posible calcular: revise el tiempo de riego. Se usará solo el caudal disponible declarado.</div>';
     return;
   }
-  var qAcum = (vol*1000)/(hrs*3600); // l/s
-  var qDispActual = v(pfx+'-q',0);
+  // Q instantáneo con acumulador = tasa de vaciado del estanque durante el riego
+  // + caudal de la fuente que sigue llegando SIMULTÁNEAMENTE (no se detiene mientras se riega)
+  var qAcumSolo = (vol*1000)/(T*3600); // l/s — solo el aporte del estanque
+  var qTotal = qAcumSolo + qDispActual; // l/s — total instantáneo disponible
+
+  // ═══ VERIFICACIÓN DE FACTIBILIDAD DE LLENADO ═══
+  // El modelo asume que TODO el volumen declarado se vacía durante T (Q_estanque=Vol/T).
+  // Por lo tanto, tras cada riego el estanque queda vacío y debe rellenarse COMPLETO
+  // usando solo Q_fuente antes del próximo ciclo de riego.
+  var tLlenado = (vol*1000)/(qDispActual*3600 || 1e-9); // hr — tiempo de llenado desde vacío
+  // Ciclo de riego: got/mic riegan a diario (localizado, Db diario) → 24h.
+  // asp/car tienen Fr (días entre riegos del mismo sector) → 24×Fr_adj si está calculado.
+  var frAdjSys=null;
+  if(sys==='asp'&&R.AA&&R.AA.frAdj>0) frAdjSys=R.AA.frAdj;
+  else if(sys==='car'&&R.CA&&R.CA.frAdj>0) frAdjSys=R.CA.frAdj;
+  var tCiclo = frAdjSys ? 24*frAdjSys : 24;
+  var downtime = tCiclo - T;
+  var llenadoOk = qDispActual>0 && tLlenado <= downtime;
+
   r.innerHTML =
     '<div style="font-size:.74rem;font-family:var(--mono);color:var(--navy);line-height:1.6">'
-    +'Q_acum = Vol×1000/(hrs×3600) = '+fd(vol,1)+'×1000/('+fd(hrs,1)+'×3600) = <strong>'+fd(qAcum,3)+' l/s</strong>'
-    +'<br><span style="color:var(--slate);font-size:.7rem">Caudal disponible actualmente declarado: '+fd(qDispActual,3)+' l/s</span>'
+    +'Q_estanque = Vol×1000/(T×3600) = '+fd(vol,1)+'×1000/('+fd(T,3)+'×3600) = '+fd(qAcumSolo,3)+' l/s'
+    +'<br>Q_instantáneo = Q_estanque + Q_fuente = '+fd(qAcumSolo,3)+' + '+fd(qDispActual,3)+' = <strong>'+fd(qTotal,3)+' l/s</strong>'
+    +'<br><span style="color:var(--slate);font-size:.7rem">T usado: '+fd(T,3)+' hr ('+(esEstimado?'estimación preliminar con Horas Riego Disp. — recalcule después del Paso 4/5':tFuente)+')</span>'
     +'</div>'
-    +'<button class="btn bc" style="margin-top:6px;font-size:.72rem;padding:5px 10px" onclick="applyAcum(\''+pfx+'\','+qAcum+')">'
-    +'Usar '+fd(qAcum,3)+' l/s como caudal de diseño</button>';
+    +(esEstimado?'<div style="margin-top:4px;padding:6px 8px;background:#fff7ed;border-radius:5px;font-size:.68rem;color:#c2410c">\u26a0 Aún no hay diseño hidráulico calculado. Este valor es preliminar; vuelva a este paso y presione "Calcular" de nuevo después de completar el Paso 4 (y 5 para carrete/aspersión) para usar el tiempo de riego real del sistema.</div>':'')
+    +'<div style="margin-top:8px;padding:8px 10px;background:'+(llenadoOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.72rem;font-family:var(--mono);line-height:1.6">'
+    +'<strong>Verificación de llenado del estanque</strong><br>'
+    +'T_llenado (vacío→lleno) = Vol×1000/(Q_fuente×3600) = '+fd(vol,1)+'×1000/('+fd(qDispActual,3)+'×3600) = '+fd(tLlenado,2)+' hr<br>'
+    +'Tiempo disponible entre riegos = '+fd(tCiclo,1)+'h'+(frAdjSys?' (Fr='+frAdjSys+' días)':' (riego diario)')+' − '+fd(T,3)+'h riego = '+fd(downtime,2)+' hr<br>'
+    +(llenadoOk
+      ?'\u2713 El estanque alcanza a llenarse completo con '+fd(downtime-tLlenado,2)+' hr de margen. Diseño factible.'
+      :'\u26a0 El estanque NO alcanza a llenarse completo antes del próximo riego (faltan '+fd(tLlenado-downtime,2)+' hr). El volumen declarado no está garantizado cada ciclo: reduzca el volumen asumido, aumente la frecuencia de riego permitida, o use solo el caudal disponible sin acumulador.')
+    +'</div>';
+
+  var _btnHtml = llenadoOk
+    ? '<button class="btn bc" style="margin-top:6px;font-size:.72rem;padding:5px 10px" onclick="applyAcum(\''+pfx+'\','+qTotal+')">Usar '+fd(qTotal,3)+' l/s como caudal de diseño</button>'
+    : '<button class="btn bc" style="margin-top:6px;font-size:.72rem;padding:5px 10px;opacity:.6" onclick="if(confirm(\'El estanque no alcanza a llenarse completo cada ciclo. ¿Usar de todas formas este valor (no garantizado)?\'))applyAcum(\''+pfx+'\','+qTotal+')">Usar '+fd(qTotal,3)+' l/s de todas formas (\u26a0 no garantizado)</button>';
+  r.innerHTML += _btnHtml;
 }
 
 function applyAcum(pfx, qVal){
