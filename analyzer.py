@@ -1933,16 +1933,30 @@ async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nue
                                        observaciones_pendientes_otras: list) -> list:
     """Tras revisar un ítem, determina si su contenido resuelve observaciones PENDIENTES de
     OTROS ítems ya revisados (ej.: "Especificaciones técnicas" aclara un dato que "Diseño
-    hidráulico" había marcado como ambiguo). Retorna la lista de IDs a auto-descartar.
+    hidráulico" había marcado como ambiguo). Retorna una lista de dicts a auto-descartar:
+    [{"id": "...", "justificacion": "..."}].
 
-    Llamada barata con Haiku (lectura + comparación, no razonamiento técnico — regla de costo
-    de siempre) y con un resumen corto del ítem (no el presupuesto completo de caracteres del
-    análisis principal) — se ejecuta en paralelo a `_analizar_grupo`, no agrega latencia.
+    Usa **Sonnet 5**, no Haiku: bug real reportado por el usuario (jul-2026) — con Haiku, este
+    juicio ("¿el contenido de un ítem resuelve una observación de otro?") se comportaba mal en
+    producción, descartando en bloque TODAS las observaciones pendientes de "Diseño y cálculos
+    hidráulicos" (sobre una inconsistencia de superficies) al revisar "Presupuesto de obras" —
+    un documento que solo lista materiales y precios, sin ningún dato de superficie que pudiera
+    rebatir esa observación. Este juicio es más cercano a razonamiento técnico que a extracción
+    de datos (regla de costo del proyecto: Haiku es para "leer texto y devolver JSON
+    estructurado", Sonnet 5 para lo que exige razonamiento), así que se subió de modelo pese al
+    costo extra — un falso positivo acá esconde un hallazgo real sin que el revisor lo note.
 
-    Deliberadamente CONSERVADORA: ante la duda, no invalida (mismo criterio de la app para
-    generar observaciones). Un falso positivo acá esconde un hallazgo real sin que el revisor
-    lo note; un falso negativo solo deja una observación ya resuelta visible de más, que el
-    revisor descarta a mano igual que siempre — el costo de equivocarse no es simétrico."""
+    Corre con un resumen corto del ítem (no el presupuesto completo de caracteres del análisis
+    principal), en paralelo a `_analizar_grupo` — no agrega latencia.
+
+    Deliberadamente CONSERVADORA, reforzada tras el bug: ante la duda, no invalida. Exige una
+    CITA textual del contenido revisado como evidencia (no solo una etiqueta "resuelto") y un
+    ejemplo negativo explícito calcado del caso real que falló, para anclar el criterio. Un falso
+    positivo esconde un hallazgo real; un falso negativo solo deja una observación ya resuelta
+    visible de más, que el revisor descarta a mano igual que siempre — el costo de equivocarse
+    no es simétrico. Además, cualquier auto-descarte que igual se produzca queda con la
+    justificación de la IA visible en el texto de la observación (ver `main.revisar_item`), para
+    que el revisor detecte de un vistazo si el criterio fue razonable o no."""
     if not observaciones_pendientes_otras or not texto_resumen_nuevo.strip():
         return []
 
@@ -1955,35 +1969,68 @@ async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nue
 
     prompt = f"""Se acaba de revisar el ítem "{item_nombre_nuevo}" de un expediente CNR (Ley 18.450).
 
-CONTENIDO REVISADO EN ESTE ÍTEM:
+CONTENIDO REVISADO EN ESTE ÍTEM (extracto):
 {texto_resumen_nuevo}
 
 OBSERVACIONES PENDIENTES DE OTROS ÍTEMS (generadas antes, sobre otros documentos del mismo
 expediente):
 {lista_obs}
 
-TAREA: Determina cuáles de esas observaciones pendientes quedan RESUELTAS por el contenido de
-arriba — la información que faltaba o la ambigüedad que señalaban queda aclarada o corregida
-por lo que dice este ítem.
+TAREA: Determina cuáles de esas observaciones pendientes quedan RESUELTAS por el CONTENIDO
+REVISADO de arriba — es decir, el dato que faltaba o la ambigüedad que señalaban aparece
+aclarado, corregido o contradicho de forma EXPLÍCITA en ese contenido.
 
-SÉ CONSERVADOR: ante la duda, NO la marques como resuelta. Solo marca una observación si el
-contenido de arriba la resuelve de forma DIRECTA y explícita, no por relación tangencial o
-parecido superficial.
+REGLAS ESTRICTAS — la mayoría de las revisiones NO resuelven ninguna observación de otro ítem
+(son documentos distintos, con propósitos distintos); ante la duda, NO la marques:
+1. Debes poder citar, casi textualmente, la frase o el dato exacto del CONTENIDO REVISADO que
+   resuelve la observación. Si no puedes citar algo concreto y específico, NO la marques.
+2. Que ambos ítems toquen el mismo TEMA general no basta — necesitas el dato o aclaración
+   ESPECÍFICA que la observación pendiente cuestiona, no una relación temática superficial.
+   Ejemplo de error a EVITAR (caso real que NO debe repetirse): una observación pendiente de
+   "Diseño y cálculos hidráulicos" sobre un error en la SUMA de superficies de riego NO queda
+   resuelta al revisar "Presupuesto detallado de obras" — un listado de partidas, materiales y
+   precios no contiene superficies ni corrige ese cálculo, aunque ambos documentos sean del
+   mismo proyecto. No la habrías marcado si te hubieras exigido la cita textual de la regla 1.
+3. Si la observación pendiente es sobre un dato NUMÉRICO concreto (superficie, caudal, diámetro,
+   monto, cantidad, etc.), el contenido revisado debe mencionar ESE MISMO dato, corregido o
+   aclarado, por su nombre o su valor — no basta con que trate el mismo tema en general.
 
 Responde SOLO en JSON, sin texto adicional:
-{{"resueltas": ["id_obs_1", "id_obs_2"], "justificaciones": {{"id_obs_1": "razón breve"}}}}
+{{"resueltas": [
+  {{"id": "id_obs_1", "cita": "fragmento casi textual del contenido revisado que la resuelve",
+    "justificacion": "por qué esa cita resuelve la observación, en 1 frase breve"}}
+]}}
 
-Si ninguna se resuelve, responde: {{"resueltas": [], "justificaciones": {{}}}}"""
+Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda), responde:
+{{"resueltas": []}}"""
 
-    try:
-        response = await asyncio.to_thread(
-            client.messages.create,
-            model=MODELO_HAIKU, max_tokens=800,
+    def _llamar(max_tokens):
+        response = client.messages.create(
+            model=MODELO_SONNET, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        data = _extraer_json_simple(_texto_respuesta(response))
-        ids = data.get("resueltas", [])
-        return ids if isinstance(ids, list) else []
+        return response
+
+    try:
+        response = await asyncio.to_thread(_llamar, 4000)
+        content = _texto_respuesta(response)
+        # Mismo patrón que el resto de las llamadas a Sonnet 5: el "thinking" puede comerse el
+        # cupo antes de escribir el JSON — reintenta una vez con más cupo antes de rendirse.
+        if not content.strip() and response.stop_reason == "max_tokens":
+            print(f"⚠️ revisar_invalidacion_cruzada ('{item_nombre_nuevo}'): respuesta vacía por "
+                  f"max_tokens — reintentando con más cupo…")
+            response = await asyncio.to_thread(_llamar, 8000)
+            content = _texto_respuesta(response)
+        data = _extraer_json_simple(content)
+        resueltas = data.get("resueltas", [])
+        if not isinstance(resueltas, list):
+            return []
+        out = []
+        for r in resueltas:
+            if isinstance(r, dict) and r.get("id"):
+                just = (r.get("justificacion") or r.get("cita") or "").strip()
+                out.append({"id": str(r["id"]), "justificacion": just})
+        return out
     except Exception as e:
         print(f"⚠️ revisar_invalidacion_cruzada falló, se omite: {e}")
         return []
@@ -2024,9 +2071,9 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
 
     `observaciones_pendientes_otros`: observaciones PENDIENTES de OTROS ítems ya revisados
     ([{id, item_nombre, texto}, ...]) — si el contenido de ESTE ítem las resuelve, se devuelven
-    sus IDs en el resultado (`invalidadas`) para que el llamador las auto-descarte (ver
-    `revisar_invalidacion_cruzada`). Corre en paralelo al análisis principal, sin agregar
-    latencia."""
+    como [{id, justificacion}, ...] en el resultado (`invalidadas`) para que el llamador las
+    auto-descarte con la justificación visible (ver `revisar_invalidacion_cruzada`). Corre en
+    paralelo al análisis principal, sin agregar latencia."""
     item = ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}

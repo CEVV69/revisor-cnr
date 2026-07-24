@@ -929,14 +929,22 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
 
     # Invalidación cruzada: auto-descartar observaciones PENDIENTES de OTROS ítems que el
     # contenido de este ítem resolvió (ver analyzer.revisar_invalidacion_cruzada). Solo toca
-    # "pendiente" — si el revisor ya la aprobó o ya la había descartado, no se toca.
-    ids_invalidadas = resultado.get("invalidadas") or []
+    # "pendiente" — si el revisor ya la aprobó o ya la había descartado, no se toca. Se guarda la
+    # justificación que dio la IA (cita textual del contenido que la resolvió) junto con el
+    # descarte, para que el revisor pueda juzgar de un vistazo si el criterio fue razonable —
+    # bug real detectado (jul-2026): sin esta justificación visible, un descarte incorrecto (ej.
+    # el Presupuesto marcado como si resolviera una observación de superficies del Diseño
+    # hidráulico, cosa que no tiene sentido) pasaba desapercibido para el revisor.
+    invalidadas = resultado.get("invalidadas") or []
+    mapa_invalidadas = {i.get("id"): i.get("justificacion", "") for i in invalidadas if i.get("id")}
     n_invalidadas = 0
-    if ids_invalidadas:
+    if mapa_invalidadas:
         for o in proyecto["observaciones"]:
-            if o.get("id") in ids_invalidadas and o.get("estado") == "pendiente":
+            if o.get("id") in mapa_invalidadas and o.get("estado") == "pendiente":
+                justificacion = mapa_invalidadas[o["id"]]
+                sufijo = f' — {justificacion}' if justificacion else ""
                 o["estado"] = "descartada"
-                o["texto"] = o["texto"] + f'\n\n[Auto-descartada: resuelta al revisar "{nombre_item}"]'
+                o["texto"] = o["texto"] + f'\n\n[Auto-descartada: resuelta al revisar "{nombre_item}"{sufijo}]'
                 n_invalidadas += 1
 
     db.save_proyecto(proyecto)

@@ -1916,9 +1916,7 @@ y pidió reincorporarlo sin disparar el costo — se portó a la unidad de traba
 documento):
 - `analyzer.revisar_invalidacion_cruzada(item_nombre_nuevo, texto_resumen_nuevo,
   observaciones_pendientes_otras)` — dado el resumen del ítem recién revisado, decide cuáles
-  observaciones PENDIENTES de OTROS ítems quedan resueltas. **Barata a propósito:** usa
-  **Haiku** (no Sonnet — misma regla de costo de siempre: leer texto y devolver JSON
-  estructurado es tarea de Haiku), `max_tokens=800`, y un resumen corto del ítem —
+  observaciones PENDIENTES de OTROS ítems quedan resueltas, y un resumen corto del ítem —
   `_texto_grupo_para_extraccion(docs_grupo, max_chars=8000)`, la MISMA función ya usada para las
   extracciones numéricas (reparto equitativo entre documentos, no el presupuesto completo de
   120.000 caracteres del análisis principal). **Corre en PARALELO** al análisis principal
@@ -1940,16 +1938,58 @@ documento):
   pendiente si no está de acuerdo).
 - **Wiring:** `main.py` → `revisar_item()` arma `observaciones_pendientes_otros` (pendientes de
   cualquier ítem distinto al que se está revisando) y se lo pasa a `analizar_item()`, que
-  devuelve `resultado["invalidadas"]` (lista de IDs). Tras guardar las observaciones nuevas del
-  ítem, se aplican esos IDs sobre `proyecto["observaciones"]` (respetando el filtro
-  `estado=="pendiente"` una segunda vez, por si cambió entre medio). El redirect agrega
-  `?item_invalidadas=N` si hubo alguna; `proyecto.html` muestra un banner verde
+  devuelve `resultado["invalidadas"]` (lista de `{id, justificacion}`, ver el bug de abajo). Tras
+  guardar las observaciones nuevas del ítem, se aplican esos IDs sobre `proyecto["observaciones"]`
+  (respetando el filtro `estado=="pendiente"` una segunda vez, por si cambió entre medio). El
+  redirect agrega `?item_invalidadas=N` si hubo alguna; `proyecto.html` muestra un banner verde
   (`alert-success`) avisando cuántas se resolvieron, para que el revisor sepa que pasó y pueda
   confirmarlo si quiere — no queda en silencio como antes de este cambio.
 - **No se aplica a `criterios_aprendidos`/feedback de consultor:** a diferencia de un descarte
   manual del revisor (que sí alimenta el aprendizaje del ítem/consultor), un auto-descarte por
   invalidación cruzada NO registra feedback — es una corrección automática del sistema, no una
   señal de juicio del revisor, y mezclarla contaminaría esa fuente de aprendizaje.
+
+**Bug resuelto — descartaba observaciones en bloque sin relación real (jul-2026):** reportado por
+el usuario con un caso real de producción: una observación pendiente de "Diseño y cálculos
+hidráulicos" sobre un error en la SUMA de superficies de riego se auto-descartó "resuelta al
+revisar Presupuesto detallado de obras" — pese a que el presupuesto es solo un listado de
+partidas/materiales/precios, sin ningún dato de superficie que pudiera rebatir esa observación.
+El usuario confirmó que pasó "de esta misma manera" con TODAS las observaciones pendientes de ese
+ítem, no un caso aislado.
+- **Causa:** la función usaba **Haiku** (decisión original: "leer texto y comparar" parecía
+  encajar en la regla de costo de Haiku) con un prompt que solo pedía "sé conservador" como
+  instrucción textual, sin exigir evidencia concreta. En la práctica, frente a una lista de hasta
+  150 observaciones pendientes en un solo llamado, el modelo tendía a marcar varias como
+  "resueltas" por relación TEMÁTICA superficial (ambos documentos son del mismo proyecto/tratan
+  de "superficie" en términos generales) en vez de por una resolución real y específica — este
+  juicio (¿el contenido de un ítem resuelve técnicamente la duda de otro?) resultó ser más
+  cercano a razonamiento técnico que a extracción de datos.
+- **Fix, dos frentes:**
+  1. **Modelo Sonnet 5** en vez de Haiku (`MODELO_SONNET`, `max_tokens=4000`, con el mismo
+     patrón de reintento con más cupo si la respuesta llega vacía por `max_tokens`, igual que el
+     resto de las llamadas a Sonnet 5 — ver la regla general sobre thinking más abajo en este
+     documento).
+  2. **Prompt reforzado** con 3 reglas estrictas: (a) exige que la IA pueda CITAR casi
+     textualmente la frase o el dato del contenido revisado que resuelve la observación — si no
+     puede citar algo concreto, no la marca; (b) aclara explícitamente que compartir el mismo
+     TEMA general no basta, necesita el dato/aclaración ESPECÍFICA que la observación cuestiona;
+     (c) para observaciones sobre un dato NUMÉRICO concreto, exige que el contenido revisado
+     mencione ESE MISMO dato corregido, no solo el mismo tema. El prompt incluye además el caso
+     real que falló como EJEMPLO NEGATIVO explícito ("Presupuesto no resuelve una observación de
+     superficies de Diseño hidráulico, aunque sean del mismo proyecto") para anclar el criterio
+     con un caso concreto, no solo una instrucción abstracta.
+- **Justificación de la IA ahora visible para el revisor:** la función devuelve
+  `[{"id", "justificacion"}, ...]` (antes solo una lista de IDs, sin explicar el porqué) — la cita/
+  justificación que dio la IA se guarda en el propio texto del auto-descarte:
+  `[Auto-descartada: resuelta al revisar "{ítem}" — {justificación}]`. Así, si el criterio vuelve
+  a fallar alguna vez, el revisor lo detecta de inmediato leyendo la observación descartada (en
+  vez de tener que ir a comparar los documentos a mano para notar el error), y puede revertirla
+  marcándola pendiente de nuevo.
+- **Costo:** sube (Sonnet 5 en vez de Haiku, para esta llamada puntual) pero se acotó lo posible —
+  sigue corriendo solo cuando hay observaciones pendientes de otros ítems y en paralelo al
+  análisis principal, sin agregar latencia. Se prioriza la corrección: un falso positivo acá
+  esconde un hallazgo real de un proyecto de riego real, el costo de equivocarse no es simétrico
+  con el costo en tokens de la llamada.
 
 **Revisión por Ejes eliminada por completo (jul-2026):** existió como método alternativo que
 convivía con Ítems SEP — 9 ejes temáticos (`EJES_REVISION`/`EJES_ORDEN`: Superficie,
