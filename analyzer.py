@@ -1253,57 +1253,15 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     if diseno:
         lineas_diseno = [f"Demanda = Db / 8,64 = {diseno['demanda_ls_ha']} l/s/ha"]
         superficie_decl = datos.get("superficie_riego_ha")
-        caudal_para_diseno = datos.get("caudal_disponible_ls")
-        if "caudal_estanque_ls" in diseno:
-            t_desc = ("el tiempo de riego real recalculado" if not diseno.get("estanque_tiempo_estimado")
-                       else "horas disponibles al día — ESTIMACIÓN preliminar, aún no hay tiempo de "
-                            "riego calculado con la precipitación del sistema")
-            lineas_diseno.append(
-                f"El proyecto declara un acumulador de {volumen_acum} m³ — caudal del estanque = "
-                f"Vol×1000/(T×3600) = {diseno['caudal_estanque_ls']} l/s (T = {t_desc}). El caudal "
-                f"de la fuente NO deja de aportar mientras se riega, así que el caudal INSTANTÁNEO "
-                f"efectivo es la SUMA de ambos: {diseno['caudal_estanque_ls']} + "
-                f"{datos.get('caudal_disponible_ls')} = {diseno['caudal_acumulador_ls']} l/s "
-                f"(fórmula actualizada del Diseñador de Riego v101 — antes se asumía que el "
-                f"acumulador reemplazaba a la fuente, lo que subestimaba el caudal real).")
-            if "llenado_estanque_ok" in diseno:
-                if diseno["llenado_estanque_ok"]:
-                    lineas_diseno.append(
-                        f"Verificación de llenado del estanque: con el aporte de la fuente "
-                        f"({datos.get('caudal_disponible_ls')} l/s) tarda {diseno['tiempo_llenado_hr']} "
-                        f"hr en rellenarse completo, y alcanza a hacerlo entre un riego y el "
-                        f"siguiente — diseño factible.")
-                else:
-                    lineas_diseno.append(
-                        f"Verificación de llenado del estanque: con el aporte de la fuente "
-                        f"({datos.get('caudal_disponible_ls')} l/s) tarda {diseno['tiempo_llenado_hr']} "
-                        f"hr en rellenarse completo, pero NO alcanza a hacerlo antes del próximo "
-                        f"riego — el volumen declarado no está garantizado en cada ciclo. Debe "
-                        f"justificar o ajustar el volumen del acumulador o la frecuencia de riego.")
-            caudal_para_diseno = diseno["caudal_acumulador_ls"]
+        caudal_disp = datos.get("caudal_disponible_ls")
         if "superficie_segura_ha" in diseno:
-            etiqueta_caudal = "instantáneo (estanque + fuente)" if "caudal_estanque_ls" in diseno else "disponible declarado"
-            linea = (f"Superficie de riego segura (con el caudal {etiqueta_caudal} de "
-                      f"{caudal_para_diseno} l/s) = {diseno['superficie_segura_ha']} ha")
+            linea = (f"Superficie de riego segura (con el caudal disponible declarado de "
+                      f"{caudal_disp} l/s) = {diseno['superficie_segura_ha']} ha")
             if superficie_decl is not None and diseno["superficie_segura_ha"] < superficie_decl:
                 linea += (f" — MENOR a la superficie de riego del proyecto declarada "
-                          f"({superficie_decl} ha): el caudal {etiqueta_caudal} no alcanza para "
-                          f"regar toda la superficie con esta demanda.")
+                          f"({superficie_decl} ha): el caudal disponible no alcanza para regar "
+                          f"toda la superficie con esta demanda.")
             lineas_diseno.append(linea)
-        declarado_qdiseno = declarado.get("caudal_diseno_ls")
-        if declarado_qdiseno is not None and caudal_para_diseno and \
-                calculos_riego.requiere_acumulador(declarado_qdiseno, caudal_para_diseno):
-            if "caudal_estanque_ls" in diseno:
-                lineas_diseno.append(
-                    f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
-                    f"instantáneo con acumulador ({caudal_para_diseno} l/s) × 1,2 — el volumen "
-                    f"de acumulador declarado ({volumen_acum} m³) no alcanza para este caudal de "
-                    f"diseño; debe justificar o aumentar el volumen del acumulador.")
-            else:
-                lineas_diseno.append(
-                    f"Caudal de diseño declarado ({declarado_qdiseno} l/s) supera el caudal "
-                    f"disponible ({caudal_para_diseno} l/s) × 1,2 — según ITT-03, se "
-                    f"requiere acumulador (estanque) y el expediente debe contemplarlo.")
         if "tiempo_riego_hr" in diseno:
             linea = (f"Tiempo de riego = Db / Precipitación del sistema declarada "
                       f"({datos.get('precipitacion_sistema_mmhr')} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")
@@ -1312,17 +1270,40 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 linea += f" — declarado = {declarado_triego} hr/día, no coincide con el recálculo."
             lineas_diseno.append(linea)
         if "n_sectores" in diseno:
-            # Fórmula v102 del Diseñador de Riego: por CAUDAL, no por horas/tiempo de riego (esa
-            # relación no tiene sentido real — el propio Diseñador la corrigió).
-            etiqueta_caudal_nsec = "instantáneo (estanque + fuente)" if "caudal_estanque_ls" in diseno else "disponible"
+            # Fórmula v104 del Diseñador de Riego, forma CERRADA (sin iterar): el acumulador ya
+            # NO se suma al caudal de la fuente para "superficie segura" — su rol es exclusivo de
+            # reducir el N° de sectores necesario, aportando durante el riego de cada sector.
+            if "caudal_estanque_ls" in diseno:
+                lineas_diseno.append(
+                    f"El proyecto declara un acumulador de {volumen_acum} m³ — durante el tiempo "
+                    f"de riego de UN sector puede aportar Q_estanque = Vol×1000/(T_riego×3600) = "
+                    f"{diseno['caudal_estanque_ls']} l/s adicionales a la fuente (fórmula del "
+                    f"Diseñador de Riego v104, forma cerrada sin iterar — el estanque ya NO se "
+                    f"suma al caudal disponible para la superficie segura de arriba, solo reduce "
+                    f"el N° de sectores necesario).")
+                formula_nsec = (f"N° de sectores = ⌈(Q requerido − Q estanque) / Q fuente⌉ = "
+                                 f"⌈({diseno.get('q_requerido_total_ls')} − "
+                                 f"{diseno['caudal_estanque_ls']}) / {caudal_disp}⌉")
+            else:
+                formula_nsec = (f"N° de sectores = ⌈Q requerido / Q fuente⌉ = "
+                                 f"⌈{diseno.get('q_requerido_total_ls')} / {caudal_disp}⌉")
             linea = (f"Q requerido para regar toda la superficie a la vez = Precipitación × "
-                      f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s — "
-                      f"caudal {etiqueta_caudal_nsec} = {caudal_para_diseno} l/s → "
-                      f"N° de sectores = {diseno['n_sectores']}")
+                      f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s. "
+                      f"{formula_nsec} = {diseno['n_sectores']}")
             declarado_nsec = declarado.get("n_sectores")
             if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
                 linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
             lineas_diseno.append(linea)
+            if "caudal_operacion_ls" in diseno:
+                linea_op = (f"Caudal de operación de la red (el que circula por la tubería "
+                             f"mientras opera UN sector, usado para dimensionar diámetros) = "
+                             f"Q requerido / N° sectores = {diseno['caudal_operacion_ls']} l/s")
+                declarado_qdiseno = declarado.get("caudal_diseno_ls")
+                if declarado_qdiseno is not None and _diferencia_relevante(
+                        diseno["caudal_operacion_ls"], declarado_qdiseno, 10):
+                    linea_op += (f" — el caudal de diseño declarado ({declarado_qdiseno} l/s) no "
+                                  f"coincide con el recálculo.")
+                lineas_diseno.append(linea_op)
             if "tiempo_total_dia_hr" in diseno:
                 linea_tiempo = (f"Tiempo total para regar los {diseno['n_sectores']} sectores = "
                                  f"N° sectores × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
@@ -1335,29 +1316,57 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                           f"caudal (ej. con acumulador), la superficie, o distribuir "
                                           f"el riego en más días.")
                 lineas_diseno.append(linea_tiempo)
-        texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores, "
-                  "cálculo determinístico — nota: esta relación es la que usan los sistemas "
-                  "localizados goteo/microaspersión del Diseñador de Riego; en aspersión/carrete "
-                  "el diseño real usa un modelo de posturas más elaborado, así que trata esta "
-                  "verificación como una referencia general, no como el diseño exacto si el "
-                  "sistema es de aspersión o carrete):\n"
+            if "v_requerido_dia_l" in diseno and "v_fuente_dia_l" in diseno:
+                linea_bal = (f"Balance diario de volumen (NO depende del N° de sectores): "
+                             f"V. requerido = Q requerido × Tiempo de riego × 3.600 = "
+                             f"{diseno['v_requerido_dia_l']} L/día — V. que aporta la fuente en "
+                             f"24 hr = {diseno['v_fuente_dia_l']} L/día")
+                if diseno.get("balance_diario_ok"):
+                    linea_bal += " — la fuente alcanza a reponer el volumen que exige el diseño."
+                else:
+                    linea_bal += (" — la fuente NO alcanza a reponer el volumen que exige el "
+                                   "diseño; NINGÚN acumulador resuelve esto (es un problema del "
+                                   "derecho de agua o de la superficie diseñada, no de "
+                                   "regulación). Genera una observación citando estos números.")
+                lineas_diseno.append(linea_bal)
+                if "volumen_minimo_estanque_l" in diseno:
+                    volumen_acum_l = round((volumen_acum or 0) * 1000)
+                    linea_vmin = (f"Volumen mínimo de acumulador que exige este diseño = "
+                                  f"V. requerido − Q fuente × Tiempo total × 3.600 = "
+                                  f"{diseno['volumen_minimo_estanque_l']} L — volumen declarado "
+                                  f"= {volumen_acum_l} L")
+                    if diseno.get("acumulador_ok"):
+                        linea_vmin += " — el volumen declarado alcanza."
+                    else:
+                        linea_vmin += (" — el volumen declarado NO alcanza; debe justificar o "
+                                        "aumentar el volumen del acumulador. Genera una "
+                                        "observación citando estos números.")
+                    lineas_diseno.append(linea_vmin)
+        texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores↔"
+                  "volumen, cálculo determinístico — nota: esta relación es la que usan los "
+                  "sistemas localizados goteo/microaspersión del Diseñador de Riego; en "
+                  "aspersión/carrete el diseño real usa un modelo de posturas más elaborado, así "
+                  "que trata esta verificación como una referencia general, no como el diseño "
+                  "exacto si el sistema es de aspersión o carrete):\n"
                   + "\n".join(f"- {l}" for l in lineas_diseno) +
                   "\n\nSi hay una discrepancia relevante, si el diseño no cabe en las horas "
-                  "disponibles, o falta el acumulador exigido por ITT-03, genera una observación "
-                  "citando los números exactos. Si todo cuadra, no lo menciones como observación.")
+                  "disponibles, o si el balance diario o el volumen del acumulador no alcanzan, "
+                  "genera una observación citando los números exactos. Si todo cuadra, no lo "
+                  "menciones como observación.")
 
-    # Caudal de trabajo por postura vs. caudal EFECTIVO — parte diferida del bloque de arriba
-    # (ver el comentario en ese punto): recién acá se sabe si hay acumulador y cuál es el caudal
-    # instantáneo efectivo (diseno["caudal_acumulador_ls"] si el proyecto declara acumulador y la
-    # cadena agronómica pudo calcularse; si no, el caudal disponible declarado sin más).
-    if postura and postura.get("caudal_postura_ls") is not None:
-        caudal_efectivo_postura = caudal_para_diseno if diseno else datos.get("caudal_disponible_ls")
-        if caudal_efectivo_postura is not None and postura["caudal_postura_ls"] > caudal_efectivo_postura:
-            etiqueta = ("instantáneo (estanque + fuente)" if diseno and "caudal_estanque_ls" in diseno
-                        else "disponible declarado")
+    # Caudal de trabajo por postura vs. caudal disponible — parte diferida del bloque de arriba
+    # (ver el comentario en ese punto). NO se compara si hay acumulador declarado: el modelo de
+    # acumulador que sí se replicó arriba (v104, forma cerrada por sector) es el de goteo/
+    # microaspersión — Aspersión usa en el Diseñador un modelo de posturas propio para el
+    # acumulador que no se replica acá (fuera de alcance), así que comparar contra el caudal de
+    # la fuente sin más sería incorrecto con acumulador declarado — se omite la comparación antes
+    # que arriesgar una observación falsa.
+    if postura and postura.get("caudal_postura_ls") is not None and not volumen_acum:
+        caudal_disp_postura = datos.get("caudal_disponible_ls")
+        if caudal_disp_postura is not None and postura["caudal_postura_ls"] > caudal_disp_postura:
             texto += (f"\n\nADEMÁS, sobre el caudal de trabajo por postura calculado más arriba "
-                      f"({postura['caudal_postura_ls']} l/s): SUPERA el caudal {etiqueta} "
-                      f"({caudal_efectivo_postura} l/s) — la fuente no alcanza para regar los "
+                      f"({postura['caudal_postura_ls']} l/s): SUPERA el caudal disponible "
+                      f"({caudal_disp_postura} l/s) — la fuente no alcanza para regar los "
                       f"{n_asp} aspersores de la postura a la vez; genera una observación citando "
                       f"estos números.")
     return texto

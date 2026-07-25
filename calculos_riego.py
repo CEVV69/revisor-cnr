@@ -135,105 +135,106 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
     por postura, N° de posturas por superficie) que no se replica acá a propósito — esto es
-    una verificación general de la relación demanda↔caudal↔tiempo↔sectores, no un diseño
-    completo por tipo de sistema:
+    una verificación general de la relación demanda↔caudal↔tiempo↔sectores↔volumen, no un
+    diseño completo por tipo de sistema:
 
-    Demanda[l/s/ha]        = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
-    Superficie riego segura = Caudal EFECTIVO / Demanda[l/s/ha]
-    Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día]
+    Demanda[l/s/ha]         = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
+    Superficie riego segura = Caudal de la FUENTE / Demanda[l/s/ha]
+    Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día — por sector,
+                              independiente del área total]
 
-    N° de sectores (fórmula actualizada del Diseñador de Riego v102, `calcGE`/`calcME` para
-    goteo/microaspersión — la versión anterior dividía horas disponibles / tiempo de riego, lo
-    que NO tiene relación real con el N° de sectores; el propio Diseñador lo corrigió: "El
-    tiempo de riego por sector es independiente del área total — no determina el N° de
-    sectores, solo si el diseño cabe en las horas disponibles"). El criterio real es de CAUDAL:
-    si el caudal que exige regar TODA la superficie a la vez, al ritmo de precipitación del
-    sistema, supera el caudal EFECTIVO disponible, hay que dividir en sectores:
+    N° de sectores (fórmula v104 del Diseñador de Riego, `calcGE`/`calcME`, FORMA CERRADA sin
+    iterar). El criterio es de CAUDAL: si el caudal que exige regar TODA la superficie a la vez,
+    al ritmo de precipitación del sistema, supera lo que puede entregar la fuente (más lo que
+    aporte el acumulador durante el riego de un sector), hay que dividir en sectores:
         Q_requerido[l/s] = Precipitación del sistema[mm/hr] × Superficie[ha] × 10.000 / 3.600
-        N° de sectores    = ⌈Q_requerido / Caudal EFECTIVO⌉  si Q_requerido > Caudal EFECTIVO,
-                            si no, 1 (el caudal alcanza para regar todo a la vez)
-    Con el N° de sectores ya determinado por caudal, se verifica APARTE si el tiempo total que
-    exige regarlos todos en el día (N° sectores × Tiempo de riego) cabe en las horas disponibles
-    declaradas — a diferencia del modelo anterior, ahora SÍ puede no caber (señal real de que el
-    diseño no es viable con esas horas, que antes el modelo no podía detectar por construcción).
+        Q_estanque[l/s]  = Volumen acumulador[m³]×1000 / (Tiempo de riego×3600)  (0 si no declara)
+        N° de sectores    = ⌈(Q_requerido − Q_estanque) / Caudal de la fuente⌉, mínimo 1
+    Derivación (evita iterar: el requisito por sector es Q_requerido/n ≤ Q_fuente +
+    Q_estanque_total/n, que multiplicado por n despeja directo la fórmula de arriba). El
+    acumulador reparte su volumen ENTRE los sectores del día — por eso Q_estanque se resta UNA
+    vez del Q_requerido total, no una vez por sector.
+
+    **A diferencia de versiones anteriores del Diseñador (v101/v102), el acumulador YA NO se
+    suma al caudal de la fuente para la Superficie de riego segura** — esa sigue calculándose
+    solo con el caudal de la fuente. El rol del acumulador quedó acotado, con más precisión, a
+    reducir el N° de sectores y a las dos verificaciones de volumen de abajo.
+
+    Con el N° de sectores determinado, además:
+    - Caudal de operación (`caudal_operacion_ls`) = Q_requerido / N° de sectores — el caudal que
+      circula por la red mientras opera UN sector (el que el consultor debería haber usado para
+      dimensionar diámetros/pérdidas de carga, distinto del caudal de la fuente).
+    - Verificación de tiempo: N° sectores × Tiempo de riego vs. horas disponibles declaradas
+      (`cabe_en_horas_disponibles`) — a diferencia del modelo viejo, ahora SÍ puede no caber.
+    - Verificación de BALANCE DIARIO de volumen (NO depende del N° de sectores, es la condición
+      de fondo): V_requerido/día = Q_requerido × Tiempo de riego × 3.600 vs. V_fuente/día =
+      Caudal de la fuente × 86.400. Si la fuente no repone el volumen diario que exige el
+      diseño, NINGÚN acumulador lo resuelve (hay que reducir superficie o aumentar el derecho
+      de agua) — `balance_diario_ok`.
+    - Si hay acumulador declarado: volumen MÍNIMO que debe tener = V_requerido − Caudal de la
+      fuente × (N° sectores × Tiempo de riego) × 3.600 — compara contra el volumen declarado
+      (`volumen_minimo_estanque_l`, `acumulador_ok`).
+
     (El Diseñador calcula `Q_requerido` a partir del N° de emisores real; acá se deriva de
     Precipitación×Superficie, matemáticamente equivalente — ver CLAUDE.md para la derivación —
     y evita depender de datos de marco/emisores que no siempre se pueden extraer con
     confianza del expediente.)
 
-    Si el proyecto declara un ACUMULADOR (estanque/tranque regulador, `volumen_acumulador_m3`),
-    el caudal EFECTIVO disponible durante el riego ya NO es solo el del acumulador — es la SUMA
-    de dos aportes simultáneos, porque la fuente no deja de aportar mientras se riega (fórmula
-    actualizada del Diseñador de Riego v101, `calcAcum`; la versión anterior asumía que el
-    acumulador REEMPLAZABA a la fuente, lo que subestimaba el caudal real disponible):
-        Q_estanque     = Volumen[m³] × 1000 / (T × 3600)     [l/s — tasa de vaciado del estanque]
-        Q_instantáneo  = Q_estanque + Q_fuente               [l/s — caudal EFECTIVO durante el riego]
-    `T` es el tiempo de riego REAL (`tiempo_riego_hr`, calculado más abajo a partir de la
-    precipitación del sistema) cuando está disponible — mismo criterio que el Diseñador, que
-    usa el tiempo de riego real del Paso 4 para sistemas localizados. Si `precipitacion_mmhr`
-    no permite calcularlo todavía, se usa `horas_disponibles_dia` como estimación preliminar
-    (mismo fallback que el Diseñador; el resultado queda marcado con
-    `estanque_tiempo_estimado=True`).
-
-    Además se verifica que el estanque alcance a rellenarse COMPLETO con el aporte de la fuente
-    en el tiempo que queda libre entre riegos (24h − T, asumiendo riego diario — esta función
-    solo cubre sistemas localizados, ver más arriba): si no alcanza, el volumen declarado no
-    está garantizado en cada ciclo (`llenado_estanque_ok=False`).
-
-    Sin acumulador declarado, el caudal efectivo sigue siendo el de la fuente (comportamiento
-    de siempre).
-
     Cada resultado solo se calcula si están los datos que necesita — es aditivo, no todo o
-    nada. `superficie_ha`/`caudal_disponible_ls` (o el acumulador) habilitan la superficie
-    segura; `precipitacion_mmhr` habilita el tiempo de riego; el N° de sectores necesita
-    precipitación + superficie + caudal (efectivo); `horas_disponibles_dia` además de eso
-    habilita la verificación de si el N° de sectores calculado cabe en el día."""
+    nada. `caudal_disponible_ls` habilita la superficie segura; `precipitacion_mmhr` habilita
+    el tiempo de riego; el N° de sectores y el resto de las verificaciones necesitan
+    precipitación + superficie; `horas_disponibles_dia` habilita la verificación de si el N° de
+    sectores calculado cabe en el día."""
     r = {}
     if not db_mm_dia:
         return r
     demanda_ls_ha = db_mm_dia / 8.64
     r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
 
+    # Superficie de riego segura: SOLO el caudal de la fuente (v104 — el acumulador ya no se
+    # suma acá, ver docstring).
+    if caudal_disponible_ls and demanda_ls_ha:
+        r["superficie_segura_ha"] = round(caudal_disponible_ls / demanda_ls_ha, 4)
+
     tiempo_riego = None
     if precipitacion_mmhr:
         tiempo_riego = db_mm_dia / precipitacion_mmhr
         r["tiempo_riego_hr"] = round(tiempo_riego, 2)
 
-    caudal_efectivo_ls = caudal_disponible_ls
-    if volumen_acumulador_m3:
-        # T de vaciado: tiempo de riego real si ya se pudo calcular, si no horas disponibles
-        # al día como estimación preliminar (mismo fallback que el Diseñador).
-        t_vaciado = tiempo_riego if tiempo_riego else horas_disponibles_dia
-        if t_vaciado:
-            caudal_estanque_ls = volumen_acumulador_m3 * 1000 / (t_vaciado * 3600)
-            r["caudal_estanque_ls"] = round(caudal_estanque_ls, 3)
-            r["estanque_tiempo_estimado"] = tiempo_riego is None
-            caudal_total_ls = caudal_estanque_ls + (caudal_disponible_ls or 0)
-            r["caudal_acumulador_ls"] = round(caudal_total_ls, 3)
-            caudal_efectivo_ls = caudal_total_ls
-
-            if caudal_disponible_ls:
-                tiempo_llenado = volumen_acumulador_m3 * 1000 / (caudal_disponible_ls * 3600)
-                downtime = 24 - t_vaciado
-                r["tiempo_llenado_hr"] = round(tiempo_llenado, 2)
-                r["llenado_estanque_ok"] = downtime > 0 and tiempo_llenado <= downtime
-
-    if caudal_efectivo_ls and demanda_ls_ha:
-        r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
-
-    # N° de sectores — fórmula v102 (ver docstring): por CAUDAL, no por horas/tiempo de riego.
-    # Necesita precipitación (para Q_requerido y el tiempo de riego por sector), superficie, y el
-    # caudal EFECTIVO (fuente + acumulador si corresponde).
-    if tiempo_riego and superficie_ha and caudal_efectivo_ls:
+    if tiempo_riego and superficie_ha:
         q_requerido_total_ls = precipitacion_mmhr * superficie_ha * 10000 / 3600
         r["q_requerido_total_ls"] = round(q_requerido_total_ls, 4)
-        n_sectores = (math.ceil(q_requerido_total_ls / caudal_efectivo_ls)
-                      if q_requerido_total_ls > caudal_efectivo_ls else 1)
+
+        vol_litros = (volumen_acumulador_m3 or 0) * 1000
+        q_estanque_ls = (vol_litros / (tiempo_riego * 3600)) if vol_litros else 0.0
+        if vol_litros:
+            r["caudal_estanque_ls"] = round(q_estanque_ls, 3)
+
+        if caudal_disponible_ls:
+            n_sectores = max(1, math.ceil((q_requerido_total_ls - q_estanque_ls) / caudal_disponible_ls))
+        else:
+            n_sectores = 1
         r["n_sectores"] = n_sectores
         tiempo_total_dia = n_sectores * tiempo_riego
         r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
         if horas_disponibles_dia:
             r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+
+        r["caudal_operacion_ls"] = round(q_requerido_total_ls / n_sectores, 3)
+
+        # Balance diario de volumen — NO depende del N° de sectores (Q_sector×T_total =
+        # Q_requerido×Tiempo_riego siempre, ver docstring).
+        v_dia_l = q_requerido_total_ls * tiempo_riego * 3600
+        r["v_requerido_dia_l"] = round(v_dia_l, 0)
+        if caudal_disponible_ls:
+            v_fuente_dia_l = caudal_disponible_ls * 24 * 3600
+            r["v_fuente_dia_l"] = round(v_fuente_dia_l, 0)
+            r["balance_diario_ok"] = v_dia_l <= v_fuente_dia_l
+
+            if vol_litros:
+                v_min_l = max(0.0, v_dia_l - caudal_disponible_ls * tiempo_total_dia * 3600)
+                r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
+                r["acumulador_ok"] = vol_litros >= v_min_l
 
     return r
 
@@ -257,14 +258,6 @@ def caudal_postura_aspersion(n_aspersores: float, caudal_aspersor_m3h: float) ->
     if not n_aspersores or not caudal_aspersor_m3h:
         return {}
     return {"caudal_postura_ls": round(n_aspersores * caudal_aspersor_m3h / 3.6, 3)}
-
-
-def requiere_acumulador(caudal_diseno_ls: float, caudal_disponible_ls: float) -> bool:
-    """ITT-03: si el caudal de diseño del sistema supera el caudal disponible en más de un
-    20%, se requiere acumulador (estanque) — mismo criterio del Diseñador de Riego."""
-    if not caudal_diseno_ls or not caudal_disponible_ls:
-        return False
-    return caudal_diseno_ls > caudal_disponible_ls * 1.2
 
 
 # ── Fotovoltaico: energía requerida → N° paneles → configuración → cable DC ─

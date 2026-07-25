@@ -2195,6 +2195,7 @@ function calcAspP(){
   const nPost=Math.ceil(supR/supPos);
   const nPostDia=Math.floor(hrs/(trp+tras));
   R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,vibOk:vib>va,qOk:qPos<=qDisp,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
+  calcAcum('a'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('a-llen').value=v('a-llat',120);
   document.getElementById('a-qlat').value=qPos.toFixed(2);
   document.getElementById('a-asp-r').innerHTML=`
@@ -2246,8 +2247,11 @@ function calcAspP(){
   var _nsElA=document.getElementById('a-nsec-cuadro');
   if(_nsElA) _nsElA.value=nPost;
   setTimeout(function(){renderSectores('asp');},50);}
-function calcHidA(){let totalHf=0,rows='',warns='';document.querySelectorAll('#a-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.atl').value)||0,Q=parseFloat(c.querySelector('.atq').value)||0;const tidx=parseInt(c.querySelector('.att')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const C=t.C,di=t.dint;const hf=hw(Q,di,L,C),vel=hwV(Q,di);totalHf+=hf;if(vel>2)warns+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2.0 — aumentar diámetro.`,'w');const velWarn=vel>2.0?'⚠ >2,0':vel>0&&vel<0.5?'⚠ <0,5':'';
-    rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td style="${vel>2.0?'color:var(--err);font-weight:700':vel>0&&vel<0.5?'color:var(--warn);font-weight:700':''}">${fd(vel,2)} ${velWarn}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const hs=v('a-hs',7),dz=v('a-dz',0),pb=v('a-pb',20),pelv=v('a-pelv',1.5),pseg=v('a-pseg',3);const qSis=v('a-qlat',R.ASP?.qPos||2.94);const dlatVal=parseFloat(document.getElementById('a-dlat')?.value)||74.2;const hfLat=hw(qSis,dlatVal,v('a-llen',120),140)*0.36;const hfSuc=hw(qSis,74,hs,140),sing=totalHf*0.20;const cdt=pb+hs+hfSuc+totalHf+hfLat+dz+pelv+sing+pseg,potHP=(qSis*cdt)/(75*(v('a-eta',0.60)));const _llenVal=v('a-llen',120); const _latTubNom=(()=>{const s=document.getElementById('a-dlat');return s?s.options[s.selectedIndex]?.text||'Lat.':'Lat.';})(); const _velLat=+(hwV(qSis,dlatVal)).toFixed(2); R.AH={qSis,qM3h:qSis*3.6,totalHf,hfLat,hfSuc,cdt,potHP,pb,hs,dz,pelv,sing,pseg,dlatVal,llenVal:_llenVal,latTubNom:_latTubNom,velLat:_velLat};document.getElementById('a-hid-r').innerHTML=`
+function calcHidA(){let totalHf=0,rows='',warns='',_maxQA=0;document.querySelectorAll('#a-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.atl').value)||0,Q=parseFloat(c.querySelector('.atq').value)||0;const tidx=parseInt(c.querySelector('.att')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const C=t.C,di=t.dint;const hf=hw(Q,di,L,C),vel=hwV(Q,di);totalHf+=hf;if(Q>_maxQA)_maxQA=Q;if(vel>2)warns+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2.0 — aumentar diámetro.`,'w');const velWarn=vel>2.0?'⚠ >2,0':vel>0&&vel<0.5?'⚠ <0,5':'';
+    rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td style="${vel>2.0?'color:var(--err);font-weight:700':vel>0&&vel<0.5?'color:var(--warn);font-weight:700':''}">${fd(vel,2)} ${velWarn}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const hs=v('a-hs',7),dz=v('a-dz',0),pb=v('a-pb',20),pelv=v('a-pelv',1.5),pseg=v('a-pseg',3);const qSis=v('a-qlat',R.ASP?.qPos||2.94);
+  // Caudal de operación (máxima exigencia) = caudal simultáneo de la postura
+  const _qOpA=(R.ASP&&R.ASP.qPos>0)?R.ASP.qPos:qSis;
+  if(_maxQA>0&&_maxQA<_qOpA*0.999) warns+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQA,3)+' l/s) es menor al caudal de operación del sistema ('+fd(_qOpA,3)+' l/s = '+(R.ASP?R.ASP.nAsp:'—')+' aspersores × '+(R.ASP?fd(R.ASP.qAsp,2):'—')+' m³/hr). La matriz debe conducir el caudal simultáneo completo.','w');const dlatVal=parseFloat(document.getElementById('a-dlat')?.value)||74.2;const hfLat=hw(qSis,dlatVal,v('a-llen',120),140)*0.36;const hfSuc=hw(qSis,74,hs,140),sing=totalHf*0.20;const cdt=pb+hs+hfSuc+totalHf+hfLat+dz+pelv+sing+pseg,potHP=(qSis*cdt)/(75*(v('a-eta',0.60)));const _llenVal=v('a-llen',120); const _latTubNom=(()=>{const s=document.getElementById('a-dlat');return s?s.options[s.selectedIndex]?.text||'Lat.':'Lat.';})(); const _velLat=+(hwV(qSis,dlatVal)).toFixed(2); R.AH={qSis,qM3h:qSis*3.6,totalHf,hfLat,hfSuc,cdt,potHP,pb,hs,dz,pelv,sing,pseg,dlatVal,llenVal:_llenVal,latTubNom:_latTubNom,velLat:_velLat,qOp:_qOpA,maxQTramo:_maxQA};document.getElementById('a-hid-r').innerHTML=`
   ${warns}
   <div class="calc-section">
     <div class="cs-title">Diseño Hidráulico — Red de Conducción y CDT</div>
@@ -2376,6 +2380,7 @@ function calcCarP(){
   const nPost=Math.ceil(supR/supPos);
   const dEf=espFranja; // mantener compatibilidad con R.CAR.dEf
   R.CAR={qCan,dEf:espFranja,dMojado,espFranja,supPos,trp,nPost,lF,vA,pp,alfa,pctVv};
+  calcAcum('c'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('c-car-r').innerHTML=`
   <div class="calc-section">
     <div class="cs-title">Parámetros de Operación del Carrete</div>
@@ -2425,7 +2430,9 @@ function calcCarP(){
   }
   setTimeout(function(){renderSectores('car');},50);
 }
-function calcHidC(){let totalHf=0,rows='';document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);totalHf+=hf;rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td>${fd(vel,2)}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const pb=v('c-pb',55),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;const hfSuc=hw(qSis,76,hs,140),cdt=pb+hs+hfSuc+totalHf+dz+pseg,potHP=(qSis*cdt)/(75*(v('c-eta',0.60)));R.CH={qSis,qM3h:qSis*3.6,totalHf,hfSuc,cdt,potHP,pb,hs,dz,pseg};document.getElementById('c-hid-r').innerHTML=`
+function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);totalHf+=hf;if(Q>_maxQC)_maxQC=Q;if(vel>2)warnsC+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2,0 — aumentar diámetro.`,'w');rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td>${fd(vel,2)}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const pb=v('c-pb',55),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;
+  if(_maxQC>0&&_maxQC<qSis*0.999) warnsC+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQC,3)+' l/s) es menor a la descarga del cañón en operación ('+fd(qSis,3)+' l/s). La matriz debe conducir el caudal completo del carrete.','w');const hfSuc=hw(qSis,76,hs,140),cdt=pb+hs+hfSuc+totalHf+dz+pseg,potHP=(qSis*cdt)/(75*(v('c-eta',0.60)));R.CH={qSis,qM3h:qSis*3.6,totalHf,hfSuc,cdt,potHP,pb,hs,dz,pseg,qOp:qSis,maxQTramo:_maxQC};document.getElementById('c-hid-r').innerHTML=`
+  ${warnsC}
   <div class="calc-section">
     <div class="cs-title">Diseño Hidráulico — Carrete de Riego</div>
     ${fbox('Ecuación de Hazen-Williams',[
@@ -2536,12 +2543,29 @@ function calcGE(){
   const tRiego=db_dia/precip;
   // Nº sectores: SOLO se necesita dividir si el caudal requerido para regar todo a la vez
   // supera el caudal disponible en la fuente — NO tiene relación con horas/tRiego
-  const qReqTotal=nEmTotal*qem/3600; // l/s
-  const qDispGE=v('g-q',0.4);
-  const nSec=qReqTotal>qDispGE ? Math.ceil(qReqTotal/qDispGE) : 1;
+  const qReqTotal=nEmTotal*qem/3600; // l/s — si se riega TODA el área a la vez
+  const qDispGE=v('g-q',0.4);        // caudal de la FUENTE (nunca se sobrescribe)
+  // Acumulador declarado en el Paso 2 (si existe)
+  const _acOnG=!!(document.getElementById('g-acum-chk')||{}).checked;
+  const volAcLG=_acOnG? v('g-acum-vol',0)*1000 : 0;   // litros
+  // Nº sectores — SOLUCIÓN EN FORMA CERRADA (sin iterar, sin lazo circular):
+  //   requisito por sector: Q_req/n <= Q_fuente + Vol/(tRiego*n*3600)
+  //   multiplicando por n: Q_req <= Q_fuente*n + Vol/(tRiego*3600)
+  //   =>  n >= (Q_req - Vol/(tRiego*3600)) / Q_fuente
+  const qBufG = tRiego>0 ? volAcLG/(tRiego*3600) : 0; // l/s que puede aportar el estanque
+  const nSec = qDispGE>0 ? Math.max(1, Math.ceil((qReqTotal-qBufG)/qDispGE)) : 1;
   const tTotalDia=nSec*tRiego;
   const cabeDia=tTotalDia<=hrs;
-  R.GE={deh,dsh,mx,nPlHa,nPl,precip,tRiego,nSec,qem,nem,emisNombre:emis.nombre,db_dia,qReqTotal,qDispGE,tTotalDia,cabeDia};
+  // Balance diario de volumen — NO depende de nSec (Q_sector×T_total = Q_req×tRiego siempre)
+  const vDiaLG=qReqTotal*tRiego*3600;              // litros/día que exige el diseño
+  const vFuenteLG=qDispGE*24*3600;                 // litros/día que aporta la fuente
+  const balOkG=vDiaLG<=vFuenteLG;
+  // Volumen mínimo de estanque para amortiguar el déficit instantáneo
+  const vMinAcLG=Math.max(0, vDiaLG - qDispGE*tTotalDia*3600);
+  const acumOkG=!_acOnG || volAcLG>=vMinAcLG;
+  R.GE={deh,dsh,mx,nPlHa,nPl,precip,tRiego,nSec,qem,nem,emisNombre:emis.nombre,db_dia,qReqTotal,qDispGE,tTotalDia,cabeDia,
+        acOn:_acOnG,volAcL:volAcLG,qBuf:qBufG,vDiaL:vDiaLG,vFuenteL:vFuenteLG,vMinAcL:vMinAcLG,balOk:balOkG,acumOk:acumOkG};
+  calcAcum('g'); // refresca la verificación del estanque (Paso 2) — solo lee/muestra, no escribe inputs
   const qi=document.getElementById('g-qem');
   if(qi)qi.value=qem;
   document.getElementById('g-em-r').innerHTML=`
@@ -2563,14 +2587,32 @@ function calcGE(){
     ])}
     ${fbox('Número de Sectores (según caudal, no según tiempo)',[
       {eq:`Q_requerido (toda el área a la vez) = N_emisores × q_em / 3600 = ${nEmTotal} × ${qem} / 3600`,res:`${fd(qReqTotal,4)} l/s`},
-      {eq:`Q_disponible = ${fd(qDispGE,3)} l/s`,res:qReqTotal>qDispGE?'Insuficiente para 1 sector':'Suficiente para regar todo a la vez'},
-      {eq:qReqTotal>qDispGE?`N_sectores = ⌈Q_req/Q_disp⌉ = ⌈${fd(qReqTotal,4)}/${fd(qDispGE,3)}⌉`:'N_sectores = 1 (caudal disponible alcanza para toda el área)',res:`${nSec} sectores`},
-      {note:'El tiempo de riego por sector (T_riego) es independiente del área total — no determina el N° de sectores, solo si el diseño cabe en las horas disponibles.'}
+      {eq:`Q_fuente declarado (Paso 2)`,res:`${fd(qDispGE,3)} l/s`},
+      ..._acOnG?[
+        {eq:`Q_estanque = Vol/(T_riego×3600) = ${fd(volAcLG,0)}/(${fd(tRiego,3)}×3600)`,res:`${fd(qBufG,3)} l/s`},
+        {eq:`N_sectores = ⌈(Q_req − Q_estanque)/Q_fuente⌉ = ⌈(${fd(qReqTotal,4)} − ${fd(qBufG,3)})/${fd(qDispGE,3)}⌉`,res:`${nSec} sectores`}
+      ]:[
+        {eq:qReqTotal>qDispGE?`N_sectores = ⌈Q_req/Q_fuente⌉ = ⌈${fd(qReqTotal,4)}/${fd(qDispGE,3)}⌉`:'N_sectores = 1 (el caudal de la fuente alcanza para toda el área)',res:`${nSec} sectores`}
+      ],
+      {note:'Forma cerrada (sin iteración): de Q_req/n ≤ Q_fuente + Vol/(T_riego·n·3600) se despeja n ≥ (Q_req − Vol/(T_riego·3600))/Q_fuente. El T_riego por sector no depende del área total.'}
     ])}
-    ${fbox('Verificación de tiempo diario',[
+    ${fbox('Verificación 1 — Tiempo diario',[
       {eq:`T_total = N_sectores × T_riego = ${nSec} × ${fd(tRiego,3)}`,res:`${fd(tTotalDia,3)} hr`},
       {note:`Horas disponibles declaradas: ${hrs} hr/día`}
     ])}
+    ${cabeDia?al('✓ El riego de todos los sectores cabe en las '+hrs+' hr/día disponibles ('+fd(tTotalDia,2)+' hr requeridas).','ok'):al('⚠ El riego de todos los sectores ('+fd(tTotalDia,2)+' hr) EXCEDE las '+hrs+' hr/día disponibles. Aumente el caudal disponible, reduzca el área, o distribuya el riego en más días.','w')}
+    ${fbox('Verificación 2 — Balance diario de volumen',[
+      {eq:`V_requerido/día = Q_req × T_riego × 3600 = ${fd(qReqTotal,4)} × ${fd(tRiego,3)} × 3600`,res:`${fd(vDiaLG,0)} L/día`},
+      {eq:`V_fuente/día = Q_fuente × 24 × 3600 = ${fd(qDispGE,3)} × 86.400`,res:`${fd(vFuenteLG,0)} L/día`},
+      {note:'Este balance NO depende del N° de sectores: al dividir en n sectores, el caudal por sector baja y el tiempo total sube en la misma proporción. Es también la condición de recarga del estanque.'}
+    ])}
+    ${balOkG?al('✓ La fuente aporta el volumen diario que exige el diseño.','ok'):al('⚠ El diseño exige '+fd(vDiaLG,0)+' L/día pero la fuente solo aporta '+fd(vFuenteLG,0)+' L/día. Ningún estanque resuelve esto: reduzca superficie o aumente el derecho de agua.','w')}
+    ${_acOnG?fbox('Verificación 3 — Volumen mínimo del estanque',[
+      {eq:`V_mín = V_requerido − Q_fuente×T_total×3600 = ${fd(vDiaLG,0)} − ${fd(qDispGE,3)}×${fd(tTotalDia,3)}×3600`,res:`${fd(vMinAcLG,0)} L`},
+      {eq:`V_declarado (Paso 2)`,res:`${fd(volAcLG,0)} L`},
+      {note:'Volumen que debe amortiguar el estanque mientras el riego consume más caudal del que entrega la fuente.'}
+    ]):''}
+    ${_acOnG?(acumOkG?al('✓ El estanque declarado ('+fd(volAcLG,0)+' L) supera el mínimo requerido ('+fd(vMinAcLG,0)+' L).','ok'):al('⚠ El estanque declarado ('+fd(volAcLG,0)+' L) es menor al mínimo requerido ('+fd(vMinAcLG,0)+' L). Aumente el volumen o acepte más sectores.','w')):''}
     ${cabeDia?al('✓ El riego de todos los sectores cabe en las '+hrs+' hr/día disponibles ('+fd(tTotalDia,2)+' hr requeridas).','ok'):al('⚠ El riego de todos los sectores ('+fd(tTotalDia,2)+' hr) EXCEDE las '+hrs+' hr/día disponibles. Aumente el caudal disponible (ej. con acumulador), reduzca el área, o distribuya el riego en más días.','w')}
     <div class="mg" style="margin-top:10px">
       ${mcard('m²/planta',fd(mx,4),'m²')}
@@ -2586,7 +2628,13 @@ function calcGE(){
   setTimeout(function(){renderSectores('got');},50);}
 function calcHidG(){
   const pEm=v('g-pem',10), pVen=v('g-pven',5), pCab=v('g-pcab',5), pSegP=v('g-pseg',10)/100;
-  const hs=v('g-hs',28), dz=v('g-dz',5), qSis=v('g-q',0.4);
+  const hs=v('g-hs',28), dz=v('g-dz',5);
+  // CAUDAL DE OPERACIÓN (condición de máxima exigencia): es el que circula por la red
+  // mientras opera un sector — Q_requerido_total / N°sectores. NO es el caudal de la fuente
+  // (ése se usa en el balance hídrico y en la disponibilidad, no para dimensionar).
+  const _qOpG = (R.GE&&R.GE.qReqTotal>0&&R.GE.nSec>0) ? R.GE.qReqTotal/R.GE.nSec : null;
+  const qSis = _qOpG!==null ? _qOpG : v('g-q',0.4);
+  const _baseQG = _qOpG!==null;
   const cM=parseFloat(document.getElementById('g-cm')?.value)||150;
   const cT=parseFloat(document.getElementById('g-ct')?.value)||120;
   const cL=parseFloat(document.getElementById('g-cl')?.value)||120;
@@ -2605,7 +2653,7 @@ function calcHidG(){
   const cdt=sub*(1+pSegP);
   const eta_g=v('g-eta',0.45);
   const potHP=(qSis*cdt)/(75*eta_g);
-  R.GH={qSis,qM3h:qSis*3.6,hfM,hfT,hfL,hfDist,sing,hfSuc,cdt,sub,potHP,pEm,pVen,pCab,hs,dz,pSegP,nST,nSL};
+  R.GH={qSis,qM3h:qSis*3.6,hfM,hfT,hfL,hfDist,sing,hfSuc,cdt,sub,potHP,pEm,pVen,pCab,hs,dz,pSegP,nST,nSL,baseQ:_baseQG};
   document.getElementById('g-hid-r').innerHTML=`
   <div class="calc-section">
     <div class="cs-title">Pérdidas por Nodos — Hazen-Williams + Christiansen</div>
@@ -2614,6 +2662,18 @@ function calcHidG(){
       {eq:'Factor Christiansen: F = 1/(m+1) + 1/(2N) + √(m+1)/(6N²)',sub:'m=1,852 para Hazen-Williams'},
       {note:'C Matriz=${cM} | C Terciaria=${cT} | C Lateral=${cL}'}
     ])}
+    ${fbox('Caudal de Operación del Sistema (condición de máxima exigencia)',[
+      ..._baseQG?[
+        {eq:`Q_operación = Q_requerido_total / N_sectores = ${fd(R.GE.qReqTotal,4)} / ${R.GE.nSec}`,res:`${fd(qSis,4)} l/s`}
+      ]:[
+        {eq:'Q_operación = caudal declarado de la fuente (Paso 4 aún no calculado)',res:`${fd(qSis,4)} l/s`}
+      ],
+      {eq:`Q matriz = Q_operación (conduce todo el caudal del sector)`,res:`${fd(qSis,4)} l/s`},
+      {eq:`Q terciaria/portalateral = Q_operación (con ${nST} salidas → Christiansen)`,res:`${fd(qSis,4)} l/s`},
+      {eq:`Q lateral = Q_operación / N_terciarias = ${fd(qSis,4)} / ${nST}`,res:`${fd(qSis/Math.max(nST,1),4)} l/s`},
+      {note:'Cada tramo se dimensiona con el caudal máximo que realmente circula por él. El caudal de la fuente no dimensiona la red: sólo debe reponer el volumen diario.'}
+    ])}
+    ${_baseQG?'':al('⚠ El Paso 4 (Diseño de Emisores) aún no se ha calculado: se está usando el caudal de la fuente como aproximación. Calcule el Paso 4 y vuelva a ejecutar este cálculo para dimensionar con el caudal real de operación.','w')}
     ${(()=>{
       const _warns=[];
       const _chkV=(nombre,Q,D)=>{const v=hwV(Q,D);if(v>2.0)_warns.push(al('⚠ '+nombre+': V='+fd(v,2)+' m/s > 2,0 — aumentar diámetro.','w'));if(v>0&&v<0.5)_warns.push(al('⚠ '+nombre+': V='+fd(v,2)+' m/s < 0,5 — riesgo sedimentación.','w'));};
@@ -6105,15 +6165,24 @@ function calcME(){
   var nEmTotalM=Math.ceil(supMic*10000/(de*dl))*nem;
   var qReqTotalM=nEmTotalM*qem/3600;
   var qDispME=v('m-q',0.4);
-  var nSec=qReqTotalM>qDispME ? Math.ceil(qReqTotalM/qDispME) : 1;
+  var _acOnM=!!(document.getElementById('m-acum-chk')||{}).checked;
+  var volAcLM=_acOnM? v('m-acum-vol',0)*1000 : 0;
+  // Forma cerrada, sin iteración: n >= (Q_req - Vol/(tRiego*3600)) / Q_fuente
+  var qBufM = tRiego>0 ? volAcLM/(tRiego*3600) : 0;
+  var nSec = qDispME>0 ? Math.max(1, Math.ceil((qReqTotalM-qBufM)/qDispME)) : 1;
   var tTotalDiaM=nSec*tRiego, cabeDiaM=tTotalDiaM<=hrs;
+  var vDiaLM=qReqTotalM*tRiego*3600, vFuenteLM=qDispME*24*3600, balOkM=vDiaLM<=vFuenteLM;
+  var vMinAcLM=Math.max(0, vDiaLM - qDispME*tTotalDiaM*3600);
+  var acumOkM=!_acOnM || volAcLM>=vMinAcLM;
   var amMojada=Math.PI*radio*radio;
   var pctMojado=Math.min(100,amMojada/(de*dl)*100);
   var solapDist=2*radio-de, solapPct=solapDist>0?solapDist/de*100:0;
   var vibOk=pls<=vib;
   R.ME={de:de,dl:dl,qem:qem,nem:nem,pls:pls,db_dia:db_dia,tRiego:tRiego,nSec:nSec,
         radio:radio,vib:vib,vibOk:vibOk,pctMojado:pctMojado,solapPct:solapPct,emisNombre:emis.nombre,
-        qReqTotal:qReqTotalM,qDisp:qDispME,tTotalDia:tTotalDiaM,cabeDia:cabeDiaM};
+        qReqTotal:qReqTotalM,qDisp:qDispME,tTotalDia:tTotalDiaM,cabeDia:cabeDiaM,
+        acOn:_acOnM,volAcL:volAcLM,qBuf:qBufM,vDiaL:vDiaLM,vFuenteL:vFuenteLM,vMinAcL:vMinAcLM,balOk:balOkM,acumOk:acumOkM};
+  calcAcum('m'); // refresca la verificación del estanque (Paso 2)
   calcSalidasM();
   var elR=document.getElementById('m-em-r');
   if(!elR) return;
@@ -6135,14 +6204,31 @@ function calcME(){
     ])
     +fbox('Número de Sectores (según caudal)',[
       {eq:'Q_requerido (toda el área a la vez) = '+nEmTotalM+' × '+qem+' / 3600',res:fd(qReqTotalM,4)+' l/s'},
-      {eq:'Q_disponible = '+fd(qDispME,3)+' l/s',res:qReqTotalM>qDispME?'Insuficiente para 1 sector':'Alcanza para toda el área'},
-      {eq:qReqTotalM>qDispME?'N_sectores=⌈Q_req/Q_disp⌉':'N_sectores=1',res:nSec+' sectores'}
-    ])
-    +fbox('Verificación de tiempo diario',[
+      {eq:'Q_fuente declarado (Paso 2)',res:fd(qDispME,3)+' l/s'}
+    ].concat(_acOnM?[
+      {eq:'Q_estanque = Vol/(T_riego×3600) = '+fd(volAcLM,0)+'/('+fd(tRiego,3)+'×3600)',res:fd(qBufM,3)+' l/s'},
+      {eq:'N_sectores = ⌈(Q_req − Q_estanque)/Q_fuente⌉',res:nSec+' sectores'}
+    ]:[
+      {eq:qReqTotalM>qDispME?'N_sectores = ⌈Q_req/Q_fuente⌉':'N_sectores = 1 (la fuente alcanza para toda el área)',res:nSec+' sectores'}
+    ]).concat([
+      {note:'Forma cerrada (sin iteración): n ≥ (Q_req − Vol/(T_riego·3600))/Q_fuente'}
+    ]))
+    +fbox('Verificación 1 — Tiempo diario',[
       {eq:'T_total = N_sectores × T_riego = '+nSec+' × '+fd(tRiego,3),res:fd(tTotalDiaM,3)+' hr'},
       {note:'Horas disponibles declaradas: '+hrs+' hr/día'}
     ])
     +(cabeDiaM?al('✓ El riego de todos los sectores cabe en las '+hrs+' hr/día disponibles.','ok'):al('⚠ El riego total ('+fd(tTotalDiaM,2)+' hr) EXCEDE las '+hrs+' hr/día disponibles. Aumente el caudal, reduzca el área, o distribuya en más días.','w'))
+    +fbox('Verificación 2 — Balance diario de volumen',[
+      {eq:'V_requerido/día = Q_req × T_riego × 3600',res:fd(vDiaLM,0)+' L/día'},
+      {eq:'V_fuente/día = Q_fuente × 86.400',res:fd(vFuenteLM,0)+' L/día'},
+      {note:'No depende del N° de sectores. Es también la condición de recarga del estanque.'}
+    ])
+    +(balOkM?al('✓ La fuente aporta el volumen diario que exige el diseño.','ok'):al('⚠ El diseño exige '+fd(vDiaLM,0)+' L/día y la fuente solo aporta '+fd(vFuenteLM,0)+' L/día. Ningún estanque resuelve esto.','w'))
+    +(_acOnM?fbox('Verificación 3 — Volumen mínimo del estanque',[
+      {eq:'V_mín = V_requerido − Q_fuente×T_total×3600',res:fd(vMinAcLM,0)+' L'},
+      {eq:'V_declarado (Paso 2)',res:fd(volAcLM,0)+' L'}
+    ]):'')
+    +(_acOnM?(acumOkM?al('✓ El estanque declarado ('+fd(volAcLM,0)+' L) supera el mínimo requerido ('+fd(vMinAcLM,0)+' L).','ok'):al('⚠ El estanque declarado ('+fd(volAcLM,0)+' L) es menor al mínimo requerido ('+fd(vMinAcLM,0)+' L).','w')):'')
     +'<div class="mg" style="margin-top:10px">'
     +mcard('Pluviometría',fd(pls,3),'mm/hr',vibOk?'':'warn')
     +mcard('VIB',fd(vib,0),'mm/hr')
@@ -6171,7 +6257,11 @@ function calcSalidasM(){
 // ═══════════════════════════════════════════════
 function calcHidM(){
   var pEm=v('m-pem',15),pVen=v('m-pven',5),pCab=v('m-pcab',5),pSegP=v('m-pseg',10)/100;
-  var hs=v('m-hs',28),dz=v('m-dz',5),qSis=v('m-q',0.4);
+  var hs=v('m-hs',28),dz=v('m-dz',5);
+  // CAUDAL DE OPERACIÓN (máxima exigencia) = Q_requerido_total / N°sectores, no el de la fuente
+  var _qOpM=(R.ME&&R.ME.qReqTotal>0&&R.ME.nSec>0)?R.ME.qReqTotal/R.ME.nSec:null;
+  var qSis=_qOpM!==null?_qOpM:v('m-q',0.4);
+  var _baseQM=_qOpM!==null;
   var cM=parseFloat(document.getElementById('m-cm')?.value)||150;
   var cT=parseFloat(document.getElementById('m-ct')?.value)||120;
   var cL=parseFloat(document.getElementById('m-cl')?.value)||120;
@@ -6191,7 +6281,7 @@ function calcHidM(){
   var cdt=sub*(1+pSegP);
   var eta_m=v('m-eta',0.45);
   var potHP=(qSis*cdt)/(75*eta_m);
-  R.MH={qSis:qSis,qM3h:qSis*3.6,hfM:hfM,hfT:hfT,hfL:hfL,hfDist:hfDist,sing:sing,
+  R.MH={qSis:qSis,baseQ:_baseQM,qM3h:qSis*3.6,hfM:hfM,hfT:hfT,hfL:hfL,hfDist:hfDist,sing:sing,
         hfSuc:hfSuc,cdt:cdt,sub:sub,potHP:potHP,pEm:pEm,pVen:pVen,pCab:pCab,
         hs:hs,dz:dz,pSegP:pSegP,nST:nST,nSL:nSL};
   var elH=document.getElementById('m-hid-r');
@@ -6199,7 +6289,18 @@ function calcHidM(){
   var _mwarn='';
   var _chkVM=function(n,Q,D){var v=hwV(Q,D);if(v>2.0)_mwarn+=al('⚠ '+n+': V='+fd(v,2)+' m/s > 2,0 — aumentar diámetro.','w');if(v>0&&v<0.5)_mwarn+=al('⚠ '+n+': V='+fd(v,2)+' m/s < 0,5 — riesgo sedimentación.','w');};
   _chkVM('Matriz',qSis,dM);_chkVM('Terciaria',qSis,dT);_chkVM('Lateral',qSis/Math.max(nST,1),dL);
-  elH.innerHTML='<div class="calc-section"><div class="cs-title">Hidráulica — Microaspersión</div>'+_mwarn
+  elH.innerHTML='<div class="calc-section"><div class="cs-title">Hidráulica — Microaspersión</div>'
+    +fbox('Caudal de Operación del Sistema (condición de máxima exigencia)',
+      (_baseQM?[{eq:'Q_operación = Q_requerido_total / N_sectores = '+fd(R.ME.qReqTotal,4)+' / '+R.ME.nSec,res:fd(qSis,4)+' l/s'}]
+              :[{eq:'Q_operación = caudal declarado de la fuente (Paso 4 aún no calculado)',res:fd(qSis,4)+' l/s'}])
+      .concat([
+        {eq:'Q matriz = Q_operación',res:fd(qSis,4)+' l/s'},
+        {eq:'Q terciaria/portalateral = Q_operación ('+nST+' salidas → Christiansen)',res:fd(qSis,4)+' l/s'},
+        {eq:'Q lateral = Q_operación / '+nST,res:fd(qSis/Math.max(nST,1),4)+' l/s'},
+        {note:'Cada tramo se dimensiona con el caudal máximo que realmente circula por él. El caudal de la fuente no dimensiona la red.'}
+      ]))
+    +(_baseQM?'':al('⚠ El Paso 4 (Diseño de Emisores) aún no se ha calculado: se usa el caudal de la fuente como aproximación. Calcule el Paso 4 y repita este cálculo.','w'))
+    +_mwarn
     +'<table class="rt" style="margin-top:8px">'
     +'<tr><th>Nodo</th><th>Ø(mm)</th><th>L(m)</th><th>Q(l/s)</th><th>C</th><th>F.Christ.</th><th>Hf(mca)</th></tr>'
     +'<tr><td>Matriz</td><td>'+dM+'</td><td>'+lM+'</td><td>'+fd(qSis,3)+'</td><td>'+cM+'</td><td>1,000</td><td class="vr">'+fd(hfM,4)+'</td></tr>'
@@ -6291,76 +6392,60 @@ function toggleAcum(pfx){
 function calcAcum(pfx){
   var r=document.getElementById(pfx+'-acum-r');
   if(!r) return;
-  var vol=v(pfx+'-acum-vol',0);
-  var qDispActual=v(pfx+'-q',0);
+  var vol=v(pfx+'-acum-vol',0);          // m³
+  var qFuente=v(pfx+'-q',0);             // l/s — caudal de la FUENTE (nunca se modifica aquí)
   if(vol<=0){
-    r.innerHTML='<div style="font-size:.72rem;color:var(--slate);font-family:var(--mono)">Ingrese el volumen a acumular para calcular el caudal equivalente.</div>';
+    r.innerHTML='<div style="font-size:.72rem;color:var(--slate);font-family:var(--mono)">Ingrese el volumen del estanque. La verificación completa se calcula en el Paso 4.</div>';
     return;
   }
-  // Usar el TIEMPO DE RIEGO REAL del sistema (calculado en Paso 4) si ya está disponible;
-  // si aún no se ha hecho el diseño hidráulico, usar Horas Riego Disp. (Paso 1) como estimación
-  // preliminar y advertir que debe recalcularse después.
-  var sysMap={g:'got',a:'asp',m:'mic',c:'car'};
-  var sys=sysMap[pfx];
-  var tReal=null, tFuente='';
-  if(sys==='got'&&R.GE&&R.GE.tRiego>0){tReal=R.GE.tRiego;tFuente='T. Riego real (Paso 4, Diseño de Emisores)';}
-  else if(sys==='mic'&&R.ME&&R.ME.tRiego>0){tReal=R.ME.tRiego;tFuente='T. Riego real (Paso 4, Diseño de Emisores)';}
-  else if(sys==='asp'&&R.ASP&&R.ASP.trp>0){tReal=R.ASP.trp;tFuente='T. por Postura real (Paso 4, Distribución y Posturas)';}
-  else if(sys==='car'&&R.CAR&&R.CAR.trp>0){tReal=R.CAR.trp;tFuente='T. por Postura real (Paso 4, Parámetros de Operación)';}
-  var esEstimado = (tReal===null);
-  var T = esEstimado ? v(pfx+'-hrs',14) : tReal;
-  if(T<=0){
-    r.innerHTML='<div style="font-size:.72rem;color:#c2410c;font-family:var(--mono)">\u26a0 No es posible calcular: revise el tiempo de riego. Se usará solo el caudal disponible declarado.</div>';
+  // Tiempo de riego DIARIO TOTAL del sistema (T_riego × N° sectores), tomado del Paso 4/5.
+  // Mientras no exista, se muestra estado preliminar — NUNCA se usa el fallback de horas
+  // disponibles, porque ése no es el tiempo real de riego.
+  var sysMap={g:'got',a:'asp',m:'mic',c:'car'}, sys=sysMap[pfx];
+  var Rt = sys==='got'?R.GE : sys==='mic'?R.ME : sys==='asp'?R.ASP : R.CAR;
+  var T=null, det='';
+  if(Rt){
+    if(sys==='got'||sys==='mic'){
+      if(Rt.tRiego>0&&Rt.nSec>0){T=Rt.tRiego*Rt.nSec; det='T_riego '+fd(Rt.tRiego,3)+' hr × '+Rt.nSec+' sectores';}
+    } else {
+      if(Rt.trp>0&&Rt.nPost>0){T=Rt.trp*Rt.nPost; det='T_postura '+fd(Rt.trp,3)+' hr × '+Rt.nPost+' posturas';}
+    }
+  }
+  if(T===null){
+    r.innerHTML='<div style="padding:8px 10px;background:#fff7ed;border-radius:6px;font-size:.72rem;font-family:var(--mono);color:#c2410c;line-height:1.6">'
+      +'<strong>\u23f3 Pendiente</strong> — Volumen declarado: '+fd(vol,1)+' m³ ('+fd(vol*1000,0)+' L).<br>'
+      +'La verificación necesita el tiempo de riego diario real (T_riego × N° sectores), que se obtiene en el '
+      +'<strong>Paso 4</strong>. Complete ese paso y este bloque se actualizará solo.</div>';
     return;
   }
-  // Q instantáneo con acumulador = tasa de vaciado del estanque durante el riego
-  // + caudal de la fuente que sigue llegando SIMULTÁNEAMENTE (no se detiene mientras se riega)
-  var qAcumSolo = (vol*1000)/(T*3600); // l/s — solo el aporte del estanque
-  var qTotal = qAcumSolo + qDispActual; // l/s — total instantáneo disponible
-
-  // ═══ VERIFICACIÓN DE FACTIBILIDAD DE LLENADO ═══
-  // El modelo asume que TODO el volumen declarado se vacía durante T (Q_estanque=Vol/T).
-  // Por lo tanto, tras cada riego el estanque queda vacío y debe rellenarse COMPLETO
-  // usando solo Q_fuente antes del próximo ciclo de riego.
-  var tLlenado = (vol*1000)/(qDispActual*3600 || 1e-9); // hr — tiempo de llenado desde vacío
-  // Ciclo de riego: got/mic riegan a diario (localizado, Db diario) → 24h.
-  // asp/car tienen Fr (días entre riegos del mismo sector) → 24×Fr_adj si está calculado.
-  var frAdjSys=null;
-  if(sys==='asp'&&R.AA&&R.AA.frAdj>0) frAdjSys=R.AA.frAdj;
-  else if(sys==='car'&&R.CA&&R.CA.frAdj>0) frAdjSys=R.CA.frAdj;
-  var tCiclo = frAdjSys ? 24*frAdjSys : 24;
-  var downtime = tCiclo - T;
-  var llenadoOk = qDispActual>0 && tLlenado <= downtime;
-
+  var volL=vol*1000;
+  var qEstanque=volL/(T*3600);           // l/s que aporta el estanque durante el riego
+  var qTotal=qEstanque+qFuente;          // caudal instantáneo disponible
+  // Balance diario: el estanque solo amortigua; la fuente debe reponer el volumen consumido.
+  var vDia = Rt.vDiaL!=null ? Rt.vDiaL : qTotal*T*3600;
+  var vFuenteDia = qFuente*24*3600;
+  var balOk = vDia<=vFuenteDia;
+  var vMin = Math.max(0, vDia - qFuente*T*3600);
+  var volOk = volL>=vMin;
+  var tRecarga = vMin/(qFuente*3600||1e-9);
   r.innerHTML =
     '<div style="font-size:.74rem;font-family:var(--mono);color:var(--navy);line-height:1.6">'
-    +'Q_estanque = Vol×1000/(T×3600) = '+fd(vol,1)+'×1000/('+fd(T,3)+'×3600) = '+fd(qAcumSolo,3)+' l/s'
-    +'<br>Q_instantáneo = Q_estanque + Q_fuente = '+fd(qAcumSolo,3)+' + '+fd(qDispActual,3)+' = <strong>'+fd(qTotal,3)+' l/s</strong>'
-    +'<br><span style="color:var(--slate);font-size:.7rem">T usado: '+fd(T,3)+' hr ('+(esEstimado?'estimación preliminar con Horas Riego Disp. — recalcule después del Paso 4/5':tFuente)+')</span>'
+    +'T_riego diario = <strong>'+fd(T,3)+' hr</strong> <span style="color:var(--slate);font-size:.68rem">('+det+', Paso 4)</span><br>'
+    +'Q_estanque = Vol/(T×3600) = '+fd(volL,0)+'/('+fd(T,3)+'×3600) = '+fd(qEstanque,3)+' l/s<br>'
+    +'Q_instantáneo = Q_estanque + Q_fuente = '+fd(qEstanque,3)+' + '+fd(qFuente,3)+' = <strong>'+fd(qTotal,3)+' l/s</strong>'
     +'</div>'
-    +(esEstimado?'<div style="margin-top:4px;padding:6px 8px;background:#fff7ed;border-radius:5px;font-size:.68rem;color:#c2410c">\u26a0 Aún no hay diseño hidráulico calculado. Este valor es preliminar; vuelva a este paso y presione "Calcular" de nuevo después de completar el Paso 4 (y 5 para carrete/aspersión) para usar el tiempo de riego real del sistema.</div>':'')
-    +'<div style="margin-top:8px;padding:8px 10px;background:'+(llenadoOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.72rem;font-family:var(--mono);line-height:1.6">'
-    +'<strong>Verificación de llenado del estanque</strong><br>'
-    +'T_llenado (vacío→lleno) = Vol×1000/(Q_fuente×3600) = '+fd(vol,1)+'×1000/('+fd(qDispActual,3)+'×3600) = '+fd(tLlenado,2)+' hr<br>'
-    +'Tiempo disponible entre riegos = '+fd(tCiclo,1)+'h'+(frAdjSys?' (Fr='+frAdjSys+' días)':' (riego diario)')+' − '+fd(T,3)+'h riego = '+fd(downtime,2)+' hr<br>'
-    +(llenadoOk
-      ?'\u2713 El estanque alcanza a llenarse completo con '+fd(downtime-tLlenado,2)+' hr de margen. Diseño factible.'
-      :'\u26a0 El estanque NO alcanza a llenarse completo antes del próximo riego (faltan '+fd(tLlenado-downtime,2)+' hr). El volumen declarado no está garantizado cada ciclo: reduzca el volumen asumido, aumente la frecuencia de riego permitida, o use solo el caudal disponible sin acumulador.')
-    +'</div>';
-
-  var _btnHtml = llenadoOk
-    ? '<button class="btn bc" style="margin-top:6px;font-size:.72rem;padding:5px 10px" onclick="applyAcum(\''+pfx+'\','+qTotal+')">Usar '+fd(qTotal,3)+' l/s como caudal de diseño</button>'
-    : '<button class="btn bc" style="margin-top:6px;font-size:.72rem;padding:5px 10px;opacity:.6" onclick="if(confirm(\'El estanque no alcanza a llenarse completo cada ciclo. ¿Usar de todas formas este valor (no garantizado)?\'))applyAcum(\''+pfx+'\','+qTotal+')">Usar '+fd(qTotal,3)+' l/s de todas formas (\u26a0 no garantizado)</button>';
-  r.innerHTML += _btnHtml;
-}
-
-function applyAcum(pfx, qVal){
-  var qEl=document.getElementById(pfx+'-q');
-  if(!qEl) return;
-  qEl.value = qVal.toFixed(3);
-  qEl.dispatchEvent(new Event('input'));
-  qEl.dispatchEvent(new Event('change'));
-  showToast('\u2713 Caudal de dise\u00f1o actualizado a '+fd(qVal,3)+' l/s por acumulaci\u00f3n');
+    +'<div style="margin-top:8px;padding:8px 10px;background:'+(balOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.71rem;font-family:var(--mono);line-height:1.6">'
+    +'<strong>Balance diario</strong><br>'
+    +'V_requerido = '+fd(vDia,0)+' L/día &nbsp;|&nbsp; V_fuente = '+fd(qFuente,3)+'×86.400 = '+fd(vFuenteDia,0)+' L/día<br>'
+    +(balOk?'\u2713 La fuente repone lo consumido.':'\u26a0 La fuente NO repone lo consumido: ningún estanque resuelve esto.')
+    +'</div>'
+    +'<div style="margin-top:6px;padding:8px 10px;background:'+(volOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.71rem;font-family:var(--mono);line-height:1.6">'
+    +'<strong>Volumen mínimo del estanque</strong><br>'
+    +'V_mín = V_requerido − Q_fuente×T×3600 = '+fd(vMin,0)+' L &nbsp;|&nbsp; declarado: '+fd(volL,0)+' L<br>'
+    +'Recarga de ese volumen: '+fd(tRecarga,2)+' hr (dispone de '+fd(24-T,2)+' hr entre riegos)<br>'
+    +(volOk?'\u2713 El estanque declarado es suficiente.':'\u26a0 Estanque insuficiente: aumente el volumen o acepte más sectores.')
+    +'</div>'
+    +'<div style="margin-top:6px;font-size:.66rem;color:var(--slate);font-family:var(--mono)">El caudal de la fuente declarado arriba no se modifica: el estanque es una verificación, no un aumento del derecho de agua.</div>';
 }
 
 function alertaMedidor(sys){

@@ -1377,10 +1377,12 @@ Agronómico de `calculos.html`.
   **Actualizaciones de versión (jul-2026):** v97→v98 (ver entrada del Acumulador más abajo),
   v98→v99 (sin cambios de fórmula reportados, solo reemplazo de archivo), v99→v101 (el
   usuario pidió expresamente portar el cambio de fórmula del acumulador — ver la entrada
-  "Acumulador — fórmula actualizada a 'suma'" más abajo), y v101→v102 (cambio de fórmula del N°
-  de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo). Cada vez: reemplazar
-  `static/disenador_riego_v{N}.html` (el archivo viejo se borra del repo, no se acumulan
-  versiones), actualizar el link en `calculos.html` y la referencia en el docstring de
+  "Acumulador — fórmula actualizada a 'suma'" más abajo), v101→v102 (cambio de fórmula del N°
+  de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo), y v102→v104
+  (rediseño completo del acumulador + N° de sectores en forma cerrada — ver la entrada
+  "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo). Cada vez:
+  reemplazar `static/disenador_riego_v{N}.html` (el archivo viejo se borra del repo, no se
+  acumulan versiones), actualizar el link en `calculos.html` y la referencia en el docstring de
   `exportar_disenador.py`. Regla para el futuro: si el usuario NO pide portar ningún cambio
   puntual, basta con reemplazar el archivo/link sin abrir el HTML; si SÍ pide portar un cambio
   (como con el Acumulador o el N° de sectores), hay que leer el código nuevo del Diseñador
@@ -1568,6 +1570,81 @@ por construcción de la fórmula — el modelo viejo no podía detectar un dise�
   la misma función `verificacion_diseno_riego()` (ya rotulada como "referencia general, no el
   diseño exacto" para esos sistemas desde que existe este bloque), así que el cambio de fórmula
   los alcanza igual pero sin que eso sea un problema nuevo: nunca se les prometió exactitud.
+
+**Acumulador y N° de sectores — rediseño completo en forma cerrada (jul-2026, Diseñador v104):**
+el usuario subió `disenador_riego_v104.html` (reemplazó a v102 en `static/`, actualizar el link
+de "Abrir Diseñador de Riego" en `calculos.html` y la referencia en `exportar_disenador.py` si se
+vuelve a actualizar el archivo) avisando que cambió "cómo se trata el acumulador de agua y el
+caudal para dimensionamiento... para goteo y microaspersión". Se leyó directo el código nuevo del
+Diseñador (`calcGE`/`calcME`, y el `calcAcum` reescrito) — es un rediseño de fondo, no un ajuste
+de fórmula puntual como los cambios anteriores:
+- **El acumulador YA NO se suma al caudal de la fuente para "Superficie de riego segura"**
+  (comportamiento de v101/v102, ver entradas anteriores) — esa fila volvió a calcularse SOLO con
+  el caudal de la fuente. El rol del acumulador quedó acotado, con más precisión, a reducir el N°
+  de sectores necesario y a dos verificaciones de volumen nuevas (ver abajo).
+- **N° de sectores en FORMA CERRADA, sin iterar** — el acumulador reparte su volumen total ENTRE
+  los sectores del día (no aporta su caudal completo a cada uno como si fuera instantáneo e
+  independiente, que es lo que asumía el modelo v101/v102):
+  ```
+  Q_requerido[l/s] = Precipitación del sistema[mm/hr] × Superficie[ha] × 10.000 / 3.600
+  Q_estanque[l/s]  = Volumen acumulador[m³] × 1000 / (Tiempo de riego × 3.600)   (0 si no declara)
+  N° de sectores    = ⌈(Q_requerido − Q_estanque) / Caudal de la fuente⌉, mínimo 1
+  ```
+  Derivación (evita iterar): el requisito por sector es `Q_requerido/n ≤ Q_fuente +
+  Q_estanque_total/n` — multiplicando ambos lados por `n` se despeja `n` directo, sin necesitar
+  saber `n` de antemano para calcular el aporte del estanque.
+- **Caudal de operación de la red (nuevo)** = `Q_requerido / N° sectores` — el caudal que circula
+  por la tubería mientras opera UN sector, el que el consultor debería haber usado para
+  dimensionar diámetros/pérdidas de carga (distinto del caudal de la fuente). Reemplaza a la fila
+  vieja "Caudal de diseño vs. disponible (ITT-03)" — la regla ITT-03 del ×1,2 (`calculos_riego.
+  requiere_acumulador()`, ya no existe en el código actual del Diseñador) quedó SUPERADA por las
+  dos verificaciones de volumen de abajo, que son más precisas (dicen cuánto volumen exacto hace
+  falta, no solo sí/no) — se eliminó la función, ya no queda código muerto con una cita ITT-03
+  que el propio Diseñador dejó de aplicar así.
+- **Verificación de BALANCE DIARIO de volumen (nuevo, no depende del N° de sectores)** —
+  `V_requerido/día = Q_requerido × Tiempo de riego × 3.600` vs. `V_fuente/día = Caudal de la
+  fuente × 86.400`. Es la condición de fondo: si la fuente no repone en 24 horas el volumen que
+  exige el diseño, NINGÚN acumulador lo resuelve (hay que reducir superficie o aumentar el
+  derecho de agua) — a diferencia de la verificación de N° de sectores/tiempo, esta puede fallar
+  incluso con acumulador declarado, y el mensaje se lo aclara explícitamente a la IA.
+- **Verificación de VOLUMEN MÍNIMO del estanque (nuevo, solo si hay acumulador declarado)** —
+  `V_mínimo = V_requerido − Caudal de la fuente × (N° sectores × Tiempo de riego) × 3.600`,
+  comparado contra el volumen declarado. Reemplaza a la vieja "verificación de llenado del
+  estanque" (`tiempo_llenado_hr`/`llenado_estanque_ok`, del modelo v101/v102) — se probó
+  algebraicamente que si el balance diario da OK, el llenado entre riegos queda garantizado
+  automáticamente (es la misma desigualdad reordenada), así que la verificación vieja quedó
+  redundante y se eliminó del código.
+- **`calculos_riego.verificacion_diseno_riego()` reescrita** con el modelo completo de arriba —
+  nuevos campos de salida: `caudal_operacion_ls`, `v_requerido_dia_l`, `v_fuente_dia_l`,
+  `balance_diario_ok`, `volumen_minimo_estanque_l`, `acumulador_ok`. Campos que YA NO existen
+  (eliminados, no solo deprecados): `caudal_acumulador_ls`, `tiempo_llenado_hr`,
+  `llenado_estanque_ok`, `estanque_tiempo_estimado`. `requiere_acumulador()` se eliminó por
+  completo del módulo (su único caller, en `analyzer.py`, se reescribió).
+- **`analyzer.py` (`_bloque_verificacion_agronomica_sistema`) y `calculos.html`
+  (`recalcAgroSistema`)** — mismo patrón de siempre: la fórmula se reescribió en ambos lados y se
+  verificó paridad numérica con los mismos 3 casos de prueba (con acumulador, sin acumulador,
+  caudal alto/N=1) antes de desplegar. En la UI (`calculos.html`), fila "Superficie de riego
+  segura" volvió a mostrar solo el caudal de la fuente (se quitó el `<span id="...agro-sup-info">`
+  con el desglose de acumulador, ya no aplica); se agregaron dos filas nuevas a la tabla ("Balance
+  diario de volumen" y "Volumen mínimo del estanque"); la fila "Caudal de diseño" se relabeló
+  ("Caudal de diseño (operación de la red) vs. declarado") y su comparación cambió de la regla
+  ITT-03 ×1,2 a comparar contra `caudal_operacion_ls`.
+- **"Caudal de trabajo por postura" (Aspersión) — ya NO compara contra un caudal "efectivo con
+  acumulador" cuando hay acumulador declarado.** El modelo de acumulador que sí se replicó arriba
+  (forma cerrada por sector) es específico de goteo/microaspersión — Aspersión usa en el Diseñador
+  un modelo de posturas propio para su acumulador, que sigue fuera de alcance (no replicado, mismo
+  criterio de siempre para el modelo de posturas). Comparar la postura contra un caudal "efectivo"
+  inventado habría sido incorrecto, así que esa comparación puntual (parte diferida del bloque de
+  postura, ver la entrada "Bug resuelto — la comparación contra 'caudal disponible' ignoraba el
+  acumulador" más arriba) ahora se OMITE por completo si el sistema declara acumulador — se
+  prefiere no comparar antes que arriesgar una observación falsa con un modelo que no corresponde.
+  Sin acumulador, sigue comparando contra el caudal disponible tal cual (comportamiento sin
+  cambios).
+- **Verificado:** paridad numérica Python↔JS con 3 casos (con acumulador: N°sectores=110,
+  balance NO alcanza, volumen del estanque SÍ alcanza; sin acumulador: N°sectores=28, balance
+  alcanza; caudal muy alto: N°sectores=1) — mismos resultados exactos en ambos lados. Se verificó
+  también que `main._agronomico_calculo()` (el preview Python de la página, sin cambios de código
+  necesarios — llama a la misma función reescrita) sigue funcionando end-to-end.
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

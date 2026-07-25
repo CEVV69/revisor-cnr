@@ -83,7 +83,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v102.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v104.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
@@ -172,7 +172,7 @@
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Si el proyecto declara un estanque/tranque regulador, complétalo aquí — la superficie de riego segura y el chequeo ITT-03 de abajo usan el caudal equivalente del acumulador (Vol×1000/horas disponibles×3600) en vez del caudal disponible de la fuente. Vacío = sin acumulador, se usa el caudal disponible tal cual.</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Si el proyecto declara un estanque/tranque regulador, complétalo aquí — reduce el N° de sectores necesario (filas de abajo) y se verifica que su volumen alcance. Ya NO se suma al caudal disponible para la Superficie de riego segura (esa fila usa solo el caudal de la fuente). Vacío = sin acumulador.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
       <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Los resultados declarados por el consultor se editan directo en la columna del medio de la tabla — para comparar de un vistazo con lo calculado por la app.</p>
@@ -238,7 +238,6 @@
             <td class="col-concepto">Superficie de riego segura (ha)</td><td id="{{ p }}agro-sup-decl">—</td>
             <td class="col-calc">
               <span id="{{ p }}agro-sup-calc">—</span>
-              <span id="{{ p }}agro-sup-info" class="calc-nota" style="display:none;"></span>
               <span id="{{ p }}agro-sup-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
@@ -259,10 +258,25 @@
             </td>
           </tr>
           <tr>
-            <td class="col-concepto">Caudal de diseño vs. disponible (ITT-03)</td>
+            <td class="col-concepto">Caudal de diseño (operación de la red) vs. declarado</td>
             <td><input type="number" step="0.01" id="{{ p }}decl_qdiseno" name="{{ p }}decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-qdiseno-calc">—</span>
+              <span id="{{ p }}agro-qdiseno-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="col-concepto">Balance diario de volumen (fuente vs. requerido)</td><td class="text-muted">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-balance-calc">—</span>
+              <span id="{{ p }}agro-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="col-concepto">Volumen mínimo del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-vmin-calc">—</span>
+              <span id="{{ p }}agro-vmin-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
         </table>
@@ -671,8 +685,10 @@
     var base = esGoteo ? [cc, pmp, da, prof, kc, eto, ef] : [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
-       "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc"].forEach(function(id) { setText(p + id, "—"); });
-      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-sup-info", "agro-triego-nota", "agro-nsec-nota"].forEach(function(id) { nota(p + id, ""); });
+       "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
+       "agro-balance-calc", "agro-vmin-calc"].forEach(function(id) { setText(p + id, "—"); });
+      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota",
+       "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
       setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, "
         + (esGoteo ? "" : "Criterio de Riego, ") + "Eficiencia) para ver el recálculo.");
       return;
@@ -704,77 +720,51 @@
     nota(p + "agro-fr-nota", (!esGoteo && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
-    // Tiempo de riego real — se calcula ACÁ (antes del acumulador) porque el acumulador lo
-    // necesita como T de vaciado, igual que el Diseñador de Riego usa el tiempo de riego real
-    // del Paso 4 para sistemas localizados.
+    // Tiempo de riego (por sector, independiente del área total) — se calcula ACÁ porque lo
+    // necesitan tanto el acumulador (Q_estanque) como el N° de sectores más abajo.
     var tiempoRiego = precip !== null ? (db / precip) : null;
-
-    // Acumulador (estanque/tranque regulador): el caudal INSTANTÁNEO efectivo durante el riego
-    // es la SUMA del estanque + la fuente (que no deja de aportar mientras se riega) — fórmula
-    // actualizada del Diseñador de Riego v101 (antes se asumía que el acumulador REEMPLAZABA a
-    // la fuente, lo que subestimaba el caudal real disponible). T = tiempo de riego real si ya
-    // se pudo calcular arriba; si no, horas disponibles al día como estimación preliminar
-    // (mismo fallback que el Diseñador).
     var volAcum = numVal(p + "volumen_acumulador_m3");
-    var tVaciado = tiempoRiego !== null ? tiempoRiego : horas;
-    var tEstimado = tiempoRiego === null;
-    var caudalEstanque = (volAcum !== null && tVaciado) ? (volAcum * 1000) / (tVaciado * 3600) : null;
-    var caudalAcum = caudalEstanque !== null ? caudalEstanque + (caudalDisp || 0) : null;
-    var caudalEfectivo = caudalAcum !== null ? caudalAcum : caudalDisp;
-    var etiquetaCaudal = caudalAcum !== null ? "instantáneo (estanque + fuente)" : "disponible";
 
-    // Caudal de trabajo por postura vs. caudal EFECTIVO — parte diferida del bloque de arriba:
-    // recién acá se sabe si hay acumulador y cuál es el caudal instantáneo efectivo.
-    if (qPostura !== null && caudalEfectivo !== null && qPostura > caudalEfectivo) {
-      notaPostura += (notaPostura ? " " : "") + "Supera el caudal " + etiquetaCaudal + " (" + fmt(caudalEfectivo, 2) + " l/s) — la fuente no alcanza para los " + nAspPostura + " aspersores de la postura a la vez.";
+    // Caudal de trabajo por postura vs. caudal disponible — parte diferida del bloque de arriba.
+    // NO se compara si hay acumulador declarado: el modelo de acumulador que sí se replicó abajo
+    // (v104, forma cerrada por sector) es el de goteo/microaspersión — Aspersión usa en el
+    // Diseñador un modelo de posturas propio para el acumulador que no se replica acá (fuera de
+    // alcance), así que comparar contra el caudal de la fuente sin más sería incorrecto.
+    if (qPostura !== null && volAcum === null && caudalDisp !== null && qPostura > caudalDisp) {
+      notaPostura += (notaPostura ? " " : "") + "Supera el caudal disponible (" + fmt(caudalDisp, 2) + " l/s) — la fuente no alcanza para los " + nAspPostura + " aspersores de la postura a la vez.";
       nota(p + "agro-postura-nota", notaPostura);
     }
 
+    // Superficie de riego segura — SOLO con el caudal de la FUENTE (v104: el acumulador ya no
+    // se suma acá, ver el bloque de N° de sectores más abajo).
     var demanda = db / 8.64;
-    if (caudalEfectivo !== null && demanda) {
-      var supSegura = caudalEfectivo / demanda;
+    if (caudalDisp !== null && demanda) {
+      var supSegura = caudalDisp / demanda;
       setText(p + "agro-sup-calc", fmt(supSegura, 2) + " ha");
       nota(p + "agro-sup-nota", (sup !== null && supSegura < sup)
-        ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal " + etiquetaCaudal + " no alcanza." : "");
-      if (caudalEstanque !== null) {
-        var infoHtml = "Con acumulador de " + fmt(volAcum, 1) + " m³ → Q estanque=" + fmt(caudalEstanque, 3)
-          + " + Q fuente=" + fmt(caudalDisp, 3) + " = Q instantáneo=" + fmt(caudalAcum, 3)
-          + " l/s (T=" + fmt(tVaciado, 3) + "h" + (tEstimado ? ", estimado" : ", real") + ").";
-        if (caudalDisp) {
-          var tLlenado = (volAcum * 1000) / (caudalDisp * 3600);
-          var downtime = 24 - tVaciado;
-          var llenadoOk = downtime > 0 && tLlenado <= downtime;
-          infoHtml += " Tiempo de llenado del estanque: " + fmt(tLlenado, 2) + "h vs. " + fmt(downtime, 2) + "h disponibles entre riegos — "
-            + (llenadoOk ? "factible." : '<span class="calc-alerta">insuficiente, verificar volumen o frecuencia.</span>');
-        }
-        setHtml(p + "agro-sup-info", infoHtml);
-        document.getElementById(p + "agro-sup-info").style.display = "";
-      } else {
-        nota(p + "agro-sup-info", "");
-      }
+        ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal disponible no alcanza." : "");
     } else {
       setText(p + "agro-sup-calc", "—");
       nota(p + "agro-sup-nota", "");
-      nota(p + "agro-sup-info", "");
     }
 
+    // N° de sectores — fórmula v104 del Diseñador de Riego (calcGE/calcME), FORMA CERRADA sin
+    // iterar: si hay acumulador, su aporte durante el riego de UN sector (Q_estanque) se resta
+    // del caudal requerido antes de dividir por el caudal de la fuente.
+    var qRequerido = null, nSectores = null, tiempoTotalDia = null, caudalEstanque = null;
     if (precip !== null) {
       setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr");
       nota(p + "agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");
-      // N° de sectores — fórmula v102 del Diseñador de Riego (calcGE/calcME): ya NO se calcula
-      // dividiendo horas disponibles / tiempo de riego (esa relación no tiene sentido real — el
-      // propio Diseñador la corrigió). El criterio es de CAUDAL: si el caudal que exige regar
-      // TODA la superficie a la vez, al ritmo de precipitación del sistema, supera el caudal
-      // EFECTIVO disponible (fuente + acumulador si corresponde), hay que dividir en sectores.
-      if (sup !== null && caudalEfectivo !== null && tiempoRiego) {
-        var qRequerido = precip * sup * 10000 / 3600;
-        var nSectores = qRequerido > caudalEfectivo ? Math.ceil(qRequerido / caudalEfectivo) : 1;
+      if (sup !== null && tiempoRiego) {
+        qRequerido = precip * sup * 10000 / 3600;
+        caudalEstanque = (volAcum !== null && tiempoRiego) ? (volAcum * 1000) / (tiempoRiego * 3600) : 0;
+        nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
         setText(p + "agro-nsec-calc", String(nSectores));
         var notaNsec = "";
         if (declNsec !== null && declNsec !== nSectores) {
           notaNsec = "No coincide con lo declarado (" + fmt(declNsec, 0) + ").";
         }
-        var tiempoTotalDia = nSectores * tiempoRiego;
+        tiempoTotalDia = nSectores * tiempoRiego;
         if (horas !== null && tiempoTotalDia > horas) {
           notaNsec += (notaNsec ? " " : "") + "El riego de los " + nSectores + " sectores (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles.";
         }
@@ -790,18 +780,51 @@
       nota(p + "agro-nsec-nota", "");
     }
 
-    if (declQdiseno !== null && caudalEfectivo !== null) {
-      var limite = caudalEfectivo * 1.2;
-      if (declQdiseno > limite) {
-        var msjLimite = caudalAcum !== null
-          ? 'El volumen de acumulador declarado no alcanza (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal instantáneo con acumulador × 1,2)'
-          : 'Requiere acumulador (ITT-03): supera ' + fmt(limite, 2) + ' l/s (caudal disponible × 1,2)';
-        setHtml(p + "agro-qdiseno-calc", '<span class="calc-alerta">' + msjLimite + '</span>');
-      } else {
-        setText(p + "agro-qdiseno-calc", "Dentro del límite (≤ " + fmt(limite, 2) + " l/s" + (caudalAcum !== null ? ", con acumulador" : "") + ")");
-      }
+    // Caudal de diseño (operación de la red): el que circula por la tubería mientras opera UN
+    // sector — Q_requerido / N° sectores. Es lo que el consultor debería usar para dimensionar
+    // diámetros/pérdidas de carga, distinto del caudal de la fuente.
+    if (qRequerido !== null && nSectores) {
+      var caudalOperacion = qRequerido / nSectores;
+      setText(p + "agro-qdiseno-calc", fmt(caudalOperacion, 3) + " l/s");
+      nota(p + "agro-qdiseno-nota", diferenciaRelevante(caudalOperacion, declQdiseno, 10)
+        ? "No coincide con lo declarado (" + fmt(declQdiseno, 2) + " l/s)." : "");
     } else {
       setText(p + "agro-qdiseno-calc", "—");
+      nota(p + "agro-qdiseno-nota", "");
+    }
+
+    // Balance diario de volumen — NO depende del N° de sectores (Q_sector×T_total =
+    // Q_requerido×T_riego siempre): si la fuente no repone en 24 hr lo que exige el diseño,
+    // ningún acumulador lo resuelve.
+    if (qRequerido !== null && tiempoRiego) {
+      var vDia = qRequerido * tiempoRiego * 3600;
+      if (caudalDisp !== null) {
+        var vFuenteDia = caudalDisp * 24 * 3600;
+        var balanceOk = vDia <= vFuenteDia;
+        setText(p + "agro-balance-calc", "V. requerido = " + fmt(vDia, 0) + " L/día — V. fuente = " + fmt(vFuenteDia, 0) + " L/día");
+        nota(p + "agro-balance-nota", balanceOk ? "" : "La fuente no repone lo que exige el diseño — ningún acumulador resuelve esto (reducir superficie o aumentar el derecho de agua).");
+
+        // Volumen mínimo del estanque — solo si hay acumulador declarado.
+        if (volAcum !== null && tiempoTotalDia !== null) {
+          var vMin = Math.max(0, vDia - caudalDisp * tiempoTotalDia * 3600);
+          var volAcumL = volAcum * 1000;
+          setText(p + "agro-vmin-calc", "Mínimo = " + fmt(vMin, 0) + " L — declarado = " + fmt(volAcumL, 0) + " L");
+          nota(p + "agro-vmin-nota", volAcumL >= vMin ? "" : "El volumen declarado no alcanza el mínimo requerido.");
+        } else {
+          setText(p + "agro-vmin-calc", "—");
+          nota(p + "agro-vmin-nota", "");
+        }
+      } else {
+        setText(p + "agro-balance-calc", "—");
+        nota(p + "agro-balance-nota", "");
+        setText(p + "agro-vmin-calc", "—");
+        nota(p + "agro-vmin-nota", "");
+      }
+    } else {
+      setText(p + "agro-balance-calc", "—");
+      nota(p + "agro-balance-nota", "");
+      setText(p + "agro-vmin-calc", "—");
+      nota(p + "agro-vmin-nota", "");
     }
   }
 
