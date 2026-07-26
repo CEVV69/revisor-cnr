@@ -3,7 +3,7 @@
 {% block content %}
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
-  <a href="/admin/concursos" class="btn btn-ghost btn-sm">← Concursos</a>
+  <button type="button" onclick="history.back()" class="btn btn-ghost btn-sm">← Volver</button>
   <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">
     Concurso <span style="font-family:monospace;">{{ concurso.id }}</span>
   </h1>
@@ -261,7 +261,7 @@
     </p>
     <div style="display:flex; flex-direction:column; gap:0.5rem;">
       {% for g in grupos_enfasis %}
-      <details style="border:1px solid var(--border); border-radius:8px;" {% if g.texto %}open{% endif %}>
+      <details style="border:1px solid var(--border); border-radius:8px;">
         <summary style="cursor:pointer; padding:0.5rem 0.75rem; font-weight:600; font-size:0.85rem;">
           {{ g.tipo }}: {{ g.nombre }}{% if g.texto %} <span style="color:#2f855a;">●</span>{% endif %}
         </summary>

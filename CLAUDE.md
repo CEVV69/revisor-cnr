@@ -947,6 +947,19 @@ separó: `POST /admin/concursos/{id}/consolidar` (`consolidar_concurso()`) ahora
 `criterios_aprendidos` por ítem de ESE concurso; `POST /admin/aprendizaje/consolidar-consultores`
 (`consolidar_consultores()`, nueva ruta) destila los perfiles de TODOS los consultores — separado
 justamente porque no tiene sentido re-disparar ese trabajo desde cada concurso.
+**Ajustes de UI tras probarla (jul-2026):** los `<details>` de "Criterios de énfasis por ítem"
+(en `admin_aprendizaje.html`, y el mismo patrón en la sección "Criterios puntuales de este
+concurso" de `admin_concurso_detalle.html`) se abrían automáticamente si ya tenían texto
+guardado — con hasta 18 ítems eso significaba varios desplegados a la vez apenas se entraba a
+la página. Se sacó el `{% if g.texto %}open{% endif %}` — ahora todos arrancan colapsados, el
+punto verde en el título (`●`) ya avisa cuáles tienen contenido sin necesidad de abrirlos. Y el
+botón "← Volver"/"← Inicio"/"← Concursos" de las 5 páginas de administración (Concursos, un
+concurso, Aprendizaje, Precios, Usuarios) apuntaba a un destino FIJO (`/`, `/admin/concursos`) —
+el usuario reportó que eso alargaba el camino de vuelta si venía de un proyecto y pasaba por
+varias páginas de administración antes de querer volver. Se cambió a un botón con
+`onclick="history.back()"` (historial real del navegador) en las 5 páginas — un solo clic
+vuelve exactamente a la página anterior, sin importar cuántos saltos de administración haya en
+el medio.
 
 **Bug conocido y resuelto — respuestas vacías por límite de tokens bajo (jul-2026):**
 Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamiento" (thinking)
