@@ -14,6 +14,7 @@ PROYECTOS_FILE   = DATA_DIR / "proyectos.json"
 CONCURSOS_FILE   = DATA_DIR / "concursos.json"
 CONSULTORES_FILE = DATA_DIR / "consultores.json"
 PRECIOS_FILE     = DATA_DIR / "precios.json"
+CRITERIOS_ITEM_FILE = DATA_DIR / "criterios_item.json"
 META_FILE        = DATA_DIR / "meta.json"
 # Textos extraídos de los documentos, uno por proyecto (modo JSON local — en PostgreSQL van
 # bajo la clave "textos:{proyecto_id}" de la tabla storage). Ver la nota en
@@ -399,6 +400,51 @@ class Database:
 
     def save_precios(self, data: dict):
         self._save("precios", PRECIOS_FILE, data)
+
+    # ── Criterios de énfasis por ítem (PERMANENTES, jul-2026) ──────────────────
+    # Antes vivían colgados de cada concurso por separado — en la práctica casi siempre
+    # aplicaban igual sin importar el concurso, así que pasaron a ser un blob único GLOBAL
+    # (mismo patrón que precios), editado por el revisor en /admin/aprendizaje. El campo
+    # `criterios_enfasis` que queda en cada concurso ahora es solo para EXCEPCIONES puntuales
+    # de ese concurso en particular (ver migrar_criterios_enfasis y CLAUDE.md).
+
+    def get_criterios_item(self) -> dict:
+        """Estructura: {"criterios": {"item_"+item_key: "texto"}, "fecha_actualizado",
+        "actualizado_por"}. {} si nunca se ha guardado nada."""
+        return self._load("criterios_item", CRITERIOS_ITEM_FILE)
+
+    def save_criterios_item(self, data: dict):
+        self._save("criterios_item", CRITERIOS_ITEM_FILE, data)
+
+    def migrar_criterios_enfasis(self):
+        """Migración única (jul-2026): los "Criterios de énfasis por ítem" pasaron de ser por
+        concurso a PERMANENTES/globales. Copia lo que ya hubiera guardado en cada
+        concurso["criterios_enfasis"] al nuevo blob global (gana el primero que se encuentre
+        por item_key — en la práctica solo un concurso tenía datos reales al momento de este
+        cambio) y deja el campo de cada concurso vacío, listo para su nuevo uso: excepciones
+        puntuales de ESE concurso en particular. Idempotente vía marcador, mismo patrón que
+        migrar_textos_documentos()."""
+        marcador = self._load("meta_criterios_enfasis_migrados", META_FILE)
+        if marcador.get("hecho"):
+            return
+        globales = self.get_criterios_item()
+        criterios = dict(globales.get("criterios", {}))
+        migrados = 0
+        for concurso in self.get_all_concursos():
+            propios = concurso.get("criterios_enfasis") or {}
+            if not propios:
+                continue
+            for k, v in propios.items():
+                if v and k not in criterios:
+                    criterios[k] = v
+                    migrados += 1
+            concurso["criterios_enfasis"] = {}
+            self.save_concurso(concurso)
+        if migrados:
+            globales["criterios"] = criterios
+            self.save_criterios_item(globales)
+            print(f"✅ Migrados {migrados} criterio(s) de énfasis de concursos a la colección global")
+        self._save("meta_criterios_enfasis_migrados", META_FILE, {"hecho": True})
 
     # ── Archivos físicos (persistencia contra deploys efímeros de Railway) ──────
     # Solo aplica en modo PostgreSQL: en modo JSON local el disco ya persiste entre

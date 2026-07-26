@@ -1848,9 +1848,11 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
 
     bloque_enfasis = ""
     if criterios_enfasis and criterios_enfasis.strip():
+        # Puede traer una o dos secciones (GENERALES / PUNTUALES DE ESTE CONCURSO), ya armadas
+        # por _criterios_enfasis_combinados() en main.py — ver ese helper para el detalle.
         bloque_enfasis = (f"\n\n{'═'*60}\nCRITERIOS DE ÉNFASIS DEFINIDOS POR EL REVISOR PARA "
-                          f"ESTE GRUPO EN ESTE CONCURSO — verifícalos SIEMPRE, tienen prioridad "
-                          f"sobre el resto de la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
+                          f"ESTE GRUPO — verifícalos SIEMPRE, tienen prioridad sobre el resto de "
+                          f"la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
 
     # Coherencia Global revisa el expediente COMPLETO, así que sin este bloque tiende a
     # re-encontrar y repetir hallazgos puntuales que ya quedaron registrados al revisar cada

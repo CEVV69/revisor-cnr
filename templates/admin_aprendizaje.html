@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Aprendizaje — Revisor CNR{% endblock %}
+{% block content %}
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
+  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Aprendizaje</h1>
+</div>
+
+<p class="text-muted" style="font-size:0.85rem; margin:-0.8rem 0 1.3rem;">
+  Todo lo de esta página es <strong>permanente y cruza todos los concursos</strong> — a
+  diferencia de los criterios aprendidos automáticamente por ítem (que se destilan del
+  feedback de cada concurso por separado) y de las excepciones puntuales de un concurso en
+  particular, que se siguen agregando desde la página de ese concurso.
+</p>
+
+{% if msg_ok %}
+<div class="alert alert-success" style="margin-bottom:1rem;">
+  {% if msg_ok == 'enfasis_guardado' %}Criterios de énfasis guardados. Se aplicarán en la próxima revisión de cada ítem, en cualquier concurso.
+  {% elif msg_ok and msg_ok.startswith('consolidado_') %}Perfiles consolidados: {{ msg_ok.split('_')[1] }} consultor(es) con perfil destilado.
+  {% else %}Guardado.{% endif %}
+</div>
+{% endif %}
+
+<!-- Criterios de énfasis por ítem: PERMANENTES, los escribe y edita el revisor a mano -->
+<form method="post" action="/admin/aprendizaje/criterios-item">
+  <div class="card" style="margin-bottom:1.5rem; border-left:4px solid #2f855a;">
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por ítem</h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Escribe aquí, con tus palabras, qué debe verificar la IA en cada ítem —
+      <strong>sin importar el concurso</strong>: cruces entre documentos, normativa específica
+      (ej. ITT-02), o cosas que viste en una revisión real y que la IA no captó sola. Se inyecta
+      siempre en el prompt de ese ítem, con prioridad sobre el resto de la guía, y nunca se
+      sobrescribe solo — es tu supervisión explícita para que la IA se acerque a un revisor
+      experto. Si las bases de un concurso puntual agregan una exigencia que NO aplica a los
+      demás (ej. "no se acepta agua NO inscrita"), esa excepción se agrega aparte, desde la
+      página de ese concurso — no acá.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:0.5rem;">
+      {% for g in grupos_enfasis %}
+      <details style="border:1px solid var(--border); border-radius:8px;" {% if g.texto %}open{% endif %}>
+        <summary style="cursor:pointer; padding:0.5rem 0.75rem; font-weight:600; font-size:0.85rem;">
+          {{ g.nombre }}{% if g.texto %} <span style="color:#2f855a;">●</span>{% endif %}
+        </summary>
+        <div style="padding:0 0.75rem 0.75rem;">
+          <textarea name="enfasis__{{ g.key }}" rows="3"
+                    placeholder="Ej: el cronograma debe incluir la instalación del sistema fotovoltaico si el proyecto lo contempla."
+                    style="width:100%; font-size:0.82rem; font-family:inherit; padding:0.5rem;
+                           border:1px solid var(--border); border-radius:6px; resize:vertical;">{{ g.texto }}</textarea>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-sm" style="background:#2f855a; color:white; margin-top:0.85rem;">
+      Guardar criterios de énfasis
+    </button>
+    {% if criterios_fecha %}
+    <span class="text-muted" style="font-size:0.78rem; margin-left:0.5rem;">
+      Última edición: {{ criterios_fecha | fecha_hora }}
+    </span>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Aprendizaje por consultor (cruza proyectos y concursos por diseño) -->
+<div class="card" style="border-left:4px solid #2b6cb0;">
+  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por consultor</h2>
+  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+    La IA acumula los patrones de cada consultor (metodología, fortalezas y fallas recurrentes)
+    a través de sus proyectos, sin importar el concurso. Desde el 3° proyecto de un mismo
+    consultor, esos patrones se inyectan en la revisión para hacerla más rápida y consistente.
+  </p>
+  <form method="post" action="/admin/aprendizaje/consolidar-consultores"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Consolidando…'; this.submit();">
+    <button type="submit" class="btn btn-sm" style="background:#2b6cb0; color:white;"
+            {% if not consultores_info %}disabled title="Aún no hay consultores con historial"{% endif %}>
+      Consolidar perfiles de consultores
+    </button>
+  </form>
+
+  {% if consultores_info %}
+  <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.6rem;">
+    {% for c in consultores_info %}
+    <details style="border:1px solid var(--border); border-radius:8px;">
+      <summary style="cursor:pointer; padding:0.55rem 0.8rem; font-weight:600; font-size:0.86rem;">
+        {{ c.nombre }}
+        <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ c.n_feedback }} decisión(es){% if not c.perfil %} · perfil sin consolidar{% endif %}{% if c.perfil_fecha %} · consolidado {{ c.perfil_fecha | fecha_hora }}{% endif %}</span>
+      </summary>
+      <pre style="white-space:pre-wrap; font-size:0.82rem; line-height:1.5; padding:0 0.8rem 0.8rem; margin:0; font-family:inherit; color:#4a5568;">{{ c.perfil or '(Aún sin perfil destilado. Se usa el historial de decisiones hasta consolidar.)' }}</pre>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size:0.82rem; margin-top:0.5rem;">
+    Todavía no hay decisiones (aprobar/descartar observaciones) registradas para ningún
+    consultor.
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}

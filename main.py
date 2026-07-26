@@ -188,6 +188,25 @@ def _consultor_de_proyecto(proyecto: dict) -> tuple:
     return (_consultor_key(nombre), nombre) if nombre else ("", "")
 
 
+def _criterios_enfasis_combinados(item_key: str, concurso: dict) -> str:
+    """Combina los criterios de énfasis PERMANENTES (globales, cruzan todos los concursos —
+    ver db.get_criterios_item(), editados en /admin/aprendizaje) con los PUNTUALES de este
+    concurso en particular (excepciones específicas de sus bases — ej. "no se acepta agua NO
+    inscrita" — que el revisor sigue pudiendo agregar por ítem en /admin/concursos/{id}, ver
+    concurso["criterios_enfasis"]). Se inyectan juntos en el prompt del ítem, con secciones
+    separadas para que la IA distinga cuál es la regla general y cuál la excepción de este
+    concurso."""
+    clave = "item_" + item_key
+    generales = (db.get_criterios_item().get("criterios", {}) or {}).get(clave, "")
+    puntuales = (concurso.get("criterios_enfasis", {}).get(clave, "") if concurso else "")
+    partes = []
+    if generales.strip():
+        partes.append("GENERALES (todos los concursos):\n" + generales.strip())
+    if puntuales.strip():
+        partes.append("PUNTUALES DE ESTE CONCURSO:\n" + puntuales.strip())
+    return "\n\n".join(partes)
+
+
 def _texto_len(texto: str) -> int:
     """Longitud "útil" de un texto extraído — 0 si está vacío o es el sentinel de PDF
     escaneado (`__PDF_ESCANEADO__`). Se guarda en el documento LIVIANO (`doc["texto_len"]`)
@@ -399,6 +418,11 @@ async def startup_event():
         db.migrar_textos_documentos()
     except Exception as e:
         print(f"❌ Error migrando textos de documentos: {e}")
+
+    try:
+        db.migrar_criterios_enfasis()
+    except Exception as e:
+        print(f"❌ Error migrando criterios de énfasis: {e}")
 
     if not db.get_user("admin"):
         db.create_user("admin", "admin123", "Administrador CNR", "admin")
@@ -806,8 +830,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     feedback_concurso = concurso.get("feedback", [])   if concurso else []
     criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
                  if concurso else "")
-    enfasis = (concurso.get("criterios_enfasis", {}).get("item_" + item_key, "")
-               if concurso else "")
+    enfasis = _criterios_enfasis_combinados(item_key, concurso)
     ckey, _ = _consultor_de_proyecto(proyecto)
     consultor = db.get_consultor(ckey) if ckey else None
 
@@ -2514,24 +2537,16 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         if criterios.get("item_" + item_key):
             criterios_lista.append({"nombre": "Ítem SEP: " + ITEMS_SEP[item_key]["nombre"],
                                     "texto": criterios["item_" + item_key]})
-    # Consultores con historia/perfil aprendido (cruza concursos)
-    consultores_info = []
-    for c in db.get_all_consultores():
-        n_fb = len(c.get("feedback", []))
-        if n_fb > 0:
-            consultores_info.append({
-                "nombre": c.get("nombre", ""),
-                "n_feedback": n_fb,
-                "perfil": c.get("perfil", ""),
-            })
     # Archivos guardados en la base para los proyectos de este concurso (para poder
     # "dar por terminado" el concurso y liberar ese espacio sin perder el análisis ya hecho).
     proyectos_concurso = [p for p in db.get_proyectos_ligero(["id", "codigo_sep"])
                           if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
     resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
-    # Criterios de énfasis: a diferencia de criterios_aprendidos (se destila solo del
-    # feedback aprobada/descartada), esto lo escribe y edita el revisor directamente — su
-    # supervisión explícita sobre qué debe verificar la IA en cada ítem de ESTE concurso.
+    # Criterios PUNTUALES de este concurso (jul-2026): a diferencia de los criterios de énfasis
+    # GENERALES (ahora permanentes, cruzan todos los concursos — se editan en /admin/aprendizaje),
+    # este campo quedó para excepciones específicas de las bases de ESTE concurso en particular
+    # (ej. "no se acepta agua NO inscrita") — no aplica a todo concurso ni a todo ítem, ver
+    # CLAUDE.md. Ambos se combinan al analizar (_criterios_enfasis_combinados()).
     enfasis_guardados = concurso.get("criterios_enfasis", {})
     grupos_enfasis = []
     for item_key in ITEMS_ORDEN:
@@ -2553,7 +2568,6 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
         "n_feedback": len(concurso.get("feedback", [])),
         "criterios_lista": criterios_lista,
         "criterios_fecha": concurso.get("criterios_fecha", ""),
-        "consultores_info": consultores_info,
         "n_proyectos_concurso": len(proyectos_concurso),
         "resumen_archivos": resumen_archivos,
         "grupos_enfasis": grupos_enfasis,
@@ -2563,9 +2577,10 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
 
 @app.post("/admin/concursos/{concurso_id}/criterios-enfasis")
 async def guardar_criterios_enfasis(request: Request, concurso_id: str):
-    """Guarda los criterios de énfasis por ítem escritos a mano por el revisor — a
-    diferencia de criterios_aprendidos (se destila solo de aprobar/descartar observaciones),
-    esto es supervisión directa del revisor y nunca se sobrescribe automáticamente."""
+    """Guarda los criterios PUNTUALES de este concurso en particular — excepciones puntuales
+    a las bases de ESTE concurso (ej. "no se acepta agua NO inscrita"), no la regla general
+    (que ahora es permanente/global, ver db.get_criterios_item() y /admin/aprendizaje). Nunca
+    se sobrescribe automáticamente — es supervisión directa del revisor."""
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
@@ -2639,7 +2654,9 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
 
 @app.post("/admin/concursos/{concurso_id}/consolidar")
 async def consolidar_concurso(request: Request, concurso_id: str):
-    """Destila el feedback acumulado en criterios aprendidos por ítem."""
+    """Destila el feedback acumulado en criterios aprendidos por ítem — solo de ESTE concurso
+    (a diferencia de los perfiles de consultor, que cruzan concursos y se consolidan aparte
+    desde /admin/aprendizaje, ver consolidar_consultores())."""
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
@@ -2655,14 +2672,6 @@ async def consolidar_concurso(request: Request, concurso_id: str):
             texto = await consolidar_aprendizaje(feedback, "item_" + item_key, ITEMS_SEP[item_key]["nombre"])
             if texto:
                 criterios["item_" + item_key] = texto
-                n += 1
-        # Perfiles de consultores (cruza proyectos/concursos): destila los que tengan historia
-        for c in db.get_all_consultores():
-            perfil = await consolidar_perfil_consultor(c.get("feedback", []), c.get("nombre", ""))
-            if perfil:
-                c["perfil"] = perfil
-                c["perfil_fecha"] = _ahora().isoformat()
-                db.save_consultor(c)
                 n += 1
     except Exception as e:
         import traceback
@@ -2848,6 +2857,98 @@ async def admin_eliminar_precios(request: Request):
         return RedirectResponse(url="/")
     db.save_precios({})
     return RedirectResponse(url="/admin/precios?ok=eliminado", status_code=302)
+
+
+# ─── Aprendizaje (página global, jul-2026) ────────────────────────────────────
+# Reúne los dos mecanismos de aprendizaje que CRUZAN concursos (antes vivían dentro de la
+# página de un concurso específico, lo que confundía — ver CLAUDE.md):
+# 1. Criterios de énfasis por ítem — PERMANENTES, los escribe el revisor a mano, se inyectan
+#    siempre en el prompt de ese ítem sin importar el concurso. Las excepciones puntuales de
+#    un concurso en particular (ej. "no se acepta agua NO inscrita" en las bases de UN
+#    concurso) se siguen agregando desde la página de ESE concurso — ver
+#    guardar_criterios_enfasis() más arriba, ahora reetiquetado como "puntuales".
+# 2. Aprendizaje por consultor — destilado del feedback (aprobar/descartar), cruza proyectos
+#    y concursos por diseño desde que existe (ver database.py: consultores, keyed por nombre).
+
+@app.get("/admin/aprendizaje", response_class=HTMLResponse)
+async def admin_aprendizaje(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    criterios_guardados = db.get_criterios_item().get("criterios", {})
+    grupos_enfasis = [
+        {"key": "item_" + item_key, "nombre": ITEMS_SEP[item_key]["nombre"],
+         "texto": criterios_guardados.get("item_" + item_key, "")}
+        for item_key in ITEMS_ORDEN
+    ]
+    consultores_info = []
+    for c in db.get_all_consultores():
+        n_fb = len(c.get("feedback", []))
+        if n_fb > 0:
+            consultores_info.append({
+                "nombre": c.get("nombre", ""), "n_feedback": n_fb,
+                "perfil": c.get("perfil", ""), "perfil_fecha": c.get("perfil_fecha", ""),
+            })
+    consultores_info.sort(key=lambda c: c["nombre"])
+    msg_ok = request.query_params.get("ok")
+    return templates.TemplateResponse("admin_aprendizaje.html", {
+        "request": request, "user": user, "grupos_enfasis": grupos_enfasis,
+        "criterios_fecha": db.get_criterios_item().get("fecha_actualizado", ""),
+        "consultores_info": consultores_info, "msg_ok": msg_ok,
+    })
+
+
+@app.post("/admin/aprendizaje/criterios-item")
+async def guardar_criterios_item(request: Request):
+    """Guarda los criterios de énfasis PERMANENTES por ítem (globales, cruzan todos los
+    concursos) — mismo mecanismo que antes vivía por concurso, ver
+    db.migrar_criterios_enfasis() para la migración de lo que ya existía."""
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    form = await request.form()
+    guardado = db.get_criterios_item()
+    criterios = dict(guardado.get("criterios", {}))
+    for campo, valor in form.items():
+        if not campo.startswith("enfasis__"):
+            continue
+        grupo_key = campo[len("enfasis__"):]
+        texto = (valor or "").strip()
+        if texto:
+            criterios[grupo_key] = texto
+        else:
+            criterios.pop(grupo_key, None)
+    db.save_criterios_item({
+        "criterios": criterios,
+        "fecha_actualizado": _ahora().isoformat(),
+        "actualizado_por": user["nombre"],
+    })
+    return RedirectResponse(url="/admin/aprendizaje?ok=enfasis_guardado", status_code=302)
+
+
+@app.post("/admin/aprendizaje/consolidar-consultores")
+async def consolidar_consultores(request: Request):
+    """Destila el perfil de TODOS los consultores con historial (cruza proyectos/concursos por
+    diseño) — separado de "Consolidar aprendizaje" de cada concurso, que ahora solo destila
+    los criterios aprendidos por ítem DE ESE concurso."""
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    n = 0
+    try:
+        for c in db.get_all_consultores():
+            perfil = await consolidar_perfil_consultor(c.get("feedback", []), c.get("nombre", ""))
+            if perfil:
+                c["perfil"] = perfil
+                c["perfil_fecha"] = _ahora().isoformat()
+                db.save_consultor(c)
+                n += 1
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en consolidar_consultores: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al consolidar aprendizaje: {str(e)}")
+    return RedirectResponse(url=f"/admin/aprendizaje?ok=consolidado_{n}", status_code=302)
 
 
 # ─── Administración de usuarios ──────────────────────────────────────────────

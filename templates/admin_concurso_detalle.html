@@ -244,18 +244,20 @@
 </div>
 {% endif %}
 
-<!-- Criterios de énfasis: los escribe y edita el revisor a mano, con prioridad en el prompt -->
+<!-- Criterios PUNTUALES de este concurso: excepciones a las bases de ESTE concurso en
+     particular — la regla general (permanente, cruza todos los concursos) vive en
+     /admin/aprendizaje. Ambos se combinan al analizar (ver _criterios_enfasis_combinados). -->
 <form method="post" action="/admin/concursos/{{ concurso.id }}/criterios-enfasis">
   <div class="card" style="margin-top:1.5rem; border-left:4px solid #2f855a;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por ítem</h2>
+    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios puntuales de este concurso</h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-      Escribe aquí, con tus palabras, qué debe verificar la IA en cada ítem de <strong>este
-      concurso</strong> — cruces entre documentos, normativa específica (ej. ITT-02), o cosas
-      que viste en una revisión real y que la IA no captó sola. Se inyecta siempre en el prompt
-      de ese ítem, con prioridad sobre el resto de la guía. A diferencia del "aprendizaje"
-      de abajo (que se destila solo del historial de aprobar/descartar), esto lo escribes y
-      editas tú directamente y nunca se sobrescribe solo — es tu supervisión explícita para que
-      la IA se acerque a un revisor experto.
+      Los criterios de énfasis GENERALES (los que aplican sin importar el concurso) ahora se
+      escriben en <a href="/admin/aprendizaje">Aprendizaje</a>. Usa esto SOLO para excepciones
+      puntuales de las bases de <strong>este concurso en particular</strong> — ej. "no se acepta
+      agua NO inscrita" — que no aplican a los demás concursos. No hace falta llenar esto para
+      cada concurso ni para cada ítem: la mayoría de los concursos no necesitan ninguna
+      excepción acá. Se inyecta junto con los criterios generales, con prioridad sobre el resto
+      de la guía, y nunca se sobrescribe solo.
     </p>
     <div style="display:flex; flex-direction:column; gap:0.5rem;">
       {% for g in grupos_enfasis %}
@@ -311,29 +313,5 @@
   </div>
   {% endif %}
 </div>
-
-<!-- Aprendizaje por consultor (cruza proyectos y concursos) -->
-{% if consultores_info %}
-<div class="card" style="margin-top:1.5rem; border-left:4px solid #2b6cb0;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por consultor</h2>
-  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
-    La IA acumula los patrones de cada consultor (metodología, fortalezas y fallas recurrentes)
-    a través de sus proyectos. Desde el 3° proyecto de un mismo consultor, esos patrones se
-    inyectan en la revisión para hacerla más rápida y consistente. El perfil se destila con el
-    botón de arriba "Consolidar aprendizaje".
-  </p>
-  <div style="display:flex; flex-direction:column; gap:0.6rem;">
-    {% for c in consultores_info %}
-    <details style="border:1px solid var(--border); border-radius:8px;">
-      <summary style="cursor:pointer; padding:0.55rem 0.8rem; font-weight:600; font-size:0.86rem;">
-        {{ c.nombre }}
-        <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ c.n_feedback }} decisión(es){% if not c.perfil %} · perfil sin consolidar{% endif %}</span>
-      </summary>
-      <pre style="white-space:pre-wrap; font-size:0.82rem; line-height:1.5; padding:0 0.8rem 0.8rem; margin:0; font-family:inherit; color:#4a5568;">{{ c.perfil or '(Aún sin perfil destilado. Se usa el historial de decisiones hasta consolidar.)' }}</pre>
-    </details>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
 
 {% endblock %}

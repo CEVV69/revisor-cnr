@@ -934,9 +934,19 @@ a `max_tokens=4000` (evita el mismo corte por thinking) con aviso si llega vací
 acumula feedback en el consultor además del concurso. En cada revisión, `_construir_bloque_consultor`
 inyecta el PERFIL destilado del consultor (o su historial crudo de decisiones si aún no se
 consolida) — patrones recurrentes para revisar más rápido sus proyectos siguientes.
-`consolidar_perfil_consultor()` (Haiku) destila ese historial; se dispara junto al botón
-"🧠 Consolidar aprendizaje" (que ahora también procesa consultores). La colección cruza
-proyectos y concursos. Perfiles visibles en `/admin/concursos/{id}`.
+`consolidar_perfil_consultor()` (Haiku) destila ese historial. La colección cruza proyectos y
+concursos por diseño desde que existe esta funcionalidad.
+**Página movida a `/admin/aprendizaje` (jul-2026):** antes los perfiles se veían y consolidaban
+desde `/admin/concursos/{id}` (botón único "Consolidar aprendizaje" que de paso procesaba TODOS
+los consultores, sin importar el concurso que se estuviera viendo) — el usuario notó que esto
+confundía, porque el aprendizaje por consultor no tiene nada que ver con el concurso particular
+cuya página se está mirando. Se separó en una página global nueva `/admin/aprendizaje`
+(`admin_aprendizaje.html`), junto con los criterios de énfasis permanentes (ver esa entrada más
+arriba) — ambos cruzan concursos, así que comparten página. El botón de consolidar también se
+separó: `POST /admin/concursos/{id}/consolidar` (`consolidar_concurso()`) ahora SOLO destila los
+`criterios_aprendidos` por ítem de ESE concurso; `POST /admin/aprendizaje/consolidar-consultores`
+(`consolidar_consultores()`, nueva ruta) destila los perfiles de TODOS los consultores — separado
+justamente porque no tiene sentido re-disparar ese trabajo desde cada concurso.
 
 **Bug conocido y resuelto — respuestas vacías por límite de tokens bajo (jul-2026):**
 Con la migración a Sonnet 5, el modelo empezó a incluir bloques de "pensamiento" (thinking)
@@ -1004,19 +1014,42 @@ muchas partidas puede seguir necesitando el reintento) — si vuelve a pasar, el
 usuario es que **igual se guarda en el servidor aunque el navegador muestre error**: conviene
 esperar un momento y volver a entrar antes de asumir que hay que revisar el ítem de nuevo.
 
-**Criterios de énfasis por ítem (implementado, jul-2026):** distinto del "aprendizaje"
-automático de abajo. Es un campo `concurso["criterios_enfasis"]["item_"+item_key]` (misma clave
-que `criterios_aprendidos`) que el revisor **escribe y edita a mano** en
-`/admin/concursos/{id}` (card "Criterios de énfasis por ítem", un `<textarea>` por
-grupo, ruta `POST .../criterios-enfasis`). Se inyecta en `_analizar_grupo` con prioridad
-explícita sobre el resto del prompt ("verifícalos SIEMPRE, tienen prioridad"). A diferencia de
-`criterios_aprendidos` (que `consolidar_aprendizaje()` puede sobrescribir cada vez que se
-consolida el feedback), este campo **nunca se toca automáticamente** — es la supervisión
-humana explícita que decide qué debe aprender la IA como "revisor experto", útil desde el
-primer proyecto de un concurso (no hace falta esperar ≥3 decisiones de feedback como con el
-aprendizaje automático). Ejemplos reales que motivaron esto (cruces que la IA no captaba sola):
-"el cronograma debe incluir instalación del sistema fotovoltaico si el proyecto lo contempla",
-"tratar el pozo como embalse según ITT-02 al calcular superficie".
+**Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
+(implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
+Es texto que el revisor **escribe y edita a mano** (nunca se toca automáticamente — supervisión
+humana explícita) para que la IA verifique algo puntual en un ítem, con prioridad explícita
+sobre el resto del prompt. Ejemplos reales que motivaron esto (cruces que la IA no captaba
+sola): "el cronograma debe incluir instalación del sistema fotovoltaico si el proyecto lo
+contempla", "tratar el pozo como embalse según ITT-02 al calcular superficie".
+**Rediseño (jul-2026):** originalmente vivía colgado de cada concurso (`concurso
+["criterios_enfasis"]["item_"+item_key]`) — el usuario notó que en la práctica esos criterios
+casi siempre aplican igual sin importar el concurso (son criterios de ingeniería/normativa
+generales, no del concurso puntual), así que guardarlos por concurso obligaba a reescribirlos
+en cada concurso nuevo, y además confundía tenerlos mezclados en la página de administración de
+UN concurso cuando en realidad cruzan todos. Se separó en dos niveles:
+- **Generales (permanentes, cruzan TODOS los concursos)** — blob global nuevo
+  `db.get_criterios_item()`/`save_criterios_item()` (`database.py`, mismo patrón que `precios`:
+  `{"criterios": {"item_"+item_key: "texto"}, "fecha_actualizado", "actualizado_por"}`), editado
+  en la página nueva **`/admin/aprendizaje`** (ver más abajo). Es el caso por defecto — la
+  mayoría de los criterios de énfasis son de este tipo.
+- **Puntuales de UN concurso en particular** — el campo `concurso["criterios_enfasis"]` de
+  siempre (misma ruta `POST /admin/concursos/{id}/criterios-enfasis`, ahora relabeleada
+  "Criterios puntuales de este concurso" en `admin_concurso_detalle.html`) quedó para
+  EXCEPCIONES específicas de las bases de ese concurso — ejemplo real que dio el usuario: "las
+  bases de este concurso dicen que no se acepta agua NO inscrita" (un requisito que otros
+  concursos no necesariamente exigen). **No aplica a todo concurso ni a todo ítem** — la mayoría
+  de los concursos no necesitan ninguna excepción puntual, y el campo queda vacío por defecto.
+- **Ambos se combinan al analizar** — `main._criterios_enfasis_combinados(item_key, concurso)`
+  arma un solo texto con ambas secciones etiquetadas ("GENERALES (todos los concursos)" /
+  "PUNTUALES DE ESTE CONCURSO"), que se pasa tal cual a `analizar_item()` — `_analizar_grupo`
+  (analyzer.py) no necesitó cambios, solo se generalizó el texto que envuelve el bloque en el
+  prompt (ya no dice "EN ESTE CONCURSO", puede ser una regla general o una puntual).
+- **Migración (jul-2026, `db.migrar_criterios_enfasis()`, corre una vez al startup, idempotente
+  con marcador — mismo patrón que `migrar_textos_documentos()`):** lo que ya hubiera guardado
+  cualquier concurso en su `criterios_enfasis` se copió al nuevo blob global (gana el primero
+  que se encuentre por item_key — en la práctica solo el concurso 202-2026, el único en uso
+  real a esa fecha, tenía datos), y el campo de cada concurso quedó vacío, listo para su nuevo
+  uso de excepciones puntuales.
 
 **Verificación numérica determinística — hidráulica y agronómica (implementado, jul-2026):**
 `calculos_riego.py` (módulo nuevo, funciones puras sin dependencias) porta las fórmulas del
