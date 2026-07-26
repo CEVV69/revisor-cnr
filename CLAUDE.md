@@ -1378,15 +1378,17 @@ Agronómico de `calculos.html`.
   v98→v99 (sin cambios de fórmula reportados, solo reemplazo de archivo), v99→v101 (el
   usuario pidió expresamente portar el cambio de fórmula del acumulador — ver la entrada
   "Acumulador — fórmula actualizada a 'suma'" más abajo), v101→v102 (cambio de fórmula del N°
-  de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo), y v102→v104
+  de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo), v102→v104
   (rediseño completo del acumulador + N° de sectores en forma cerrada — ver la entrada
-  "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo). Cada vez:
-  reemplazar `static/disenador_riego_v{N}.html` (el archivo viejo se borra del repo, no se
-  acumulan versiones), actualizar el link en `calculos.html` y la referencia en el docstring de
-  `exportar_disenador.py`. Regla para el futuro: si el usuario NO pide portar ningún cambio
-  puntual, basta con reemplazar el archivo/link sin abrir el HTML; si SÍ pide portar un cambio
-  (como con el Acumulador o el N° de sectores), hay que leer el código nuevo del Diseñador
-  directamente — no adivinar la fórmula a partir de lo que el usuario recuerda de palabra.
+  "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo), y v104→v106
+  (3 datos informativos nuevos del aporte del estanque — ver la entrada "Datos informativos del
+  aporte del estanque" más abajo). Cada vez: reemplazar `static/disenador_riego_v{N}.html` (el
+  archivo viejo se borra del repo, no se acumulan versiones), actualizar el link en
+  `calculos.html` y la referencia en el docstring de `exportar_disenador.py`. Regla para el
+  futuro: si el usuario NO pide portar ningún cambio puntual, basta con reemplazar el
+  archivo/link sin abrir el HTML; si SÍ pide portar un cambio (como con el Acumulador o el N° de
+  sectores), hay que leer el código nuevo del Diseñador directamente — no adivinar la fórmula a
+  partir de lo que el usuario recuerda de palabra.
 
 **Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
 exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en
@@ -1645,6 +1647,56 @@ de fórmula puntual como los cambios anteriores:
   alcanza; caudal muy alto: N°sectores=1) — mismos resultados exactos en ambos lados. Se verificó
   también que `main._agronomico_calculo()` (el preview Python de la página, sin cambios de código
   necesarios — llama a la misma función reescrita) sigue funcionando end-to-end.
+
+**Datos informativos del aporte del estanque — ΔQ, Autonomía, T. llenado (jul-2026, Diseñador
+v106):** el usuario subió `disenador_riego_v106.html` (reemplazó a v104 en `static/`, actualizar
+el link de "Abrir Diseñador de Riego" en `calculos.html` y la referencia en
+`exportar_disenador.py` si se vuelve a actualizar el archivo) y pidió agregar, a modo de
+comprobación/información, 3 datos del aporte del estanque para que el revisor los tenga a la
+vista: ΔQ que aporta el estanque, Autonomía y Tiempo de llenado — visibles SOLO si el proyecto
+declara acumulador, calculados por fórmula (no editables). Se leyó el código nuevo del Diseñador
+(`evalAcum`, la función que reescribió por completo el Paso 2/`calcAcum` en esta versión — usada
+también para validar la postura de Aspersión y para el informe, un solo criterio para toda la
+app) para no adivinar. A diferencia del cambio v102→v104 (que rediseñó la fórmula del N° de
+sectores), acá el N° de sectores y las 3 verificaciones del bloque "Diseño base" de `calcGE`/
+`calcME` (Verificación 1/2/3: tiempo diario, balance diario, volumen mínimo del estanque)
+**quedaron intactas** — v106 solo agrega estos 3 datos informativos, derivados de lo que ya se
+calculaba:
+```
+ΔQ que aporta el estanque = Caudal de operación − Caudal de la fuente   (0 si la fuente sola alcanza)
+Autonomía                  = Volumen del estanque / ΔQ                  (horas que aguanta; solo si ΔQ > 0)
+Tiempo de llenado          = Volumen del estanque / Caudal de la fuente (horas desde vacío, con la fuente sola)
+```
+`Caudal de operación` es exactamente `caudal_operacion_ls` (Q_requerido / N° sectores, ya
+existente desde v104) y `Caudal de la fuente` es `caudal_disponible_ls` — no hicieron falta datos
+nuevos, son puramente derivados de los que ya se extraen/calculan.
+- **Equivalencia algebraica confirmada con el chequeo ya existente:** `Autonomía ≥ Tiempo total
+  de riego ⟺ Volumen del estanque ≥ Volumen mínimo requerido` (la misma desigualdad de
+  `acumulador_ok`/`volumen_minimo_estanque_l`, solo reordenada) — verificado numéricamente antes
+  de desplegar. Por diseño, estos 3 campos son un complemento informativo del MISMO chequeo que
+  ya existía (visto en unidades de tiempo, más intuitivo — "cuántas horas aguanta" en vez de solo
+  litros), no una regla nueva que pueda contradecir al resto.
+- `calculos_riego.verificacion_diseno_riego()`: 3 campos nuevos en el dict de salida —
+  `delta_q_estanque_ls`, `autonomia_estanque_hr` (ausente si ΔQ≤0, "la fuente sola alcanza"),
+  `tiempo_llenado_estanque_hr`. Solo se calculan dentro del bloque que ya requiere acumulador
+  declarado (mismo `if vol_litros:` que ya envolvía `volumen_minimo_estanque_l`/`acumulador_ok`).
+  **Bug encontrado y corregido antes de desplegar:** el primer borrador calculaba ΔQ restando
+  `caudal_disponible_ls` al valor YA REDONDEADO de `caudal_operacion_ls` (3 decimales) — con
+  algunos casos de prueba, la Autonomía resultante diferría de la del `<script>` de `calculos.html`
+  (que usa el valor sin redondear) en varias horas (687,5 h vs. 694,4 h en el caso de prueba).
+  Se corrigió guardando el valor sin redondear en una variable local (`caudal_operacion_ls`,
+  Python) y usando ESA para el cálculo de ΔQ — el valor redondeado (`r["caudal_operacion_ls"]`)
+  sigue siendo el que se muestra en la fila de la tabla, sin cambios ahí. Recordatorio para
+  futuras fórmulas encadenadas: nunca reencadenar un cálculo a partir de un resultado ya
+  redondeado para mostrar — conservar la variable sin redondear y redondear solo al final, en
+  cada punto de uso.
+- **UI (`calculos.html`)**: 3 filas nuevas en la tabla ("ΔQ aporta estanque", "Autonomía del
+  estanque", "T. llenado del estanque"), sin columna de dato declarado (son puramente calculadas,
+  mismo patrón que ETc/AD) — muestran "—" si no hay acumulador declarado. La Autonomía muestra
+  "∞ (la fuente sola alcanza)" cuando ΔQ=0, en vez de un número. Recálculo en vivo en
+  `recalcAgroSistema` reutiliza la variable `caudalOperacion` ya calculada más arriba en la misma
+  función (sin redondear, mismo criterio que el fix de Python) — verificado con los mismos casos
+  de prueba, paridad numérica exacta entre Python y JS.
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

@@ -364,7 +364,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="a-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('a')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="a-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="a-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="a-q" type="number" step=".01" placeholder="3.00"><span class="isuf">l/s</span></div></div><div class="f" style="flex-basis:100%;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 12px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="a-acum-chk" onchange="toggleAcum('a')" style="width:15px;height:15px;cursor:pointer">¿Acumula agua? <span style="font-weight:400;color:var(--slate);font-size:.7rem">(estanque / tranque regulador, aparte del caudal de la fuente)</span></label><div id="a-acum-box" style="display:none;margin-top:10px"><div class="fg"><div class="f"><label>Volumen a Acumular [m³]</label><div class="ig"><input id="a-acum-vol" type="number" step=".1" placeholder="Ej: 50" oninput="calcAcum('a')"><span class="isuf">m³</span></div></div></div><div id="a-acum-r" style="margin-top:6px"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="a-q" type="number" step=".01" placeholder="3.00"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="a-acum-chk" onchange="toggleAcum('a')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="a-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start"><div class="f"><label>Volumen útil del estanque</label><div class="ig"><input id="a-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('a')"><span class="isuf">m³</span></div><div style="font-size:.63rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.4">El resto se calcula con el caudal de diseño del Paso 4.</div></div><div id="a-acum-r"></div></div><div id="a-acum-eq"></div></div></div>
       <div class="f"><label>Altura de Succión [m]</label><div class="ig"><input id="a-hs" type="number" step=".5" placeholder="7"><span class="isuf">m</span></div></div>
       <div class="f"><label>Dif. de Cota ΔZ [m]</label><div class="ig"><input id="a-dz" type="number" step=".5" placeholder="0" min="-20" max="50"><span class="isuf">m</span></div></div>
     </div>
@@ -683,7 +683,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="c-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('c')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="c-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="c-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="c-q" type="number" step=".01" placeholder="17.756"><span class="isuf">l/s</span></div></div><div class="f" style="flex-basis:100%;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 12px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="c-acum-chk" onchange="toggleAcum('c')" style="width:15px;height:15px;cursor:pointer">¿Acumula agua? <span style="font-weight:400;color:var(--slate);font-size:.7rem">(estanque / tranque regulador, aparte del caudal de la fuente)</span></label><div id="c-acum-box" style="display:none;margin-top:10px"><div class="fg"><div class="f"><label>Volumen a Acumular [m³]</label><div class="ig"><input id="c-acum-vol" type="number" step=".1" placeholder="Ej: 50" oninput="calcAcum('c')"><span class="isuf">m³</span></div></div></div><div id="c-acum-r" style="margin-top:6px"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="c-q" type="number" step=".01" placeholder="17.756"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="c-acum-chk" onchange="toggleAcum('c')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="c-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start"><div class="f"><label>Volumen útil del estanque</label><div class="ig"><input id="c-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('c')"><span class="isuf">m³</span></div><div style="font-size:.63rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.4">El resto se calcula con el caudal de diseño del Paso 4.</div></div><div id="c-acum-r"></div></div><div id="c-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="c-hs" type="number" step=".5" placeholder="6"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="c-dz" type="number" step=".5" placeholder="1"><span class="isuf">m</span></div></div>
     </div>
@@ -984,7 +984,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="g-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('g')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="g-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="g-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="g-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="flex-basis:100%;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 12px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="g-acum-chk" onchange="toggleAcum('g')" style="width:15px;height:15px;cursor:pointer">¿Acumula agua? <span style="font-weight:400;color:var(--slate);font-size:.7rem">(estanque / tranque regulador, aparte del caudal de la fuente)</span></label><div id="g-acum-box" style="display:none;margin-top:10px"><div class="fg"><div class="f"><label>Volumen a Acumular [m³]</label><div class="ig"><input id="g-acum-vol" type="number" step=".1" placeholder="Ej: 50" oninput="calcAcum('g')"><span class="isuf">m³</span></div></div></div><div id="g-acum-r" style="margin-top:6px"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="g-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="g-acum-chk" onchange="toggleAcum('g')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="g-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start"><div class="f"><label>Volumen útil del estanque</label><div class="ig"><input id="g-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('g')"><span class="isuf">m³</span></div><div style="font-size:.63rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.4">El resto se calcula con el caudal de diseño del Paso 4.</div></div><div id="g-acum-r"></div></div><div id="g-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="g-hs" type="number" step=".5" placeholder="28"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="g-dz" type="number" step=".5" placeholder="5"><span class="isuf">m</span></div></div>
     </div>
@@ -1302,7 +1302,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="m-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('m')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="m-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="m-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="m-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="flex-basis:100%;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 12px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-acum-chk" onchange="toggleAcum('m')" style="width:15px;height:15px;cursor:pointer">¿Acumula agua? <span style="font-weight:400;color:var(--slate);font-size:.7rem">(estanque / tranque regulador, aparte del caudal de la fuente)</span></label><div id="m-acum-box" style="display:none;margin-top:10px"><div class="fg"><div class="f"><label>Volumen a Acumular [m³]</label><div class="ig"><input id="m-acum-vol" type="number" step=".1" placeholder="Ej: 50" oninput="calcAcum('m')"><span class="isuf">m³</span></div></div></div><div id="m-acum-r" style="margin-top:6px"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="m-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-acum-chk" onchange="toggleAcum('m')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="m-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start"><div class="f"><label>Volumen útil del estanque</label><div class="ig"><input id="m-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('m')"><span class="isuf">m³</span></div><div style="font-size:.63rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.4">El resto se calcula con el caudal de diseño del Paso 4.</div></div><div id="m-acum-r"></div></div><div id="m-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="m-hs" type="number" step=".5" placeholder="28"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="m-dz" type="number" step=".5" placeholder="5"><span class="isuf">m</span></div></div>
     </div>
@@ -2194,7 +2194,11 @@ function calcAspP(){
   const trp=db/va;            // hr: tiempo para aplicar la Db
   const nPost=Math.ceil(supR/supPos);
   const nPostDia=Math.floor(hrs/(trp+tras));
-  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,vibOk:vib>va,qOk:qPos<=qDisp,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
+  // El caudal de la postura puede superar al de la fuente si hay estanque regulador
+  // que sostenga el ΔQ durante toda la operación (mismo criterio del Paso 2).
+  const _acA=evalAcum('a',qPos,trp*nPost);
+  const _qOkA = qPos<=qDisp || (_acA.on && _acA.ok);
+  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
   calcAcum('a'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('a-llen').value=v('a-llat',120);
   document.getElementById('a-qlat').value=qPos.toFixed(2);
@@ -2232,7 +2236,13 @@ function calcAspP(){
       {eq:`Posturas/día = ⌊Hrs / (T_pos + T_traslado)⌋ = ⌊${hrs} / (${fd(trp,2)} + ${tras})⌋`,res:`${nPostDia} posturas/día`}
     ])}
     ${!R.ASP.vibOk?al(`⚠ VA (${fd(va,1)} mm/hr) supera VIB del suelo (${vib} mm/hr). Aumentar espaciamiento o reducir caudal.`,'w'):''}
-    ${!R.ASP.qOk?al(`⚠ Caudal postura (${fd(qPos,3)} l/s) > disponible (${qDisp} l/s). Reducir N° aspersores.`,'w'):al('✓ Caudal postura dentro de disponibilidad hídrica.','ok')}
+    ${!R.ASP.qOk
+        ? al(_acA.on
+            ? `⚠ Caudal postura (${fd(qPos,3)} l/s) > fuente (${qDisp} l/s) y el estanque declarado no cubre la diferencia: ${_acA.autonomia<_acA.T?`autonomía ${fd(_acA.autonomia,2)} h < riego ${fd(_acA.T,2)} h`:`no alcanza a reponer los ${fd(_acA.volUsado,0)} L en las ${fd(24-_acA.T,2)} h sin riego`}. Aumente el volumen del estanque o reduzca N° aspersores.`
+            : `⚠ Caudal postura (${fd(qPos,3)} l/s) > disponible (${qDisp} l/s). Reduzca N° aspersores o declare un estanque acumulador en el Paso 2.`,'w')
+        : al(_acA.on&&qPos>qDisp
+            ? `✓ Caudal postura (${fd(qPos,3)} l/s) superior al de la fuente (${qDisp} l/s), sostenido por el estanque: ΔQ ${fd(_acA.qD,3)} l/s con autonomía ${fd(_acA.autonomia,2)} h ≥ riego ${fd(_acA.T,2)} h.`
+            : '✓ Caudal postura dentro de disponibilidad hídrica.','ok')}
     <div class="mg" style="margin-top:8px">
       ${mcard('VA',fd(va,2),'mm/hr',R.ASP.vibOk?'ok':'err')}
       ${mcard('VIB > VA',R.ASP.vibOk?'✓ OK':'✗ Rev.','',R.ASP.vibOk?'ok':'err')}
@@ -2778,19 +2788,21 @@ function buildInfHtml(sys){
       if(!_acChk||!_acChk.checked) return '';
       const _acVol=parseFloat(document.getElementById(_pfxAc+'-acum-vol')?.value)||0;
       if(_acVol<=0) return '';
-      const _rAc={got:R.GE,mic:R.ME,asp:R.ASP,car:R.CAR}[sys];
-      const _tRealAc=sys==='asp'||sys==='car'?_rAc?.trp:_rAc?.tRiego;
-      const _estimAc=!(_tRealAc>0);
-      const _tAc=_estimAc?(parseFloat(document.getElementById(_pfxAc+'-hrs')?.value)||14):_tRealAc;
-      const _qEstanqueAc=(_acVol*1000)/(_tAc*3600);
-      const _qFuenteAc=parseFloat(document.getElementById(_pfxAc+'-q')?.value)||0;
-      const _qTotalAc=_qEstanqueAc+_qFuenteAc;
-      const _tLlenAc=(_acVol*1000)/(_qFuenteAc*3600||1e-9);
-      const _frAc=sys==='asp'?R.AA?.frAdj:sys==='car'?R.CA?.frAdj:null;
-      const _tCicAc=_frAc>0?24*_frAc:24;
-      const _downAc=_tCicAc-_tAc;
-      const _llenOkAc=_qFuenteAc>0&&_tLlenAc<=_downAc;
-      return irow('Acumulación de Agua',fd(_acVol,1)+' m³',' \u2192 Q estanque='+fd(_qEstanqueAc,3)+' + Q fuente='+fd(_qFuenteAc,3)+' = Q instantáneo='+fd(_qTotalAc,3)+' l/s (T='+fd(_tAc,3)+'h'+(_estimAc?', estimado':', real')+'). Tiempo de llenado del estanque: '+fd(_tLlenAc,2)+'h vs. '+fd(_downAc,2)+'h disponibles entre riegos — '+(_llenOkAc?'factible':'\u26a0 INSUFICIENTE, verificar volumen o frecuencia'),'El proyecto contempla un estanque/tranque regulador; la fuente sigue aportando durante el vaciado del estanque, por lo que el caudal instantáneo disponible es la suma de ambos aportes. Se verifica que el estanque alcance a rellenarse completo entre eventos de riego.');
+      // Mismo criterio del Paso 2 y del diseño: ecuación de continuidad
+      let _qR=null,_T=null;
+      if(sys==='got'&&R.GE?.qReqTotal>0&&R.GE?.nSec>0){_qR=R.GE.qReqTotal/R.GE.nSec;_T=R.GE.tRiego*R.GE.nSec;}
+      else if(sys==='mic'&&R.ME?.qReqTotal>0&&R.ME?.nSec>0){_qR=R.ME.qReqTotal/R.ME.nSec;_T=R.ME.tRiego*R.ME.nSec;}
+      else if(sys==='asp'&&R.ASP?.qPos>0){_qR=R.ASP.qPos;_T=R.ASP.trp*R.ASP.nPost;}
+      else if(sys==='car'&&R.CAR?.qCan>0){_qR=R.CAR.qCan/3.6;_T=R.CAR.trp*R.CAR.nPost;}
+      if(_qR===null) return irow('Acumulación de Agua',fd(_acVol,1)+' m³','Volumen declarado. Complete el diseño de emisores para la verificación hidráulica.','El proyecto contempla un estanque acumulador regulador.');
+      const _A=evalAcum(_pfxAc,_qR,_T);
+      const _txt='Q fuente = '+fd(_A.qF,3)+' l/s · Q diseño = '+fd(_qR,3)+' l/s · ΔQ aportado por el estanque = '+fd(Math.max(_A.qD,0),3)+' l/s. '
+        +'Autonomía = V/ΔQ = '+(_A.qD>0?fd(_A.autonomia,2)+' h':'\u221e')+' frente a '+fd(_T,2)+' h de riego diario'
+        +(_A.autoOk?' (suficiente)':' (INSUFICIENTE)')+'. Tiempo de llenado = V/Q_f = '+fd(_A.tLlenado,2)+' h; '
+        +'reposición de los '+fd(_A.volUsado,0)+' L consumidos = '+fd(_A.tRepone,2)+' h en las '+fd(24-_T,2)+' h sin riego'
+        +(_A.reponeOk?' (suficiente)':' (INSUFICIENTE)')+'.';
+      return irow('Acumulación de Agua',fd(_acVol,1)+' m³',_txt,
+        'El estanque acumulador no incrementa el caudal de la fuente: aplica el principio de continuidad (dV/dt = Q_entrada − Q_salida) para desacoplar el caudal de aporte del caudal de riego. La fuente entrega de forma continua su caudal Q_f, y el estanque cubre temporalmente la diferencia ΔQ = Q_r − Q_f durante la operación, reponiéndose con el aporte de la fuente en el período sin riego.');
     })()
     +(()=>{
       const _q85Labels={'der-inscrito':'Derecho inscrito (caudal en título)','dt01':'DT-01 — Canales con dotación CNR','dt02':'DT-02 — Estación fluviométrica SIIR','aforos':'Aforos directos (3 mediciones)','estudio':'Estudio hidrológico especial','pozo':'Pozo (caudal del título)'};
@@ -6389,63 +6401,105 @@ function toggleAcum(pfx){
   else { var r=document.getElementById(pfx+'-acum-r'); if(r) r.innerHTML=''; }
 }
 
+// Evaluación única del acumulador (ecuación de continuidad dV/dt = Q_ent − Q_sal).
+// La usan: el Paso 2, la validación de caudal de aspersión y el informe → un solo criterio.
+function evalAcum(pfx,qR,T){
+  var chk=document.getElementById(pfx+'-acum-chk');
+  var on=!!(chk&&chk.checked);
+  var volL=on? v(pfx+'-acum-vol',0)*1000 : 0;
+  var qF=v(pfx+'-q',0);
+  var qD=qR-qF;                                       // ΔQ que debe aportar el estanque
+  var autonomia = qD>0 ? volL/(qD*3600) : Infinity;   // h que sostiene ese ΔQ
+  var tLlenado  = qF>0 ? volL/(qF*3600) : Infinity;   // h en llenarse desde vacío
+  var volUsado  = qD>0 ? qD*T*3600 : 0;               // L que realmente entrega
+  var tRepone   = qF>0 ? volUsado/(qF*3600) : Infinity;
+  var autoOk  = qD<=0 || (on && autonomia>=T);
+  var reponeOk= tRepone <= (24-T);
+  return {on:on,volL:volL,qF:qF,qR:qR,T:T,qD:qD,autonomia:autonomia,tLlenado:tLlenado,
+          volUsado:volUsado,tRepone:tRepone,autoOk:autoOk,reponeOk:reponeOk,ok:autoOk&&reponeOk};
+}
+
 function calcAcum(pfx){
   var r=document.getElementById(pfx+'-acum-r');
+  var eq=document.getElementById(pfx+'-acum-eq');
   if(!r) return;
-  var vol=v(pfx+'-acum-vol',0);          // m³
-  var qFuente=v(pfx+'-q',0);             // l/s — caudal de la FUENTE (nunca se modifica aquí)
+  var vol=v(pfx+'-acum-vol',0);
+  if(eq) eq.innerHTML='';
   if(vol<=0){
-    r.innerHTML='<div style="font-size:.72rem;color:var(--slate);font-family:var(--mono)">Ingrese el volumen del estanque. La verificación completa se calcula en el Paso 4.</div>';
+    r.innerHTML='<div style="font-size:.7rem;color:var(--slate);font-family:var(--mono);padding:6px 0">Ingrese el volumen útil del estanque.</div>';
     return;
   }
-  // Tiempo de riego DIARIO TOTAL del sistema (T_riego × N° sectores), tomado del Paso 4/5.
-  // Mientras no exista, se muestra estado preliminar — NUNCA se usa el fallback de horas
-  // disponibles, porque ése no es el tiempo real de riego.
+  // Caudal de diseño (Q_r) y tiempo de riego diario (T), provenientes del Paso 4
   var sysMap={g:'got',a:'asp',m:'mic',c:'car'}, sys=sysMap[pfx];
-  var Rt = sys==='got'?R.GE : sys==='mic'?R.ME : sys==='asp'?R.ASP : R.CAR;
-  var T=null, det='';
-  if(Rt){
-    if(sys==='got'||sys==='mic'){
-      if(Rt.tRiego>0&&Rt.nSec>0){T=Rt.tRiego*Rt.nSec; det='T_riego '+fd(Rt.tRiego,3)+' hr × '+Rt.nSec+' sectores';}
-    } else {
-      if(Rt.trp>0&&Rt.nPost>0){T=Rt.trp*Rt.nPost; det='T_postura '+fd(Rt.trp,3)+' hr × '+Rt.nPost+' posturas';}
-    }
+  var qR=null, T=null, det='';
+  if(sys==='got'&&R.GE&&R.GE.qReqTotal>0&&R.GE.nSec>0){
+    qR=R.GE.qReqTotal/R.GE.nSec; T=R.GE.tRiego*R.GE.nSec;
+    det='Q_r = '+fd(R.GE.qReqTotal,3)+' l/s ÷ '+R.GE.nSec+' sectores &nbsp;·&nbsp; T = '+fd(R.GE.tRiego,3)+' h × '+R.GE.nSec+' sectores';
+  } else if(sys==='mic'&&R.ME&&R.ME.qReqTotal>0&&R.ME.nSec>0){
+    qR=R.ME.qReqTotal/R.ME.nSec; T=R.ME.tRiego*R.ME.nSec;
+    det='Q_r = '+fd(R.ME.qReqTotal,3)+' l/s ÷ '+R.ME.nSec+' sectores &nbsp;·&nbsp; T = '+fd(R.ME.tRiego,3)+' h × '+R.ME.nSec+' sectores';
+  } else if(sys==='asp'&&R.ASP&&R.ASP.qPos>0){
+    qR=R.ASP.qPos; T=R.ASP.trp*R.ASP.nPost;
+    det='Q_r = caudal simultáneo de la postura &nbsp;·&nbsp; T = '+fd(R.ASP.trp,3)+' h × '+R.ASP.nPost+' posturas';
+  } else if(sys==='car'&&R.CAR&&R.CAR.qCan>0){
+    qR=R.CAR.qCan/3.6; T=R.CAR.trp*R.CAR.nPost;
+    det='Q_r = descarga del cañón &nbsp;·&nbsp; T = '+fd(R.CAR.trp,3)+' h × '+R.CAR.nPost+' posturas';
   }
-  if(T===null){
-    r.innerHTML='<div style="padding:8px 10px;background:#fff7ed;border-radius:6px;font-size:.72rem;font-family:var(--mono);color:#c2410c;line-height:1.6">'
-      +'<strong>\u23f3 Pendiente</strong> — Volumen declarado: '+fd(vol,1)+' m³ ('+fd(vol*1000,0)+' L).<br>'
-      +'La verificación necesita el tiempo de riego diario real (T_riego × N° sectores), que se obtiene en el '
-      +'<strong>Paso 4</strong>. Complete ese paso y este bloque se actualizará solo.</div>';
+  if(qR===null){
+    r.innerHTML='<div style="padding:8px 10px;background:#fff7ed;border-radius:6px;font-size:.7rem;'
+      +'font-family:var(--mono);color:#c2410c;line-height:1.5">\u23f3 Pendiente — '
+      +fd(vol,1)+' m³ ('+fd(vol*1000,0)+' L) declarados. El ΔQ y la autonomía requieren el '
+      +'caudal de diseño del Paso 4. Se calculará solo al completarlo.</div>';
     return;
   }
-  var volL=vol*1000;
-  var qEstanque=volL/(T*3600);           // l/s que aporta el estanque durante el riego
-  var qTotal=qEstanque+qFuente;          // caudal instantáneo disponible
-  // Balance diario: el estanque solo amortigua; la fuente debe reponer el volumen consumido.
-  var vDia = Rt.vDiaL!=null ? Rt.vDiaL : qTotal*T*3600;
-  var vFuenteDia = qFuente*24*3600;
-  var balOk = vDia<=vFuenteDia;
-  var vMin = Math.max(0, vDia - qFuente*T*3600);
-  var volOk = volL>=vMin;
-  var tRecarga = vMin/(qFuente*3600||1e-9);
+  var A=evalAcum(pfx,qR,T);
+  function card(lbl,val,un,cls){
+    return '<div style="background:#fff;border:1px solid var(--fog);border-left:3px solid '+cls+';border-radius:6px;padding:6px 9px">'
+      +'<div style="font-size:.6rem;color:var(--slate);font-family:var(--mono);letter-spacing:.3px">'+lbl+'</div>'
+      +'<div style="font-size:.92rem;color:var(--navy);font-family:var(--mono)">'+val
+      +' <span style="font-size:.62rem;color:var(--slate)">'+un+'</span></div></div>';
+  }
+  var azul='var(--blue-mid)', verde='#16a34a', rojo='var(--err)';
   r.innerHTML =
-    '<div style="font-size:.74rem;font-family:var(--mono);color:var(--navy);line-height:1.6">'
-    +'T_riego diario = <strong>'+fd(T,3)+' hr</strong> <span style="color:var(--slate);font-size:.68rem">('+det+', Paso 4)</span><br>'
-    +'Q_estanque = Vol/(T×3600) = '+fd(volL,0)+'/('+fd(T,3)+'×3600) = '+fd(qEstanque,3)+' l/s<br>'
-    +'Q_instantáneo = Q_estanque + Q_fuente = '+fd(qEstanque,3)+' + '+fd(qFuente,3)+' = <strong>'+fd(qTotal,3)+' l/s</strong>'
-    +'</div>'
-    +'<div style="margin-top:8px;padding:8px 10px;background:'+(balOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.71rem;font-family:var(--mono);line-height:1.6">'
-    +'<strong>Balance diario</strong><br>'
-    +'V_requerido = '+fd(vDia,0)+' L/día &nbsp;|&nbsp; V_fuente = '+fd(qFuente,3)+'×86.400 = '+fd(vFuenteDia,0)+' L/día<br>'
-    +(balOk?'\u2713 La fuente repone lo consumido.':'\u26a0 La fuente NO repone lo consumido: ningún estanque resuelve esto.')
-    +'</div>'
-    +'<div style="margin-top:6px;padding:8px 10px;background:'+(volOk?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:.71rem;font-family:var(--mono);line-height:1.6">'
-    +'<strong>Volumen mínimo del estanque</strong><br>'
-    +'V_mín = V_requerido − Q_fuente×T×3600 = '+fd(vMin,0)+' L &nbsp;|&nbsp; declarado: '+fd(volL,0)+' L<br>'
-    +'Recarga de ese volumen: '+fd(tRecarga,2)+' hr (dispone de '+fd(24-T,2)+' hr entre riegos)<br>'
-    +(volOk?'\u2713 El estanque declarado es suficiente.':'\u26a0 Estanque insuficiente: aumente el volumen o acepte más sectores.')
-    +'</div>'
-    +'<div style="margin-top:6px;font-size:.66rem;color:var(--slate);font-family:var(--mono)">El caudal de la fuente declarado arriba no se modifica: el estanque es una verificación, no un aumento del derecho de agua.</div>';
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px">'
+    + card('Q fuente (Q_f)', fd(A.qF,3), 'l/s', azul)
+    + card('Q diseño (Q_r)', fd(qR,3), 'l/s', azul)
+    + card('ΔQ aporta estanque', A.qD>0?fd(A.qD,3):'0', 'l/s', A.qD>0?azul:verde)
+    + card('Autonomía', A.qD>0?fd(A.autonomia,2):'\u221e', 'h', A.autoOk?verde:rojo)
+    + card('T. llenado', fd(A.tLlenado,2), 'h', azul)
+    + card('T. riego diario', fd(T,3), 'h', azul)
+    + '</div>';
+  if(!eq) return;
+  function fila(nom,formula,valor){
+    return '<div style="display:grid;grid-template-columns:190px 1fr 120px;gap:10px;align-items:baseline;'
+      +'padding:5px 10px;border-bottom:1px solid var(--fog)">'
+      +'<div style="font-size:.66rem;color:var(--slate);font-family:var(--mono)">'+nom+'</div>'
+      +'<div style="font-size:.68rem;color:var(--navy);font-family:var(--mono)">'+formula+'</div>'
+      +'<div style="font-size:.7rem;color:var(--navy);font-family:var(--mono);text-align:right">'+valor+'</div></div>';
+  }
+  eq.innerHTML =
+    '<div style="margin-top:10px;border:1px solid var(--fog);border-radius:7px;overflow:hidden;background:#fff">'
+    +'<div style="padding:5px 10px;background:var(--ice);font-size:.63rem;color:var(--slate);font-family:var(--mono);letter-spacing:.4px">'
+    +'ECUACIÓN DE CONTINUIDAD &nbsp;·&nbsp; dV/dt = Q_entrada − Q_salida</div>'
+    + fila('ΔQ aporta estanque','Q_r − Q_f = '+fd(qR,3)+' − '+fd(A.qF,3), fd(Math.max(A.qD,0),3)+' l/s')
+    + fila('Autonomía','V / ΔQ = '+fd(A.volL,0)+' L ÷ '+fd(Math.max(A.qD,0),3)+' l/s', (A.qD>0?fd(A.autonomia,2):'\u221e')+' h')
+    + fila('Tiempo de llenado','V / Q_f = '+fd(A.volL,0)+' L ÷ '+fd(A.qF,3)+' l/s', fd(A.tLlenado,2)+' h')
+    + fila('Volumen consumido','ΔQ × T × 3600 = '+fd(Math.max(A.qD,0),3)+' × '+fd(T,3)+' h', fd(A.volUsado,0)+' L')
+    + fila('Reposición','V_consumido / Q_f = '+fd(A.volUsado,0)+' L ÷ '+fd(A.qF,3)+' l/s', fd(A.tRepone,2)+' h')
+    + '<div style="padding:6px 10px;font-size:.63rem;color:var(--mist);font-family:var(--mono);line-height:1.5">'+det
+    +'. El estanque no aumenta el caudal de la fuente: desacopla el aporte del consumo.</div>'
+    + '</div>'
+    + '<div style="margin-top:7px;padding:7px 10px;border-radius:6px;font-size:.68rem;font-family:var(--mono);line-height:1.55;background:'
+    + (A.ok?'#f0fdf4':'#fef2f2')+';color:'+(A.ok?'#166534':'#b91c1c')+'">'
+    + (A.qD<=0
+        ? '\u2713 La fuente ('+fd(A.qF,3)+' l/s) cubre por sí sola el caudal de diseño ('+fd(qR,3)+' l/s): el estanque opera como reserva.'
+        : (A.autoOk
+            ? '\u2713 Autonomía '+fd(A.autonomia,2)+' h \u2265 riego diario '+fd(T,3)+' h — el estanque sostiene el ΔQ durante toda la operación.'
+            : '\u26a0 Autonomía '+fd(A.autonomia,2)+' h < riego diario '+fd(T,3)+' h — se vacía antes de terminar. Aumente el volumen a \u2265 '+fd(A.qD*T*3600/1000,1)+' m³ o divida en más sectores.'))
+    + '<br>' + (A.reponeOk
+        ? '\u2713 Repone los '+fd(A.volUsado,0)+' L consumidos en '+fd(A.tRepone,2)+' h, dentro de las '+fd(24-T,2)+' h sin riego.'
+        : '\u26a0 Requiere '+fd(A.tRepone,2)+' h para reponer '+fd(A.volUsado,0)+' L y solo dispone de '+fd(24-T,2)+' h sin riego.')
+    + '</div>';
 }
 
 function alertaMedidor(sys){

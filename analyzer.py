@@ -1342,6 +1342,25 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                         "aumentar el volumen del acumulador. Genera una "
                                         "observación citando estos números.")
                     lineas_diseno.append(linea_vmin)
+                    # Datos informativos del aporte del estanque (Diseñador v106) — mismo chequeo
+                    # de arriba, en unidades de tiempo (más intuitivo): ΔQ que debe aportar el
+                    # estanque, cuántas horas lo sostiene (autonomía) y cuánto tarda en llenarse
+                    # con la fuente sola.
+                    if diseno.get("delta_q_estanque_ls"):
+                        linea_info = (f"Aporte del estanque: ΔQ = Caudal de operación − Caudal "
+                                      f"de la fuente = {diseno['delta_q_estanque_ls']} l/s")
+                        if "autonomia_estanque_hr" in diseno:
+                            linea_info += (f" — Autonomía = Volumen / ΔQ = "
+                                           f"{diseno['autonomia_estanque_hr']} hr")
+                        if "tiempo_llenado_estanque_hr" in diseno:
+                            linea_info += (f" — Tiempo de llenado desde vacío (solo con la "
+                                           f"fuente) = {diseno['tiempo_llenado_estanque_hr']} hr")
+                        lineas_diseno.append(linea_info)
+                    elif "tiempo_llenado_estanque_hr" in diseno:
+                        lineas_diseno.append(
+                            f"La fuente sola ya alcanza el caudal de operación (ΔQ del estanque "
+                            f"= 0) — tiempo de llenado desde vacío (solo con la fuente) = "
+                            f"{diseno['tiempo_llenado_estanque_hr']} hr.")
         texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores↔"
                   "volumen, cálculo determinístico — nota: esta relación es la que usan los "
                   "sistemas localizados goteo/microaspersión del Diseñador de Riego; en "

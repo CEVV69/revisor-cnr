@@ -174,6 +174,14 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     - Si hay acumulador declarado: volumen MÍNIMO que debe tener = V_requerido − Caudal de la
       fuente × (N° sectores × Tiempo de riego) × 3.600 — compara contra el volumen declarado
       (`volumen_minimo_estanque_l`, `acumulador_ok`).
+    - Datos INFORMATIVOS del aporte del estanque (Diseñador v106, `evalAcum` — mismo chequeo de
+      volumen mínimo de arriba, expresado en unidades de tiempo, más intuitivo para el revisor):
+        ΔQ que aporta el estanque = Caudal de operación − Caudal de la fuente (si es ≤ 0, la
+          fuente sola alcanza y el estanque no necesita aportar nada) — `delta_q_estanque_ls`.
+        Autonomía = Volumen del estanque / ΔQ — horas que el volumen sostiene ese déficit antes
+          de vaciarse (solo si ΔQ > 0) — `autonomia_estanque_hr`.
+        Tiempo de llenado = Volumen del estanque / Caudal de la fuente — horas que tarda en
+          llenarse desde vacío usando solo la fuente — `tiempo_llenado_estanque_hr`.
 
     (El Diseñador calcula `Q_requerido` a partir del N° de emisores real; acá se deriva de
     Precipitación×Superficie, matemáticamente equivalente — ver CLAUDE.md para la derivación —
@@ -220,7 +228,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         if horas_disponibles_dia:
             r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
 
-        r["caudal_operacion_ls"] = round(q_requerido_total_ls / n_sectores, 3)
+        caudal_operacion_ls = q_requerido_total_ls / n_sectores
+        r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
 
         # Balance diario de volumen — NO depende del N° de sectores (Q_sector×T_total =
         # Q_requerido×Tiempo_riego siempre, ver docstring).
@@ -235,6 +244,17 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                 v_min_l = max(0.0, v_dia_l - caudal_disponible_ls * tiempo_total_dia * 3600)
                 r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
                 r["acumulador_ok"] = vol_litros >= v_min_l
+
+                # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`) — el
+                # mismo chequeo de volumen mínimo de arriba, expresado en unidades de tiempo (más
+                # intuitivo para el revisor: "cuántas horas aguanta" en vez de solo litros).
+                # Equivalencia algebraica exacta: autonomía ≥ Tiempo total ⟺ Vol ≥ Volumen mínimo
+                # (ambas expresan la misma desigualdad, solo reordenada).
+                delta_q_ls = caudal_operacion_ls - caudal_disponible_ls
+                r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
+                if delta_q_ls > 0:
+                    r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
+                r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_disponible_ls * 3600), 2)
 
     return r
 

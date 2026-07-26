@@ -83,7 +83,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v104.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v106.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
@@ -278,6 +278,18 @@
               <span id="{{ p }}agro-vmin-calc">—</span>
               <span id="{{ p }}agro-vmin-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
+          </tr>
+          <tr>
+            <td class="col-concepto">ΔQ aporta estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-deltaq-calc">—</td>
+          </tr>
+          <tr>
+            <td class="col-concepto">Autonomía del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-autonomia-calc">—</td>
+          </tr>
+          <tr>
+            <td class="col-concepto">T. llenado del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-tllenado-calc">—</td>
           </tr>
         </table>
       </div>
@@ -686,7 +698,8 @@
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
-       "agro-balance-calc", "agro-vmin-calc"].forEach(function(id) { setText(p + id, "—"); });
+       "agro-balance-calc", "agro-vmin-calc", "agro-deltaq-calc", "agro-autonomia-calc",
+       "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
       ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota",
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
       setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, "
@@ -810,21 +823,43 @@
           var volAcumL = volAcum * 1000;
           setText(p + "agro-vmin-calc", "Mínimo = " + fmt(vMin, 0) + " L — declarado = " + fmt(volAcumL, 0) + " L");
           nota(p + "agro-vmin-nota", volAcumL >= vMin ? "" : "El volumen declarado no alcanza el mínimo requerido.");
+
+          // Aporte del estanque, en unidades de tiempo (Diseñador v106, evalAcum) — mismo
+          // chequeo de arriba (volumen mínimo), expresado de forma más intuitiva para el
+          // revisor: ΔQ que debe aportar el estanque, cuántas horas lo sostiene (autonomía) y
+          // cuánto tarda en llenarse desde vacío usando solo la fuente.
+          var deltaQ = Math.max(0, caudalOperacion - caudalDisp);
+          setText(p + "agro-deltaq-calc", fmt(deltaQ, 3) + " l/s");
+          if (deltaQ > 0) {
+            setText(p + "agro-autonomia-calc", fmt(volAcumL / (deltaQ * 3600), 2) + " hr");
+          } else {
+            setText(p + "agro-autonomia-calc", "∞ (la fuente sola alcanza)");
+          }
+          setText(p + "agro-tllenado-calc", fmt(volAcumL / (caudalDisp * 3600), 2) + " hr");
         } else {
           setText(p + "agro-vmin-calc", "—");
           nota(p + "agro-vmin-nota", "");
+          setText(p + "agro-deltaq-calc", "—");
+          setText(p + "agro-autonomia-calc", "—");
+          setText(p + "agro-tllenado-calc", "—");
         }
       } else {
         setText(p + "agro-balance-calc", "—");
         nota(p + "agro-balance-nota", "");
         setText(p + "agro-vmin-calc", "—");
         nota(p + "agro-vmin-nota", "");
+        setText(p + "agro-deltaq-calc", "—");
+        setText(p + "agro-autonomia-calc", "—");
+        setText(p + "agro-tllenado-calc", "—");
       }
     } else {
       setText(p + "agro-balance-calc", "—");
       nota(p + "agro-balance-nota", "");
       setText(p + "agro-vmin-calc", "—");
       nota(p + "agro-vmin-nota", "");
+      setText(p + "agro-deltaq-calc", "—");
+      setText(p + "agro-autonomia-calc", "—");
+      setText(p + "agro-tllenado-calc", "—");
     }
   }
 
