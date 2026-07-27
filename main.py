@@ -1243,6 +1243,19 @@ def _agronomico_calculo(datos: dict):
     if datos and datos.get("sistema_riego") == "Aspersión":
         postura_check = calculos_riego.caudal_postura_aspersion(
             datos.get("n_aspersores_postura"), datos.get("caudal_aspersor_m3h")) or None
+    # Operación del carrete (INIA-Carillanca) — independiente del resto, solo Carrete.
+    carrete_check = None
+    if datos and datos.get("sistema_riego") == "Carrete":
+        carrete_check = calculos_riego.diseno_carrete(
+            caudal_catalogo_m3h=datos.get("caudal_canon_m3h"),
+            margen_sobredim_pct=datos.get("margen_sobredimensionamiento_pct"),
+            radio_alcance_m=datos.get("radio_alcance_m"),
+            velocidad_viento_ms=datos.get("velocidad_viento_ms"),
+            longitud_franja_m=datos.get("longitud_franja_m"),
+            velocidad_avance_mh=datos.get("velocidad_avance_mh"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            vib_mmhr=datos.get("vib_mmhr"),
+        ) or None
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
         r = {}
         if kc_dt05:
@@ -1251,6 +1264,8 @@ def _agronomico_calculo(datos: dict):
             r["vib_check"] = vib_check
         if postura_check:
             r["postura_check"] = postura_check
+        if carrete_check:
+            r["carrete_check"] = carrete_check
         return r or None
     r = calculos_riego.cadena_agronomica(
         datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
@@ -1258,6 +1273,7 @@ def _agronomico_calculo(datos: dict):
         datos["eficiencia_pct"], alta_frecuencia=alta_frec)
     r.update(calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
+        db_diario_mm_dia=r.get("db_diario_mm"),
         superficie_ha=datos.get("superficie_riego_ha"),
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
@@ -1270,6 +1286,8 @@ def _agronomico_calculo(datos: dict):
         r["vib_check"] = vib_check
     if postura_check:
         r["postura_check"] = postura_check
+    if carrete_check:
+        r["carrete_check"] = carrete_check
     return r
 
 
@@ -1505,7 +1523,9 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",
-              "espaciamiento_laterales_m", "n_aspersores_postura", "caudal_aspersor_m3h"]
+              "espaciamiento_laterales_m", "n_aspersores_postura", "caudal_aspersor_m3h",
+              "caudal_canon_m3h", "margen_sobredimensionamiento_pct", "radio_alcance_m",
+              "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh"]
     sistemas = []
     for i in range(n_sistemas):
         p = f"s{i}_"
@@ -1519,6 +1539,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
             "caudal_diseno_ls": _num_form(form, p + "decl_qdiseno"),
             "tiempo_riego_hr": _num_form(form, p + "decl_triego"),
             "n_sectores": _num_form(form, p + "decl_nsec"),
+            "pluviometria_mmhr": _num_form(form, p + "decl_pp"),
         }
         sistemas.append(datos)
 

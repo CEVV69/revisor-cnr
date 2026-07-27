@@ -119,10 +119,18 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
         fr_adj = max(1, math.floor(fr)) if fr else 1
         dn_adj = etc * fr_adj
     db = dn_adj / (eficiencia_pct / 100) if eficiencia_pct else 0
+    # Db "diario" (ETc/Ef, SIN pasar por Fr) — el propio Diseñador de Riego lo calcula aparte
+    # (`dbDiario`/`dbDiarioC` en `calcAA`/`calcCA`) para usarlo SOLO en "Superficie de Riego
+    # Segura" (ITT-03 §1): esa verificación pregunta "¿alcanza el caudal para regar TODO en un
+    # día?", una pregunta de balance diario — usar el Db de Fr días ahí subestimaría la demanda
+    # real de agua por unidad de superficie. Aplica igual en alta frecuencia (donde db_mm YA es
+    # ETc/Ef, así que db_diario_mm resulta idéntico a db_mm).
+    db_diario = etc / (eficiencia_pct / 100) if eficiencia_pct else 0
     return {
         "etc_mm_dia": round(etc, 3), "ad_mm": round(ad, 2) if ad is not None else None,
         "dn_mm": round(dn, 3), "fr_dias": round(fr, 2), "fr_adj_dias": fr_adj,
         "dn_adj_mm": round(dn_adj, 3), "db_mm": round(db, 3),
+        "db_diario_mm": round(db_diario, 3),
     }
 
 
@@ -130,7 +138,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               caudal_disponible_ls: float = None,
                               precipitacion_mmhr: float = None,
                               horas_disponibles_dia: float = None,
-                              volumen_acumulador_m3: float = None) -> dict:
+                              volumen_acumulador_m3: float = None,
+                              db_diario_mm_dia: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -138,10 +147,20 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     una verificación general de la relación demanda↔caudal↔tiempo↔sectores↔volumen, no un
     diseño completo por tipo de sistema:
 
-    Demanda[l/s/ha]         = Db / 8,64                    (1 mm/día/ha = 1/8,64 l/s/ha)
+    Demanda[l/s/ha]         = Db_diario / 8,64              (1 mm/día/ha = 1/8,64 l/s/ha)
     Superficie riego segura = Caudal de la FUENTE / Demanda[l/s/ha]
     Tiempo de riego         = Db / Precipitación del sistema declarada   [hr/día — por sector,
                               independiente del área total]
+
+    **Db_diario vs. Db (jul-2026, Diseñador v108):** "Superficie de Riego Segura" usa el Db
+    "diario" (`db_diario_mm_dia`, = ETc/Ef, SIN pasar por Fr) — la misma distinción que hace el
+    propio Diseñador de Riego (`calcAA`/`calcCA`, comentario explícito "SIEMPRE con demanda
+    DIARIA, no con Db de Fr días") porque esa pregunta es de balance diario ("¿alcanza el caudal
+    de la fuente para regar TODO en 24 horas?"), no de ciclo de riego. El resto de este bloque
+    (Tiempo de riego, N° de sectores, balance/volumen del estanque) sigue usando `db_mm_dia` (el
+    Db ajustado por Fr) como siempre — esas verificaciones sí son sobre el ciclo de riego. Si no
+    se pasa `db_diario_mm_dia`, cae a `db_mm_dia` (compatible con el comportamiento anterior a
+    este cambio, y exacto en alta frecuencia/Goteo donde ambos valores ya coinciden).
 
     N° de sectores (fórmula v104 del Diseñador de Riego, `calcGE`/`calcME`, FORMA CERRADA sin
     iterar). El criterio es de CAUDAL: si el caudal que exige regar TODA la superficie a la vez,
@@ -196,7 +215,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     r = {}
     if not db_mm_dia:
         return r
-    demanda_ls_ha = db_mm_dia / 8.64
+    db_diario = db_diario_mm_dia if db_diario_mm_dia else db_mm_dia
+    demanda_ls_ha = db_diario / 8.64
     r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
 
     # Superficie de riego segura: SOLO el caudal de la fuente (v104 — el acumulador ya no se
@@ -278,6 +298,91 @@ def caudal_postura_aspersion(n_aspersores: float, caudal_aspersor_m3h: float) ->
     if not n_aspersores or not caudal_aspersor_m3h:
         return {}
     return {"caudal_postura_ls": round(n_aspersores * caudal_aspersor_m3h / 3.6, 3)}
+
+
+# ── Carrete de riego (cañón viajero): modelo INIA-Carillanca 2001 (Simpfendörfer) ───────────
+
+ANGULO_SECTOR_CARRETE_DEG = 210    # ángulo de sector recomendado INIA (rango 200-220°, fijo)
+VIB_MINIMA_CARRETE_MMHR = 7.5      # INIA-Carillanca: mínimo exigido para que el suelo sea apto
+
+
+def _pct_espaciamiento_viento(vv_ms: float) -> float:
+    """Porcentaje del diámetro mojado usado como espaciamiento entre franjas del cañón, según
+    la velocidad del viento — tabla INIA-Carillanca (Cuadro 1), igual que el Diseñador de Riego."""
+    if vv_ms <= 1:
+        return 0.80
+    if vv_ms <= 2.5:
+        return 0.75
+    if vv_ms <= 5:
+        return 0.625
+    return 0.525
+
+
+def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio_alcance_m: float,
+                   velocidad_viento_ms: float, longitud_franja_m: float, velocidad_avance_mh: float,
+                   superficie_ha: float, vib_mmhr: float = None) -> dict:
+    """Recalcula los parámetros de operación de un carrete de riego (cañón viajero) con el
+    modelo INIA-Carillanca 2001 (Simpfendörfer) — la misma fórmula que usa el Diseñador de Riego
+    (`calcCarP`, leída directo de su código fuente). A diferencia de goteo/microaspersión/
+    aspersión (turnos con agotamiento AD→Dn→Fr→Db), el carrete no se diseña por "sectores de
+    riego" sino por POSTURAS del cañón — posiciones sucesivas donde se detiene a regar una
+    franja de terreno.
+
+    Q_diseño[m³/hr]  = Q_catálogo × (1 + margen/100)      — sobredimensionado 15-20% (INIA:
+                       cubre viento fuerte, mayor demanda del cultivo o averías)
+    D_mojado[m]      = 2 × Radio de alcance
+    %viento          = 80% (viento≤1 m/s) · 75% (≤2,5) · 62,5% (≤5) · 52,5% (>5)  — INIA Cuadro 1
+    E_franjas[m]     = D_mojado × %viento                 — espaciamiento entre pasadas del cañón
+    PP[mm/hr]        = Q_diseño / (π×(0,9×Radio)²) × (α/360) × 1000   — pluviometría media,
+                       α=210° (ángulo de sector recomendado INIA, fijo — no editable)
+    A_postura[ha]    = (Longitud de franja × E_franjas) / 10.000
+    N_posturas       = ⌈Superficie del proyecto / A_postura⌉
+    L_manguera[m]    = máx(Longitud de franja/2 − 2/3×Radio, 10)
+    Ti[hr]           = (2/3×Radio / V_avance) × (α/360)
+    Tfe[hr]          = (2/3×Radio / V_avance) × (1 − α/360)
+    T_postura[hr]    = L_manguera/V_avance + Ti + máx(Tfe, 0)
+
+    Verificación VIB — DISTINTA de la de Aspersión (`verificacion_vib`, que compara contra la
+    Precipitación del sistema declarada libremente por el consultor): acá el umbral es FIJO en
+    7,5 mm/hr (INIA-Carillanca exige ese mínimo para que el suelo sea apto para carrete, sin
+    importar el cañón elegido), y además se compara la VIB contra la Pluviometría (PP) recién
+    calculada, no contra un dato declarado aparte.
+
+    Todos los argumentos (salvo `vib_mmhr`) son obligatorios — a diferencia de otras
+    verificaciones de esta app, acá los datos son interdependientes (el modelo completo de
+    postura no tiene un resultado parcial útil con datos a medias)."""
+    if not all([caudal_catalogo_m3h, radio_alcance_m, velocidad_viento_ms, longitud_franja_m,
+                velocidad_avance_mh, superficie_ha]):
+        return {}
+    margen = margen_sobredim_pct if margen_sobredim_pct is not None else 15
+    q_diseno_m3h = caudal_catalogo_m3h * (1 + margen / 100)
+
+    d_mojado = 2 * radio_alcance_m
+    pct_vv = _pct_espaciamiento_viento(velocidad_viento_ms)
+    esp_franja = d_mojado * pct_vv
+
+    alfa = ANGULO_SECTOR_CARRETE_DEG
+    pp_mmhr = q_diseno_m3h / (math.pi * (0.9 * radio_alcance_m) ** 2) * (alfa / 360) * 1000
+
+    sup_postura_ha = (longitud_franja_m * esp_franja) / 10000
+    n_posturas = math.ceil(superficie_ha / sup_postura_ha) if sup_postura_ha else 0
+
+    l_manguera = max(longitud_franja_m / 2 - (2 / 3) * radio_alcance_m, 10)
+    ti = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (alfa / 360)
+    tfe = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (1 - alfa / 360)
+    t_postura_hr = l_manguera / velocidad_avance_mh + ti + max(tfe, 0)
+
+    r = {
+        "q_diseno_m3h": round(q_diseno_m3h, 1), "q_diseno_ls": round(q_diseno_m3h / 3.6, 2),
+        "d_mojado_m": round(d_mojado, 1), "espaciamiento_franjas_m": round(esp_franja, 1),
+        "pluviometria_mmhr": round(pp_mmhr, 1),
+        "superficie_postura_ha": round(sup_postura_ha, 3), "n_posturas": n_posturas,
+        "tiempo_postura_hr": round(t_postura_hr, 2),
+    }
+    if vib_mmhr:
+        r["vib_supera_pp"] = vib_mmhr > pp_mmhr
+        r["vib_cumple_minimo_inia"] = vib_mmhr >= VIB_MINIMA_CARRETE_MMHR
+    return r
 
 
 # ── Fotovoltaico: energía requerida → N° paneles → configuración → cable DC ─

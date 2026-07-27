@@ -1426,9 +1426,10 @@ Agronómico de `calculos.html`.
   "Acumulador — fórmula actualizada a 'suma'" más abajo), v101→v102 (cambio de fórmula del N°
   de sectores para Goteo/Microaspersión — ver la entrada dedicada más abajo), v102→v104
   (rediseño completo del acumulador + N° de sectores en forma cerrada — ver la entrada
-  "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo), y v104→v106
+  "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo), v104→v106
   (3 datos informativos nuevos del aporte del estanque — ver la entrada "Datos informativos del
-  aporte del estanque" más abajo). Cada vez: reemplazar `static/disenador_riego_v{N}.html` (el
+  aporte del estanque" más abajo), y v106→v108 (cambios en el diseño de Carrete — ver la entrada
+  "Chequeo Agronómico — Carrete de riego (INIA-Carillanca)" más abajo). Cada vez: reemplazar `static/disenador_riego_v{N}.html` (el
   archivo viejo se borra del repo, no se acumulan versiones), actualizar el link en
   `calculos.html` y la referencia en el docstring de `exportar_disenador.py`. Regla para el
   futuro: si el usuario NO pide portar ningún cambio puntual, basta con reemplazar el
@@ -1831,6 +1832,122 @@ enterarse nunca de que existía un acumulador.
   acumulador declarado el comportamiento es exactamente el de antes (compara contra el caudal
   disponible crudo). Paridad numérica confirmada entre `analyzer.py` y el `<script>` de
   `calculos.html` con los mismos 3 casos de prueba.
+
+**"Superficie de riego segura" — corregido para usar Db "diario", no el Db de Fr días (jul-2026,
+Diseñador v108):** al portar el Carrete (ver la entrada siguiente) se leyó `calcCA()`/`calcAA()`
+del Diseñador y se encontró que ambas funciones calculan un `dbDiario` SEPARADO
+(`= ETc/Ef`, comentario explícito en el código: "SIEMPRE con demanda DIARIA, no con Db de Fr
+días") usado SOLO para "Sup. de Riego Seguro (ITT-03 §1)" — nuestro Chequeo venía usando el Db
+de Fr días (`r["db_mm"]`) para esa fila en TODOS los sistemas, incluida Aspersión (en producción
+desde que existe esta verificación). Es un bug real de cálculo, no cosmético: con Fr>1 (riego
+cada varios días) el Db de Fr días es varias veces mayor que el diario, así que la Superficie de
+riego segura salía SUBESTIMADA (podía mostrar "el caudal no alcanza" cuando en realidad sí
+alcanza para regar toda la superficie en 24 horas, que es la pregunta real de esa verificación).
+- `calculos_riego.cadena_agronomica()` ahora devuelve también `db_diario_mm` (= ETc/Ef, sin pasar
+  por Fr — en Goteo/alta frecuencia coincide exactamente con `db_mm`, ya que ahí Fr_adj=1).
+  `verificacion_diseno_riego()` ganó el parámetro opcional `db_diario_mm_dia` — si se pasa, se usa
+  SOLO para `demanda_ls_ha`/`superficie_segura_ha`; el resto del bloque (tiempo de riego, N° de
+  sectores, balance/volumen del estanque) sigue usando `db_mm_dia` (el Db de Fr días) como
+  siempre, porque esas sí son verificaciones de CICLO de riego, no de balance diario. Sin el
+  parámetro, cae al comportamiento anterior (compatible).
+- `analyzer.py` (`_bloque_verificacion_agronomica_sistema`) y `main.py` (`_agronomico_calculo`)
+  wireados con `db_diario_mm_dia=r.get("db_diario_mm")`; `calculos.html`
+  (`recalcAgroSistema`) calcula `dbDiario = ef ? etc/(ef/100) : 0` y lo usa para "demanda"/
+  "Superficie de riego segura" en vez de `db`.
+- **Efecto en producción:** cambia el número mostrado en "Superficie de riego segura" para
+  cualquier proyecto de Aspersión/Carrete con Fr>1 ya cargado (Goteo no cambia — coincide por
+  construcción; Microaspersión tampoco debería, dado que actualmente usa el mismo modelo de
+  agotamiento que Aspersión). Si un proyecto ya revisado mostraba una alerta de "caudal
+  insuficiente" en esa fila, conviene revisarlo de nuevo — puede que ya no aplique.
+
+**Chequeo Agronómico — Carrete de riego, modelo INIA-Carillanca 2001/Simpfendörfer
+(implementado, jul-2026, Diseñador v108):** hasta esta sesión, el Chequeo trataba Carrete como
+"Aspersión sin postura" — usaba la misma cadena agronómica con agotamiento (correcto, confirmado
+en `calcCA()` del Diseñador: Carrete SÍ usa Criterio de Riego/agotamiento, a diferencia de
+Goteo) pero no tenía ningún campo ni verificación de la operación real del cañón (caudal,
+alcance, franjas, posturas, tiempo). El usuario avisó que revisaría un proyecto de carrete y
+pidió portar esa parte antes de empezar. Se leyó directo `calcCarP()` del Diseñador (línea ~2393
+del HTML v108) para no adivinar la fórmula — metodología INIA-Carillanca 2001 (Simpfendörfer):
+```
+Q_diseño[m³/hr]  = Q_catálogo × (1 + margen/100)        (margen típico 15-20%: viento fuerte,
+                                                            mayor demanda, averías)
+D_mojado[m]      = 2 × Radio de alcance
+%viento          = 80% (viento≤1 m/s) · 75% (≤2,5) · 62,5% (≤5) · 52,5% (>5)   (INIA Cuadro 1)
+E_franjas[m]     = D_mojado × %viento
+PP[mm/hr]        = Q_diseño / (π×(0,9×Radio)²) × (α/360) × 1000     (α=210°, ángulo de sector
+                                                                       recomendado INIA, fijo)
+A_postura[ha]    = (Longitud de franja × E_franjas) / 10.000
+N_posturas       = ⌈Superficie del proyecto / A_postura⌉
+L_manguera[m]    = máx(Longitud de franja/2 − 2/3×Radio, 10)
+Ti[hr]           = (2/3×Radio / V_avance) × (α/360)
+Tfe[hr]          = (2/3×Radio / V_avance) × (1 − α/360)
+T_postura[hr]    = L_manguera/V_avance + Ti + máx(Tfe, 0)
+```
+Verificación VIB propia de Carrete (distinta de la de Aspersión, que compara contra la
+Precipitación declarada libremente): umbral FIJO de 7,5 mm/hr (INIA-Carillanca exige ese mínimo
+para que el suelo sea apto, sin importar el cañón elegido) + comparación contra la Pluviometría
+(PP) recién calculada, no contra un dato declarado aparte.
+- `calculos_riego.diseno_carrete(caudal_catalogo_m3h, margen_sobredim_pct, radio_alcance_m,
+  velocidad_viento_ms, longitud_franja_m, velocidad_avance_mh, superficie_ha, vib_mmhr=None)` —
+  función nueva, todos los argumentos obligatorios salvo `vib_mmhr` (el modelo completo de
+  postura no tiene un resultado parcial útil con datos a medias, a diferencia del resto de
+  verificaciones "independientes" de esta app). `_pct_espaciamiento_viento()` porta la tabla
+  INIA Cuadro 1.
+- `_extraer_datos_agronomicos()` (analyzer.py) extrae, cuando el sistema es Carrete:
+  `caudal_canon_m3h`, `margen_sobredimensionamiento_pct`, `radio_alcance_m`,
+  `velocidad_viento_ms`, `longitud_franja_m`, `velocidad_avance_mh`, y `declarado.
+  pluviometria_mmhr` si el consultor lo declara como resultado. También se extendió la VIB
+  (antes solo pedida para Aspersión) a Carrete también.
+- `_bloque_verificacion_agronomica_sistema()` arma un bloque "VERIFICACIÓN DE OPERACIÓN DEL
+  CARRETE" — independiente del resto de la cadena (no necesita AD/Dn/Fr, solo los datos propios
+  del cañón + la superficie), con una advertencia explícita a la IA de que ESTE es el diseño real
+  y específico del carrete, para no confundirlo con el bloque genérico "VERIFICACIÓN DE DISEÑO
+  BASE" de más abajo (pensado para sistemas localizados, sigue aplicando solo como aproximación
+  para Carrete, como ya estaba documentado).
+- **UI (`calculos.html`)**: 6 campos nuevos en "Datos base declarados" (clase `sistema-riego-campo
+  campo-carrete`, mismo patrón CSS-hidden-por-defecto que goteo/aspersión — visibles solo si el
+  sistema declarado es Carrete o está sin declarar/Mixto) y 6 filas nuevas en la tabla de
+  resultados (clase `campo-carrete`, sin la envoltura CSS de arriba — mismo patrón que
+  campo-vib-aspersion/campo-postura, oculto/mostrado por JS vía `style.display`): Caudal de
+  diseño del cañón, Diámetro mojado/Espaciamiento, Pluviometría (con input editable para el valor
+  declarado — `decl_pp` — y comparación), VIB vs. Pluviometría (mínimo INIA), Superficie/N° de
+  posturas, Tiempo por postura. Recálculo en vivo en `recalcAgroSistema()` — fórmulas duplicadas a
+  mano en JS, verificadas con paridad numérica exacta contra `calculos_riego.py` (mismos valores
+  de ejemplo que trae el propio Diseñador por defecto: Q catálogo=54 m³/hr, margen=15%,
+  radio=37,5 m, viento=2,5 m/s, franja=190 m, avance=24 m/hr, superficie=4,85 ha → Q diseño=62,1
+  m³/hr, espaciamiento=56,2 m, PP=10,1 mm/hr, 5 posturas, 3,96 hr/postura).
+- **Mostrando/ocultando campos según sistema — revisado a fondo (pedido explícito del usuario):**
+  de paso se corrigieron dos inconsistencias de visibilidad preexistentes: (1) "Espaciamiento
+  entre aspersores/laterales" (clase `campo-aspersion`) se mostraba también para Carrete —
+  incorrecto, Carrete usa un único cañón, no una grilla de aspersores con espaciamiento propio (y
+  el propio `exportar_disenador.py` nunca los exportó para Carrete) — ahora `campo-aspersion` es
+  estrictamente Aspersión; (2) el campo de entrada "VIB del suelo" (clase `campo-vib`) ahora se
+  muestra para Aspersión Y Carrete (antes solo Aspersión) ya que ambos lo usan, cada uno con su
+  propia verificación (fila de resultado separada: `campo-vib-aspersion` para la de Aspersión,
+  dentro de `campo-carrete` la de Carrete). "N° aspersores por postura"/"Caudal del aspersor"
+  (clase `campo-postura`) siguen siendo Aspersión-only (Carrete no tiene "aspersores por
+  postura").
+- `exportar_disenador.py`: **bug encontrado y corregido de paso** — el comentario/código decía
+  "VIB — el Diseñador la tiene en Aspersión y Microaspersión (Goteo/Carrete no la exponen)" y
+  excluía a Carrete de la exportación de `vib_mmhr`; confirmado por grep directo del HTML v108
+  que el campo `c-vib` SÍ existe y SÍ se usa en `calcCarP()` — corregido (`sys_code in ("asp",
+  "mic", "car")`). Además se agregaron los `put()` de los 6 campos distintivos del carrete
+  (`c-desc`/`c-margq`/`c-radio`/`c-vv`/`c-lf`/`c-va`) al bloque `elif sys_code == "car":`. El
+  campo `c-fv` ("Factor Esp. Viento") existe en la UI del Diseñador pero se confirmó que
+  `calcCarP()` NUNCA lo lee (el % real sale de la tabla fija según `c-vv`) — sigue sin
+  exportarse, es vestigial en el propio Diseñador.
+- **Verificado**: paridad numérica exacta Python↔JS con los valores de ejemplo del propio
+  Diseñador; render completo de `calculos.html` con Carrete declarado (1 y 2 sistemas, con y sin
+  datos); ruta `POST .../calculos/agronomico/guardar` guarda y recupera los 6 campos nuevos
+  correctamente (probado end-to-end con las funciones reales de `main.py`); exportación al
+  Diseñador con los campos y la VIB corregida.
+- **Hallazgo aparte, NO portado esta sesión (fuera del pedido del usuario)**: al leer `calcMA()`
+  (Microaspersión) para confirmar que Carrete sí usa agotamiento, se encontró que v108 cambió
+  también el modelo de Microaspersión — ahora usa `Db = ETc/Ef` DIRECTO (como Goteo), tratando
+  AD/Dn/Fr como "solo informativos, NO usados para Db" — lo que contradice nuestra implementación
+  actual (que sigue tratando Microaspersión con la cadena de agotamiento completa, igual que
+  Aspersión/Carrete). El usuario pidió específicamente Carrete esta vez — este hallazgo queda
+  registrado para una futura sesión, no se tocó nada de Microaspersión.
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba

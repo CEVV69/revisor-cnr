@@ -985,11 +985,17 @@ También extrae el SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión, o Carre
 espaciamiento del sistema: si es Goteo/Microaspersión, distancia entre hileras, distancia entre
 plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores (marco de
 plantación del cultivo); si es Aspersión/Carrete, espaciamiento entre aspersores y entre
-laterales (NO el marco de plantación — en aspersión no aplica). Si el sistema es Aspersión,
-extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr) — para verificar que
-no la supere la precipitación/tasa de aplicación del sistema (riesgo de escorrentía) — y el N°
-de aspersores por postura y el caudal de un aspersor individual (m³/hr, dato de catálogo/ficha
-técnica del aspersor) — para verificar el caudal de trabajo que exige cada postura.
+laterales (NO el marco de plantación — en aspersión/carrete no aplica). Si el sistema es
+Aspersión o Carrete, extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr).
+Si el sistema es Aspersión, extrae también el N° de aspersores por postura y el caudal de un
+aspersor individual (m³/hr, dato de catálogo/ficha técnica del aspersor) — para verificar el
+caudal de trabajo que exige cada postura.
+Si el sistema es CARRETE (cañón viajero), extrae ADEMÁS los datos distintivos de su diseño
+operacional (metodología INIA-Carillanca): caudal de descarga del cañón según catálogo (m³/hr),
+margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
+alcance del cañón (m), velocidad del viento de diseño (m/s), longitud de la franja/pasada de
+riego (m), velocidad de avance del carrete (m/hr), y — si el consultor lo declara como
+resultado — la pluviometría media del cañón (mm/hr).
 {instr_sistemas}
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
@@ -1006,8 +1012,12 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
 "volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
 "n_aspersores_postura": number|null, "caudal_aspersor_m3h": number|null,
+"caudal_canon_m3h": number|null, "margen_sobredimensionamiento_pct": number|null,
+"radio_alcance_m": number|null, "velocidad_viento_ms": number|null,
+"longitud_franja_m": number|null, "velocidad_avance_mh": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
-"caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null}}}}
+"caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null,
+"pluviometria_mmhr": number|null}}}}
 ]}}
 
 EXPEDIENTE:
@@ -1197,6 +1207,63 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             else:
                 texto += " Coincide con lo declarado (o no hay dato declarado para comparar) — no lo menciones como observación."
 
+    # Carrete de riego (cañón viajero) — modelo INIA-Carillanca 2001, independiente del resto de
+    # la cadena (no necesita AD/Dn/Fr, solo los datos propios del cañón + la superficie).
+    carrete = None
+    if datos.get("sistema_riego") == "Carrete":
+        carrete = calculos_riego.diseno_carrete(
+            caudal_catalogo_m3h=datos.get("caudal_canon_m3h"),
+            margen_sobredim_pct=datos.get("margen_sobredimensionamiento_pct"),
+            radio_alcance_m=datos.get("radio_alcance_m"),
+            velocidad_viento_ms=datos.get("velocidad_viento_ms"),
+            longitud_franja_m=datos.get("longitud_franja_m"),
+            velocidad_avance_mh=datos.get("velocidad_avance_mh"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            vib_mmhr=datos.get("vib_mmhr"),
+        )
+        if carrete:
+            texto += (
+                f"\n\nVERIFICACIÓN DE OPERACIÓN DEL CARRETE (cálculo determinístico, metodología "
+                f"INIA-Carillanca 2001/Simpfendörfer — misma fórmula que usa el Diseñador de "
+                f"Riego, no una estimación de la IA):\n"
+                f"- Caudal de diseño = Caudal de catálogo × (1 + margen de seguridad) = "
+                f"{carrete['q_diseno_m3h']} m³/hr ({carrete['q_diseno_ls']} l/s)\n"
+                f"- Diámetro mojado = 2 × Radio de alcance = {carrete['d_mojado_m']} m\n"
+                f"- Espaciamiento entre franjas (según viento declarado) = {carrete['espaciamiento_franjas_m']} m\n"
+                f"- Pluviometría media del cañón = {carrete['pluviometria_mmhr']} mm/hr\n"
+                f"- Superficie regada por postura = {carrete['superficie_postura_ha']} ha — "
+                f"N° de posturas = ⌈Superficie del proyecto / Superficie por postura⌉ = {carrete['n_posturas']}\n"
+                f"- Tiempo por postura = {carrete['tiempo_postura_hr']} hr")
+            declarado_pp = (datos.get("declarado") or {}).get("pluviometria_mmhr")
+            if declarado_pp is not None and _diferencia_relevante(carrete["pluviometria_mmhr"], declarado_pp, 15):
+                texto += (f"\n- Pluviometría declarada = {declarado_pp} mm/hr — no coincide con el "
+                          f"recálculo ({carrete['pluviometria_mmhr']} mm/hr). Genera una observación "
+                          f"citando estos números.")
+            if "vib_supera_pp" in carrete:
+                if carrete["vib_supera_pp"] and carrete.get("vib_cumple_minimo_inia"):
+                    texto += (f"\n- VIB del suelo ({datos.get('vib_mmhr')} mm/hr) SUPERA la "
+                              f"pluviometría calculada ({carrete['pluviometria_mmhr']} mm/hr) y "
+                              f"cumple el mínimo INIA (7,5 mm/hr) — sin riesgo de escorrentía, no "
+                              f"lo menciones como observación.")
+                else:
+                    texto += "\n- VERIFICACIÓN VIB (INIA-Carillanca):"
+                    if not carrete["vib_supera_pp"]:
+                        texto += (f" la pluviometría calculada ({carrete['pluviometria_mmhr']} mm/hr) "
+                                  f"SUPERA la VIB del suelo ({datos.get('vib_mmhr')} mm/hr) — riesgo "
+                                  f"de escorrentía; se sugiere aumentar el radio del cañón o reducir "
+                                  f"el sector regado.")
+                    if not carrete.get("vib_cumple_minimo_inia"):
+                        texto += (f" La VIB declarada ({datos.get('vib_mmhr')} mm/hr) es MENOR al "
+                                  f"mínimo exigido por INIA-Carillanca para riego con carrete (7,5 "
+                                  f"mm/hr) — suelo poco apto para este sistema, independiente del "
+                                  f"cañón elegido.")
+                    texto += " Genera una observación citando estos números exactos."
+            texto += ("\n\nADVERTENCIA: el modelo de posturas de arriba (INIA-Carillanca) es el "
+                      "diseño REAL y específico del carrete — no confundir con la \"VERIFICACIÓN "
+                      "DE DISEÑO BASE\" más abajo (esa es una referencia general de "
+                      "demanda↔caudal↔tiempo↔sectores pensada para sistemas localizados, y para "
+                      "carrete solo aplica como aproximación, no como el diseño exacto).")
+
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
     # calcGA del Diseñador). No requiere ni usa el criterio de riego.
     alta_frec = datos.get("sistema_riego") == "Goteo"
@@ -1244,6 +1311,7 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     volumen_acum = datos.get("volumen_acumulador_m3")
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
+        db_diario_mm_dia=r.get("db_diario_mm"),
         superficie_ha=datos.get("superficie_riego_ha"),
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
@@ -1251,7 +1319,7 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         volumen_acumulador_m3=volumen_acum,
     )
     if diseno:
-        lineas_diseno = [f"Demanda = Db / 8,64 = {diseno['demanda_ls_ha']} l/s/ha"]
+        lineas_diseno = [f"Demanda (base DIARIA, Db/Ef sin Fr) = {diseno['demanda_ls_ha']} l/s/ha"]
         superficie_decl = datos.get("superficie_riego_ha")
         caudal_disp = datos.get("caudal_disponible_ls")
         if "superficie_segura_ha" in diseno:

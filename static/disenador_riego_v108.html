@@ -667,6 +667,7 @@ select option{background:var(--white)}
     <div class="sl sk">Propiedades del suelo</div>
     <div class="fg fg3">
       <div class="f"><label>Textura</label><select id="c-tex" onchange="autoS('c')"><option value="">—</option><option value="franco_arenoso">Franco-Arenoso</option><option value="franco">Franco</option><option value="franco_limoso">Franco-Limoso</option><option value="franco_arcilloso">Franco-Arcilloso</option><option value="arcilloso">Arcilloso</option></select></div>
+      <div class="f"><label>VIB [mm/hr]<span class="tip" onclick="showTip(this)" title="Velocidad Infiltración Básica del suelo. INIA-Carillanca: el suelo debe soportar al menos 7,5 mm/hr para ser apto para riego con carrete/cañón. Franco: 7-10.">?</span></label><div class="ig"><input id="c-vib" type="number" step=".5" placeholder="7.5"><span class="isuf">mm/h</span></div></div>
       <div class="f"><label>Serie de Suelo</label><input id="c-serie" placeholder="Ej: Bulnes"></div>
       <div class="f"><label>CC [%]</label><div class="ig"><input id="c-cc" type="number" step=".1" placeholder="19.5"><span class="isuf">%</span></div></div>
       <div class="f"><label>PMP [%]</label><div class="ig"><input id="c-pmp" type="number" step=".1" placeholder="10"><span class="isuf">%</span></div></div>
@@ -786,6 +787,7 @@ select option{background:var(--white)}
       <div class="f"><label>Boquilla [mm]</label><div class="ig"><input id="c-boq" type="number" step=".5" placeholder="28"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Presión Cañón [mca]</label><div class="ig"><input id="c-pres" type="number" step=".5" placeholder="30"><span class="isuf">mca</span></div></div>
       <div class="f"><label>Descarga [m³/hr]</label><div class="ig"><input id="c-desc" type="number" step=".1" placeholder="54"><span class="isuf">m³/hr</span></div></div>
+      <div class="f"><label>Margen Seguridad Caudal [%]<span class="tip" onclick="showTip(this)" title="INIA-Carillanca: sobredimensionar el caudal del cañón 15-20% para cubrir viento fuerte, mayor demanda del cultivo o averías. Se aplica sobre la Descarga catálogo.">?</span></label><div class="ig"><input id="c-margq" type="number" step="1" placeholder="15"><span class="isuf">%</span></div></div>
       <div class="f"><label>Radio Alcance [m]</label><div class="ig"><input id="c-radio" type="number" step=".5" placeholder="37.5"><span class="isuf">m</span></div></div>
       <div class="f"><label>Vel. Viento [m/s]</label><div class="ig"><input id="c-vv" type="number" step=".1" placeholder="1.66"><span class="isuf">m/s</span></div></div>
       <div class="f"><label>Factor Esp. Viento [%]<span class="tip" onclick="showTip(this)" title="6-10 km/h → 85%">?</span></label><div class="ig"><input id="c-fv" type="number" value="85" min="70" max="100"><span class="isuf">%</span></div></div>
@@ -817,7 +819,8 @@ select option{background:var(--white)}
     </div>
     <hr class="sep">
     <div class="fg">
-      <div class="f"><label>Presión Base Carrete [mca]<span class="tip" onclick="showTip(this)" title="Presión entrada carrete según fabricante (IRRIMEC ST4: 55 mca)">?</span></label><div class="ig"><input id="c-pb" type="number" step=".5" placeholder="55"><span class="isuf">mca</span></div></div>
+      <div class="f"><label>Presión en el Cañón [mca]<span class="tip" onclick="showTip(this)" title="Presión requerida SOLO en la boquilla del cañón (dato de catálogo del fabricante, ej. IRRIMEC ST4: 30 mca). NO incluya aquí la pérdida del mecanismo de propulsión: va aparte.">?</span></label><div class="ig"><input id="c-pb" type="number" step=".5" placeholder="30"><span class="isuf">mca</span></div></div>
+      <div class="f"><label>Pérdida Mecanismo Propulsión [mca]<span class="tip" onclick="showTip(this)" title="INIA-Carillanca: turbina 5-10 mca (típico 10); fuelle hidráulico ~5 mca. Es una pérdida ADICIONAL a la del cañón, propia del carrete, no de la tubería.">?</span></label><div class="ig"><input id="c-pturb" type="number" step=".5" placeholder="10"><span class="isuf">mca</span></div></div>
       <div class="f"><label>Margen Seguridad [mca]</label><div class="ig"><input id="c-pseg" type="number" step=".5" placeholder="3"><span class="isuf">mca</span></div></div>
     </div>
     <button class="btn bc" onclick="calcHidC()">⚡ Calcular CDT</button>
@@ -831,6 +834,7 @@ select option{background:var(--white)}
       </div>
     </div>
     <div id="c-hid-r" style="margin-top:12px"></div>
+    <div id="c-hminmax-r" style="margin-top:10px"></div>
     <hr class="sep">
     <div class="sl">Equipo de Bombeo Seleccionado</div>
     <div class="al al-i" style="margin-bottom:10px">ℹ Una vez conocido el punto de operación (Q y H), registre el equipo elegido.</div>
@@ -1683,7 +1687,12 @@ let EMISORES = lsGet('dr_emisores',[
   {nombre:'Microaspersor 40 l/hr',q:40,p_min:15,tipo:'Microaspersor'},
   {nombre:'Microaspersor 70 l/hr',q:70,p_min:20,tipo:'Microaspersor'},
   {nombre:'Aspersor Jolly 1¼"',q:5.3,p_min:20,tipo:'Aspersor'},
-  {nombre:'IRRIMEC ST4 100 TG 300',q:54000,p_min:30,tipo:'Carrete'}
+  {nombre:'IRRIMEC ST4 100 TG 300',q:54,p_min:30,tipo:'Carrete'},
+  {nombre:'Cañón boquilla 30mm @ 2,5 atm (INIA Tabla 2)',q:54.7,p_min:25,radio:40,tipo:'Carrete'},
+  {nombre:'Cañón boquilla 30mm @ 3 atm (INIA Tabla 2)',q:59.9,p_min:30,radio:45,tipo:'Carrete'},
+  {nombre:'Cañón boquilla 30mm @ 4 atm (INIA Tabla 2)',q:69.1,p_min:40,radio:51,tipo:'Carrete'},
+  {nombre:'Cañón boquilla 30mm @ 5 atm (INIA Tabla 2)',q:77.3,p_min:50,radio:56,tipo:'Carrete'},
+  {nombre:'Cañón boquilla 30mm @ 6 atm (INIA Tabla 2)',q:84.7,p_min:60,radio:61,tipo:'Carrete'}
 ]);
 
 const DIAS=[31,28,31,30,31,30,31,31,30,31,30,31];
@@ -1716,8 +1725,20 @@ function populateEmisores(){
     sel.onchange=function(){
       var e=EMISORES[parseInt(this.value)||0]; if(!e)return;
       var p=this.id.split('-')[0];
-      var qi=document.getElementById(p+'-qem'); if(qi)qi.value=e.q;
-      var pi=document.getElementById(p+'-pem'); if(pi)pi.value=e.p_min;
+      if(tid==='c-tipe'){
+        // Carrete: el modelo/boquilla fija Descarga, Presión y Radio de alcance a la vez
+        var qC=document.getElementById('c-desc'); if(qC&&e.q!=null)qC.value=e.q;
+        var pC=document.getElementById('c-pres'); if(pC&&e.p_min!=null)pC.value=e.p_min;
+        var rC=document.getElementById('c-radio'); if(rC&&e.radio!=null)rC.value=e.radio;
+      } else if(tid==='a-tipe'){
+        var qA=document.getElementById('a-qasp'); if(qA&&e.q!=null)qA.value=e.q;
+        var pA=document.getElementById('a-pres'); if(pA&&e.p_min!=null)pA.value=e.p_min;
+        var rA=document.getElementById('a-radio'); if(rA&&e.radio!=null)rA.value=e.radio;
+      } else {
+        var qi=document.getElementById(p+'-qem'); if(qi)qi.value=e.q;
+        var pi=document.getElementById(p+'-pem'); if(pi)pi.value=e.p_min;
+      }
+      showToast('Datos de catálogo cargados — verifique antes de calcular');
     };
   });
 }
@@ -2370,7 +2391,11 @@ function calcCA(){
   </div>`;
 }
 function calcCarP(){
-  const qCan=v('c-desc',54), radio=v('c-radio',37.5), vv=v('c-vv',2.5);
+  const qCanBase=v('c-desc',54);
+  // INIA-Carillanca: sobredimensionar el caudal 15-20% (viento fuerte, mayor demanda, averías)
+  const margQ=v('c-margq',15)/100;
+  const qCan=qCanBase*(1+margQ);
+  const radio=v('c-radio',37.5), vv=v('c-vv',2.5);
   const lF=v('c-lf',190), vA=v('c-va',24), supR=v('c-supr',4.85);
   const alfa=210; // ángulo sector recomendado INIA (200-220°)
   // Espaciamiento entre franjas según velocidad del viento (INIA Cuadro 1)
@@ -2394,6 +2419,11 @@ function calcCarP(){
   document.getElementById('c-car-r').innerHTML=`
   <div class="calc-section">
     <div class="cs-title">Parámetros de Operación del Carrete</div>
+    ${fbox('Caudal de Diseño (con margen de seguridad INIA)',[
+      {eq:`Q_catálogo = ${fd(qCanBase,1)} m³/hr`,res:''},
+      {eq:`Q_diseño = Q_catálogo × (1 + ${fd(margQ*100,0)}%) = ${fd(qCanBase,1)} × ${fd(1+margQ,2)}`,res:`${fd(qCan,1)} m³/hr`},
+      {note:'INIA-Carillanca: sobredimensionar 15-20% para viento fuerte, mayor demanda o averías. El resto del diseño usa Q_diseño.'}
+    ])}
     ${fbox('Diámetro Mojado y Espaciamiento entre Franjas',[
       {eq:`D_mojado = 2 × Radio = 2 × ${radio}`,res:`${fd(dMojado,1)} m`},
       {eq:`Viento ${vv} m/s → ${fd(pctVv*100,0)}% del D_mojado (INIA Cuadro 1)`,res:''},
@@ -2426,8 +2456,12 @@ function calcCarP(){
       ${mcard('Q Cañón',fd(qCan/3.6,2),'l/s')}
     </div>
     ${vv>4?al('⚠ Viento >4 m/s: usar ángulo descarga 20-21°. Uniformidad afectada.','w'):''}
-    ${pp>25?al('⚠ PP '+fd(pp,1)+' mm/hr puede superar velocidad de infiltración. Verificar suelo.','w'):''}
-    ${pp<5?al('⚠ PP '+fd(pp,1)+' mm/hr muy baja. Revisar parámetros del cañón.','w'):''}
+    ${(()=>{
+      const vibC=v('c-vib',7.5);
+      if(pp>vibC) return al('⚠ PP ('+fd(pp,1)+' mm/hr) > VIB del suelo ('+fd(vibC,1)+' mm/hr): riesgo de escorrentía. INIA-Carillanca exige VIB ≥ 7,5 mm/hr para carrete; considere aumentar el radio del cañón o reducir el sector.','w');
+      if(vibC<7.5) return al('⚠ VIB declarada ('+fd(vibC,1)+' mm/hr) < 7,5 mm/hr: suelo poco apto para riego con carrete según INIA-Carillanca, independiente del cañón elegido.','w');
+      return al('✓ PP ('+fd(pp,1)+' mm/hr) ≤ VIB del suelo ('+fd(vibC,1)+' mm/hr). Sin riesgo de escorrentía.','ok');
+    })()}
   </div>`;
   // Forzar N sectores y limpiar saved si nPost cambió
   var _nsElC=document.getElementById('c-nsec-cuadro');
@@ -2440,8 +2474,39 @@ function calcCarP(){
   }
   setTimeout(function(){renderSectores('car');},50);
 }
-function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);totalHf+=hf;if(Q>_maxQC)_maxQC=Q;if(vel>2)warnsC+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2,0 — aumentar diámetro.`,'w');rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td>${fd(vel,2)}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const pb=v('c-pb',55),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;
-  if(_maxQC>0&&_maxQC<qSis*0.999) warnsC+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQC,3)+' l/s) es menor a la descarga del cañón en operación ('+fd(qSis,3)+' l/s). La matriz debe conducir el caudal completo del carrete.','w');const hfSuc=hw(qSis,76,hs,140),cdt=pb+hs+hfSuc+totalHf+dz+pseg,potHP=(qSis*cdt)/(75*(v('c-eta',0.60)));R.CH={qSis,qM3h:qSis*3.6,totalHf,hfSuc,cdt,potHP,pb,hs,dz,pseg,qOp:qSis,maxQTramo:_maxQC};document.getElementById('c-hid-r').innerHTML=`
+// ── INIA-Carillanca: la presión de funcionamiento del cañón no debe variar más de
+// un 20% de la nominal en ningún punto del predio (Hmáx > 1,2·Hmín → regulador obligatorio) ──
+var _carHmin=null, _carHmax=null; // snapshot en memoria — se reinicia al recargar (no cruza proyectos)
+function setHminmax(cual){
+  if(!R.CH||!R.CH.cdt){showToast('Calcule primero el CDT de esta postura.');return;}
+  if(cual==='min') _carHmin=R.CH.cdt; else _carHmax=R.CH.cdt;
+  showToast((cual==='min'?'CDT más favorable':'CDT más desfavorable')+' guardado: '+fd(R.CH.cdt,2)+' mca');
+  refreshHminmax();
+}
+function refreshHminmax(){
+  var el=document.getElementById('c-hminmax-r');
+  if(!el) return;
+  var hmin=_carHmin, hmax=_carHmax;
+  if(hmin==null&&hmax==null){el.innerHTML='';return;}
+  var ratio = (hmin&&hmax)? hmax/hmin : null;
+  var necesitaReg = ratio!==null && ratio>1.2;
+  el.innerHTML =
+    '<div style="padding:8px 10px;border-radius:6px;font-size:.71rem;font-family:var(--mono);line-height:1.6;background:'
+    +(ratio===null?'#fff7ed':(necesitaReg?'#fef2f2':'#f0fdf4'))+'">'
+    +'<strong>Variación de presión en el predio (INIA-Carillanca)</strong><br>'
+    +'CDT mínima (postura favorable): '+(hmin!=null?fd(hmin,2)+' mca':'— pendiente')+'<br>'
+    +'CDT máxima (postura desfavorable): '+(hmax!=null?fd(hmax,2)+' mca':'— pendiente')+'<br>'
+    +(ratio!==null
+      ?('Hmáx/Hmín = '+fd(ratio,3)+' &nbsp;('+(necesitaReg?'\u26a0 > 1,20':'\u2713 \u2264 1,20')+')<br>'
+        +(necesitaReg
+          ?'\u26a0 La presión varía más del 20% permitido (caudal variaría >10%). Se requiere <strong>regulador de presión</strong> a la entrada del cañón.'
+          :'\u2713 Variación de presión dentro del rango admisible (± 20%). No se requiere regulador.'))
+      :'Calcule el CDT en la postura más cercana y en la más lejana a la bomba, y guarde ambos valores con los botones de arriba.')
+    +'</div>';
+}
+function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);totalHf+=hf;if(Q>_maxQC)_maxQC=Q;if(vel>2)warnsC+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2,0 — aumentar diámetro.`,'w');rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td>${fd(vel,2)}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const pb=v('c-pb',30),pturb=v('c-pturb',10),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;
+  if(_maxQC>0&&_maxQC<qSis*0.999) warnsC+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQC,3)+' l/s) es menor a la descarga del cañón en operación ('+fd(qSis,3)+' l/s). La matriz debe conducir el caudal completo del carrete.','w');const hfSuc=hw(qSis,76,hs,140),cdt=pb+pturb+hs+hfSuc+totalHf+dz+pseg,potHP=(qSis*cdt)/(75*(v('c-eta',0.60)));R.CH={qSis,qM3h:qSis*3.6,totalHf,hfSuc,cdt,potHP,pb,pturb,hs,dz,pseg,qOp:qSis,maxQTramo:_maxQC};
+  refreshHminmax();document.getElementById('c-hid-r').innerHTML=`
   ${warnsC}
   <div class="calc-section">
     <div class="cs-title">Diseño Hidráulico — Carrete de Riego</div>
@@ -2468,10 +2533,14 @@ function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelec
       })()
     )}
     ${fbox('CDT — Carga Dinámica Total (Carrete)',[
-      {eq:'CDT = P_base_carrete + H_suc + Hf_suc + ΣHf_cond + ΔZ + Margen'},
-      {eq:`= ${pb} + ${hs} + ${fd(hfSuc,3)} + ${fd(totalHf,3)} + ${dz} + ${pseg}`,res:`${fd(cdt,2)} mca`},
-      {note:'P_base = presión requerida en entrada del carrete (según ficha técnica del fabricante)'}
+      {eq:'CDT = P_cañón + P_mecanismo + H_suc + Hf_suc + ΣHf_cond + ΔZ + Margen'},
+      {eq:`= ${pb} + ${pturb} + ${hs} + ${fd(hfSuc,3)} + ${fd(totalHf,3)} + ${dz} + ${pseg}`,res:`${fd(cdt,2)} mca`},
+      {note:'P_cañón = presión SOLO en la boquilla (catálogo). P_mecanismo = pérdida propia de la turbina/fuelle del carrete (INIA-Carillanca: turbina 5-10 mca, fuelle ~5 mca) — es adicional, no está incluida en P_cañón.'}
     ])}
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn bs" style="font-size:.7rem;padding:5px 10px" onclick="setHminmax('min')">📍 Guardar como CDT más favorable (Hmín)</button>
+      <button class="btn bs" style="font-size:.7rem;padding:5px 10px" onclick="setHminmax('max')">📍 Guardar como CDT más desfavorable (Hmáx)</button>
+    </div>
     ${fbox('Potencia del Equipo de Bombeo',[
       {eq:`P [HP] = Q [l/s] × H [mca] / (75 × η) = ${fd(qSis,3)} × ${fd(cdt,2)} / (75 × 0,65)`,res:`${fd(potHP,2)} HP`},
       {eq:`P mínima recomendada (×1,20)`,res:`${fd((potHP*1.2),2)} HP`}
@@ -3547,7 +3616,7 @@ function initSectores(sys){
 // ════════════════════════════════════════════════════
 const FIELD_IDS = {
   asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-tex", "a-serie", "a-pend", "a-cc", "a-pmp", "a-da", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
-  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-tex", "c-serie", "c-cc", "c-pmp", "c-da", "c-pr", "c-crit", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-pres", "c-desc", "c-radio", "c-vv", "c-fv", "c-lf", "c-va", "c-pb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
+  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-tex", "c-serie", "c-cc", "c-pmp", "c-da", "c-pr", "c-crit", "c-vib", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-pres", "c-desc", "c-margq", "c-radio", "c-vv", "c-fv", "c-lf", "c-va", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
   got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-tex", "g-serie", "g-cc", "g-pmp", "g-da", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
   mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
 };

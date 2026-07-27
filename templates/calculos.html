@@ -83,7 +83,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v106.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v108.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
@@ -104,8 +104,12 @@
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
     Recalcula ETc = ETo×Kc · AD = (CC−PMP)/100×Da×Prof(m)×1000 · Dn = AD×fa · Fr = Dn/ETc ·
-    Db = Dn_adj/Ef, y con eso la superficie de riego segura, el tiempo de riego y el N° de
-    sectores — misma cadena y relación del Diseñador de Riego.
+    Db = Dn_adj/Ef, y con eso el tiempo de riego y el N° de sectores — misma cadena y relación
+    del Diseñador de Riego. La Superficie de riego segura usa Db "diario" (ETc/Ef, sin pasar por
+    Fr) — misma distinción que hace el Diseñador (esa verificación es de balance diario, no de
+    ciclo de riego). Si el sistema es Carrete, además se calcula la operación del cañón
+    (metodología INIA-Carillanca: caudal de diseño, espaciamiento entre franjas, pluviometría,
+    superficie/tiempo por postura).
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
@@ -161,8 +165,14 @@
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
         <div class="campo-postura"><label>N° aspersores por postura</label><input type="number" step="1" id="{{ p }}n_aspersores_postura" name="{{ p }}n_aspersores_postura" value="{{ agro.n_aspersores_postura if agro.n_aspersores_postura is not none else '' }}"></div>
         <div class="campo-postura"><label>Caudal del aspersor (m³/hr)</label><input type="number" step="0.01" id="{{ p }}caudal_aspersor_m3h" name="{{ p }}caudal_aspersor_m3h" value="{{ agro.caudal_aspersor_m3h if agro.caudal_aspersor_m3h is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Caudal cañón — catálogo (m³/hr)</label><input type="number" step="0.1" id="{{ p }}caudal_canon_m3h" name="{{ p }}caudal_canon_m3h" value="{{ agro.caudal_canon_m3h if agro.caudal_canon_m3h is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Margen sobredimensionamiento caudal (%)</label><input type="number" step="1" id="{{ p }}margen_sobredimensionamiento_pct" name="{{ p }}margen_sobredimensionamiento_pct" value="{{ agro.margen_sobredimensionamiento_pct if agro.margen_sobredimensionamiento_pct is not none else '' }}" placeholder="15"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Radio de alcance del cañón (m)</label><input type="number" step="0.5" id="{{ p }}radio_alcance_m" name="{{ p }}radio_alcance_m" value="{{ agro.radio_alcance_m if agro.radio_alcance_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Velocidad del viento de diseño (m/s)</label><input type="number" step="0.1" id="{{ p }}velocidad_viento_ms" name="{{ p }}velocidad_viento_ms" value="{{ agro.velocidad_viento_ms if agro.velocidad_viento_ms is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Longitud de franja (m)</label><input type="number" step="1" id="{{ p }}longitud_franja_m" name="{{ p }}longitud_franja_m" value="{{ agro.longitud_franja_m if agro.longitud_franja_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="1" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación (Goteo/Microaspersión) y espaciamiento del sistema: dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo (salvo VIB, que sí se verifica contra la Precipitación del sistema).</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación (Goteo/Microaspersión) y espaciamiento del sistema (Aspersión): dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo. Los datos del cañón (Carrete) SÍ se usan — alimentan el modelo INIA-Carillanca de la tabla de resultados.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
       <div class="agro-grid">
@@ -188,7 +198,7 @@
               <span id="{{ p }}agro-kc-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
-          <tr class="campo-vib">
+          <tr class="campo-vib-aspersion">
             <td class="col-concepto">VIB vs. Precipitación del sistema (Aspersión)</td><td id="{{ p }}agro-vib-decl">—</td>
             <td class="col-calc">
               <span id="{{ p }}agro-vib-calc">—</span>
@@ -201,6 +211,37 @@
               <span id="{{ p }}agro-postura-calc">—</span>
               <span id="{{ p }}agro-postura-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">Caudal de diseño del cañón (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-car-q-calc">—</td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">Diámetro mojado / Espaciamiento entre franjas (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-car-esp-calc">—</td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">Pluviometría media del cañón (Carrete)</td>
+            <td><input type="number" step="0.1" id="{{ p }}decl_pp" name="{{ p }}decl_pp" value="{{ agro.declarado.pluviometria_mmhr if agro.declarado and agro.declarado.pluviometria_mmhr is not none else '' }}"></td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-car-pp-calc">—</span>
+              <span id="{{ p }}agro-car-pp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">VIB vs. Pluviometría — mínimo INIA 7,5 mm/hr (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-car-vib-calc">—</span>
+              <span id="{{ p }}agro-car-vib-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">Superficie por postura / N° de posturas (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-car-post-calc">—</td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto">Tiempo por postura (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-car-tpost-calc">—</td>
           </tr>
           <tr>
             <td class="col-concepto">ETc (mm/día)</td><td class="text-muted">—</td>
@@ -592,6 +633,14 @@
     if (!calculado || declarado === null) return false;
     return Math.abs(calculado - declarado) / calculado * 100 > tolPct;
   }
+  // Espaciamiento entre franjas del carrete según viento — tabla INIA-Carillanca (Cuadro 1),
+  // mismo criterio del Diseñador de Riego. Duplica `_pct_espaciamiento_viento` de calculos_riego.py.
+  function pctEspaciamientoViento(vv) {
+    if (vv <= 1) return 0.80;
+    if (vv <= 2.5) return 0.75;
+    if (vv <= 5) return 0.625;
+    return 0.525;
+  }
 
   // ── Agronómico ──────────────────────────────────────────────
   // `p` es el prefijo de ids/names de este sistema de riego (ej. "s0_", "s1_") — con un solo
@@ -604,6 +653,10 @@
         fa = numVal(p + "factor_agotamiento_pct"), ef = numVal(p + "eficiencia_pct"),
         vib = numVal(p + "vib_mmhr");
     var nAspPostura = numVal(p + "n_aspersores_postura"), qAsp = numVal(p + "caudal_aspersor_m3h");
+    var caudalCanon = numVal(p + "caudal_canon_m3h"), margenSobredim = numVal(p + "margen_sobredimensionamiento_pct"),
+        radioAlcance = numVal(p + "radio_alcance_m"), velocidadViento = numVal(p + "velocidad_viento_ms"),
+        longitudFranja = numVal(p + "longitud_franja_m"), velocidadAvance = numVal(p + "velocidad_avance_mh"),
+        declPp = numVal(p + "decl_pp");
     var declDn = numVal(p + "decl_dn"), declFr = numVal(p + "decl_fr"), declDb = numVal(p + "decl_db");
     var sup = numVal(p + "superficie_riego_ha"), caudalDisp = numVal(p + "caudal_disponible_ls"),
         precip = numVal(p + "precipitacion_sistema_mmhr"), horas = numVal(p + "horas_disponibles_dia");
@@ -616,17 +669,22 @@
     var sistema = strVal(p + "sistema_riego");
     var esGoteo = sistema === "Goteo";
     var mostrarGoteo = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
-    var mostrarAspersion = !sistema || sistema === "Mixto" || sistema === "Aspersión" || sistema === "Carrete";
+    var mostrarAspersion = !sistema || sistema === "Mixto" || sistema === "Aspersión";
+    var mostrarCarrete = !sistema || sistema === "Mixto" || sistema === "Carrete";
     wrap.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
     wrap.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
+    wrap.querySelectorAll(".campo-carrete").forEach(function(el) { el.classList.toggle("activo", mostrarCarrete); el.style.display = mostrarCarrete ? "" : "none"; });
     // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
     // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
     wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
-    // VIB (Velocidad de Infiltración Básica) y datos del aspersor (N° por postura, caudal)
-    // solo aplican a Aspersión — Goteo/Microaspersión/Carrete no los usan en el Diseñador de
-    // Riego (Carrete usa un único cañón regador, no "aspersores por postura").
-    var mostrarVib = !sistema || sistema === "Mixto" || sistema === "Aspersión";
-    wrap.querySelectorAll(".campo-vib, .campo-postura").forEach(function(el) { el.style.display = mostrarVib ? "" : "none"; });
+    // VIB (Velocidad de Infiltración Básica) aplica a Aspersión Y Carrete (con umbrales/lógica
+    // distinta cada uno, ver más abajo) — el campo de ENTRADA es el mismo. La fila de resultado
+    // "VIB vs. Precipitación del sistema" es específica de Aspersión (Carrete tiene su propia
+    // fila "VIB vs. Pluviometría", dentro de .campo-carrete). Postura (N° aspersores, caudal)
+    // solo aplica a Aspersión — Carrete usa un único cañón regador, no "aspersores por postura".
+    var mostrarVib = !sistema || sistema === "Mixto" || sistema === "Aspersión" || sistema === "Carrete";
+    wrap.querySelectorAll(".campo-vib").forEach(function(el) { el.style.display = mostrarVib ? "" : "none"; });
+    wrap.querySelectorAll(".campo-vib-aspersion, .campo-postura").forEach(function(el) { el.style.display = mostrarAspersion ? "" : "none"; });
     var avisoEl = document.getElementById(p + "sistema-riego-aviso");
     if (sistema === "Mixto") {
       avisoEl.textContent = "Este proyecto declara más de un sistema de riego — el chequeo de "
@@ -691,6 +749,56 @@
     }
     nota(p + "agro-postura-nota", notaPostura);
 
+    // Carrete de riego (cañón viajero) — modelo INIA-Carillanca, independiente del resto de la
+    // cadena (no necesita AD/Dn/Fr). Mismo criterio del Diseñador de Riego (calcCarP), duplicado
+    // a mano acá. `sup` (superficie de riego) se define más abajo — se adelanta su lectura acá.
+    setText(p + "agro-car-pp-decl", declPp !== null ? fmt(declPp, 1) + " mm/hr" : "—");
+    if (caudalCanon !== null && radioAlcance !== null && velocidadViento !== null
+        && longitudFranja !== null && velocidadAvance !== null && sup !== null) {
+      var margen = margenSobredim !== null ? margenSobredim : 15;
+      var qDisenoM3h = caudalCanon * (1 + margen / 100);
+      setText(p + "agro-car-q-calc", fmt(qDisenoM3h, 1) + " m³/hr (" + fmt(qDisenoM3h / 3.6, 2) + " l/s)");
+
+      var dMojado = 2 * radioAlcance;
+      var pctVv = pctEspaciamientoViento(velocidadViento);
+      var espFranja = dMojado * pctVv;
+      setText(p + "agro-car-esp-calc", "D. mojado=" + fmt(dMojado, 1) + " m · Espaciamiento=" + fmt(espFranja, 1) + " m (viento " + fmt(velocidadViento, 1) + " m/s → " + fmt(pctVv * 100, 0) + "% del D. mojado)");
+
+      var alfaCar = 210; // ángulo de sector recomendado INIA (200-220°), fijo
+      var ppCalc = qDisenoM3h / (Math.PI * Math.pow(0.9 * radioAlcance, 2)) * (alfaCar / 360) * 1000;
+      setText(p + "agro-car-pp-calc", fmt(ppCalc, 1) + " mm/hr");
+      nota(p + "agro-car-pp-nota", diferenciaRelevante(ppCalc, declPp, 15) ? "No coincide con lo declarado (" + fmt(declPp, 1) + " mm/hr)." : "");
+
+      var supPostura = (longitudFranja * espFranja) / 10000;
+      var nPosturas = supPostura ? Math.ceil(sup / supPostura) : null;
+      setText(p + "agro-car-post-calc", fmt(supPostura, 3) + " ha → " + (nPosturas !== null ? nPosturas : "—") + " posturas");
+
+      var lManguera = Math.max(longitudFranja / 2 - (2 / 3) * radioAlcance, 10);
+      var tiCar = (2 / 3 * radioAlcance / velocidadAvance) * (alfaCar / 360);
+      var tfeCar = (2 / 3 * radioAlcance / velocidadAvance) * (1 - alfaCar / 360);
+      var tPostura = lManguera / velocidadAvance + tiCar + Math.max(tfeCar, 0);
+      setText(p + "agro-car-tpost-calc", fmt(tPostura, 2) + " hr");
+
+      var vibNotaCar = "";
+      if (vib !== null) {
+        if (ppCalc > vib) {
+          vibNotaCar = "La pluviometría calculada (" + fmt(ppCalc, 1) + " mm/hr) SUPERA la VIB del suelo (" + fmt(vib, 1) + " mm/hr) — riesgo de escorrentía.";
+        }
+        if (vib < 7.5) {
+          vibNotaCar += (vibNotaCar ? " " : "") + "VIB declarada (" + fmt(vib, 1) + " mm/hr) menor al mínimo INIA-Carillanca (7,5 mm/hr) — suelo poco apto para carrete.";
+        }
+        setText(p + "agro-car-vib-calc", (ppCalc <= vib && vib >= 7.5) ? "OK — PP ≤ VIB y VIB ≥ 7,5 mm/hr" : "Ver alerta");
+      } else {
+        setText(p + "agro-car-vib-calc", "—");
+      }
+      nota(p + "agro-car-vib-nota", vibNotaCar);
+    } else {
+      ["agro-car-q-calc", "agro-car-esp-calc", "agro-car-pp-calc", "agro-car-post-calc",
+       "agro-car-tpost-calc", "agro-car-vib-calc"].forEach(function(id) { setText(p + id, "—"); });
+      nota(p + "agro-car-pp-nota", "");
+      nota(p + "agro-car-vib-nota", "");
+    }
+
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
 
     // En goteo el factor de agotamiento (criterio de riego) no se usa ni se pide.
@@ -749,8 +857,12 @@
     }
 
     // Superficie de riego segura — SOLO con el caudal de la FUENTE (v104: el acumulador ya no
-    // se suma acá, ver el bloque de N° de sectores más abajo).
-    var demanda = db / 8.64;
+    // se suma acá, ver el bloque de N° de sectores más abajo). Usa Db "diario" (ETc/Ef, SIN
+    // pasar por Fr) — misma distinción que hace el Diseñador de Riego (calcAA/calcCA,
+    // "SIEMPRE con demanda DIARIA, no con Db de Fr días"): esta verificación es de balance
+    // diario, no de ciclo de riego. En Goteo ambos valores ya coinciden (Fr=1 ahí).
+    var dbDiario = ef ? etc / (ef / 100) : 0;
+    var demanda = dbDiario / 8.64;
     if (caudalDisp !== null && demanda) {
       var supSegura = caudalDisp / demanda;
       setText(p + "agro-sup-calc", fmt(supSegura, 2) + " ha");

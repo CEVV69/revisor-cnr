@@ -1,5 +1,5 @@
 """Exporta los datos del Chequeo de Cálculos al formato de archivo del Diseñador de Riego
-(la app hermana del mismo usuario, `disenador_riego_v106.html`), para poder abrirlo ahí y seguir
+(la app hermana del mismo usuario, `disenador_riego_v108.html`), para poder abrirlo ahí y seguir
 evaluando aspectos que no cubre Revisor CNR — sin recargar Revisor con esos cálculos.
 
 REGLA: solo se exportan los datos que Revisor efectivamente tiene (extraídos/validados en el
@@ -99,9 +99,10 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     if sys_code in ("asp", "car"):
         put("crit", sistema_agro.get("factor_agotamiento_pct"))
 
-    # VIB (Velocidad de Infiltración Básica) — el Diseñador la tiene en Aspersión y
-    # Microaspersión (Goteo/Carrete no la exponen).
-    if sys_code in ("asp", "mic"):
+    # VIB (Velocidad de Infiltración Básica) — el Diseñador la tiene en Aspersión, Microaspersión
+    # y Carrete (v108, campo c-vib — corregido jul-2026; antes se creía que Carrete no la
+    # exponía, pero sí la tiene y la usa en su verificación INIA-Carillanca). Goteo no la expone.
+    if sys_code in ("asp", "mic", "car"):
         put("vib", sistema_agro.get("vib_mmhr"))
 
     # Marco de plantación / espaciamiento — los IDs del Diseñador difieren por sistema:
@@ -126,6 +127,17 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("elat", sistema_agro.get("espaciamiento_laterales_m"))
         put("nasp", sistema_agro.get("n_aspersores_postura"))
         put("qasp", sistema_agro.get("caudal_aspersor_m3h"))
+    elif sys_code == "car":
+        # Datos distintivos del carrete (metodología INIA-Carillanca) — IDs confirmados en el
+        # código fuente del Diseñador v108 (`calcCarP`, campos c-desc/c-margq/c-radio/c-vv/c-lf/
+        # c-va). `c-fv` ("Factor Esp. Viento") existe en la UI del Diseñador pero NO se lee en
+        # `calcCarP` (el % real sale de una tabla fija según `c-vv`) — no se exporta, es vestigial.
+        put("desc", sistema_agro.get("caudal_canon_m3h"))
+        put("margq", sistema_agro.get("margen_sobredimensionamiento_pct"))
+        put("radio", sistema_agro.get("radio_alcance_m"))
+        put("vv", sistema_agro.get("velocidad_viento_ms"))
+        put("lf", sistema_agro.get("longitud_franja_m"))
+        put("va", sistema_agro.get("velocidad_avance_mh"))
 
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
     for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"):
