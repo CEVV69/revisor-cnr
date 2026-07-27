@@ -1027,6 +1027,37 @@ muchas partidas puede seguir necesitando el reintento) — si vuelve a pasar, el
 usuario es que **igual se guarda en el servidor aunque el navegador muestre error**: conviene
 esperar un momento y volver a entrar antes de asumir que hay que revisar el ítem de nuevo.
 
+**Seguimiento 2 — volvió a pasar con 16.000, `MAX_TOKENS_POR_ITEM` por ítem en vez de subir el
+global (jul-2026):** el usuario reportó el mismo síntoma (pantalla en blanco, "error ascendente")
+con un presupuesto real — el log de Railway mostró el mismo patrón: `respuesta vacía por
+max_tokens (16000) — reintentando con más cupo`, es decir, ni el `MAX_TOKENS_SONNET` ya subido a
+16.000 alcanzó para el primer intento en este caso. Al reabrir la app, las 11 observaciones ya
+estaban guardadas — mismo comportamiento de siempre: el análisis termina bien en el servidor, solo
+se corta la respuesta HTTP hacia el navegador porque la SUMA de los dos intentos secuenciales
+(16.000 fallido + 24.000 completo) sigue topando el timeout externo.
+- **Por qué NO se volvió a subir `MAX_TOKENS_SONNET` global:** ese valor lo usan los 18 ítems, no
+  solo Presupuesto — subirlo para todos habría regalado cupo de más (sin necesidad) a ítems
+  livianos que nunca tuvieron este problema, sin atacar la causa real (Presupuesto específicamente
+  es el único con el checklist de 11 reglas a–k que empuja el thinking al límite).
+- **Fix:** `MAX_TOKENS_POR_ITEM` (analyzer.py, mismo patrón que `MAX_CHARS_POR_ITEM` ya existente)
+  — override de `max_tokens` POR ítem, con `presupuesto`/`presupuesto_electrico` en 24.000 (el
+  valor al que hoy llega el reintento) en vez de arrancar en 16.000. `_analizar_grupo` ganó el
+  parámetro `max_tokens_total` (default `MAX_TOKENS_SONNET`, para no tocar el resto de los ítems
+  ni al método por Ejes histórico si algo lo siguiera llamando) y lo usa tanto en el intento inicial
+  como en el cálculo del reintento (`max_tokens_total + 8000`); `analizar_item()` lo pasa como
+  `MAX_TOKENS_POR_ITEM.get(item_key, MAX_TOKENS_SONNET)`.
+- **Por qué esto reduce la latencia en vez de aumentarla:** subir el techo de `max_tokens` NO
+  hace más lenta una respuesta que de todas formas iba a terminar antes (el modelo para cuando
+  termina, `stop_reason=end_turn`, sin importar qué tan alto esté el techo) — solo evita que se
+  trunque. Arrancar directo en 24.000 evita pagar el primer intento fallido (que hoy se descarta
+  por completo) la mayoría de las veces, así que en el caso típico la solicitud completa es MÁS
+  rápida que antes, no más lenta. Si algún presupuesto excepcionalmente grande todavía necesita el
+  reintento, sigue existiendo (a 32.000) como red de seguridad.
+- **No es garantía absoluta** — un presupuesto con muchísimas partidas siempre podría necesitar
+  más de 24.000/32.000 tokens. Si vuelve a pasar, sigue aplicando la misma indicación de arriba:
+  revisar de nuevo antes de asumir que hay que reintentar el ítem, porque lo más probable es que
+  ya se haya guardado igual.
+
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
 Es texto que el revisor **escribe y edita a mano** (nunca se toca automáticamente — supervisión

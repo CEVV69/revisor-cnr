@@ -67,6 +67,20 @@ MAX_TOKENS_HAIKU  = 2000   # Documentos simples
 MAX_TOKENS_SONNET = 16000  # Documentos complejos — Sonnet 5 gasta parte del cupo en thinking
 MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
 
+# "Presupuesto" — el ítem con checklist más exigente (11 reglas a-k con montos/porcentajes) y el
+# mayor presupuesto de caracteres (MAX_CHARS_POR_ITEM=120.000): con presupuestos de muchas
+# partidas, el intento inicial a MAX_TOKENS_SONNET (16.000) se queda corto pensando y dispara el
+# reintento automático (+8.000) — la SUMA de los dos intentos SECUENCIALES puede tardar varios
+# minutos y topar con el timeout del proxy externo (Railway), mostrando pantalla en blanco al
+# revisor aunque el análisis termine bien en el servidor (ver CLAUDE.md). Arrancar directo con más
+# cupo evita pagar ese primer intento fallido la mayoría de las veces, así que reduce la latencia
+# total en vez de aumentarla — max_tokens más alto no hace más lenta una respuesta que igual
+# termina antes (stop_reason=end_turn), solo evita truncarla.
+MAX_TOKENS_POR_ITEM = {
+    "presupuesto":           24000,
+    "presupuesto_electrico": 24000,
+}
+
 # Páginas máximas para visión (PDFs escaneados / con imágenes)
 MAX_PAGINAS_ESCANEADO = 5   # Mapas, planos, documentos generales
 MAX_PAGINAS_POR_TIPO = {
@@ -1765,6 +1779,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           bloque_verificacion: str = "",
                           consultor: dict = None, resumen: dict = None,
                           max_chars_total: int = MAX_CHARS_EJE_TOTAL,
+                          max_tokens_total: int = MAX_TOKENS_SONNET,
                           tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
     """
     Núcleo de análisis de un grupo de documentos (eje temático o ítem del SEP).
@@ -2084,16 +2099,16 @@ DOCUMENTOS DEL GRUPO (texto):
     async def _llamar(max_tokens):
         return await asyncio.to_thread(_stream_final, max_tokens)
 
-    response = await _llamar(MAX_TOKENS_SONNET)
+    response = await _llamar(max_tokens_total)
     content = _texto_respuesta(response)
 
     # El "thinking" de Sonnet 5 a veces se come todo el cupo antes de escribir el JSON,
     # sobre todo en grupos con imágenes (más que razonar). Si la respuesta llega vacía y
     # cortada por límite de tokens, reintenta una vez con más cupo antes de rendirse.
     if not content.strip() and response.stop_reason == "max_tokens":
-        print(f"⚠️ Grupo '{nombre}': respuesta vacía por max_tokens ({MAX_TOKENS_SONNET}) — "
+        print(f"⚠️ Grupo '{nombre}': respuesta vacía por max_tokens ({max_tokens_total}) — "
               f"reintentando con más cupo…")
-        response = await _llamar(MAX_TOKENS_SONNET + 8000)
+        response = await _llamar(max_tokens_total + 8000)
         content = _texto_respuesta(response)
 
     observaciones = []
@@ -2328,6 +2343,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         bloque_verificacion=bloque_verificacion,
         consultor=consultor, resumen=resumen,
         max_chars_total=MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL),
+        max_tokens_total=MAX_TOKENS_POR_ITEM.get(item_key, MAX_TOKENS_SONNET),
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
     # Invalidación cruzada: corre en PARALELO al análisis principal (asyncio.gather) — no agrega
