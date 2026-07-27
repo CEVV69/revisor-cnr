@@ -139,7 +139,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               precipitacion_mmhr: float = None,
                               horas_disponibles_dia: float = None,
                               volumen_acumulador_m3: float = None,
-                              db_diario_mm_dia: float = None) -> dict:
+                              db_diario_mm_dia: float = None,
+                              n_posturas_ext: int = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -211,7 +212,21 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     nada. `caudal_disponible_ls` habilita la superficie segura; `precipitacion_mmhr` habilita
     el tiempo de riego; el N° de sectores y el resto de las verificaciones necesitan
     precipitación + superficie; `horas_disponibles_dia` habilita la verificación de si el N° de
-    sectores calculado cabe en el día."""
+    sectores calculado cabe en el día.
+
+    **`n_posturas_ext` (jul-2026) — Aspersión/Carrete usan POSTURAS, no sectores.** En esos dos
+    sistemas el N° que declara el consultor no es de origen caudal (no se obtiene dividiendo el
+    caudal requerido entre el disponible) — es GEOMÉTRICO/de equipo: cuántas veces hay que
+    reposicionar un grupo fijo de aspersores, o el cañón, para cubrir el predio (ver
+    `postura_aspersion()`/`diseno_carrete()`). Si se pasa `n_posturas_ext` (ese N° ya calculado
+    con el modelo real del sistema), la función lo usa DIRECTO como `n_sectores` — NO recalcula
+    por caudal ni lo reduce con el acumulador (`caudal_estanque_ls` no se calcula en este caso: el
+    N° de posturas es fijo, no depende del acumulador). El resto del bloque (Caudal de operación,
+    Tiempo total del día, Balance diario, Volumen mínimo/ΔQ/Autonomía/T. llenado) usa exactamente
+    las MISMAS fórmulas de siempre, solo que con este N en vez del N° de sectores por caudal — por
+    eso los resultados de esos cálculos cambian para Aspersión/Carrete respecto a antes de este
+    parámetro. Sin `n_posturas_ext` (Goteo/Microaspersión, comportamiento de siempre), N° de
+    sectores se sigue calculando por caudal, con la reducción por acumulador incluida."""
     r = {}
     if not db_mm_dia:
         return r
@@ -235,13 +250,18 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
 
         vol_litros = (volumen_acumulador_m3 or 0) * 1000
         q_estanque_ls = (vol_litros / (tiempo_riego * 3600)) if vol_litros else 0.0
-        if vol_litros:
-            r["caudal_estanque_ls"] = round(q_estanque_ls, 3)
 
-        if caudal_disponible_ls:
-            n_sectores = max(1, math.ceil((q_requerido_total_ls - q_estanque_ls) / caudal_disponible_ls))
+        if n_posturas_ext is not None:
+            # Aspersión/Carrete: N° de posturas (geométrico/de equipo), fijo — no se recalcula
+            # por caudal ni se reduce con el acumulador.
+            n_sectores = max(1, int(n_posturas_ext))
         else:
-            n_sectores = 1
+            if vol_litros:
+                r["caudal_estanque_ls"] = round(q_estanque_ls, 3)
+            if caudal_disponible_ls:
+                n_sectores = max(1, math.ceil((q_requerido_total_ls - q_estanque_ls) / caudal_disponible_ls))
+            else:
+                n_sectores = 1
         r["n_sectores"] = n_sectores
         tiempo_total_dia = n_sectores * tiempo_riego
         r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)

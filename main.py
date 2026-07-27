@@ -1279,6 +1279,14 @@ def _agronomico_calculo(datos: dict):
         datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec)
+    # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
+    # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
+    # verificacion_diseno_riego).
+    n_posturas_ext = None
+    if datos.get("sistema_riego") == "Aspersión" and postura_check:
+        n_posturas_ext = postura_check.get("n_posturas")
+    elif datos.get("sistema_riego") == "Carrete" and carrete_check:
+        n_posturas_ext = carrete_check.get("n_posturas")
     r.update(calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         db_diario_mm_dia=r.get("db_diario_mm"),
@@ -1287,6 +1295,7 @@ def _agronomico_calculo(datos: dict):
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         volumen_acumulador_m3=datos.get("volumen_acumulador_m3"),
+        n_posturas_ext=n_posturas_ext,
     ))
     if kc_dt05:
         r["kc_dt05"] = kc_dt05

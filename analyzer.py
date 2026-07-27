@@ -1294,11 +1294,13 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                   f"mm/hr) — suelo poco apto para este sistema, independiente del "
                                   f"cañón elegido.")
                     texto += " Genera una observación citando estos números exactos."
-            texto += ("\n\nADVERTENCIA: el modelo de posturas de arriba (INIA-Carillanca) es el "
-                      "diseño REAL y específico del carrete — no confundir con la \"VERIFICACIÓN "
-                      "DE DISEÑO BASE\" más abajo (esa es una referencia general de "
-                      "demanda↔caudal↔tiempo↔sectores pensada para sistemas localizados, y para "
-                      "carrete solo aplica como aproximación, no como el diseño exacto).")
+            texto += ("\n\nNOTA: el modelo de posturas de arriba (INIA-Carillanca) es el diseño "
+                      "REAL y específico del carrete — el N° de posturas que resulta de acá es "
+                      "el mismo que usa la \"VERIFICACIÓN DE DISEÑO BASE\" más abajo para Caudal "
+                      "de operación/Tiempo total/Balance de volumen (ya no un N° de sectores "
+                      "genérico); el Tiempo de riego/Caudal de operación de ese bloque sí siguen "
+                      "partiendo de la Precipitación del sistema DECLARADA, que puede no coincidir "
+                      "exactamente con la Pluviometría calculada arriba.")
 
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
     # calcGA del Diseñador). No requiere ni usa el criterio de riego.
@@ -1360,6 +1362,16 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 texto += (f". Posturas/día = ⌊Horas disponibles / (T. postura + 0,5 hr de "
                           f"traslado)⌋ = {postura['posturas_dia']} posturas/día.")
 
+    # Aspersión/Carrete: el N° de posturas real (geométrico/de equipo, ya calculado arriba) pasa
+    # a ser el N° que usan Caudal de operación/Tiempo total/Balance/Volumen del estanque de abajo
+    # — reemplaza por completo al N° de sectores por caudal (que solo aplica a Goteo/
+    # Microaspersión, sistemas sin posiciones fijas de emisor).
+    n_posturas_ext = None
+    if datos.get("sistema_riego") == "Aspersión" and postura:
+        n_posturas_ext = postura.get("n_posturas")
+    elif datos.get("sistema_riego") == "Carrete" and carrete:
+        n_posturas_ext = carrete.get("n_posturas")
+
     volumen_acum = datos.get("volumen_acumulador_m3")
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
@@ -1369,6 +1381,7 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         volumen_acumulador_m3=volumen_acum,
+        n_posturas_ext=n_posturas_ext,
     )
     if diseno:
         lineas_diseno = [f"Demanda (base DIARIA, Db/Ef sin Fr) = {diseno['demanda_ls_ha']} l/s/ha"]
@@ -1390,44 +1403,51 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 linea += f" — declarado = {declarado_triego} hr/día, no coincide con el recálculo."
             lineas_diseno.append(linea)
         if "n_sectores" in diseno:
-            # Fórmula v104 del Diseñador de Riego, forma CERRADA (sin iterar): el acumulador ya
-            # NO se suma al caudal de la fuente para "superficie segura" — su rol es exclusivo de
-            # reducir el N° de sectores necesario, aportando durante el riego de cada sector.
-            if "caudal_estanque_ls" in diseno:
-                lineas_diseno.append(
-                    f"El proyecto declara un acumulador de {volumen_acum} m³ — durante el tiempo "
-                    f"de riego de UN sector puede aportar Q_estanque = Vol×1000/(T_riego×3600) = "
-                    f"{diseno['caudal_estanque_ls']} l/s adicionales a la fuente (fórmula del "
-                    f"Diseñador de Riego v104, forma cerrada sin iterar — el estanque ya NO se "
-                    f"suma al caudal disponible para la superficie segura de arriba, solo reduce "
-                    f"el N° de sectores necesario).")
-                formula_nsec = (f"N° de sectores = ⌈(Q requerido − Q estanque) / Q fuente⌉ = "
-                                 f"⌈({diseno.get('q_requerido_total_ls')} − "
-                                 f"{diseno['caudal_estanque_ls']}) / {caudal_disp}⌉")
-            else:
-                formula_nsec = (f"N° de sectores = ⌈Q requerido / Q fuente⌉ = "
-                                 f"⌈{diseno.get('q_requerido_total_ls')} / {caudal_disp}⌉")
-            linea = (f"Q requerido para regar toda la superficie a la vez = Precipitación × "
-                      f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s. "
-                      f"{formula_nsec} = {diseno['n_sectores']}")
             sistema_actual = datos.get("sistema_riego")
-            if sistema_actual in ("Aspersión", "Carrete"):
-                # En Aspersión/Carrete lo declarado por el consultor NO se compara contra este N°
-                # de sectores genérico (modelo de caudal, pensado para Goteo/Microaspersión) — ya
-                # se comparó más arriba contra el N° de posturas real de cada sistema (VERIFICACIÓN
-                # DE POSTURA para Aspersión, VERIFICACIÓN DE OPERACIÓN DEL CARRETE para Carrete).
-                linea += (" (cifra de referencia del modelo genérico por caudal — la comparación "
-                          "con lo declarado ya se hizo arriba, con el modelo real de este sistema; "
-                          "no la repitas ni la contradigas acá).")
+            es_postura_sist = sistema_actual in ("Aspersión", "Carrete")
+            # En Aspersión/Carrete el N° que sigue es de POSTURAS (geométrico/de equipo, ya
+            # calculado arriba con el modelo real de cada sistema) — reemplaza por completo al N°
+            # de sectores por caudal, que solo aplica a Goteo/Microaspersión. Por eso Caudal de
+            # operación/Tiempo total/Balance/Volumen del estanque de aquí en adelante dan
+            # resultados distintos a los que darían con el N° de sectores genérico.
+            palabra = "postura" if es_postura_sist else "sector"
+            palabra_pl = "posturas" if es_postura_sist else "sectores"
+            articulo_pl = "las" if es_postura_sist else "los"
+            if es_postura_sist:
+                linea = (f"N° de {palabra_pl} = {diseno['n_sectores']} (mismo N° de {palabra_pl} "
+                          f"ya calculado arriba con el modelo real de este sistema — no se "
+                          f"recalcula por caudal, ver la comparación con lo declarado más arriba).")
             else:
+                # Fórmula v104 del Diseñador de Riego, forma CERRADA (sin iterar): el acumulador
+                # ya NO se suma al caudal de la fuente para "superficie segura" — su rol es
+                # exclusivo de reducir el N° de sectores necesario, aportando durante el riego de
+                # cada sector.
+                if "caudal_estanque_ls" in diseno:
+                    lineas_diseno.append(
+                        f"El proyecto declara un acumulador de {volumen_acum} m³ — durante el "
+                        f"tiempo de riego de UN sector puede aportar Q_estanque = "
+                        f"Vol×1000/(T_riego×3600) = {diseno['caudal_estanque_ls']} l/s "
+                        f"adicionales a la fuente (fórmula del Diseñador de Riego v104, forma "
+                        f"cerrada sin iterar — el estanque ya NO se suma al caudal disponible "
+                        f"para la superficie segura de arriba, solo reduce el N° de sectores "
+                        f"necesario).")
+                    formula_nsec = (f"N° de sectores = ⌈(Q requerido − Q estanque) / Q fuente⌉ = "
+                                     f"⌈({diseno.get('q_requerido_total_ls')} − "
+                                     f"{diseno['caudal_estanque_ls']}) / {caudal_disp}⌉")
+                else:
+                    formula_nsec = (f"N° de sectores = ⌈Q requerido / Q fuente⌉ = "
+                                     f"⌈{diseno.get('q_requerido_total_ls')} / {caudal_disp}⌉")
+                linea = (f"Q requerido para regar toda la superficie a la vez = Precipitación × "
+                          f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s. "
+                          f"{formula_nsec} = {diseno['n_sectores']}")
                 declarado_nsec = declarado.get("n_sectores")
                 if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
                     linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
             lineas_diseno.append(linea)
             if "caudal_operacion_ls" in diseno:
                 linea_op = (f"Caudal de operación de la red (el que circula por la tubería "
-                             f"mientras opera UN sector, usado para dimensionar diámetros) = "
-                             f"Q requerido / N° sectores = {diseno['caudal_operacion_ls']} l/s")
+                             f"mientras opera UNA {palabra}, usado para dimensionar diámetros) = "
+                             f"Q requerido / N° {palabra_pl} = {diseno['caudal_operacion_ls']} l/s")
                 declarado_qdiseno = declarado.get("caudal_diseno_ls")
                 if declarado_qdiseno is not None and _diferencia_relevante(
                         diseno["caudal_operacion_ls"], declarado_qdiseno, 10):
@@ -1435,8 +1455,8 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                   f"coincide con el recálculo.")
                 lineas_diseno.append(linea_op)
             if "tiempo_total_dia_hr" in diseno:
-                linea_tiempo = (f"Tiempo total para regar los {diseno['n_sectores']} sectores = "
-                                 f"N° sectores × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
+                linea_tiempo = (f"Tiempo total para regar {articulo_pl} {diseno['n_sectores']} {palabra_pl} = "
+                                 f"N° {palabra_pl} × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
                 if "cabe_en_horas_disponibles" in diseno:
                     if diseno["cabe_en_horas_disponibles"]:
                         linea_tiempo += f" — cabe en las {datos.get('horas_disponibles_dia')} hr/día disponibles declaradas."
@@ -1447,7 +1467,7 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                           f"el riego en más días.")
                 lineas_diseno.append(linea_tiempo)
             if "v_requerido_dia_l" in diseno and "v_fuente_dia_l" in diseno:
-                linea_bal = (f"Balance diario de volumen (NO depende del N° de sectores): "
+                linea_bal = (f"Balance diario de volumen (NO depende del N° de {palabra_pl}): "
                              f"V. requerido = Q requerido × Tiempo de riego × 3.600 = "
                              f"{diseno['v_requerido_dia_l']} L/día — V. que aporta la fuente en "
                              f"24 hr = {diseno['v_fuente_dia_l']} L/día")
@@ -1491,12 +1511,16 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                             f"La fuente sola ya alcanza el caudal de operación (ΔQ del estanque "
                             f"= 0) — tiempo de llenado desde vacío (solo con la fuente) = "
                             f"{diseno['tiempo_llenado_estanque_hr']} hr.")
-        texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores↔"
-                  "volumen, cálculo determinístico — nota: esta relación es la que usan los "
-                  "sistemas localizados goteo/microaspersión del Diseñador de Riego; en "
-                  "aspersión/carrete el diseño real usa un modelo de posturas más elaborado, así "
-                  "que trata esta verificación como una referencia general, no como el diseño "
-                  "exacto si el sistema es de aspersión o carrete):\n"
+        texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores/"
+                  "posturas↔volumen, cálculo determinístico — en Goteo/Microaspersión el N° de "
+                  "sectores se calcula por caudal; en Aspersión/Carrete se usa el N° de POSTURAS "
+                  "real de ese sistema, ya calculado arriba, así que Caudal de operación/Tiempo "
+                  "total/Balance/Volumen del estanque de acá abajo también son específicos de "
+                  "cada sistema, no una referencia genérica. Nota: en Aspersión/Carrete, el "
+                  "Tiempo de riego y el Caudal de operación de este bloque parten de la "
+                  "Precipitación del sistema DECLARADA — si difiere de la VA/pluviometría "
+                  "calculada arriba, estos dos números pueden no coincidir exactamente con Q_postura/"
+                  "Q_diseño del cañón; no es un error, son dos cálculos con distinto dato base):\n"
                   + "\n".join(f"- {l}" for l in lineas_diseno) +
                   "\n\nSi hay una discrepancia relevante, si el diseño no cabe en las horas "
                   "disponibles, o si el balance diario o el volumen del acumulador no alcanzan, "

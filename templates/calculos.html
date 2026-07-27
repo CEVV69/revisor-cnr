@@ -696,10 +696,20 @@
     // más abajo), no contra el "N° de sectores" genérico (fórmula de caudal, pensada para
     // Goteo/Microaspersión).
     var esPosturas = sistema === "Aspersión" || sistema === "Carrete";
+    // N° de posturas real (Aspersión: VA/marco de aspersores; Carrete: INIA-Carillanca) — cuando
+    // está disponible, REEMPLAZA por completo al N° de sectores por caudal en Caudal de
+    // operación/Tiempo total/Balance/Volumen del estanque más abajo (se completa en el bloque de
+    // Aspersión o de Carrete, ambos independientes de la cadena, antes de llegar acá).
+    var nPosturasReal = null;
+    // Nota de "no coincide con lo declarado" del N° de posturas — se arma como STRING acá (no se
+    // escribe al DOM todavía) porque `nota()` con texto vacío solo oculta el <span>, NO limpia su
+    // textContent — leer el DOM más abajo para "agregar" la alerta de horas encima quedaría
+    // arrastrando texto viejo de un recálculo anterior (bug real: el mensaje se duplicaba en cada
+    // input). Se escribe UNA sola vez, combinada con la alerta de horas si corresponde.
+    var notaNsecDeclarada = "";
     setText(p + "agro-nsec-label", esPosturas ? "N° de posturas" : "N° de sectores");
     if (esPosturas) {
-      // Se completa más abajo (bloque de Aspersión o de Carrete, ambos independientes de la
-      // cadena) — placeholder por si los datos de postura/carrete están incompletos.
+      // Placeholder por si los datos de postura/carrete están incompletos — se completa más abajo.
       setText(p + "agro-nsec-calc", "—");
       nota(p + "agro-nsec-nota", "");
     }
@@ -798,9 +808,10 @@
       nPosturasAsp = supPosturaAsp ? Math.ceil(sup / supPosturaAsp) : null;
       setText(p + "agro-suppos-calc", fmt(supPosturaAsp, 3) + " ha");
       if (sistema === "Aspersión" && nPosturasAsp !== null) {
+        nPosturasReal = nPosturasAsp;
         setText(p + "agro-nsec-calc", String(nPosturasAsp));
-        nota(p + "agro-nsec-nota", (declNsec !== null && declNsec !== nPosturasAsp)
-          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+        notaNsecDeclarada = (declNsec !== null && declNsec !== nPosturasAsp)
+          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "";
       }
     } else {
       setText(p + "agro-va-calc", "—");
@@ -833,9 +844,10 @@
       var nPosturas = supPostura ? Math.ceil(sup / supPostura) : null;
       setText(p + "agro-car-post-calc", fmt(supPostura, 3) + " ha por postura");
       if (sistema === "Carrete" && nPosturas !== null) {
+        nPosturasReal = nPosturas;
         setText(p + "agro-nsec-calc", String(nPosturas));
-        nota(p + "agro-nsec-nota", (declNsec !== null && declNsec !== nPosturas)
-          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+        notaNsecDeclarada = (declNsec !== null && declNsec !== nPosturas)
+          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "";
       }
 
       var lManguera = Math.max(longitudFranja / 2 - (2 / 3) * radioAlcance, 10);
@@ -950,32 +962,44 @@
       nota(p + "agro-sup-nota", "");
     }
 
-    // N° de sectores — fórmula v104 del Diseñador de Riego (calcGE/calcME), FORMA CERRADA sin
-    // iterar: si hay acumulador, su aporte durante el riego de UN sector (Q_estanque) se resta
-    // del caudal requerido antes de dividir por el caudal de la fuente.
+    // N° de sectores (Goteo/Microaspersión, fórmula v104 del Diseñador — calcGE/calcME, FORMA
+    // CERRADA sin iterar, acumulador reduce el N° necesario) o N° de posturas (Aspersión/
+    // Carrete, `nPosturasReal` — geométrico/de equipo, YA calculado arriba, NO se recalcula por
+    // caudal ni se reduce con el acumulador). Con ese N°, el resto (Caudal de operación/Tiempo
+    // total/Balance/Volumen del estanque) usa la MISMA fórmula de siempre — solo cambia de dónde
+    // sale N, por eso esos resultados difieren de antes para Aspersión/Carrete.
     var qRequerido = null, nSectores = null, tiempoTotalDia = null, caudalEstanque = null;
+    var palabraPl = esPosturas ? "posturas" : "sectores";
+    var articuloPl = esPosturas ? "las" : "los";
     if (precip !== null) {
       setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr");
       nota(p + "agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");
       if (sup !== null && tiempoRiego) {
         qRequerido = precip * sup * 10000 / 3600;
-        caudalEstanque = (volAcum !== null && tiempoRiego) ? (volAcum * 1000) / (tiempoRiego * 3600) : 0;
-        nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
-        tiempoTotalDia = nSectores * tiempoRiego;
-        // En Aspersión/Carrete la fila unificada "N° de posturas" ya se completó arriba (bloque
-        // independiente, con el modelo real de cada sistema) — no la pisamos con este N° de
-        // sectores genérico, que sigue siendo solo referencia interna para caudal de operación/
-        // balance más abajo.
-        if (!esPosturas) {
-          setText(p + "agro-nsec-calc", String(nSectores));
-          var notaNsec = "";
-          if (declNsec !== null && declNsec !== nSectores) {
-            notaNsec = "No coincide con lo declarado (" + fmt(declNsec, 0) + ").";
+        if (esPosturas) {
+          nSectores = nPosturasReal;
+        } else {
+          caudalEstanque = (volAcum !== null && tiempoRiego) ? (volAcum * 1000) / (tiempoRiego * 3600) : 0;
+          nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
+        }
+        if (nSectores !== null) {
+          tiempoTotalDia = nSectores * tiempoRiego;
+          var excedeMsg = (horas !== null && tiempoTotalDia > horas)
+            ? "El riego de " + articuloPl + " " + nSectores + " " + palabraPl + " (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles."
+            : "";
+          if (!esPosturas) {
+            // Goteo/Microaspersión: la fila unificada (valor + comparación) se completa ACÁ.
+            setText(p + "agro-nsec-calc", String(nSectores));
+            notaNsecDeclarada = (declNsec !== null && declNsec !== nSectores)
+              ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "";
           }
-          if (horas !== null && tiempoTotalDia > horas) {
-            notaNsec += (notaNsec ? " " : "") + "El riego de los " + nSectores + " sectores (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles.";
-          }
-          nota(p + "agro-nsec-nota", notaNsec);
+          // Combina la comparación con lo declarado (ya armada arriba, sea acá o en el bloque de
+          // Aspersión/Carrete) con la alerta de horas — UNA sola escritura al DOM, para no
+          // arrastrar texto de un recálculo anterior (nota() con texto vacío solo oculta el
+          // <span>, no limpia su textContent).
+          var notaNsecFinal = notaNsecDeclarada;
+          if (excedeMsg) notaNsecFinal += (notaNsecFinal ? " " : "") + excedeMsg;
+          nota(p + "agro-nsec-nota", notaNsecFinal);
         }
       } else if (!esPosturas) {
         setText(p + "agro-nsec-calc", "—");

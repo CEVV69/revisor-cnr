@@ -2009,14 +2009,59 @@ del Diseñador (línea ~2207): son dos conceptos DISTINTOS, no un problema de no
   Mismo comportamiento verificado para Carrete (declarado 5, calculado 5, sin alerta). VA, A
   postura, tiempo por postura y posturas/día verificados con paridad numérica exacta contra
   `calculos_riego.py` (mismos valores que usa el propio Diseñador como ejemplo por defecto).
-- **Alcance — no tocado a propósito:** el resto de la "VERIFICACIÓN DE DISEÑO BASE" (Caudal de
-  operación, Balance diario, Volumen mínimo del estanque, ΔQ/Autonomía/T. llenado) sigue usando
-  el N° de sectores genérico internamente para Aspersión/Carrete — ya estaba etiquetado como
-  "referencia general, no el diseño exacto" para esos dos sistemas antes de este cambio, y
-  reconciliar esos cálculos con el modelo real de postura/carrete es un trabajo bastante más
-  grande que lo pedido hoy (el usuario preguntó específicamente por la etiqueta/comparación de
-  N° de sectores vs. posturas). Si en el futuro esos números generan ruido para Aspersión/Carrete,
-  es un candidato claro para una próxima iteración.
+- **Seguimiento — el N° de sectores DESAPARECE del todo para Aspersión/Carrete, reemplazado por
+  el N° de posturas real en TODO el bloque (jul-2026):** en la primera versión de este cambio
+  (arriba) el N° de posturas solo reemplazaba a la etiqueta/comparación de esa fila puntual — el
+  resto de "VERIFICACIÓN DE DISEÑO BASE" (Caudal de operación, Tiempo total, Balance diario,
+  Volumen mínimo del estanque, ΔQ/Autonomía/T. llenado) seguía usando el N° de sectores genérico
+  por caudal internamente. El usuario pidió ir más allá: que el N° de sectores desaparezca por
+  completo para esos dos sistemas, reemplazado por el N° de posturas en TODOS esos cálculos —
+  es decir, no solo la etiqueta, sino el número que efectivamente alimenta las fórmulas.
+  - `calculos_riego.verificacion_diseno_riego()` ganó el parámetro `n_posturas_ext` — si se pasa
+    (Aspersión: `postura_aspersion().n_posturas`; Carrete: `diseno_carrete().n_posturas`, ambos ya
+    calculados en el bloque independiente correspondiente), se usa DIRECTO como `n_sectores`
+    interno — ya NO se recalcula por caudal, y el acumulador YA NO lo reduce (`caudal_estanque_ls`
+    ni siquiera se calcula en este caso): el N° de posturas es geométrico/de equipo, fijo,
+    independiente de cuánta agua entregue el acumulador. El resto del bloque (Caudal de
+    operación = Q_requerido/N, Tiempo total = N×Tiempo de riego, Balance diario, Volumen mínimo/
+    ΔQ/Autonomía/T. llenado) usa exactamente las MISMAS fórmulas de siempre, solo que con este N
+    en vez del N° de sectores por caudal — por eso esos resultados cambian de valor para
+    Aspersión/Carrete respecto a la versión anterior de este mismo cambio.
+  - `analyzer.py`/`main.py`: wireado análogo al de la sección anterior — `n_posturas_ext` se arma
+    desde `postura`/`carrete` (ya calculados) y se pasa a `verificacion_diseno_riego()`. El texto
+    de la IA para la línea "N° de sectores"/"N° de posturas" dentro de "VERIFICACIÓN DE DISEÑO
+    BASE" ya no re-deriva la fórmula por caudal ni vuelve a comparar contra lo declarado (eso ya
+    se hizo en el bloque de postura/carrete arriba) — solo cita el mismo valor con una nota de que
+    es el mismo N° ya calculado. El resto de las líneas (Caudal de operación, Tiempo total,
+    Balance) cambian su texto de "sectores" a "posturas" (con concordancia de género: "los
+    sectores" / "las posturas") cuando aplica. El párrafo introductorio del bloque también se
+    actualizó para explicar que, en Aspersión/Carrete, estos cálculos ya no son una "referencia
+    genérica" sino que usan el N° real — con la salvedad de que el Tiempo de riego/Caudal de
+    operación de este bloque siguen partiendo de la Precipitación del sistema DECLARADA (no de la
+    VA/pluviometría calculada en el bloque de postura/carrete), así que pueden no coincidir
+    exactamente con Q_postura/Q_diseño del cañón si esos dos valores difieren en el expediente.
+  - **UI (`calculos.html`)**: mismo patrón — `nSectores` (variable JS reutilizada para el resto de
+    la cadena de cálculos: `caudalOperacion`, `tiempoTotalDia`, balance, volumen mínimo, ΔQ/
+    autonomía/T. llenado) pasa a valer `nPosturasReal` para Aspersión/Carrete, sin pasar por la
+    fórmula de caudal ni por la reducción del acumulador.
+  - **Bug encontrado y corregido durante la verificación**: el primer intento de "agregar" la
+    alerta de horas-excedidas a la nota ya escrita por el bloque de postura/carrete leía
+    `elNota.textContent` del DOM y le concatenaba el mensaje nuevo — pero `nota()` con texto vacío
+    solo oculta el `<span>` (`display:none`), NO limpia su `textContent`, así que en cada
+    recálculo (cada tecla escrita) el mensaje se iba concatenando sin fin. Se corrigió armando el
+    texto combinado como una variable JS (`notaNsecDeclarada` + `excedeMsg`) desde cero en cada
+    pasada, sin leer nunca el DOM de vuelta — con una sola escritura final a `nota()`. **Lección
+    para código nuevo:** `nota(id, "")` en este archivo NUNCA limpia el texto interno, solo oculta
+    — no usar `elemento.textContent` como fuente de verdad para "agregar" a una nota ya escrita
+    por otro bloque; pasar el valor combinado por una variable.
+  - **Verificado con Playwright**, revisando visibilidad real (`is_visible()`), no solo el
+    `textContent` crudo (que puede quedar con texto viejo en un `<span>` oculto sin que eso sea un
+    bug real) — comparación de las 3 combinaciones sin duplicación (Carrete: horas 3→20 pasa de
+    "excede" visible a oculto sin arrastrar texto; declarado 99→5 igual; Aspersión: declarado
+    5→20 pasa de "no coincide + excede" a solo "excede", sin duplicar la parte de horas). Caudal
+    de operación de Aspersión con datos de prueba: antes 2,84 l/s (con N° sectores=18 genérico),
+    ahora 2,556 l/s (con N° posturas=20 real) — confirma que el resultado cambia, tal como pidió
+    el usuario. Paridad numérica Python↔JS exacta en todos los casos.
 
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
