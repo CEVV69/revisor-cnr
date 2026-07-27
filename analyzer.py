@@ -2186,7 +2186,16 @@ async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nue
     visible de más, que el revisor descarta a mano igual que siempre — el costo de equivocarse
     no es simétrico. Además, cualquier auto-descarte que igual se produzca queda con la
     justificación de la IA visible en el texto de la observación (ver `main.revisar_item`), para
-    que el revisor detecte de un vistazo si el criterio fue razonable o no."""
+    que el revisor detecte de un vistazo si el criterio fue razonable o no.
+
+    **Segundo bug real (jul-2026) — confundía "el dato correcto existe en otro lado" con "el
+    error fue corregido":** una observación de "Identificación del área de riego" (la SUMA de
+    superficies de ESE documento no coincidía con lo declarado) se descartó porque el plano de
+    tecnificación tenía las superficies correctas — pero eso NO corrige el error de suma del
+    documento observado, que sigue mal y el consultor debe arreglarlo igual. Se agregó la regla 4
+    (distingue "falta un dato/es ambiguo", que SÍ puede resolverse con otro documento, de "un
+    documento tiene un error interno", que NO se resuelve porque el dato correcto exista en otra
+    parte) con este caso real como ejemplo negativo, mismo patrón que el bug anterior."""
     if not observaciones_pendientes_otras or not texto_resumen_nuevo.strip():
         return []
 
@@ -2224,6 +2233,18 @@ REGLAS ESTRICTAS — la mayoría de las revisiones NO resuelven ninguna observac
 3. Si la observación pendiente es sobre un dato NUMÉRICO concreto (superficie, caudal, diámetro,
    monto, cantidad, etc.), el contenido revisado debe mencionar ESE MISMO dato, corregido o
    aclarado, por su nombre o su valor — no basta con que trate el mismo tema en general.
+4. DISTINGUE entre "falta un dato / es ambiguo" (SÍ se puede resolver si otro documento lo aporta
+   con claridad) y "un documento tiene un ERROR o INCONSISTENCIA interna" (NO se resuelve porque
+   OTRO documento tenga el dato correcto). Si la observación dice que un documento específico
+   calculó, sumó o declaró algo MAL, ese error sigue existiendo en ESE documento sin importar lo
+   que digan otros — el consultor debe corregirlo ahí, no basta con que el dato correcto exista
+   en otra parte del expediente. Ejemplo de error a EVITAR (caso real que NO debe repetirse): una
+   observación pendiente de "Identificación del área de riego" señala que la SUMA de superficies
+   de ese documento no coincide con lo declarado — NO queda resuelta porque el plano de
+   tecnificación tenga las superficies correctas; el documento observado sigue con la suma mal
+   hecha y debe corregirse igual, aunque el dato correcto exista en otro lado (de hecho, esa
+   discrepancia ENTRE documentos podría ser una observación nueva de Coherencia Global, no un
+   motivo para descartar la original).
 
 Responde SOLO en JSON, sin texto adicional:
 {{"resueltas": [

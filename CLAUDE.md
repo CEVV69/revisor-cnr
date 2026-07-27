@@ -2538,6 +2538,33 @@ El usuario confirmó que pasó "de esta misma manera" con TODAS las observacione
   esconde un hallazgo real de un proyecto de riego real, el costo de equivocarse no es simétrico
   con el costo en tokens de la llamada.
 
+**Segundo bug real — confundía "el dato correcto existe en otro documento" con "el error fue
+corregido" (jul-2026):** pese al fix anterior (regla de cita textual + ejemplo negativo), volvió
+a fallar con un caso distinto: una observación pendiente de "Identificación del área de riego"
+(la SUMA de superficies de ESE documento no coincidía con lo declarado) se auto-descartó como
+"resuelta al revisar Planos Proyecto tecnificación" — porque el plano SÍ tenía las superficies
+correctas. El usuario señaló el error de lógica: que el dato correcto exista en OTRO documento no
+corrige el error de cálculo del documento observado — ese documento sigue con la suma mal hecha y
+el consultor debe corregirlo igual, sin importar qué diga el resto del expediente.
+- **Causa:** las 3 reglas anteriores exigían "citar el mismo dato, corregido o aclarado" — pero
+  no distinguían DOS situaciones distintas que ambas pueden dar una cita válida: (a) un dato
+  FALTABA o era AMBIGUO, y otro documento lo aporta con claridad (resolución legítima, el caso
+  para el que se diseñó este mecanismo) vs. (b) un documento tiene un ERROR/INCONSISTENCIA
+  interna (una suma mal hecha), y otro documento simplemente tiene el dato correcto por su cuenta
+  (NO es una resolución — el documento con el error sigue erróneo).
+- **Fix:** regla 4 nueva en el prompt, con este caso real como ejemplo negativo explícito (mismo
+  patrón que el bug anterior) — distingue "falta un dato/es ambiguo" (sí resoluble por otro
+  documento) de "un documento tiene un error interno" (no se resuelve por comparación con otro
+  documento; el error de ESE documento sigue existiendo). Se agregó además la nota de que esa
+  discrepancia ENTRE documentos podría ser, en realidad, una observación NUEVA de Coherencia
+  Global — no un motivo para descartar la original.
+- **Patrón a vigilar:** este es el segundo bug de este tipo en `revisar_invalidacion_cruzada` —
+  cada vez que se corrige, conviene preguntarse si el nuevo caso revela una distinción más fina
+  que las reglas existentes no cubrían (como pasó acá), en vez de asumir que el prompt ya cubre
+  todos los matices. Si vuelve a fallar con un tercer patrón, aplicar el mismo criterio: pedir el
+  caso real exacto al usuario y agregarlo como ejemplo negativo ANCLADO a ese caso, no una regla
+  abstracta nueva sin ejemplo.
+
 **Revisión por Ejes eliminada por completo (jul-2026):** existió como método alternativo que
 convivía con Ítems SEP — 9 ejes temáticos (`EJES_REVISION`/`EJES_ORDEN`: Superficie,
 Agronómico, Hidrológico, Hidráulico, Energético/Fotovoltaico, Obras civiles, Presupuesto y
