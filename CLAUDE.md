@@ -1360,6 +1360,17 @@ de selección de emisor. El prompt de verificación se lo advierte explícitamen
   riego, N° sectores) — campos existentes se angostaron (`.agro-grid` de 150px a 115px mínimo)
   para que quepan más por fila, a pedido del usuario.
 
+**Bug resuelto — "Superficie de riego (ha)" no dejaba guardar valores chicos de invernaderos
+(jul-2026):** reportado por el usuario con un caso real: un invernadero de 60 m² (0,006 ha) — el
+campo tenía `step="0.01"` en el `<input type="number">`, y el HTML5 nativo del navegador exige
+que el valor sea múltiplo exacto del `step` (0,06 ha sí lo es, 0,006 ha no) — el navegador
+bloqueaba el guardado con su propio aviso de "valor no válido" ANTES de que la petición llegara
+al servidor (no era una validación de la app; `_num_form()` en el backend no rechaza nada por
+magnitud). Arreglado cambiando `step="0.01"` a `step="any"` en `templates/calculos.html` —
+acepta cualquier decimal, sin piso de precisión. Único campo afectado (es el único con esta
+combinación de escala en hectáreas + step de dos decimales que podía toparse con superficies de
+invernaderos chicos).
+
 **Label "Factor agotamiento" → "Criterio de Riego" (jul-2026):** el campo `factor_agotamiento_pct`
 (% del agua aprovechable del suelo consumible antes de regar, usado en `Dn = AD × factor`) se
 llamaba "Factor agotamiento" en `calculos.html` — término agronómico estándar (FAO-56), pero NO
