@@ -357,6 +357,13 @@ def _ahora() -> datetime:
     return datetime.now(TZ_CHILE)
 
 
+# Análisis de ítems en segundo plano (ver `revisar_item`/`_analizar_item_fondo`) — se guarda una
+# referencia a cada tarea para que Python no la recolija como basura a mitad de camino (gotcha
+# conocido de asyncio: una tarea sin referencias vivas puede destruirse "pending"). Se limpia sola
+# al terminar via el callback en `_lanzar_analisis_fondo`.
+_tareas_fondo: set = set()
+
+
 def _fmt_fecha(iso_str: str, con_hora: bool = False) -> str:
     """Formatea un datetime ISO a notación chilena dd/mm/aaaa (o dd/mm/aaaa HH:MM si
     con_hora=True). Los registros de antes de este fix son naive (sin huso horario) y quedan
@@ -429,6 +436,37 @@ async def startup_event():
         print("✅ Usuario admin creado: admin / admin123")
     else:
         print("✅ Usuario admin existe — datos persistidos correctamente")
+
+    try:
+        _limpiar_analisis_huerfanos()
+    except Exception as e:
+        print(f"❌ Error limpiando análisis huérfanos: {e}")
+
+
+def _limpiar_analisis_huerfanos():
+    """Análisis de ítems que quedaron marcados "analizando" de un proceso ANTERIOR (Railway
+    redespliega seguido en este proyecto) — la tarea asyncio que lo iba a terminar murió junto
+    con ese proceso, así que el ítem quedaría "analizando" para siempre sin esta limpieza. Correr
+    al arrancar es seguro y suficiente: cualquier entrada de `items_en_progreso` que exista en
+    este momento es, por definición, huérfana (ningún proceso vivo la está trabajando todavía —
+    recién estamos arrancando)."""
+    ligeros = db.get_proyectos_ligero(["id", "items_en_progreso"])
+    afectados = [p for p in ligeros if p.get("items_en_progreso")]
+    if not afectados:
+        return
+    for p_ligero in afectados:
+        proyecto = db.get_proyecto(p_ligero["id"])
+        if not proyecto or not proyecto.get("items_en_progreso"):
+            continue
+        proyecto.setdefault("items_error", {})
+        for item_key in list(proyecto["items_en_progreso"].keys()):
+            proyecto["items_error"][item_key] = {
+                "mensaje": "El análisis se interrumpió (reinicio del servidor) — puedes volver a intentarlo.",
+                "fecha": _ahora().isoformat(),
+            }
+        proyecto["items_en_progreso"] = {}
+        db.save_proyecto(proyecto)
+    print(f"🧹 Limpiados {len(afectados)} proyecto(s) con análisis huérfanos tras el reinicio")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -613,6 +651,8 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
                             if d["necesita_archivo"] and not d["archivo_presente"]])
     # Construir info de ítems SEP: cuántos documentos tiene disponible cada ítem y si ya se revisó
     items_revisados = proyecto.get("items_revisados", {})
+    items_en_progreso = proyecto.get("items_en_progreso", {})
+    items_error = proyecto.get("items_error", {})
     item_chats = proyecto.get("item_chats", {})
     items_info = []
     for item_key in ITEMS_ORDEN:
@@ -631,6 +671,10 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             "n_docs": n_docs,
             "revisado": items_revisados.get(item_key),
             "chat": item_chats.get(item_key, []),
+            # Análisis en segundo plano (ver revisar_item()/estado_item()) — la tarjeta del ítem
+            # muestra "Analizando…" (con polling) o el error guardado en vez del botón normal.
+            "en_progreso": item_key in items_en_progreso,
+            "error_analisis": items_error.get(item_key),
         })
 
     # Agrupar observaciones bajo un solo título por ítem, en su orden lógico.
@@ -814,6 +858,11 @@ async def subir_documento(
 
 @app.post("/proyecto/{proyecto_id}/revisar-item/{item_key}")
 async def revisar_item(request: Request, proyecto_id: str, item_key: str):
+    """Lanza el análisis del ítem en SEGUNDO PLANO y responde de inmediato — el navegador nunca
+    vuelve a sostener una conexión HTTP larga esperando a la IA (ver `_analizar_item_fondo` y
+    CLAUDE.md: esa espera era la causa de las pantallas en blanco con Presupuesto/Planos, cuando
+    el proxy externo cortaba la conexión aunque el análisis terminara bien en el servidor). La
+    página de Ítems SEP hace *polling* a `GET .../item/{item_key}/estado` hasta que termina."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
@@ -824,69 +873,100 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     if not proyecto:
         raise HTTPException(status_code=404)
 
-    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
-    bases_texto       = concurso.get("bases_texto", "") if concurso else ""
-    feedback_concurso = concurso.get("feedback", [])   if concurso else []
-    criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
-                 if concurso else "")
-    enfasis = _criterios_enfasis_combinados(item_key, concurso)
-    ckey, _ = _consultor_de_proyecto(proyecto)
-    consultor = db.get_consultor(ckey) if ckey else None
+    # Ya está analizando este ítem (doble clic, u otra pestaña) — no relanzar, la tarea en curso
+    # sigue su curso sola.
+    if item_key in proyecto.get("items_en_progreso", {}):
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/items#item-{item_key}", status_code=302)
 
-    # Si el revisor ya validó/corrigió los datos en "Chequeo de Cálculos", se usan tal cual en
-    # vez de volver a extraerlos automáticamente — la extracción puede fallar en algunos casos.
-    verif_calc = proyecto.get("verificacion_calculos", {})
+    proyecto.setdefault("items_en_progreso", {})[item_key] = {"inicio": _ahora().isoformat()}
+    proyecto.setdefault("items_error", {}).pop(item_key, None)
+    db.save_proyecto(proyecto)
 
-    def _validado(clave):
-        v = verif_calc.get(clave)
-        return v if v and v.get("validado") else None
+    tarea = asyncio.create_task(_analizar_item_fondo(proyecto_id, item_key))
+    _tareas_fondo.add(tarea)
+    tarea.add_done_callback(_tareas_fondo.discard)
 
-    # N° de sistemas de riego: selector ÚNICO y GLOBAL al proyecto (no puede ser 2 en
-    # Agronómico y 1 en Hidráulico — son el mismo proyecto físico).
-    n_sistemas = _n_sistemas_proyecto(verif_calc)
-    verif_hid_norm = _normalizar_verif_multisistema(verif_calc.get("hidraulico"), n_sistemas, "tramos")
-    datos_verificacion_hidraulica = (
-        {"sistemas": verif_hid_norm["sistemas"]}
-        if item_key == "diseno_hidraulico" and verif_hid_norm.get("validado") else None
-    )
-    verif_agro_norm = _normalizar_verif_multisistema(verif_calc.get("agronomico"), n_sistemas)
-    datos_verificacion_agronomica = (
-        {"sistemas": verif_agro_norm["sistemas"]}
-        if item_key == "diseno_hidraulico" and verif_agro_norm.get("validado") else None
-    )
-    datos_verificacion_fv         = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items#item-{item_key}", status_code=302)
 
-    # Tabla de precios referenciales promedio (subida en /admin/precios, no oficial de la CNR).
-    # Si nunca se ha subido nada, queda None y analizar_item() no corre la verificación de precios.
-    tabla_precios = None
-    if item_key in ("presupuesto", "presupuesto_electrico"):
-        precios_data = db.get_precios()
-        tabla_precios = precios_data.get("items") if precios_data else None
 
-    # Coherencia Global: se le pasan las observaciones YA generadas en los demás ítems para que
-    # no las repita — su rol es detectar solo lo que se ve mirando el expediente completo.
-    observaciones_previas = None
-    if item_key == "coherencia":
-        observaciones_previas = [
-            {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+def _finalizar_analisis_fondo(proyecto_id: str, item_key: str, mensaje_error: str,
+                              sin_docs: bool = False, proyecto_ya_cargado: dict = None):
+    """Cierra un análisis en segundo plano que terminó en error (o "sin documentos", tratado
+    igual — ver `estado_item()`): saca el ítem de `items_en_progreso` y deja el motivo en
+    `items_error` para que el próximo *poll* del navegador lo muestre."""
+    proyecto = proyecto_ya_cargado or db.get_proyecto(proyecto_id)
+    if not proyecto:
+        return
+    proyecto.setdefault("items_en_progreso", {}).pop(item_key, None)
+    proyecto.setdefault("items_error", {})[item_key] = {
+        "mensaje": mensaje_error, "fecha": _ahora().isoformat(), "sin_docs": sin_docs,
+    }
+    db.save_proyecto(proyecto)
+
+
+async def _analizar_item_fondo(proyecto_id: str, item_key: str):
+    """Cuerpo real del análisis de un ítem SEP — antes vivía dentro de `revisar_item()` y el
+    navegador esperaba esta misma corrutina completa; ahora corre desatada como tarea asyncio
+    (ver `revisar_item()`), así que nunca hay una conexión HTTP larga que un proxy externo pueda
+    cortar. La lógica de negocio (qué se le pasa a `analizar_item()`, cómo se guardan las
+    observaciones, la invalidación cruzada) es EXACTAMENTE la misma de siempre — no cambia el
+    análisis, solo cuándo/cómo le llega el resultado al navegador."""
+    try:
+        proyecto = db.get_proyecto(proyecto_id)
+        if not proyecto:
+            return
+
+        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+        concurso = db.get_concurso(concurso_id)
+        bases_texto       = concurso.get("bases_texto", "") if concurso else ""
+        feedback_concurso = concurso.get("feedback", [])   if concurso else []
+        criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
+                     if concurso else "")
+        enfasis = _criterios_enfasis_combinados(item_key, concurso)
+        ckey, _ = _consultor_de_proyecto(proyecto)
+        consultor = db.get_consultor(ckey) if ckey else None
+
+        verif_calc = proyecto.get("verificacion_calculos", {})
+
+        def _validado(clave):
+            v = verif_calc.get(clave)
+            return v if v and v.get("validado") else None
+
+        n_sistemas = _n_sistemas_proyecto(verif_calc)
+        verif_hid_norm = _normalizar_verif_multisistema(verif_calc.get("hidraulico"), n_sistemas, "tramos")
+        datos_verificacion_hidraulica = (
+            {"sistemas": verif_hid_norm["sistemas"]}
+            if item_key == "diseno_hidraulico" and verif_hid_norm.get("validado") else None
+        )
+        verif_agro_norm = _normalizar_verif_multisistema(verif_calc.get("agronomico"), n_sistemas)
+        datos_verificacion_agronomica = (
+            {"sistemas": verif_agro_norm["sistemas"]}
+            if item_key == "diseno_hidraulico" and verif_agro_norm.get("validado") else None
+        )
+        datos_verificacion_fv = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
+
+        tabla_precios = None
+        if item_key in ("presupuesto", "presupuesto_electrico"):
+            precios_data = db.get_precios()
+            tabla_precios = precios_data.get("items") if precios_data else None
+
+        observaciones_previas = None
+        if item_key == "coherencia":
+            observaciones_previas = [
+                {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+                for o in proyecto.get("observaciones", [])
+                if o.get("item") and o.get("item") != "coherencia" and o.get("estado") != "descartada"
+            ]
+
+        observaciones_pendientes_otros = [
+            {"id": o.get("id"), "item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
             for o in proyecto.get("observaciones", [])
-            if o.get("item") and o.get("item") != "coherencia" and o.get("estado") != "descartada"
+            if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
         ]
 
-    # Invalidación cruzada: observaciones PENDIENTES de OTROS ítems (no las aprobadas — una
-    # observación que el revisor ya confirmó no se toca automáticamente, y no las descartadas —
-    # ya no aplican). Si el contenido de ESTE ítem las resuelve, se auto-descartan más abajo.
-    observaciones_pendientes_otros = [
-        {"id": o.get("id"), "item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
-        for o in proyecto.get("observaciones", [])
-        if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
-    ]
+        _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
+        documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
-    _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
-    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
-
-    try:
         resultado = await analizar_item(
             item_key=item_key,
             documentos=documentos_con_texto,
@@ -909,13 +989,26 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
         )
     except Exception as e:
         import traceback
-        print(f"❌ ERROR en revisar_item {item_key}: {e}")
+        print(f"❌ ERROR en _analizar_item_fondo {item_key}: {e}")
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error al revisar ítem: {str(e)}")
+        _finalizar_analisis_fondo(proyecto_id, item_key, f"Error al revisar ítem: {str(e)}")
+        return
+
+    # Se relee el proyecto FRESCO justo antes de guardar — el análisis puede tardar minutos, y en
+    # ese tiempo el revisor pudo haber hecho otros cambios (aprobar una observación, editar el
+    # Resumen, etc.) desde otra pestaña. Aplicar el resultado sobre la copia más reciente posible
+    # acota esa ventana — mismo riesgo que ya existía en el flujo síncrono de siempre mientras
+    # esperaba a la IA (la app no usa transacciones, ver database.py), no uno nuevo de este cambio.
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        return
 
     if resultado.get("sin_documentos"):
-        return RedirectResponse(
-            url=f"/proyecto/{proyecto_id}/items?item_sin_docs={item_key}", status_code=302)
+        _finalizar_analisis_fondo(
+            proyecto_id, item_key,
+            "Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.",
+            sin_docs=True, proyecto_ya_cargado=proyecto)
+        return
 
     # Reemplazar observaciones previas de este ítem — las AGREGADAS A MANO por el revisor
     # (obs["manual"]) se conservan: no son un resultado del análisis, así que re-analizar no
@@ -942,13 +1035,6 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     obs_generadas = resultado.get("observaciones", [])
     n_notas = len([o for o in obs_generadas if o.get("severidad") == "informativa"])
     n_obs   = len(obs_generadas) - n_notas
-    proyecto.setdefault("items_revisados", {})
-    proyecto["items_revisados"][item_key] = {
-        "fecha": _ahora().isoformat(),
-        "n_obs": n_obs,
-        "n_notas": n_notas,
-        "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
-    }
 
     # Invalidación cruzada: auto-descartar observaciones PENDIENTES de OTROS ítems que el
     # contenido de este ítem resolvió (ver analyzer.revisar_invalidacion_cruzada). Solo toca
@@ -970,10 +1056,42 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
                 o["texto"] = o["texto"] + f'\n\n[Auto-descartada: resuelta al revisar "{nombre_item}"{sufijo}]'
                 n_invalidadas += 1
 
+    proyecto.setdefault("items_revisados", {})
+    proyecto["items_revisados"][item_key] = {
+        "fecha": _ahora().isoformat(),
+        "n_obs": n_obs,
+        "n_notas": n_notas,
+        "docs": docs_incluidos,   # [{id, nombre (archivo real), label (tipo)}] — para mostrar cuáles se usaron
+        "ultima_invalidadas": n_invalidadas,  # para que GET .../estado se lo pueda avisar al navegador
+    }
+    proyecto.setdefault("items_en_progreso", {}).pop(item_key, None)
+    proyecto.setdefault("items_error", {}).pop(item_key, None)
     db.save_proyecto(proyecto)
-    extra = f"&item_invalidadas={n_invalidadas}" if n_invalidadas else ""
-    return RedirectResponse(
-        url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}{extra}#item-{item_key}", status_code=302)
+
+
+@app.get("/proyecto/{proyecto_id}/item/{item_key}/estado")
+async def estado_item(request: Request, proyecto_id: str, item_key: str):
+    """*Polling* liviano — la página de Ítems SEP pregunta cada pocos segundos si un análisis en
+    segundo plano ya terminó, en vez de que el navegador sostenga una conexión larga. Nunca lee
+    documentos ni llama a la IA, solo el estado guardado en el proyecto."""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    if item_key in proyecto.get("items_en_progreso", {}):
+        return JSONResponse({"estado": "analizando"})
+
+    error = proyecto.get("items_error", {}).get(item_key)
+    if error:
+        return JSONResponse({"estado": "error", "mensaje": error.get("mensaje", ""),
+                             "sin_documentos": bool(error.get("sin_docs"))})
+
+    revisado = proyecto.get("items_revisados", {}).get(item_key)
+    n_invalidadas = revisado.get("ultima_invalidadas", 0) if revisado else 0
+    return JSONResponse({"estado": "listo", "item_invalidadas": n_invalidadas})
 
 
 @app.post("/proyecto/{proyecto_id}/item/{item_key}/observacion/agregar-manual")
@@ -2129,6 +2247,12 @@ async def limpiar_items(request: Request, proyecto_id: str):
         proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if not o.get("item")]
         proyecto["items_revisados"] = {}
         proyecto["item_chats"] = {}
+        # No se toca items_en_progreso — si hay un análisis realmente corriendo en segundo plano,
+        # se lo deja seguir su curso (interrumpirlo a mitad de camino no aporta nada, y su propio
+        # `_finalizar_analisis_fondo`/actualización de `items_revisados` no rompe nada si corre
+        # después de esta limpieza). Sí se limpian los errores viejos, para no dejar un banner de
+        # error de un análisis anterior después de que el revisor pidió partir de cero.
+        proyecto["items_error"] = {}
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 

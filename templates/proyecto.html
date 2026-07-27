@@ -610,7 +610,9 @@ function actualizarEtiqueta(input) {
 
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
     {% for item in items_info %}
-    <div style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+    <div id="item-card-{{ item.key }}" data-item-key="{{ item.key }}"
+         {% if item.en_progreso %}data-poll="1"{% endif %}
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
                 {% if item.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <strong style="font-size:0.86rem; flex:1;">{{ item.nombre }}</strong>
@@ -645,18 +647,68 @@ function actualizarEtiqueta(input) {
         </ul>
       </details>
       {% endif %}
+      {% if item.en_progreso %}
+      <div class="item-analizando" style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; color:var(--text-2); padding:0.4rem 0;">
+        <span class="spinner-chico" aria-hidden="true"></span> Analizando…
+      </div>
+      {% else %}
+      {% if item.error_analisis %}
+      <div class="alert alert-error" style="font-size:0.78rem; padding:0.4rem 0.6rem; margin:0;">{{ item.error_analisis.mensaje }}</div>
+      {% endif %}
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-item/{{ item.key }}"
             {% if item.revisado %}onsubmit="return confirm('¿Re-revisar el ítem {{ item.nombre }}? Se reemplazan las observaciones generadas por la IA anteriormente — las que agregaste a mano NO se borran.')"{% endif %}>
         <button type="submit"
                 class="btn btn-sm {% if item.revisado %}btn-ghost{% else %}btn-primary{% endif %}"
                 style="width:100%;"
                 {% if item.n_docs == 0 %}disabled title="Sin documentos para este ítem"{% endif %}>
-          {% if item.revisado %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
+          {% if item.error_analisis %}Reintentar{% elif item.revisado %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
         </button>
       </form>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
+  <style>
+    .spinner-chico {
+      display:inline-block; width:0.9rem; height:0.9rem; border-radius:50%;
+      border:2px solid var(--border); border-top-color:var(--text-2);
+      animation:girar-spinner 0.8s linear infinite;
+    }
+    @keyframes girar-spinner { to { transform:rotate(360deg); } }
+  </style>
+  <script>
+    (function() {
+      var proyectoId = "{{ proyecto.id }}";
+      function estadoUrl(key) { return "/proyecto/" + proyectoId + "/item/" + key + "/estado"; }
+      function irA(url) { window.location.href = url; }
+      function poll(key) {
+        fetch(estadoUrl(key)).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.estado === "analizando") {
+            setTimeout(function() { poll(key); }, 4000);
+            return;
+          }
+          if (data.estado === "listo") {
+            var extra = data.item_invalidadas ? "&item_invalidadas=" + data.item_invalidadas : "";
+            irA("/proyecto/" + proyectoId + "/items?item_ok=" + key + extra + "#item-" + key);
+          } else if (data.estado === "error") {
+            if (data.sin_documentos) {
+              irA("/proyecto/" + proyectoId + "/items?item_sin_docs=" + key + "#item-" + key);
+            } else {
+              // Recarga simple: el servidor ya guardó el mensaje de error, el próximo render lo
+              // muestra en la tarjeta (mismo bloque que ya maneja item.error_analisis).
+              irA("/proyecto/" + proyectoId + "/items#item-" + key);
+            }
+          }
+        }).catch(function() {
+          // Error de red puntual (ej. el propio deploy en curso) — reintenta, no se rinde.
+          setTimeout(function() { poll(key); }, 4000);
+        });
+      }
+      document.querySelectorAll('[data-poll="1"]').forEach(function(card) {
+        poll(card.getAttribute("data-item-key"));
+      });
+    })();
+  </script>
 </div>
 {% endif %}
 

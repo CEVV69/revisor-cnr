@@ -1089,20 +1089,80 @@ presupuesto largo de texto.
   `create()` sin streaming, la única llamada de este tipo (Sonnet 5, con reintento por max_tokens)
   que todavía no seguía la regla general del proyecto ("cualquier llamada a Sonnet 5 con
   `max_tokens` alto o que puede necesitar reintento debe ir con streaming").
-- **Sobre "evitar cerrar y volver a abrir la app" — si es posible, y por qué no se implementó
-  hoy:** el usuario preguntó si existe una forma interna de lograr lo mismo que cerrar/reabrir
-  (que el resultado aparezca) sin que el revisor tenga que notarlo. Sí es posible — el patrón es
-  correr el análisis en segundo plano (tarea async / background task) y que la página haga
-  *polling* (JS simple, sin framework, consistente con el resto de la app) hasta que el resultado
-  esté listo, en vez de que el navegador espere una sola petición HTTP que el proxy externo puede
-  cortar. Es la solución de fondo al problema (ya no dependería de qué tan alto esté
-  `max_tokens` ni de cuántos ítems se optimicen uno por uno) pero es un cambio de arquitectura
-  real — toca el flujo de "revisar ítem" para los 18 ítems, necesita persistir un estado
-  "analizando/listo/error" por ítem y una ruta de estado nueva para el polling. Se dejó
-  explícitamente pendiente de decisión del usuario (no se implementó sin que lo pidiera) — la
-  mitigación de hoy (más cupo por ítem, igual que Presupuesto) reduce cuánto pasa esto, pero no
-  lo elimina de raíz. Candidato claro para una sesión dedicada si sigue ocurriendo con otros
-  ítems.
+**Análisis de ítems en SEGUNDO PLANO + polling — reemplaza la espera síncrona (implementado,
+jul-2026):** solución de fondo al problema de "pantalla en blanco" con Presupuesto/Planos (ver
+las entradas anteriores) — en vez de mitigarlo ítem por ítem subiendo `max_tokens`, se eliminó la
+causa raíz: el navegador ya NUNCA sostiene una conexión HTTP larga esperando a la IA, así que no
+importa cuánto se demore un análisis, ni cuántos reintentos por `max_tokens` necesite — el proxy
+externo de Railway no tiene nada que cortar.
+- **Cómo funciona:** `POST /proyecto/{id}/revisar-item/{key}` ya NO espera el análisis — marca el
+  ítem como "analizando" (`proyecto["items_en_progreso"][key] = {"inicio": ...}`) y lanza
+  `_analizar_item_fondo()` como una tarea asyncio (`asyncio.create_task`, con la referencia
+  guardada en el `set` global `_tareas_fondo` para que Python no la recolecte a mitad de camino —
+  gotcha conocido de asyncio) sin esperarla ("fire and forget"). Responde de inmediato con un
+  redirect a la página de Ítems SEP. `_analizar_item_fondo()` es el cuerpo REAL del análisis —
+  exactamente la misma lógica que antes vivía dentro de `revisar_item()` (mismos parámetros a
+  `analizar_item()`, mismo guardado de observaciones, misma invalidación cruzada) — el análisis en
+  sí no cambió en nada, solo cuándo/cómo le llega el resultado al navegador.
+- **Por qué es viable sin cola de trabajos externa:** Railway corre esta app con un solo worker
+  de uvicorn (`railway.toml`: `uvicorn main:app ...`, sin `--workers`) — un solo proceso, un solo
+  event loop. Una tarea lanzada con `asyncio.create_task()` sigue corriendo en ese mismo loop
+  aunque la request que la lanzó ya haya respondido, mientras el proceso siga vivo (que sigue,
+  atendiendo otras requests) — no hace falta Celery ni una cola externa.
+- **Polling**: la página de Ítems SEP (`proyecto.html`) le agrega a cada tarjeta con
+  `item.en_progreso` el atributo `data-poll="1"`; un `<script>` chico (sin framework) al final del
+  bloque de ítems pregunta cada 4 segundos a `GET /proyecto/{id}/item/{key}/estado` (ruta nueva,
+  liviana — solo lee el estado guardado, nunca llama a la IA). Cuando el estado deja de ser
+  "analizando", el JS navega a la MISMA URL que ya usaba el redirect síncrono de siempre
+  (`?item_ok={key}&item_invalidadas={n}` si terminó bien, o `?item_sin_docs={key}` si el ítem no
+  tenía documentos) — reutiliza el banner y el auto-abrir-`<details>` ya existentes sin tocarlos.
+  Si el error no es "sin documentos", recarga la página a secas — la tarjeta del ítem ya trae el
+  mensaje de error guardado (mismo bloque que muestra `item.error_analisis`).
+- **Tres problemas "emergentes" resueltos, no solo mitigados** (la condición que puso el usuario
+  para aprobar la implementación):
+  1. **Redeploy mata la tarea a mitad de camino** (Railway redespliega seguido en este proyecto)
+     — `_limpiar_analisis_huerfanos()`, llamada en `startup_event()`, barre TODOS los proyectos al
+     arrancar y convierte cualquier `items_en_progreso` que encuentre en un `items_error` con
+     mensaje explícito ("se interrumpió por reinicio del servidor"). Es una limpieza correcta por
+     definición: si el proceso recién está arrancando, ninguna tarea de un proceso anterior puede
+     seguir viva. Usa `db.get_proyectos_ligero(["id", "items_en_progreso"])` para no cargar el
+     blob completo de cada proyecto solo para filtrar.
+  2. **Doble clic / doble análisis del mismo ítem en paralelo** — `revisar_item()` revisa primero
+     si el ítem ya está en `items_en_progreso`; si sí, no relanza nada, solo redirige (no-op).
+  3. **La tarea de fondo lanza una excepción** (error de la API, etc.) — todo el cuerpo de
+     `_analizar_item_fondo()` está envuelto en try/except; el error se loguea (mismo patrón que
+     antes) y se guarda en `items_error[key]` vía `_finalizar_analisis_fondo()`, así el polling lo
+     detecta y lo muestra en vez de quedar "analizando" para siempre.
+- **Concurrencia con otras ediciones del proyecto:** el análisis puede tardar minutos, tiempo en
+  el que el revisor podría estar editando OTRA cosa del mismo proyecto desde otra pestaña (el
+  Resumen, aprobar una observación, etc.). `_analizar_item_fondo()` relee el proyecto FRESCO justo
+  antes de escribir el resultado final (no usa la copia que tenía al empezar) — acota la ventana
+  de una sobreescritura, aunque no la elimina del todo (la app no usa transacciones, ver
+  `database.py` — mismo riesgo que ya existía en el flujo síncrono de siempre mientras esperaba a
+  la IA, no uno nuevo introducido por este cambio).
+- **Qué NO cambió** (a propósito, para no arriesgar la calidad del análisis de ningún ítem):
+  `analyzer.py` completo — prompts, cupos de `max_tokens`, verificaciones determinísticas — sigue
+  exactamente igual. Este cambio es puramente de "plomería" alrededor de cuándo/cómo llega el
+  resultado al navegador, no de qué dice la IA. Los 18 ítems pasan por el mismo mecanismo (no se
+  puede aplicar solo a algunos, comparten la misma ruta) — para los ítems rápidos, la diferencia
+  es imperceptible ("analizando" dura 1-2 ciclos de polling).
+- **`proyecto["items_revisados"][key]` ganó el campo `"ultima_invalidadas"`** (antes ese número
+  solo viajaba como query param del redirect síncrono; ahora, como el redirect lo arma el JS
+  después de consultar `GET .../estado`, necesita poder leerlo desde el estado guardado).
+- **`limpiar-items`** también limpia `items_error` (para no dejar un banner de error de un
+  análisis anterior después de que el revisor pidió partir de cero) — a propósito NO toca
+  `items_en_progreso` (si hay un análisis realmente corriendo, se lo deja terminar solo).
+- **Verificado end-to-end con las funciones reales de `main.py`** (sin mocks de HTTP, llamando
+  `revisar_item()`/`_analizar_item_fondo()`/`estado_item()` directamente): doble clic no lanza una
+  segunda tarea; el estado pasa correctamente por "analizando" → "listo" con `analizar_item()`
+  simulado con `asyncio.sleep`; el camino de excepción cae en "error" con el mensaje;
+  `_limpiar_analisis_huerfanos()` limpia un `items_en_progreso` simulado de un "proceso anterior";
+  render completo de `proyecto.html` con las 3 tarjetas (analizando/error/revisado) a la vez
+  mostrando el spinner, el botón "Reintentar" y el mensaje de error correctos. No se pudo probar
+  con un navegador real contra un servidor vivo en este entorno (un bug de Jinja2/Starlette
+  preexistente en el sandbox — no relacionado con este cambio, reproducido también en el commit
+  anterior a esta sesión — impide levantar la app acá; no debería afectar Railway, que corre otras
+  versiones de esas librerías) — la sintaxis del JS nuevo sí se validó (`node --check`).
 
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
