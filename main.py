@@ -556,9 +556,13 @@ async def dashboard(request: Request):
         return RedirectResponse(url="/login")
     # Listado liviano: dashboard.html solo necesita estos campos — evita traer el texto
     # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
+    # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
     proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "revisor"],
+        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "revisor",
+         "resumen"],
         username=user["username"])
+    for p in proyectos:
+        p["consultor"] = (p.get("resumen") or {}).get("consultor", "").strip()
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,

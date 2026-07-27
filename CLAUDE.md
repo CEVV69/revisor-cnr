@@ -529,6 +529,13 @@ adivina ni se muestra un pin en un lugar incorrecto.
   **Separado de "Abrir" (jul-2026):** al quedar tan angosto, el botón "×" terminó muy pegado a
   "Abrir" — fácil de apretar por error. Se le agregó `margin-left:1.5rem` al form que lo
   contiene para separarlo con claridad.
+  **Columna "Consultor" agregada (jul-2026):** a pedido del usuario, entre Postulante y Estado.
+  `dashboard()` agrega `"resumen"` a la proyección liviana (`db.get_proyectos_ligero`) — se pide
+  COMPLETO (no campo por campo) porque es chico (~25 campos cortos, tope 500 caracteres c/u,
+  nada comparable al texto de los documentos que esa función existe para evitar cargar) — y
+  calcula `p["consultor"] = (p.get("resumen") or {}).get("consultor", "").strip()` por cada
+  proyecto antes de pasarlo a la plantilla (mismo dato que ya usa `_consultor_de_proyecto()` en
+  el resto de la app). Muestra "—" si el campo está vacío o el proyecto es legado sin `resumen`.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"

@@ -9,12 +9,13 @@
 
 {% if proyectos %}
 <div class="card" style="overflow-x:auto;">
-  <table style="min-width:700px;">
+  <table style="min-width:800px;">
     <thead>
       <tr>
         <th style="white-space:nowrap;">Código SEP</th>
         <th>Nombre del proyecto</th>
         <th>Postulante</th>
+        <th>Consultor</th>
         <th>Estado</th>
         <th style="white-space:nowrap;">Fecha</th>
         <th>Acciones</th>
@@ -26,6 +27,7 @@
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ p.codigo_sep }}</strong></td>
         <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>
+        <td class="text-muted" style="max-width:150px; word-break:break-word;">{{ p.consultor or "—" }}</td>
         <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado }}</span></td>
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
         <td style="white-space:nowrap;">
