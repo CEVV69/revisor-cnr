@@ -1608,12 +1608,13 @@ Agronómico de `calculos.html`.
 - **Diferencias por sistema** (verificadas contra archivos reales que subió el usuario, uno por
   sistema): el campo de superficie a regar cambia de nombre (`-sup` en goteo/micro, `-strie` en
   aspersión, `-supr` en carrete); "criterio de riego"/agotamiento (`-crit`) solo existe en
-  aspersión/carrete; carrete no tiene campo de horas de riego (`-hrs`). Los TRAMOS de tubería solo
-  se exportan a la lista genérica `__tramos` (l/q) en aspersión y carrete — goteo/microaspersión
-  usan en el Diseñador un modelo matriz/terciaria/lateral (`-lm/-dm/-cm`, etc.) que NO mapea desde
-  nuestra tabla de tramos plana sin adivinar cuál tramo es cuál, así que ahí los tramos no se
-  exportan (quedan para el Diseñador). En `__tramos`, `l`=longitud y `q`=caudal (que sí tenemos);
-  `t` y `z` van vacíos (no existen en Revisor, no se inventan).
+  aspersión/carrete; carrete no tiene campo de horas de riego (`-hrs`). Los TRAMOS de tubería
+  tienen DOS formatos según el sistema — ver "Red hidráulica jerárquica" más abajo para
+  Goteo/Microaspersión (implementado jul-2026, reemplazó la limitación original de "no se
+  exportan"). En aspersión y carrete se exportan a la lista genérica `__tramos` (l/q) — `l`=
+  longitud y `q`=caudal (que sí tenemos); `t` (índice a un catálogo interno `TUBOS[]` del
+  Diseñador, editable por el propio usuario en su navegador — no algo que Revisor pueda inferir)
+  y `z` (desnivel, dato que Revisor no calcula) van vacíos, no se inventan.
 - **Marco de plantación / espaciamiento** (agregado jul-2026 tras prueba real — los IDs difieren
   por sistema): Goteo → `deh` (dist. entre hileras) ← `distancia_hileras_m`, `dsh` (dist. sobre
   hilera/entre plantas) ← `distancia_plantas_m`, `nlin` ← `n_lineas_emisor`, `espm` (esp. entre
@@ -1662,6 +1663,64 @@ Agronómico de `calculos.html`.
   archivo/link sin abrir el HTML; si SÍ pide portar un cambio (como con el Acumulador o el N° de
   sectores), hay que leer el código nuevo del Diseñador directamente — no adivinar la fórmula a
   partir de lo que el usuario recuerda de palabra.
+
+**Red hidráulica jerárquica Matriz/Terciaria/Lateral — exportación de tramos para Goteo y
+Microaspersión (implementado, jul-2026):** hasta esta sesión, los tramos hidráulicos de Goteo/
+Microaspersión NO se exportaban al Diseñador — se sabía que ese sistema usa ahí un modelo
+distinto al `__tramos` genérico de Aspersión/Carrete, pero no se había investigado cuál. El
+usuario preguntó específicamente por esto ("si exporto agronómico ¿también se exporta lo
+hidráulico?") y pidió avanzar con la implementación. Se leyó directo el HTML fuente del
+Diseñador v108 para no adivinar (mismo criterio de siempre con este archivo):
+- **El modelo real es simple y FIJO**, no una lista arbitraria: exactamente 3 niveles — Matriz →
+  Terciaria → Lateral — cada uno con Longitud [m] + Ø Interior [mm] + Material (un `<select>` de
+  C de Hazen-Williams: PVC=`150`, Aluminio=`140`, PE=`120` — confirmado que el `value` del
+  `<select>` es literalmente el número C, coincide exacto con
+  `calculos_riego.C_HAZEN_WILLIAMS`). Goteo y Microaspersión usan EXACTAMENTE los mismos sufijos
+  de campo para los 3 niveles (`-lm/-dm/-cm`, `-lt/-dt/-ct`, `-ll/-dl/-cl`) — se confirmó
+  leyendo el JS del Diseñador que además los TRATA igual en sus cálculos (`sys==='got'` es el
+  único caso especial, y es solo para el label "ΣHf Distribución (Matriz+Terc.+Lat.)").
+  Aspersión y Carrete, en cambio, SÍ comparten el mismo `__tramos` genérico entre sí — confirmado
+  también en el JS del Diseñador (`sys==='asp'||sys==='car'` tratados de forma idéntica,
+  `#a-trs`/`#c-trs` son la misma tabla dinámica) — no había ningún "desafío" especial de Carrete
+  ahí, la premisa inicial de que pudiera ser distinto no se confirmó.
+- **Cómo se identifica CUÁL tramo de Revisor es cada nivel — sin adivinar:** la tabla de tramos
+  hidráulicos de Revisor ya tenía un campo `nombre` libre por tramo (placeholder "Ej: Matriz",
+  llenado a mano por el revisor o por la extracción automática si el documento del consultor
+  rotula sus tramos con esos términos) que hasta ahora no se usaba para nada más que mostrarse en
+  pantalla. `_clasificar_tramos_jerarquico()` (exportar_disenador.py) normaliza ese nombre
+  (minúsculas, sin tildes) y lo compara por SUBSTRING contra alias por nivel
+  (`_ALIAS_TRAMO_JERARQUICO`: matriz/principal · terciaria/secundaria/submatriz ·
+  lateral/portagotero/portaemisor/regante) — tolera variantes naturales como "Tubería Matriz
+  PVC 63mm" sin necesitar coincidencia exacta. **A pedido explícito del usuario** ("deja todo lo
+  no seguro para escritura manual o editable, por si la IA detecta incorrectamente"): si NINGÚN
+  tramo calza con un nivel, o si calzan DOS O MÁS tramos con el MISMO nivel (ambiguo), ese nivel
+  simplemente NO se exporta — nunca se adivina por posición ni por diámetro. El campo `nombre`
+  sigue siendo texto libre (no se cambió a un `<select>` fijo) precisamente para que sea trivial
+  de corregir a mano si la extracción automática lo dejó vacío o con un término que no calza.
+- **Wiring:** `construir()` (exportar_disenador.py) ganó un bloque nuevo, solo para
+  `sys_code in ("got", "mic")`, que llama a `_clasificar_tramos_jerarquico(tramos_hid)` y por
+  cada nivel identificado exporta longitud + diámetro + material (traducido a C vía
+  `calculos_riego.C_HAZEN_WILLIAMS` — si el material no está en ese dict, ej. un texto libre no
+  reconocido, se exportan igual longitud/diámetro pero se omite el campo de material). No
+  requirió cambios en `main.py` — la ruta ya pasaba `tramos_hid` a `construir()`, antes se
+  ignoraba para estos dos sistemas.
+- **Sobre "sumar una línea más" (pregunta del usuario, respondida sin implementar):** el
+  Diseñador tiene el modelo hidráulico de Goteo/Microaspersión HARDCODEADO a exactamente esos 3
+  niveles — no existe un 4º campo en el archivo destino que pudiera recibir un tramo adicional,
+  así que no es algo que la exportación pueda extender (inventar una clave nueva que el Diseñador
+  no lee no cumpliría con la regla de "nunca inventar"). La tabla de tramos de Revisor sí sigue
+  permitiendo hasta `N_TRAMOS_HIDRAULICOS=6` tramos por sistema para su propio Chequeo (más que
+  los 3 que hoy se pueden exportar) — un 4º/5º tramo real de un proyecto puede seguir
+  cargándose y verificándose ahí con Hazen-Williams, solo que no tendría dónde exportarse en el
+  Diseñador mientras ese archivo no agregue un nivel adicional.
+- **Verificado end-to-end sin acceso a la API real** (no hace falta acá, es lógica pura): batería
+  de pruebas de `_clasificar_tramos_jerarquico` (nombres exactos, variantes naturales,
+  ambigüedad con 2 tramos del mismo nivel, sin nombre, nombre que no calza con nada) más
+  `construir()` completo para Goteo y Microaspersión (material reconocido y no reconocido) y
+  confirmación de que Aspersión/Carrete no se ven afectados (siguen sin el bloque jerárquico,
+  con `__tramos` intacto) — y una prueba final llamando directo a la ruta real
+  `exportar_para_disenador()` de `main.py` con un proyecto simulado (incluido un caso de
+  invernadero chico, 0,006 ha) confirmando el JSON completo generado.
 
 **Chequeo Agronómico — modelo de GOTEO sin criterio de riego (fix jul-2026):** al probar la
 exportación el usuario notó que el Chequeo pedía "Criterio de Riego" (factor de agotamiento) en

@@ -9,10 +9,20 @@ se incluyen, así el Diseñador conserva sus propios valores por defecto al carg
 El Diseñador guarda un JSON por SISTEMA de riego, con un prefijo de campo distinto según el
 sistema (g-/m-/a-/c-) y un código `__sys` (got/mic/asp/car). Los campos que mapean 1:1 (mismo
 significado, mismo dato) son los que porté a `calculos_riego.py` en su momento, más los del
-Resumen y el dimensionamiento fotovoltaico. La red hidráulica detallada por tramos solo tiene un
-formato genérico (`__tramos`, lista l/q) en Aspersión y Carrete; Goteo/Microaspersión usan en el
-Diseñador un modelo matriz/terciaria/lateral que NO mapea desde nuestra tabla de tramos plana sin
-adivinar cuál tramo es cuál — por eso ahí no se exportan los tramos (quedan para el Diseñador)."""
+Resumen y el dimensionamiento fotovoltaico. La red hidráulica detallada por tramos tiene DOS
+formatos según el sistema, confirmados leyendo el HTML fuente del Diseñador v108 (no adivinados):
+- Aspersión y Carrete: lista GENÉRICA `__tramos` (l/q), misma tabla dinámica en ambos (`#a-trs`/
+  `#c-trs`) — ver `_SYS_CON_TRAMOS`.
+- Goteo y Microaspersión: modelo FIJO de 3 niveles — Matriz → Terciaria → Lateral, cada uno con
+  Longitud [m] + Diámetro interior [mm] + Material (C de Hazen-Williams) — ver
+  `_ALIAS_TRAMO_JERARQUICO`/`_clasificar_tramos_jerarquico`. Se identifica CUÁL de los tramos de
+  Revisor es cada nivel por el campo `nombre` (texto libre, editable por el revisor) — nunca por
+  posición ni por diámetro. Si el nombre no calza con ningún alias, o si calzan dos o más tramos
+  con el MISMO nivel (ambiguo), ese nivel simplemente no se exporta — el revisor corrige el
+  campo `nombre` si quiere que se reconozca, o completa el dato a mano en el Diseñador."""
+import unicodedata
+
+import calculos_riego
 
 # Sistema de riego declarado en Revisor → (prefijo de campo, código __sys del Diseñador).
 SISTEMA_A_DR = {
@@ -23,8 +33,28 @@ SISTEMA_A_DR = {
 }
 
 # Sistemas que usan la lista genérica de tramos de impulsión `__tramos` (l/q). Goteo y
-# Microaspersión NO — su red se describe con campos matriz/terciaria/lateral que no mapean.
+# Microaspersión NO — su red se describe con el modelo jerárquico Matriz/Terciaria/Lateral,
+# ver `_clasificar_tramos_jerarquico`.
 _SYS_CON_TRAMOS = {"asp", "car"}
+
+# Alias por los que se reconoce el `nombre` de un tramo como uno de los 3 niveles fijos que
+# usa el Diseñador para Goteo/Microaspersión. Coincidencia por SUBSTRING (no exacta) sobre el
+# nombre normalizado, para tolerar variantes razonables como "Tubería matriz" o "Línea
+# terciaria PVC" — deliberadamente conservador: si el nombre no menciona ninguno de estos
+# términos, no se clasifica (mejor no exportar que adivinar mal).
+_ALIAS_TRAMO_JERARQUICO = {
+    "matriz": {"matriz", "principal"},
+    "terciaria": {"terciaria", "secundaria", "submatriz"},
+    "lateral": {"lateral", "portagotero", "portaemisor", "regante"},
+}
+
+# Sufijos de campo por nivel (longitud, diámetro, material/C) — confirmados en el HTML del
+# Diseñador: Goteo y Microaspersión usan EXACTAMENTE los mismos sufijos para los 3 niveles.
+_SUFIJOS_NIVEL_HIDRAULICO = {
+    "matriz": ("lm", "dm", "cm"),
+    "terciaria": ("lt", "dt", "ct"),
+    "lateral": ("ll", "dl", "cl"),
+}
 
 
 def _s(v):
@@ -35,6 +65,30 @@ def _s(v):
     if isinstance(v, float) and v.is_integer():
         return str(int(v))
     return str(v)
+
+
+def _normalizar_nombre_tramo(nombre: str) -> str:
+    """minúsculas, sin tildes, para comparar contra los alias de `_ALIAS_TRAMO_JERARQUICO`."""
+    n = unicodedata.normalize("NFKD", (nombre or "").strip().lower())
+    return "".join(c for c in n if unicodedata.category(c) != "Mn")
+
+
+def _clasificar_tramos_jerarquico(tramos: list) -> dict:
+    """Devuelve {"matriz": tramo|None, "terciaria": tramo|None, "lateral": tramo|None} según el
+    campo `nombre` de cada tramo de `tramos` (la tabla de tramos hidráulicos de Revisor). Un
+    nivel queda en None (no se exporta) si NINGÚN tramo calza con sus alias, o si calzan DOS O
+    MÁS tramos con el mismo nivel — la clasificación nunca adivina, solo reconoce coincidencias
+    inequívocas."""
+    candidatos = {"matriz": [], "terciaria": [], "lateral": []}
+    for t in (tramos or []):
+        nombre_norm = _normalizar_nombre_tramo(t.get("nombre"))
+        if not nombre_norm:
+            continue
+        for nivel, alias in _ALIAS_TRAMO_JERARQUICO.items():
+            if any(a in nombre_norm for a in alias):
+                candidatos[nivel].append(t)
+                break   # un tramo se clasifica en un solo nivel (el primero que calce)
+    return {nivel: (lista[0] if len(lista) == 1 else None) for nivel, lista in candidatos.items()}
 
 
 def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
@@ -138,6 +192,23 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("vv", sistema_agro.get("velocidad_viento_ms"))
         put("lf", sistema_agro.get("longitud_franja_m"))
         put("va", sistema_agro.get("velocidad_avance_mh"))
+
+    # ── Red hidráulica jerárquica Matriz/Terciaria/Lateral (solo Goteo/Microaspersión) ──
+    # Ver `_clasificar_tramos_jerarquico` — cada nivel se exporta solo si se identificó sin
+    # ambigüedad; el material (string libre "pvc"/"pe"/"aluminio" en Revisor) se traduce al
+    # coeficiente C de Hazen-Williams, que es literalmente el `value` que usa el <select> del
+    # Diseñador para ese campo (confirmado en su HTML: PVC=150, Aluminio=140, PE=120).
+    if sys_code in ("got", "mic"):
+        niveles = _clasificar_tramos_jerarquico(tramos_hid)
+        for nivel, (suf_l, suf_d, suf_c) in _SUFIJOS_NIVEL_HIDRAULICO.items():
+            tramo = niveles.get(nivel)
+            if not tramo:
+                continue
+            put(suf_l, tramo.get("longitud_m"))
+            put(suf_d, tramo.get("diametro_mm"))
+            c_val = calculos_riego.C_HAZEN_WILLIAMS.get((tramo.get("material") or "").strip().lower())
+            if c_val is not None:
+                put(suf_c, c_val)
 
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
     for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"):
