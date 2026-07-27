@@ -980,7 +980,9 @@ disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del si
 horas disponibles de riego al día, volumen de un ACUMULADOR/estanque/tranque regulador si el
 proyecto declara uno (para aumentar el caudal instantáneo disponible respecto al de la fuente),
 y lo que el consultor declara como resultado: caudal de diseño del sistema, tiempo de riego por
-sector y número de sectores de riego.
+sector, y número de sectores de riego (en Aspersión/Carrete el expediente suele llamar a este
+mismo dato "N° de posturas" en vez de "N° de sectores" — repórtalo igual en el campo
+"n_sectores").
 También extrae el SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión, o Carrete) y el
 espaciamiento del sistema: si es Goteo/Microaspersión, distancia entre hileras, distancia entre
 plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores (marco de
@@ -1179,33 +1181,61 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             else:
                 texto += " VIB > Precipitación — dentro de rango, no lo menciones como observación."
 
-    # Caudal de trabajo por postura — solo Aspersión, independiente del resto de la cadena.
-    # Mismo criterio del Diseñador de Riego (calcAspP): Q_postura = N° aspersores × Q_aspersor
-    # (m³/hr) / 3,6 — el caudal que exige simultáneamente una postura. La comparación contra el
-    # caudal de DISEÑO declarado es independiente (no necesita el resto de la cadena) y se hace
-    # acá mismo; la comparación contra el caudal DISPONIBLE se posterga más abajo, después de
-    # calcular el caudal EFECTIVO (que suma el acumulador si el proyecto declara uno) — comparar
-    # acá contra el caudal disponible crudo generaría una alerta falsa en un proyecto con
-    # acumulador (bug real reportado: 0,57 l/s de postura marcado como "supera 0,4 l/s" pese a
-    # que el acumulador sube el caudal instantáneo efectivo muy por encima de eso).
+    # Postura de Aspersión — modelo del Diseñador de Riego (calcAspP), independiente del resto de
+    # la cadena (no necesita AD/Dn/Fr/Db). IMPORTANTE: el N° de posturas de este modelo NO es lo
+    # mismo que el "N° de sectores" que se calcula en la VERIFICACIÓN DE DISEÑO BASE más abajo
+    # (esa es una fórmula de caudal, pensada para Goteo/Microaspersión) — cuando el consultor de
+    # un proyecto de Aspersión declara "N° de sectores", casi siempre se refiere en realidad al
+    # N° DE POSTURAS de este modelo (el propio Diseñador anota "N_posturas = ⌈A_total/A_pos⌉ (=
+    # Fr)"). Por eso la comparación contra lo declarado se hace ACÁ, con este modelo — no contra
+    # el N° de sectores genérico de más abajo (bug real reportado por el usuario: comparaba el N°
+    # de posturas declarado contra un N° de sectores calculado con un modelo distinto).
     postura = None
     n_asp = datos.get("n_aspersores_postura")
     q_asp = datos.get("caudal_aspersor_m3h")
+    esp_asp = datos.get("espaciamiento_aspersores_m")
+    esp_lat = datos.get("espaciamiento_laterales_m")
+    sup_proy = datos.get("superficie_riego_ha")
     if datos.get("sistema_riego") == "Aspersión" and n_asp and q_asp:
-        postura = calculos_riego.caudal_postura_aspersion(n_asp, q_asp)
+        postura = calculos_riego.postura_aspersion(
+            caudal_aspersor_m3h=q_asp, espaciamiento_aspersores_m=esp_asp,
+            espaciamiento_laterales_m=esp_lat, n_aspersores=n_asp,
+            superficie_ha=sup_proy, vib_mmhr=vib)
         if postura:
-            texto += (f"\n\nVERIFICACIÓN CAUDAL DE TRABAJO POR POSTURA (cálculo determinístico — "
-                      f"mismo criterio del Diseñador de Riego): {n_asp} aspersores × {q_asp} m³/hr "
-                      f"/ 3,6 = {postura['caudal_postura_ls']} l/s por postura (caudal que exige "
-                      f"simultáneamente la postura completa).")
+            texto += (f"\n\nVERIFICACIÓN DE POSTURA — ASPERSIÓN (cálculo determinístico, mismo "
+                      f"criterio del Diseñador de Riego, calcAspP — NO confundir con el \"N° de "
+                      f"sectores\" genérico de más abajo):\n"
+                      f"- Q_postura = N° aspersores × Q_aspersor / 3,6 = {n_asp} × {q_asp} / 3,6 = "
+                      f"{postura['caudal_postura_ls']} l/s (caudal simultáneo de la postura)")
             declarado_qdiseno = (datos.get("declarado") or {}).get("caudal_diseno_ls")
             if declarado_qdiseno is not None and _diferencia_relevante(
                     postura["caudal_postura_ls"], declarado_qdiseno, 10):
-                texto += (f" Caudal de diseño declarado = {declarado_qdiseno} l/s — no coincide "
-                          f"con el recálculo ({postura['caudal_postura_ls']} l/s). Genera una "
-                          f"observación citando estos números exactos.")
-            else:
-                texto += " Coincide con lo declarado (o no hay dato declarado para comparar) — no lo menciones como observación."
+                texto += (f" — caudal de diseño declarado = {declarado_qdiseno} l/s, no coincide "
+                          f"con el recálculo. Genera una observación citando estos números.")
+            if "va_mmhr" in postura:
+                texto += (f"\n- VA (velocidad de aplicación) = (Q_aspersor×1.000)/(Esp.asp×Esp.lat) "
+                          f"= ({q_asp}×1.000)/({esp_asp}×{esp_lat}) = {postura['va_mmhr']} mm/hr")
+                if "vib_ok" in postura:
+                    if postura["vib_ok"]:
+                        texto += ". VIB > VA — sin riesgo de escorrentía, no lo menciones como observación."
+                    else:
+                        texto += (f". VIB del suelo ({vib} mm/hr) NO supera la VA calculada "
+                                  f"({postura['va_mmhr']} mm/hr) — riesgo de escorrentía. Genera "
+                                  f"una observación citando estos números.")
+            if "n_posturas" in postura:
+                texto += (f"\n- A_postura (superficie que cubre una postura) = Esp.asp × Esp.lat × "
+                          f"N° aspersores / 10.000 = {esp_asp} × {esp_lat} × {n_asp} / 10.000 = "
+                          f"{postura['superficie_postura_ha']} ha\n"
+                          f"- N° DE POSTURAS = ⌈Superficie del proyecto / A_postura⌉ = "
+                          f"⌈{sup_proy} / {postura['superficie_postura_ha']}⌉ = {postura['n_posturas']}")
+                declarado_npost = (datos.get("declarado") or {}).get("n_sectores")
+                if declarado_npost is not None and declarado_npost != postura["n_posturas"]:
+                    texto += (f" — el consultor declara {declarado_npost} (rotulado como \"N° de "
+                              f"sectores\" en el expediente, pero en Aspersión ese dato corresponde "
+                              f"al N° DE POSTURAS de este modelo) — no coincide con el recálculo. "
+                              f"Genera una observación citando estos números exactos.")
+                else:
+                    texto += " — coincide con lo declarado (o no hay dato declarado para comparar), no lo menciones como observación."
 
     # Carrete de riego (cañón viajero) — modelo INIA-Carillanca 2001, independiente del resto de
     # la cadena (no necesita AD/Dn/Fr, solo los datos propios del cañón + la superficie).
@@ -1232,8 +1262,14 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 f"- Espaciamiento entre franjas (según viento declarado) = {carrete['espaciamiento_franjas_m']} m\n"
                 f"- Pluviometría media del cañón = {carrete['pluviometria_mmhr']} mm/hr\n"
                 f"- Superficie regada por postura = {carrete['superficie_postura_ha']} ha — "
-                f"N° de posturas = ⌈Superficie del proyecto / Superficie por postura⌉ = {carrete['n_posturas']}\n"
+                f"N° DE POSTURAS = ⌈Superficie del proyecto / Superficie por postura⌉ = {carrete['n_posturas']}\n"
                 f"- Tiempo por postura = {carrete['tiempo_postura_hr']} hr")
+            declarado_npost = (datos.get("declarado") or {}).get("n_sectores")
+            if declarado_npost is not None and declarado_npost != carrete["n_posturas"]:
+                texto += (f"\n- El consultor declara {declarado_npost} (rotulado como \"N° de "
+                          f"sectores\" en el expediente, pero en Carrete ese dato corresponde al "
+                          f"N° DE POSTURAS de este modelo) — no coincide con el recálculo. Genera "
+                          f"una observación citando estos números exactos.")
             declarado_pp = (datos.get("declarado") or {}).get("pluviometria_mmhr")
             if declarado_pp is not None and _diferencia_relevante(carrete["pluviometria_mmhr"], declarado_pp, 15):
                 texto += (f"\n- Pluviometría declarada = {declarado_pp} mm/hr — no coincide con el "
@@ -1308,6 +1344,22 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     else:
         texto += "\n\nSin datos declarados para comparar, o coinciden con el recálculo — no lo menciones como observación."
 
+    # Tiempo por postura y posturas/día (Aspersión) — necesitan Db, recién disponible acá con la
+    # cadena agronómica completa. VA/A_postura/Q_postura/N_posturas ya se verificaron arriba
+    # (independientes de la cadena).
+    if postura and postura.get("va_mmhr"):
+        postura = calculos_riego.postura_aspersion(
+            caudal_aspersor_m3h=q_asp, espaciamiento_aspersores_m=esp_asp,
+            espaciamiento_laterales_m=esp_lat, n_aspersores=n_asp,
+            superficie_ha=sup_proy, vib_mmhr=vib,
+            db_mm=r["db_mm"], horas_disponibles_dia=datos.get("horas_disponibles_dia"))
+        if "tiempo_postura_hr" in postura:
+            texto += (f"\n\nTiempo por postura = Db / VA = {r['db_mm']} / {postura['va_mmhr']} = "
+                      f"{postura['tiempo_postura_hr']} hr")
+            if "posturas_dia" in postura:
+                texto += (f". Posturas/día = ⌊Horas disponibles / (T. postura + 0,5 hr de "
+                          f"traslado)⌋ = {postura['posturas_dia']} posturas/día.")
+
     volumen_acum = datos.get("volumen_acumulador_m3")
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
@@ -1358,9 +1410,19 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             linea = (f"Q requerido para regar toda la superficie a la vez = Precipitación × "
                       f"Superficie × 10.000/3.600 = {diseno.get('q_requerido_total_ls')} l/s. "
                       f"{formula_nsec} = {diseno['n_sectores']}")
-            declarado_nsec = declarado.get("n_sectores")
-            if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
-                linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
+            sistema_actual = datos.get("sistema_riego")
+            if sistema_actual in ("Aspersión", "Carrete"):
+                # En Aspersión/Carrete lo declarado por el consultor NO se compara contra este N°
+                # de sectores genérico (modelo de caudal, pensado para Goteo/Microaspersión) — ya
+                # se comparó más arriba contra el N° de posturas real de cada sistema (VERIFICACIÓN
+                # DE POSTURA para Aspersión, VERIFICACIÓN DE OPERACIÓN DEL CARRETE para Carrete).
+                linea += (" (cifra de referencia del modelo genérico por caudal — la comparación "
+                          "con lo declarado ya se hizo arriba, con el modelo real de este sistema; "
+                          "no la repitas ni la contradigas acá).")
+            else:
+                declarado_nsec = declarado.get("n_sectores")
+                if declarado_nsec is not None and declarado_nsec != diseno["n_sectores"]:
+                    linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
             lineas_diseno.append(linea)
             if "caudal_operacion_ls" in diseno:
                 linea_op = (f"Caudal de operación de la red (el que circula por la tubería "

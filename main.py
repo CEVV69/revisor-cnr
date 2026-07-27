@@ -1238,11 +1238,19 @@ def _agronomico_calculo(datos: dict):
     if datos and datos.get("sistema_riego") == "Aspersión":
         vib_check = calculos_riego.verificacion_vib(
             datos.get("vib_mmhr"), datos.get("precipitacion_sistema_mmhr")) or None
-    # Caudal de trabajo por postura — independiente del resto, solo Aspersión.
+    # Postura de Aspersión (VA, superficie/caudal/N° por postura) — independiente del resto,
+    # solo Aspersión. Tiempo por postura/posturas por día se agregan más abajo si la cadena
+    # completa está disponible (necesitan Db).
     postura_check = None
     if datos and datos.get("sistema_riego") == "Aspersión":
-        postura_check = calculos_riego.caudal_postura_aspersion(
-            datos.get("n_aspersores_postura"), datos.get("caudal_aspersor_m3h")) or None
+        postura_check = calculos_riego.postura_aspersion(
+            caudal_aspersor_m3h=datos.get("caudal_aspersor_m3h"),
+            espaciamiento_aspersores_m=datos.get("espaciamiento_aspersores_m"),
+            espaciamiento_laterales_m=datos.get("espaciamiento_laterales_m"),
+            n_aspersores=datos.get("n_aspersores_postura"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            vib_mmhr=datos.get("vib_mmhr"),
+        ) or None
     # Operación del carrete (INIA-Carillanca) — independiente del resto, solo Carrete.
     carrete_check = None
     if datos and datos.get("sistema_riego") == "Carrete":
@@ -1285,6 +1293,16 @@ def _agronomico_calculo(datos: dict):
     if vib_check:
         r["vib_check"] = vib_check
     if postura_check:
+        if postura_check.get("va_mmhr"):
+            postura_check = calculos_riego.postura_aspersion(
+                caudal_aspersor_m3h=datos.get("caudal_aspersor_m3h"),
+                espaciamiento_aspersores_m=datos.get("espaciamiento_aspersores_m"),
+                espaciamiento_laterales_m=datos.get("espaciamiento_laterales_m"),
+                n_aspersores=datos.get("n_aspersores_postura"),
+                superficie_ha=datos.get("superficie_riego_ha"),
+                vib_mmhr=datos.get("vib_mmhr"),
+                db_mm=r["db_mm"], horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+            ) or postura_check
         r["postura_check"] = postura_check
     if carrete_check:
         r["carrete_check"] = carrete_check

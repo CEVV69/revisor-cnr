@@ -1949,6 +1949,75 @@ para que el suelo sea apto, sin importar el cañón elegido) + comparación cont
   Aspersión/Carrete). El usuario pidió específicamente Carrete esta vez — este hallazgo queda
   registrado para una futura sesión, no se tocó nada de Microaspersión.
 
+**"N° de sectores" vs. "N° de posturas" — modelo real de postura para Aspersión + fix de
+comparación en Aspersión/Carrete (implementado, jul-2026):** el usuario notó, revisando un
+proyecto de Aspersión con el Diseñador de Riego en paralelo, que el "N° de sectores" que
+calculaba el Chequeo NO coincidía con lo declarado por el consultor — pero el Diseñador, con los
+mismos datos, calcula "N° de posturas" y ESE número sí coincidía. Confirmado leyendo `calcAspP()`
+del Diseñador (línea ~2207): son dos conceptos DISTINTOS, no un problema de nombre.
+- **"N° de sectores"** (`verificacion_diseno_riego`, ya existente) es una fórmula de CAUDAL —
+  reparte el caudal total requerido entre el caudal disponible de la fuente. Pensada para
+  Goteo/Microaspersión (sistemas de riego continuo, sin posiciones fijas de emisores).
+- **"N° de posturas"** (Aspersión, `calcAspP`) es GEOMÉTRICO — dado un N° fijo de aspersores
+  abiertos a la vez (con su marco de espaciamiento), cuenta cuántas veces hay que reposicionar
+  ese mismo grupo para cubrir todo el predio: `N_posturas = ⌈Superficie total / A_postura⌉`, con
+  `A_postura = Esp.asp × Esp.lat × N° aspersores / 10.000`. El propio Diseñador anota
+  `N_posturas = ⌈A_total/A_pos⌉ (= Fr)` — no depende del caudal disponible, por eso puede no
+  coincidir con el "N° de sectores" genérico. Cuando el consultor de un proyecto de Aspersión (o
+  Carrete, mismo patrón con `diseno_carrete().n_posturas`, ver la entrada anterior) declara
+  "N° de sectores" en el expediente, en realidad casi siempre se refiere a este N° DE POSTURAS.
+- `calculos_riego.postura_aspersion(caudal_aspersor_m3h, espaciamiento_aspersores_m,
+  espaciamiento_laterales_m, n_aspersores, superficie_ha, vib_mmhr=None, db_mm=None,
+  horas_disponibles_dia=None, tiempo_traslado_hr=0.5)` — nueva, reemplaza a
+  `caudal_postura_aspersion()` (eliminada, esta función es un superset). Calcula VA (velocidad de
+  aplicación), A_postura, Q_postura y N_posturas de forma INDEPENDIENTE del resto de la cadena
+  agronómica (no necesitan AD/Dn/Fr/Db); T_postura (`= Db/VA`) y Posturas/día (`= ⌊Horas
+  disponibles/(T_postura + T_traslado)⌋`, traslado 0,5 hr por defecto, mismo valor del Diseñador)
+  solo se calculan si se pasa `db_mm` (necesita la cadena completa).
+- `analyzer.py` (`_bloque_verificacion_agronomica_sistema`): el bloque "Caudal de trabajo por
+  postura" se reemplazó por "VERIFICACIÓN DE POSTURA — ASPERSIÓN", más completo (Q_postura, VA
+  vs. VIB, A_postura, N° DE POSTURAS) y corre igual de temprano (independiente, antes de la
+  cadena) — la comparación de N° de posturas contra lo declarado (`declarado.n_sectores`, mismo
+  campo de siempre, solo reinterpretado) se hace ACÁ, no contra el N° de sectores genérico.
+  T_postura/Posturas por día se agregan más abajo, apenas la cadena completa está disponible
+  (`r["db_mm"]`). En la "VERIFICACIÓN DE DISEÑO BASE" genérica, la línea de "N° de sectores" para
+  Aspersión/Carrete YA NO compara contra lo declarado (se movió arriba) — queda como cifra de
+  referencia del modelo genérico, con una nota explícita para que la IA no la contradiga. Se
+  agregó también la comparación de N° de posturas contra lo declarado al bloque de Carrete
+  (`diseno_carrete`), que hasta ahora no la tenía.
+- `main.py` (`_agronomico_calculo`): mismo patrón — `postura_check` usa `postura_aspersion()` con
+  los 5 campos base + VIB (independiente), y se recalcula con `db_mm`/`horas_disponibles_dia`
+  agregados una vez la cadena completa está disponible.
+- **UI (`calculos.html`)**: la fila unificada "N° de sectores" (con el input editable
+  `decl_nsec`, donde el revisor transcribe lo que declara el consultor) ahora tiene una etiqueta
+  DINÁMICA — `id="{p}agro-nsec-label"`, actualizada por JS según el sistema declarado: "N° de
+  posturas" para Aspersión y Carrete, "N° de sectores" para Goteo/Microaspersión (y el default
+  sin declarar/Mixto). El valor calculado y la comparación contra lo declarado en esa fila
+  también cambian de fuente según el sistema: Aspersión/Carrete usan el N° de posturas real
+  (calculado en el bloque independiente correspondiente, sin depender de la cadena completa);
+  Goteo/Microaspersión siguen usando el N° de sectores genérico de siempre (sin cambios). 3 filas
+  nuevas para Aspersión (clase `campo-postura`, mismo criterio de visibilidad que la fila de
+  Caudal de trabajo por postura ya existente): "VA vs. VIB (Aspersión, postura)", "Superficie por
+  postura (Aspersión)", "Tiempo por postura / Posturas por día (Aspersión)". La fila de Carrete
+  "Superficie por postura / N° de posturas" se simplificó a solo "Superficie por postura" (el N°
+  de posturas ya se muestra/compara en la fila unificada, evita mostrarlo duplicado).
+- **Verificado con Playwright** (navegador real, no solo paridad de fórmulas): con datos de
+  Aspersión (2 aspersores × 5,3 m³/hr, marco 24×24 m, superficie 2,3 ha, declarado 20) la fila
+  muestra "N° de posturas" = 20, sin alerta; al cambiar el declarado a 5 aparece "No coincide con
+  lo declarado (5)"; al cambiar el sistema a Goteo la etiqueta vuelve a "N° de sectores" y el
+  valor cambia al N° genérico (18, con los mismos datos, confirmando que son cifras DISTINTAS).
+  Mismo comportamiento verificado para Carrete (declarado 5, calculado 5, sin alerta). VA, A
+  postura, tiempo por postura y posturas/día verificados con paridad numérica exacta contra
+  `calculos_riego.py` (mismos valores que usa el propio Diseñador como ejemplo por defecto).
+- **Alcance — no tocado a propósito:** el resto de la "VERIFICACIÓN DE DISEÑO BASE" (Caudal de
+  operación, Balance diario, Volumen mínimo del estanque, ΔQ/Autonomía/T. llenado) sigue usando
+  el N° de sectores genérico internamente para Aspersión/Carrete — ya estaba etiquetado como
+  "referencia general, no el diseño exacto" para esos dos sistemas antes de este cambio, y
+  reconciliar esos cálculos con el modelo real de postura/carrete es un trabajo bastante más
+  grande que lo pedido hoy (el usuario preguntó específicamente por la etiqueta/comparación de
+  N° de sectores vs. posturas). Si en el futuro esos números generan ruido para Aspersión/Carrete,
+  es un candidato claro para una próxima iteración.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

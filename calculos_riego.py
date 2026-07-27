@@ -289,15 +289,57 @@ def verificacion_vib(vib_mmhr: float, precipitacion_mmhr: float) -> dict:
     return {"vib_ok": vib_mmhr > precipitacion_mmhr}
 
 
-def caudal_postura_aspersion(n_aspersores: float, caudal_aspersor_m3h: float) -> dict:
-    """Caudal de trabajo de una postura de aspersión — mismo criterio del Diseñador de Riego
-    (`calcAspP`): el caudal que exige simultáneamente una postura es la suma de todos los
-    aspersores abiertos a la vez, convertido de m³/hr a l/s:
-        Q_postura[l/s] = N° aspersores × Q_aspersor[m³/hr] / 3,6
-    Solo aplica a Aspersión (Carrete usa un único cañón regador, no "aspersores por postura")."""
-    if not n_aspersores or not caudal_aspersor_m3h:
+def postura_aspersion(caudal_aspersor_m3h: float, espaciamiento_aspersores_m: float,
+                      espaciamiento_laterales_m: float, n_aspersores: float,
+                      superficie_ha: float, vib_mmhr: float = None,
+                      db_mm: float = None, horas_disponibles_dia: float = None,
+                      tiempo_traslado_hr: float = 0.5) -> dict:
+    """Recalcula la distribución por POSTURAS de un sistema de Aspersión — mismo criterio del
+    Diseñador de Riego (`calcAspP`). Aspersión NO riega por "sectores" (concepto de
+    `verificacion_diseno_riego`, que reparte el caudal requerido entre el caudal disponible —
+    pensado para Goteo/Microaspersión): mueve un grupo FIJO de aspersores (`n_aspersores`, con su
+    marco de espaciamiento) de una posición a otra, y cada posición es una "postura". El N° de
+    posturas es geométrico (superficie total / superficie que cubre una postura), no depende del
+    caudal disponible — por eso puede no coincider con el "N° de sectores" genérico, y es el que
+    corresponde comparar contra lo que declara el consultor (el propio Diseñador anota
+    "N_posturas = ⌈A_total/A_pos⌉ (= Fr)" — una vuelta completa de posturas equivale al ciclo de
+    riego).
+
+    VA[mm/hr]        = Q_aspersor[l/hr] / Marco[m²] = (Q_aspersor×1.000) / (Esp.asp×Esp.lat)
+    A_postura[ha]    = Esp.asp × Esp.lat × N° aspersores / 10.000
+    Q_postura[l/s]   = N° aspersores × Q_aspersor / 3,6           (caudal simultáneo de la postura)
+    N_posturas       = ⌈Superficie del proyecto / A_postura⌉
+    T_postura[hr]    = Db / VA           (tiempo para aplicar la demanda bruta a esa velocidad —
+                       necesita Db, la cadena agronómica completa)
+    Posturas/día     = ⌊Horas disponibles / (T_postura + T_traslado)⌋   (T_traslado entre
+                       posturas: 0,5 hr por defecto, mismo valor del Diseñador)
+
+    VA, A_postura, Q_postura y N_posturas son independientes del resto de la cadena agronómica
+    (no necesitan AD/Dn/Fr/Db) — todos los argumentos salvo `vib_mmhr`/`db_mm`/
+    `horas_disponibles_dia` son obligatorios. T_postura y Posturas/día solo se calculan si se
+    pasa `db_mm` (y, además, `horas_disponibles_dia` para Posturas/día)."""
+    if not all([caudal_aspersor_m3h, espaciamiento_aspersores_m, espaciamiento_laterales_m,
+                n_aspersores, superficie_ha]):
         return {}
-    return {"caudal_postura_ls": round(n_aspersores * caudal_aspersor_m3h / 3.6, 3)}
+    va_mmhr = (caudal_aspersor_m3h * 1000) / (espaciamiento_aspersores_m * espaciamiento_laterales_m)
+    sup_postura_ha = (espaciamiento_aspersores_m * espaciamiento_laterales_m * n_aspersores) / 10000
+    q_postura_ls = n_aspersores * caudal_aspersor_m3h / 3.6
+    n_posturas = math.ceil(superficie_ha / sup_postura_ha) if sup_postura_ha else 0
+    r = {
+        "va_mmhr": round(va_mmhr, 2),
+        "superficie_postura_ha": round(sup_postura_ha, 3),
+        "caudal_postura_ls": round(q_postura_ls, 3),
+        "n_posturas": n_posturas,
+    }
+    if vib_mmhr:
+        r["vib_ok"] = vib_mmhr > va_mmhr
+    if db_mm and va_mmhr:
+        tiempo_postura_hr = db_mm / va_mmhr
+        r["tiempo_postura_hr"] = round(tiempo_postura_hr, 2)
+        if horas_disponibles_dia:
+            t_trasl = tiempo_traslado_hr if tiempo_traslado_hr is not None else 0.5
+            r["posturas_dia"] = math.floor(horas_disponibles_dia / (tiempo_postura_hr + t_trasl))
+    return r
 
 
 # ── Carrete de riego (cañón viajero): modelo INIA-Carillanca 2001 (Simpfendörfer) ───────────

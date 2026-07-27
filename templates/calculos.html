@@ -212,6 +212,21 @@
               <span id="{{ p }}agro-postura-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
+          <tr class="campo-postura">
+            <td class="col-concepto">VA (velocidad de aplicación) vs. VIB (Aspersión, postura)</td><td class="text-muted">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-va-calc">—</span>
+              <span id="{{ p }}agro-va-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-postura">
+            <td class="col-concepto">Superficie por postura (Aspersión)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-suppos-calc">—</td>
+          </tr>
+          <tr class="campo-postura">
+            <td class="col-concepto">Tiempo por postura / Posturas por día (Aspersión)</td><td class="text-muted">—</td>
+            <td class="col-calc" id="{{ p }}agro-tpost-calc">—</td>
+          </tr>
           <tr class="campo-carrete">
             <td class="col-concepto">Caudal de diseño del cañón (Carrete)</td><td class="text-muted">—</td>
             <td class="col-calc" id="{{ p }}agro-car-q-calc">—</td>
@@ -236,7 +251,7 @@
             </td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">Superficie por postura / N° de posturas (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto">Superficie por postura (Carrete)</td><td class="text-muted">—</td>
             <td class="col-calc" id="{{ p }}agro-car-post-calc">—</td>
           </tr>
           <tr class="campo-carrete">
@@ -291,7 +306,7 @@
             </td>
           </tr>
           <tr>
-            <td class="col-concepto">N° de sectores</td>
+            <td class="col-concepto" id="{{ p }}agro-nsec-label">N° de sectores</td>
             <td><input type="number" step="1" id="{{ p }}decl_nsec" name="{{ p }}decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-nsec-calc">—</span>
@@ -653,6 +668,7 @@
         fa = numVal(p + "factor_agotamiento_pct"), ef = numVal(p + "eficiencia_pct"),
         vib = numVal(p + "vib_mmhr");
     var nAspPostura = numVal(p + "n_aspersores_postura"), qAsp = numVal(p + "caudal_aspersor_m3h");
+    var espAsp = numVal(p + "espaciamiento_aspersores_m"), espLat = numVal(p + "espaciamiento_laterales_m");
     var caudalCanon = numVal(p + "caudal_canon_m3h"), margenSobredim = numVal(p + "margen_sobredimensionamiento_pct"),
         radioAlcance = numVal(p + "radio_alcance_m"), velocidadViento = numVal(p + "velocidad_viento_ms"),
         longitudFranja = numVal(p + "longitud_franja_m"), velocidadAvance = numVal(p + "velocidad_avance_mh"),
@@ -674,6 +690,19 @@
     wrap.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
     wrap.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
     wrap.querySelectorAll(".campo-carrete").forEach(function(el) { el.classList.toggle("activo", mostrarCarrete); el.style.display = mostrarCarrete ? "" : "none"; });
+    // En Aspersión/Carrete el diseño real es por POSTURAS (geométrico, no depende del caudal
+    // disponible) — el consultor casi siempre declara ese número rotulado "N° de sectores" en el
+    // expediente, pero corresponde comparar contra el N° de posturas real de cada sistema (ver
+    // más abajo), no contra el "N° de sectores" genérico (fórmula de caudal, pensada para
+    // Goteo/Microaspersión).
+    var esPosturas = sistema === "Aspersión" || sistema === "Carrete";
+    setText(p + "agro-nsec-label", esPosturas ? "N° de posturas" : "N° de sectores");
+    if (esPosturas) {
+      // Se completa más abajo (bloque de Aspersión o de Carrete, ambos independientes de la
+      // cadena) — placeholder por si los datos de postura/carrete están incompletos.
+      setText(p + "agro-nsec-calc", "—");
+      nota(p + "agro-nsec-nota", "");
+    }
     // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
     // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
     wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
@@ -749,6 +778,37 @@
     }
     nota(p + "agro-postura-nota", notaPostura);
 
+    // VA (velocidad de aplicación), superficie por postura y N° de posturas (Aspersión) —
+    // independiente del resto de la cadena, mismo criterio del Diseñador de Riego (calcAspP).
+    // IMPORTANTE: N_posturasAsp NO es lo mismo que el "N° de sectores" genérico calculado más
+    // abajo — es geométrico (superficie total / superficie que cubre una postura), no depende
+    // del caudal disponible. Es lo que se compara contra "N° de sectores" declarado por el
+    // consultor (fila unificada "N° de sectores"/"N° de posturas" más abajo).
+    var vaAsp = null, supPosturaAsp = null, nPosturasAsp = null;
+    if (qAsp !== null && espAsp !== null && espLat !== null && nAspPostura !== null && sup !== null) {
+      vaAsp = (qAsp * 1000) / (espAsp * espLat);
+      setText(p + "agro-va-calc", fmt(vaAsp, 2) + " mm/hr");
+      if (vib !== null) {
+        var vaOk = vib > vaAsp;
+        nota(p + "agro-va-nota", vaOk ? "" : "VIB del suelo (" + fmt(vib, 1) + " mm/hr) NO supera la VA calculada (" + fmt(vaAsp, 2) + " mm/hr) — riesgo de escorrentía.");
+      } else {
+        nota(p + "agro-va-nota", "");
+      }
+      supPosturaAsp = (espAsp * espLat * nAspPostura) / 10000;
+      nPosturasAsp = supPosturaAsp ? Math.ceil(sup / supPosturaAsp) : null;
+      setText(p + "agro-suppos-calc", fmt(supPosturaAsp, 3) + " ha");
+      if (sistema === "Aspersión" && nPosturasAsp !== null) {
+        setText(p + "agro-nsec-calc", String(nPosturasAsp));
+        nota(p + "agro-nsec-nota", (declNsec !== null && declNsec !== nPosturasAsp)
+          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+      }
+    } else {
+      setText(p + "agro-va-calc", "—");
+      nota(p + "agro-va-nota", "");
+      setText(p + "agro-suppos-calc", "—");
+    }
+    setText(p + "agro-tpost-calc", "—"); // se completa más abajo (necesita Db)
+
     // Carrete de riego (cañón viajero) — modelo INIA-Carillanca, independiente del resto de la
     // cadena (no necesita AD/Dn/Fr). Mismo criterio del Diseñador de Riego (calcCarP), duplicado
     // a mano acá. `sup` (superficie de riego) se define más abajo — se adelanta su lectura acá.
@@ -771,7 +831,12 @@
 
       var supPostura = (longitudFranja * espFranja) / 10000;
       var nPosturas = supPostura ? Math.ceil(sup / supPostura) : null;
-      setText(p + "agro-car-post-calc", fmt(supPostura, 3) + " ha → " + (nPosturas !== null ? nPosturas : "—") + " posturas");
+      setText(p + "agro-car-post-calc", fmt(supPostura, 3) + " ha por postura");
+      if (sistema === "Carrete" && nPosturas !== null) {
+        setText(p + "agro-nsec-calc", String(nPosturas));
+        nota(p + "agro-nsec-nota", (declNsec !== null && declNsec !== nPosturas)
+          ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "");
+      }
 
       var lManguera = Math.max(longitudFranja / 2 - (2 / 3) * radioAlcance, 10);
       var tiCar = (2 / 3 * radioAlcance / velocidadAvance) * (alfaCar / 360);
@@ -841,6 +906,18 @@
     nota(p + "agro-fr-nota", (!esGoteo && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
+    // Tiempo por postura y posturas/día (Aspersión) — necesitan Db, recién disponible acá.
+    var tiempoPosturaAsp = null;
+    if (vaAsp !== null) {
+      tiempoPosturaAsp = db / vaAsp;
+      var txtTpost = "T. postura = Db/VA = " + fmt(tiempoPosturaAsp, 2) + " hr";
+      if (horas !== null) {
+        var posturasDia = Math.floor(horas / (tiempoPosturaAsp + 0.5));
+        txtTpost += " · Posturas/día = " + posturasDia + " (traslado 0,5 hr)";
+      }
+      setText(p + "agro-tpost-calc", txtTpost);
+    }
+
     // Tiempo de riego (por sector, independiente del área total) — se calcula ACÁ porque lo
     // necesitan tanto el acumulador (Q_estanque) como el N° de sectores más abajo.
     var tiempoRiego = precip !== null ? (db / precip) : null;
@@ -884,25 +961,33 @@
         qRequerido = precip * sup * 10000 / 3600;
         caudalEstanque = (volAcum !== null && tiempoRiego) ? (volAcum * 1000) / (tiempoRiego * 3600) : 0;
         nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
-        setText(p + "agro-nsec-calc", String(nSectores));
-        var notaNsec = "";
-        if (declNsec !== null && declNsec !== nSectores) {
-          notaNsec = "No coincide con lo declarado (" + fmt(declNsec, 0) + ").";
-        }
         tiempoTotalDia = nSectores * tiempoRiego;
-        if (horas !== null && tiempoTotalDia > horas) {
-          notaNsec += (notaNsec ? " " : "") + "El riego de los " + nSectores + " sectores (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles.";
+        // En Aspersión/Carrete la fila unificada "N° de posturas" ya se completó arriba (bloque
+        // independiente, con el modelo real de cada sistema) — no la pisamos con este N° de
+        // sectores genérico, que sigue siendo solo referencia interna para caudal de operación/
+        // balance más abajo.
+        if (!esPosturas) {
+          setText(p + "agro-nsec-calc", String(nSectores));
+          var notaNsec = "";
+          if (declNsec !== null && declNsec !== nSectores) {
+            notaNsec = "No coincide con lo declarado (" + fmt(declNsec, 0) + ").";
+          }
+          if (horas !== null && tiempoTotalDia > horas) {
+            notaNsec += (notaNsec ? " " : "") + "El riego de los " + nSectores + " sectores (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles.";
+          }
+          nota(p + "agro-nsec-nota", notaNsec);
         }
-        nota(p + "agro-nsec-nota", notaNsec);
-      } else {
+      } else if (!esPosturas) {
         setText(p + "agro-nsec-calc", "—");
         nota(p + "agro-nsec-nota", "");
       }
     } else {
       setText(p + "agro-triego-calc", "—");
       nota(p + "agro-triego-nota", "");
-      setText(p + "agro-nsec-calc", "—");
-      nota(p + "agro-nsec-nota", "");
+      if (!esPosturas) {
+        setText(p + "agro-nsec-calc", "—");
+        nota(p + "agro-nsec-nota", "");
+      }
     }
 
     // Caudal de diseño (operación de la red): el que circula por la tubería mientras opera UN
