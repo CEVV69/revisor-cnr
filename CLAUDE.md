@@ -1164,6 +1164,77 @@ externo de Railway no tiene nada que cortar.
   anterior a esta sesión — impide levantar la app acá; no debería afectar Railway, que corre otras
   versiones de esas librerías) — la sintaxis del JS nuevo sí se validó (`node --check`).
 
+**Ahorro de costo de API — caché de prompt ampliada a criterios aprendidos/énfasis + log de uso
+real (implementado, jul-2026):** el usuario planteó que el gasto en la API de Anthropic venía
+subiendo (ej. un proyecto real pasó de U$1,78 a U$2,66 al subir `revisar_invalidacion_cruzada` de
+Haiku a Sonnet 5 por el bug de descartes — ver esa sección) y pidió, sin fijar un mecanismo
+concreto, "lo que sea más óptimo para ahorrar gasto de la API de Anthropic" — con la condición de
+siempre (ya establecida en la sesión anterior): sin bajar la calidad del análisis. Se evaluaron
+las 3 ideas que habían quedado solo planteadas (acotar el alcance de la invalidación cruzada,
+instrumentar uso real, evaluar la Batch API) y se descartaron como PRIMERA acción: acotar
+invalidación cruzada arriesga reintroducir alguno de los 2 bugs reales ya corregidos ahí (ver las
+2 entradas "bug resuelto" de esa sección); la Batch API no encaja con el flujo interactivo de
+revisar un ítem y ver el resultado en la misma sesión de trabajo (su SLA es de horas, no
+segundos/minutos). En su lugar se encontró, leyendo el armado del prompt en `_analizar_grupo`,
+una optimización mecánica de costo real y sin ningún riesgo de calidad:
+- **Causa:** el caché de prompt (`cache_control: ephemeral`) hoy solo cubre `SYSTEM_PROMPT`
+  (normativa) y `bases_texto` (bloque `bloque_bases`) — pero `criterios_aprendidos` (destilado
+  del feedback del revisor) y `criterios_enfasis` (generales permanentes + puntuales del
+  concurso, ver esa sección) son, igual que las bases, **por CONCURSO+ÍTEM, no por proyecto** —
+  no cambian de un proyecto a otro del mismo concurso. Antes de este cambio se armaban con
+  `bloque_feedback`/`bloque_enfasis` y se mandaban SUELTOS en el prompt de cada llamada (fuera
+  del bloque cacheado), así que se pagaban como texto fresco (sin descuento de caché) en CADA uno
+  de los 18 ítems, de CADA proyecto del concurso — pese a ser, en la enorme mayoría de los casos,
+  exactamente el mismo texto que ya se había mandado en la llamada anterior.
+- **Fix:** en `_analizar_grupo` (analyzer.py), la construcción de `bloque_enfasis` se adelantó
+  (antes se armaba más abajo en la función, después de `system_con_cache` — no dependía de nada
+  intermedio, así que el traslado es un simple reordenamiento) y ambos bloques
+  (`bloque_feedback`+`bloque_enfasis`, concatenados) se agregan como un TERCER breakpoint de
+  caché (`system_con_cache.append(...)`, mismo patrón que ya usaba `bloque_bases`) — si el
+  bloque combinado tiene contenido, ambas variables se limpian a `""` después (igual que hace
+  `bloque_bases`), así que el `prompt` f-string de más abajo no los duplica. Sin criterios
+  aprendidos ni énfasis definidos (caso más simple), el bloque no se agrega y todo sigue igual
+  que antes (2 breakpoints: `SYSTEM_PROMPT` + `bloque_bases`) — dentro del máximo de 4 que
+  permite la API, con margen para uno más a futuro.
+- **Por qué es seguro (cero riesgo de calidad):** es un cambio puramente de UBICACIÓN dentro del
+  mensaje — el contenido que lee la IA es idéntico byte a byte, solo cambia si va en el bloque
+  `system` (cacheado) o en el mensaje `user` (sin cachear). La caché de Anthropic es por
+  coincidencia EXACTA de contenido: si `criterios_aprendidos`/`criterios_enfasis` cambian entre
+  llamadas (el revisor consolida aprendizaje nuevo, o edita un criterio de énfasis a mitad de
+  sesión), la siguiente llamada simplemente no pega en caché para ese bloque (mismo costo que
+  antes, nunca peor) y las llamadas siguientes con el contenido ya estable vuelven a pegar — sin
+  ningún riesgo de quedarse con una versión vieja/"stale" de los criterios (no hay tal cosa: cada
+  llamada arma el prompt con el valor ACTUAL de esas variables, la caché solo decide si ese texto
+  ya estaba en el caché de Anthropic o hay que mandarlo fresco). Además, conceptualmente encaja
+  mejor: son reglas persistentes por concurso+ítem (o globales), el mismo tipo de contenido
+  "estable" que ya justificaba cachear `bases_texto`.
+- **Impacto esperado:** en un concurso con varios proyectos revisados en la misma sesión de
+  trabajo (el caso típico — el revisor no revisa un solo proyecto y cierra), a partir del 2º
+  proyecto que pasa por el mismo ítem dentro de la ventana de la caché (`ttl: "1h"`), el bloque de
+  aprendizaje/énfasis se lee de caché en vez de cobrarse como input fresco — mismo efecto que ya
+  tenía `bases_texto`, ahora extendido a este bloque. El ahorro real depende de cuánto pesen esos
+  criterios en cada concurso/ítem (algunos no tienen nada aún, otros ya tienen bastante texto
+  destilado) — no cuantificado en dólares en esta sesión, ver el punto siguiente.
+- **Log de uso real de tokens (`_log_uso`, nuevo, analyzer.py):** conectado a las dos llamadas de
+  Sonnet 5 más relevantes de cara al costo — el análisis principal de `_analizar_grupo` y
+  `revisar_invalidacion_cruzada` — imprime en el log de Railway `input`/`output`/
+  `cache_leido`/`cache_creado` (de `response.usage`, sin costo ni llamada extra — viene incluido
+  en toda respuesta de la API) por cada llamada. Puramente informativo, no cambia nada del
+  análisis: sirve para que el usuario confirme en Railway que la caché de arriba efectivamente
+  está funcionando (`cache_leido` > 0 a partir del 2º proyecto de un concurso) y, a futuro, para
+  decidir con datos reales (no estimaciones) si vale la pena tocar algo más costoso como acotar
+  el alcance de la invalidación cruzada — que sigue sin tocarse esta sesión, a propósito, por el
+  riesgo de reintroducir alguno de los 2 bugs de descarte incorrecto ya corregidos.
+- **Verificado sin acceso a la API real** (no hay `ANTHROPIC_API_KEY` en este entorno): prueba
+  funcional con un cliente Anthropic simulado (mismo patrón de pruebas de toda la sesión) que
+  intercepta el argumento `system` de `client.messages.stream(...)` — confirma que con
+  `criterios_aprendidos`/`criterios_enfasis` presentes se arman exactamente 3 bloques `system`,
+  los 3 con `cache_control`, que el texto de ambos criterios aparece en el 3er bloque y NO se
+  duplica en el prompt por-llamada (`content_blocks[0]["text"]`); y que sin criterios definidos
+  vuelve a quedar en 2 bloques, sin un 3ro vacío. También se verificó que `_log_uso` imprime
+  correctamente los 4 campos de `usage` sin lanzar excepción cuando faltan (try/except silencioso,
+  no puede romper un análisis por un problema de logging).
+
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
 Es texto que el revisor **escribe y edita a mano** (nunca se toca automáticamente — supervisión

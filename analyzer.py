@@ -56,6 +56,22 @@ def _texto_respuesta(response) -> str:
     return "\n".join(partes).strip()
 
 
+def _log_uso(etiqueta: str, response) -> None:
+    """Registra en el log de Railway el uso REAL de tokens de una respuesta (incluida la lectura
+    de caché) — visibilidad para poder medir el gasto real de la API en vez de estimarlo, y
+    confirmar que la caché de prompt (SYSTEM_PROMPT + bases + criterios aprendidos/énfasis, ver
+    `_analizar_grupo`) efectivamente se está reutilizando. Puramente informativo — no cambia
+    nada del análisis ni cuesta una llamada extra, `usage` viene incluido en toda respuesta."""
+    try:
+        u = response.usage
+        cache_leido = getattr(u, "cache_read_input_tokens", 0) or 0
+        cache_creado = getattr(u, "cache_creation_input_tokens", 0) or 0
+        print(f"💲 Uso '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
+              f"cache_leido={cache_leido} cache_creado={cache_creado}")
+    except Exception:
+        pass
+
+
 def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
     """Elige el modelo según complejidad del documento."""
     if tipo_doc in DOCS_FORZAR_HAIKU:
@@ -1993,12 +2009,37 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     # Aprendizaje por consultor (patrones recurrentes de quien presenta el proyecto)
     bloque_consultor = _construir_bloque_consultor(consultor)
 
+    # Criterios de énfasis (generales permanentes + puntuales de este concurso) — se arma acá,
+    # antes de lo habitual (más abajo en la función original), porque igual que bloque_feedback
+    # NO depende de nada específico de este proyecto: es por concurso+ítem (o global), así que
+    # puede ir al bloque de caché de más abajo en vez de reenviarse fresco en cada llamada.
+    bloque_enfasis = ""
+    if criterios_enfasis and criterios_enfasis.strip():
+        bloque_enfasis = (f"\n\n{'═'*60}\nCRITERIOS DE ÉNFASIS DEFINIDOS POR EL REVISOR PARA "
+                          f"ESTE GRUPO — verifícalos SIEMPRE, tienen prioridad sobre el resto de "
+                          f"la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
+
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
     if bloque_bases.strip():
         system_con_cache.append({"type": "text", "text": bloque_bases,
                                  "cache_control": {"type": "ephemeral", "ttl": "1h"}})
         bloque_bases = ""
+    # bloque_feedback (criterios aprendidos / feedback crudo) y bloque_enfasis son por
+    # CONCURSO+ÍTEM (o globales), no por proyecto — a diferencia del Resumen o el perfil del
+    # consultor, que sí cambian en cada llamada. Se reutilizan sin cambios mientras el revisor
+    # analiza el mismo ítem en distintos proyectos del mismo concurso, así que se mandan también
+    # dentro del bloque cacheado (mismo patrón que bloque_bases) en vez de ir sueltos en el
+    # prompt de cada llamada — reduce el costo de input en la mayoría de las revisiones de un
+    # concurso, sin cambiar en nada qué lee la IA ni cómo lo pondera (el contenido es idéntico,
+    # solo cambia en qué parte del mensaje va). Un tercer breakpoint, dentro del máximo de 4 que
+    # permite la API.
+    bloque_aprendizaje_cache = f"{bloque_feedback}{bloque_enfasis}"
+    if bloque_aprendizaje_cache.strip():
+        system_con_cache.append({"type": "text", "text": bloque_aprendizaje_cache,
+                                 "cache_control": {"type": "ephemeral", "ttl": "1h"}})
+        bloque_feedback = ""
+        bloque_enfasis = ""
 
     revision_nombre = "técnica" if tipo_revision == "tecnica" else "legal"
 
@@ -2028,13 +2069,8 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                               f"páginas ni láminas distintas, no dupliques conteos ni "
                               f"superficies.")
 
-    bloque_enfasis = ""
-    if criterios_enfasis and criterios_enfasis.strip():
-        # Puede traer una o dos secciones (GENERALES / PUNTUALES DE ESTE CONCURSO), ya armadas
-        # por _criterios_enfasis_combinados() en main.py — ver ese helper para el detalle.
-        bloque_enfasis = (f"\n\n{'═'*60}\nCRITERIOS DE ÉNFASIS DEFINIDOS POR EL REVISOR PARA "
-                          f"ESTE GRUPO — verifícalos SIEMPRE, tienen prioridad sobre el resto de "
-                          f"la guía:\n{'═'*60}\n{criterios_enfasis.strip()}\n")
+    # bloque_enfasis ya se armó más arriba (junto con bloque_feedback, antes de system_con_cache)
+    # y quedó en "" si su contenido se movió al bloque cacheado — no se reconstruye acá.
 
     # Coherencia Global revisa el expediente COMPLETO, así que sin este bloque tiende a
     # re-encontrar y repetir hallazgos puntuales que ya quedaron registrados al revisar cada
@@ -2123,6 +2159,8 @@ DOCUMENTOS DEL GRUPO (texto):
               f"reintentando con más cupo…")
         response = await _llamar(max_tokens_total + 8000)
         content = _texto_respuesta(response)
+
+    _log_uso(f"análisis '{nombre}'", response)
 
     observaciones = []
     try:
@@ -2277,6 +2315,7 @@ Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda),
                   f"max_tokens — reintentando con más cupo…")
             response = await asyncio.to_thread(_llamar, 14000)
             content = _texto_respuesta(response)
+        _log_uso(f"invalidación cruzada '{item_nombre_nuevo}'", response)
         data = _extraer_json_simple(content)
         resueltas = data.get("resueltas", [])
         if not isinstance(resueltas, list):
