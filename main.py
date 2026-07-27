@@ -553,7 +553,7 @@ async def logout():
 async def dashboard(request: Request):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     # Listado liviano: dashboard.html solo necesita estos campos — evita traer el texto
     # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
     # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
@@ -576,7 +576,7 @@ async def dashboard(request: Request):
 async def nuevo_proyecto_page(request: Request):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse("nuevo_proyecto.html", {"request": request, "user": user})
 
 
@@ -589,7 +589,7 @@ async def crear_proyecto(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     proyecto_id = str(uuid.uuid4())[:8]
     proyecto = {
@@ -618,7 +618,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     Todas comparten el mismo encabezado y barra de navegación; `pagina` decide qué se muestra."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
@@ -794,7 +794,7 @@ async def cambiar_estado_proyecto(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -817,7 +817,7 @@ async def subir_documento(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
@@ -869,7 +869,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     página de Ítems SEP hace *polling* a `GET .../item/{item_key}/estado` hasta que termina."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     if item_key not in ITEMS_SEP:
         raise HTTPException(status_code=404, detail="Ítem no válido")
 
@@ -1118,7 +1118,7 @@ async def agregar_observacion_manual(
     Respuestas/subsanación como cualquier otra."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     if item_key not in ITEMS_SEP:
         raise HTTPException(status_code=404, detail="Ítem no válido")
     if categoria not in ("tecnica", "legal", "presupuesto", "administrativa"):
@@ -1178,7 +1178,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
     if not user:
         if es_ajax:
             return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     pagina = "items"
 
@@ -1455,7 +1455,7 @@ def _fv_calculo(datos: dict):
 async def pagina_calculos(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1504,7 +1504,7 @@ async def calculos_guardar_n_sistemas(request: Request, proyecto_id: str):
     ambas tarjetas lean siempre el mismo valor y nunca queden desincronizadas."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1520,7 +1520,7 @@ async def calculos_guardar_n_sistemas(request: Request, proyecto_id: str):
 async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1541,7 +1541,7 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
 async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1593,7 +1593,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
     sistema no está declarado como uno de los cuatro exportables, vuelve al Chequeo con un aviso."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1638,7 +1638,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
 async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1659,7 +1659,7 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
 async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1708,7 +1708,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
 async def calculos_extraer_fv(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1726,7 +1726,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
 async def calculos_guardar_fv(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -1759,7 +1759,7 @@ async def subir_zip(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
@@ -1818,7 +1818,7 @@ async def subir_multiple(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
@@ -1876,7 +1876,7 @@ async def subir_multiple(
 async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2137,7 +2137,7 @@ async def guardar_resumen(request: Request, proyecto_id: str):
     """Guarda los campos del formulario de resumen editados por el revisor."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2156,7 +2156,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     """Autocompleta con la IA los campos vacíos del resumen a partir de los documentos."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2198,7 +2198,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
 async def consultar_page(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2211,7 +2211,7 @@ async def consultar_page(request: Request, proyecto_id: str):
 async def consultar_post(request: Request, proyecto_id: str, pregunta: str = Form(...)):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2244,7 +2244,7 @@ async def limpiar_items(request: Request, proyecto_id: str):
     """Limpia SOLO la revisión por ítems SEP. No toca los ejes."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if proyecto:
         # Conservar las observaciones de ejes; borrar solo las de ítems
@@ -2265,7 +2265,7 @@ async def limpiar_items(request: Request, proyecto_id: str):
 async def eliminar_proyecto(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if proyecto:
         import shutil
@@ -2289,7 +2289,7 @@ async def actualizar_observacion(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
 
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
@@ -2323,7 +2323,7 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
     solo la marca como descartada conservando el registro."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2354,7 +2354,7 @@ async def derivar_observacion_item(
     pertenece la observación, no depende de que exista un análisis previo de ese ítem."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     if item_key not in ITEMS_SEP or item_key == "coherencia":
         raise HTTPException(status_code=400, detail="Ítem destino no válido")
 
@@ -2414,7 +2414,7 @@ def _estado_subsanacion(obs: dict) -> dict:
 async def pagina_respuestas(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2471,7 +2471,7 @@ async def registrar_respuesta_subsanacion(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2615,7 +2615,7 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
     el último registro, conserva los anteriores."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -2632,7 +2632,7 @@ async def aprobar_tecnicamente(request: Request, proyecto_id: str):
     (enviadas al consultor) quedaron resueltas. Si falta alguna, no hace nada."""
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
@@ -3177,7 +3177,7 @@ async def admin_eliminar_usuario(request: Request, username: str):
 async def mi_cuenta_page(request: Request):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse("mi_cuenta.html", {"request": request, "user": user})
 
 
@@ -3190,7 +3190,7 @@ async def cambiar_password(
 ):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/login", status_code=302)
     db_user = db.get_user(user["username"])
 
     def _render(error=None, ok=False):

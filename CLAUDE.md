@@ -3107,6 +3107,25 @@ antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENE
     de este cambio) o si ya se liberó a propósito. La tabla de documentos en `proyecto.html`
     muestra por fila si el archivo sigue disponible (🟢), si hay que resubirlo (🔴,
     `doc.necesita_archivo` y no `doc.archivo_presente`) o si no hace falta (⚪).
+- **Bug resuelto — subir un ZIP (u otra ruta POST) con la sesión vencida mostraba un error 422
+  crudo en vez de mandar al login (jul-2026):** reportado por el usuario al subir un ZIP de
+  documentos — la app mostró
+  `{"detail":[{"type":"missing","loc":["body","username"],...},{"type":"missing",
+  "loc":["body","password"],...}]}` (el navegador lo tradujo automáticamente, por eso se veía
+  como "cuerpo"/"nombredeusuario"/"contraseña" en vez de en inglés). Causa: las ~37 rutas
+  protegidas hacían `return RedirectResponse(url="/login")` sin indicar `status_code` cuando
+  `get_current_user()` no encontraba sesión válida (JWT vencido a las 8 h, o cookie ausente) —
+  Starlette usa **307** por defecto en `RedirectResponse`, que a diferencia de 302/303 preserva
+  el MÉTODO y el CUERPO original de la petición. En una ruta GET eso no se nota (una redirección
+  a la página de login igual es GET, sin cuerpo) — pero en una ruta POST con archivo adjunto
+  (subir ZIP, subir documento, etc.), el navegador reintenta la MISMA petición POST contra
+  `/login`, con el archivo del ZIP como cuerpo en vez de `username`/`password` — y como `/login`
+  exige esos dos campos (`Form(...)`), FastAPI responde 422 "Campo requerido" para ambos. Se
+  arregló cambiando las 37 ocurrencias a `RedirectResponse(url="/login", status_code=302)` — 302
+  hace que el navegador reintente como GET, sin reenviar el cuerpo (comportamiento estándar de
+  todos los navegadores actuales, aunque el RFC lo deja ambiguo). **Si vuelve a pasar algo
+  similar:** cualquier redirect nuevo que pueda dispararse desde una ruta POST debe fijar
+  `status_code=302` explícitamente — nunca dejar el default de `RedirectResponse` sin revisar.
 - **Bug resuelto — carpeta de subida faltante tras deploy:** las rutas `subir` y
   `subir-multiple` en `main.py` intentaban guardar el archivo sin recrear la carpeta del
   proyecto (`UPLOAD_DIR/{proyecto_id}`), que se borra en cada deploy. Al subir un documento
