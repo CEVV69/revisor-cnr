@@ -81,6 +81,19 @@ MAX_TOKENS_POR_ITEM = {
     "presupuesto_electrico": 24000,
 }
 
+# Planos con renderizado en cuadrantes (TIPOS_PLANO_VISION, más abajo en este archivo — hasta
+# 5 imágenes por página × 2 páginas, tope global MAX_IMG_EJE) — "mirar" varias imágenes de alta
+# resolución consume tanto o más thinking que un presupuesto largo (bug real reportado jul-2026
+# con "Planos Proyecto tecnificación": mismo patrón "respuesta vacía por max_tokens —
+# reintentando", tanto en el análisis principal como en `revisar_invalidacion_cruzada` corriendo
+# en paralelo). Mismas 4 claves que `TIPOS_PLANO_VISION` — si se agrega o quita un tipo de ese
+# set, replicar el cambio acá (no se referencia directo porque ese set se define más abajo en
+# el archivo, después de esta constante).
+for _tipo_plano in ("planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion",
+                    "identificacion_riego"):
+    MAX_TOKENS_POR_ITEM[_tipo_plano] = 24000
+del _tipo_plano
+
 # Páginas máximas para visión (PDFs escaneados / con imágenes)
 MAX_PAGINAS_ESCANEADO = 5   # Mapas, planos, documentos generales
 MAX_PAGINAS_POR_TIPO = {
@@ -2222,21 +2235,26 @@ Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda),
 {{"resueltas": []}}"""
 
     def _llamar(max_tokens):
-        response = client.messages.create(
+        # Streaming (no create()) — mismo motivo que _analizar_grupo: con hasta 150 observaciones
+        # pendientes citadas en el prompt (bug real jul-2026, "Planos Proyecto tecnificación":
+        # esta llamada también vació por max_tokens en paralelo con el análisis principal), el
+        # thinking puede ser largo y una llamada sin streaming arriesga el timeout propio del
+        # SDK, además del externo.
+        with client.messages.stream(
             model=MODELO_SONNET, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
-        )
-        return response
+        ) as stream:
+            return stream.get_final_message()
 
     try:
-        response = await asyncio.to_thread(_llamar, 4000)
+        response = await asyncio.to_thread(_llamar, 6000)
         content = _texto_respuesta(response)
         # Mismo patrón que el resto de las llamadas a Sonnet 5: el "thinking" puede comerse el
         # cupo antes de escribir el JSON — reintenta una vez con más cupo antes de rendirse.
         if not content.strip() and response.stop_reason == "max_tokens":
             print(f"⚠️ revisar_invalidacion_cruzada ('{item_nombre_nuevo}'): respuesta vacía por "
                   f"max_tokens — reintentando con más cupo…")
-            response = await asyncio.to_thread(_llamar, 8000)
+            response = await asyncio.to_thread(_llamar, 14000)
             content = _texto_respuesta(response)
         data = _extraer_json_simple(content)
         resueltas = data.get("resueltas", [])

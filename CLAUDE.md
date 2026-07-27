@@ -1058,6 +1058,52 @@ se corta la respuesta HTTP hacia el navegador porque la SUMA de los dos intentos
   revisar de nuevo antes de asumir que hay que reintentar el ítem, porque lo más probable es que
   ya se haya guardado igual.
 
+**Seguimiento 3 — mismo patrón en planos con visión, y por qué NO se prueba con otro modelo
+(jul-2026):** el mismo síntoma (pantalla en blanco, `respuesta vacía por max_tokens —
+reintentando`) volvió a pasar, esta vez en "Planos Proyecto tecnificación" (`planos_tecnificacion`)
+— y esta vez el log mostró el patrón DOS VECES en paralelo: en el análisis principal Y en
+`revisar_invalidacion_cruzada` (que corre junto al análisis vía `asyncio.gather`, ver esa
+función). El usuario preguntó si el cambio a Sonnet 5 fue "demasiado" y si Sonnet 4.6 podría no
+ser capaz. **No es un problema de capacidad del modelo** — la prueba está en el propio reporte:
+el análisis SIEMPRE termina bien en el servidor (esta vez con 4 observaciones correctas,
+recuperadas al reabrir la app) — el modelo completa la tarea correctamente, solo necesita más
+tokens de "thinking" antes de escribir el JSON final. Cambiar de modelo no ataca esa causa (un
+modelo distinto puede pensar distinto, pero el patrón — thinking largo antes del JSON, en
+documentos exigentes — no es exclusivo de Sonnet 5) y arriesga perder calidad de análisis sin
+resolver el síntoma real. La causa de fondo en planos es la MISMA que en Presupuesto (ítem denso
+en razonamiento) pero con un detonante distinto: "mirar" varias imágenes en alta resolución
+(`render_plano_tiles`, hasta 5 imágenes/página × 2 páginas) consume tanto o más thinking que un
+presupuesto largo de texto.
+- **Mismo fix, extendido a los planos con renderizado en cuadrantes:** `MAX_TOKENS_POR_ITEM` ganó
+  las 4 claves de `TIPOS_PLANO_VISION` (`planos_tecnificacion`, `planos_obras_civiles`,
+  `plano_ubicacion`, `identificacion_riego`) en 24.000, mismo valor y mismo razonamiento que
+  Presupuesto — arrancan con el cupo al que hoy solo llegaban en el reintento. (Constante separada
+  del `set` `TIPOS_PLANO_VISION` porque ese se define más abajo en el archivo — si se agrega o
+  quita un tipo ahí, replicar el cambio acá.) `pruebas_bombeo` (en `TIPOS_SIEMPRE_VISION` pero NO
+  en `TIPOS_PLANO_VISION`, sin renderizado en cuadrantes — solo página completa) se dejó fuera a
+  propósito: no reportó el problema y su render es más liviano.
+- **`revisar_invalidacion_cruzada` — dos fixes**: (1) subida de 4.000→6.000 el cupo inicial (y de
+  8.000→14.000 el reintento) — con hasta 150 observaciones pendientes citadas en el prompt, el
+  thinking puede ser largo igual que en el análisis principal; (2) pasada a **streaming**
+  (`client.messages.stream(...)` + `get_final_message()`), igual que `_analizar_grupo` — usaba
+  `create()` sin streaming, la única llamada de este tipo (Sonnet 5, con reintento por max_tokens)
+  que todavía no seguía la regla general del proyecto ("cualquier llamada a Sonnet 5 con
+  `max_tokens` alto o que puede necesitar reintento debe ir con streaming").
+- **Sobre "evitar cerrar y volver a abrir la app" — si es posible, y por qué no se implementó
+  hoy:** el usuario preguntó si existe una forma interna de lograr lo mismo que cerrar/reabrir
+  (que el resultado aparezca) sin que el revisor tenga que notarlo. Sí es posible — el patrón es
+  correr el análisis en segundo plano (tarea async / background task) y que la página haga
+  *polling* (JS simple, sin framework, consistente con el resto de la app) hasta que el resultado
+  esté listo, en vez de que el navegador espere una sola petición HTTP que el proxy externo puede
+  cortar. Es la solución de fondo al problema (ya no dependería de qué tan alto esté
+  `max_tokens` ni de cuántos ítems se optimicen uno por uno) pero es un cambio de arquitectura
+  real — toca el flujo de "revisar ítem" para los 18 ítems, necesita persistir un estado
+  "analizando/listo/error" por ítem y una ruta de estado nueva para el polling. Se dejó
+  explícitamente pendiente de decisión del usuario (no se implementó sin que lo pidiera) — la
+  mitigación de hoy (más cupo por ítem, igual que Presupuesto) reduce cuánto pasa esto, pero no
+  lo elimina de raíz. Candidato claro para una sesión dedicada si sigue ocurriendo con otros
+  ítems.
+
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
 Es texto que el revisor **escribe y edita a mano** (nunca se toca automáticamente — supervisión
