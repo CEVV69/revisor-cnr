@@ -306,6 +306,17 @@ fecha (`item_reciente`, calculado en `_render_proyecto()` con `max(revisados.ite
 key=fecha)`); el resto queda contraído pero expandible a mano. El grupo se identifica por
 `grupo.key` (item_key), agregado en `_agrupar()`.
 
+**Orden de secciones en la página Ítems SEP — "Debatir con la IA" DESPUÉS de Observaciones/Notas
+(jul-2026):** a pedido del usuario, por practicidad de su flujo real: abre un ítem, revisa sus
+documentos y observaciones, y solo a veces necesita discutirlo con la IA — con el chat primero
+(orden original) tenía que bajar de más en cada vuelta para llegar a las observaciones. Se
+invirtió el orden en `proyecto.html` (página `/proyecto/{id}/items`): ahora
+`bloque_observaciones()` y `bloque_notas()` van primero, `bloque_chat()` después, y
+`bloque_cumplimiento()` al final (sin cambios). Es solo un reordenamiento de las mismas 4 llamadas
+a macro, con los mismos argumentos — no cambió nada del contenido ni del comportamiento de cada
+bloque (anclas `#chat-item-...`, auto-apertura por `item_ok`, etc., siguen funcionando igual, no
+dependen del orden en el DOM).
+
 **Bug resuelto — aprobar/descartar una observación cerraba el ítem y saltaba a otro (jul-2026):**
 las rutas `POST /proyecto/{id}/observacion/{obs_id}/estado` (aprobar/descartar/pendiente) y
 `.../eliminar` (`actualizar_observacion`/`eliminar_observacion`, main.py) redirigían a

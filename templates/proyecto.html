@@ -712,13 +712,18 @@ function actualizarEtiqueta(input) {
 </div>
 {% endif %}
 
-{{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
-
 {# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok, del redirect tras
    analizar/aprobar/descartar). Al entrar a la página sin acción previa NO se abre ninguno —
    todos cerrados, el revisor decide cuál desplegar. #}
 {{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok, items_info) }}
 {{ bloque_notas(grupos_notas_item, proyecto.id, item_ok, items_info) }}
+
+{# "Debatir con la IA" DESPUÉS de Observaciones/Notas (jul-2026, a pedido del usuario) — el
+   flujo real es abrir un ítem, revisar sus documentos/observaciones y recién ahí, si hace
+   falta, discutirlo con la IA; con el chat primero había que bajar de más para llegar a las
+   observaciones en cada vuelta. #}
+{{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
+
 {{ bloque_cumplimiento(items_cumplen, proyecto.id) }}
 
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->
