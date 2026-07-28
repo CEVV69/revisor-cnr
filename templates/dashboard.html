@@ -9,9 +9,10 @@
 
 {% if proyectos %}
 <div class="card" style="overflow-x:auto;">
-  <table style="min-width:800px;">
+  <table style="min-width:850px;">
     <thead>
       <tr>
+        <th style="white-space:nowrap;">N°</th>
         <th style="white-space:nowrap;">Código SEP</th>
         <th>Nombre del proyecto</th>
         <th>Postulante</th>
@@ -24,6 +25,7 @@
     <tbody>
       {% for p in proyectos %}
       <tr>
+        <td class="text-muted" style="white-space:nowrap;">{{ p.numero }}</td>
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ p.codigo_sep }}</strong></td>
         <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>

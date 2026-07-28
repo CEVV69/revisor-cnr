@@ -563,6 +563,13 @@ async def dashboard(request: Request):
         username=user["username"])
     for p in proyectos:
         p["consultor"] = (p.get("resumen") or {}).get("consultor", "").strip()
+    # Numeración por antigüedad (el más antiguo = 1) — la tabla sigue mostrando los más
+    # recientes primero (orden de siempre, sin cambios), solo se le agrega este número como
+    # referencia estable de cuándo se creó cada proyecto relativo a los demás.
+    orden_antiguedad = sorted(proyectos, key=lambda p: p.get("fecha_creacion", ""))
+    numero_por_id = {p["id"]: i + 1 for i, p in enumerate(orden_antiguedad)}
+    for p in proyectos:
+        p["numero"] = numero_por_id.get(p["id"])
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,

@@ -547,6 +547,15 @@ adivina ni se muestra un pin en un lugar incorrecto.
   calcula `p["consultor"] = (p.get("resumen") or {}).get("consultor", "").strip()` por cada
   proyecto antes de pasarlo a la plantilla (mismo dato que ya usa `_consultor_de_proyecto()` en
   el resto de la app). Muestra "—" si el campo está vacío o el proyecto es legado sin `resumen`.
+  **Columna "N°" — numeración por antigüedad (jul-2026):** a pedido del usuario, primera columna
+  de la tabla. NO cambia el orden de las filas (se consultó explícitamente y el usuario prefirió
+  mantener los proyectos más recientes arriba, el orden de siempre) — solo numera cada proyecto
+  según su antigüedad relativa (el más antiguo = 1), como referencia estable independiente del
+  orden visual. `dashboard()` ordena una copia de `proyectos` por `fecha_creacion` ascendente
+  para asignar el número (`numero_por_id`), y lo aplica sobre la lista real (que sigue en su
+  orden descendente de siempre) — el número más alto queda arriba, junto al proyecto más
+  reciente. Un proyecto legado sin `fecha_creacion` (cadena vacía) ordena como el más antiguo,
+  sin romper.
 - Documentos ordenados por tipo · indicador de cuáles resubir tras un deploy
 - **Ficha de revisión** (`/proyecto/{id}/ficha`): HTML imprimible + descargar PDF
   (html2pdf.js), obs agrupadas por ítem, sin firmas ni "R)"
