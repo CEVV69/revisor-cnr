@@ -383,13 +383,17 @@
 </div>
 {% endif %}
 
-<!-- Documentos obligatorios marcados como "no aplica" a ESTE proyecto en particular -->
+<!-- Documentos obligatorios marcados como "no aplica" a ESTE proyecto en particular — colapsado
+     por defecto (jul-2026): una vez registrado el motivo no hace falta seguir viéndolo desplegado,
+     solo agrega alto a la página; el resumen de una línea alcanza para recordar que existe. -->
 {% if obligatorios_exceptuados %}
-<div style="background:#f5f5f7; border:1px solid var(--border); border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem;">
-  <div style="font-size:0.8rem; color:var(--text-2); font-weight:600; margin-bottom:0.3rem;">
-    Documentos obligatorios marcados como "no aplica" en este proyecto
-  </div>
-  <ul style="margin:0; padding-left:1.2rem; font-size:0.78rem; color:var(--text-2);">
+<details style="background:#f5f5f7; border:1px solid var(--border); border-radius:6px; padding:0.5rem 1rem; margin-bottom:0.8rem;">
+  <summary style="font-size:0.8rem; color:var(--text-2); font-weight:600; cursor:pointer;">
+    {{ obligatorios_exceptuados | length }} documento{{ 's' if obligatorios_exceptuados | length != 1 else '' }}
+    obligatorio{{ 's' if obligatorios_exceptuados | length != 1 else '' }} marcado{{ 's' if obligatorios_exceptuados | length != 1 else '' }}
+    como "no aplica" en este proyecto
+  </summary>
+  <ul style="margin:0.4rem 0 0; padding-left:1.2rem; font-size:0.78rem; color:var(--text-2);">
     {% for d in obligatorios_exceptuados %}
     <li style="margin-bottom:0.2rem;">
       {{ d.label }} — {{ d.motivo }}
@@ -401,7 +405,7 @@
     </li>
     {% endfor %}
   </ul>
-</div>
+</details>
 {% endif %}
 
 <!-- Barra de navegación entre páginas del proyecto -->
