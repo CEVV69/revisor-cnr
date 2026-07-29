@@ -810,6 +810,21 @@ TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubi
 # del documento (la parte narrativa), sin poder leer la tabla ni ver la forma de la curva.
 TIPOS_SIEMPRE_VISION = TIPOS_PLANO_VISION | {"pruebas_bombeo"}
 
+# Tipos EXCLUIDOS del pool de documentos de Coherencia Global (jul-2026) — administrativos o
+# financieros, sin señal de coherencia CRUZADA entre documentos de diseño (no son planos, no son
+# cálculos, no describen equipos): su volumen puede ser alto (proyectos reales con 10+
+# cotizaciones/facturas) sin aportar nada al cierre transversal, y ya se revisan a fondo en su
+# propio ítem SEP (Cotizaciones y Facturas, Cotizaciones, Declaración IVA) — incluirlos de nuevo
+# en Coherencia es puro costo, sin beneficio. Deliberadamente NO incluye
+# "especificaciones_tecnicas" (aunque también puede tener volumen alto, ej. manuales de equipos
+# mezclados con la memoria técnica) porque el propio checklist de Coherencia exige cruzar specs
+# de equipos contra el resto del diseño (ej. "la potencia del sistema FV cubre la bomba del
+# diseño hidráulico") — excluirlo arriesgaría perder justo el hallazgo para el que existe este
+# ítem, así que ahí el ahorro debe venir de otro lado (reparto adaptativo ya evita gastar de más
+# en manuales cortos).
+TIPOS_EXCLUIDOS_COHERENCIA = {"cotizaciones_facturas", "cotizaciones", "declaracion_iva",
+                              "lista_beneficiarios", "antecedentes_legales"}
+
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────
 # En vez de que la IA haga la matemática de memoria a partir de texto libre, se extraen los
@@ -2373,10 +2388,13 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
     if item_key == "coherencia":
-        # Usa TODOS los documentos con texto, sin filtrar por tipo, y sin visión (cierre
-        # transversal, no analiza planos/escaneados por costo).
+        # Usa TODOS los documentos con texto, sin filtrar por tipo (salvo
+        # TIPOS_EXCLUIDOS_COHERENCIA — administrativos/financieros, sin señal de coherencia
+        # cruzada, ya revisados a fondo en su propio ítem), y sin visión (cierre transversal, no
+        # analiza planos/escaneados por costo).
         docs_grupo = [d for d in documentos
-                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
+                      if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")
+                      and d.get("tipo_doc") not in TIPOS_EXCLUIDOS_COHERENCIA]
     else:
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]

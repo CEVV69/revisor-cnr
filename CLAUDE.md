@@ -2772,6 +2772,36 @@ superficie inconsistente) al mirar los mismos documentos de nuevo. Arreglado en 
    punto sobre la secuencia constructiva (cronograma/obras civiles/tecnificación/energización con
    orden lógico y ejecutable).
 
+**Ahorro de costo — excluir documentos administrativos/financieros del pool de Coherencia Global
+(implementado, jul-2026):** el usuario reportó un proyecto real (Goteo con SCALL) con 12
+documentos en "Especificaciones técnicas" (mayormente manuales/catálogos de equipos) y 11 en
+"Cotizaciones y Facturas" — Coherencia usa TODOS los documentos con texto del proyecto
+(`tipo_docs: []`), así que ese volumen se vuelve a sumar ahí encima de lo ya analizado en cada
+ítem por separado, con poco beneficio de cruce real para varios de esos tipos. Se evaluó excluir
+"especificaciones_tecnicas" también (el otro ítem voluminoso que mencionó el usuario) y se
+descartó — el propio checklist de Coherencia exige cruzar specs de equipos contra el resto del
+diseño ("la potencia del sistema FV cubre la bomba del diseño hidráulico" es un ejemplo textual
+del checklist), así que excluirlo arriesgaría perder justo el tipo de hallazgo para el que existe
+este ítem — no cumpliría con la condición de siempre (ahorrar sin bajar la calidad).
+- `TIPOS_EXCLUIDOS_COHERENCIA` (analyzer.py, nuevo) = `{"cotizaciones_facturas", "cotizaciones",
+  "declaracion_iva", "lista_beneficiarios", "antecedentes_legales"}` — documentos puramente
+  administrativos/financieros/legales, sin señal de coherencia CRUZADA entre documentos de
+  diseño (no son planos, cálculos, ni especificaciones de equipos) y que además ya se revisan a
+  fondo en su propio ítem SEP — incluirlos de nuevo en Coherencia es puro costo sin beneficio.
+- En `analizar_item()`, la selección de documentos para `item_key == "coherencia"` ahora excluye
+  estos tipos además del filtro de texto ya existente (vacío/`__PDF_ESCANEADO__`) — el resto de
+  los 18 ítems no se ve afectado, cada uno sigue analizando sus propios `tipo_docs` de siempre
+  (incluidas Cotizaciones/Cotizaciones y Facturas/Declaración IVA en SU propio ítem, sin cambios).
+- **Impacto esperado en el caso real reportado:** de los 11 documentos de "Cotizaciones y
+  Facturas", ninguno entra ya al pool de Coherencia (ahorro completo en ese ítem); los 12 de
+  "Especificaciones técnicas" siguen entrando (a propósito), pero al sacar los 11 de cotizaciones
+  del mismo pool, les queda más presupuesto de caracteres disponible en el reparto adaptativo
+  (`_repartir_presupuesto`) en vez de competir con un pool aún más grande.
+- Verificado con `analizar_item()` real (mock solo de la llamada a la API, no de la lógica de
+  selección): con 8 documentos sintéticos cubriendo los 5 tipos excluidos + 3 tipos de diseño
+  (`diseno_hidraulico`, `especificaciones_tecnicas`, `presupuesto`), Coherencia solo recibió
+  esos 3 últimos — los 5 excluidos nunca llegaron a `docs_grupo`.
+
 **Invalidación cruzada — auto-descartar observaciones que otro ítem resuelve (implementado,
 jul-2026):** el método viejo de análisis documento-por-documento (eliminado antes de que Ítems
 SEP fuera el único método) SÍ tenía esto: al analizar cada documento nuevo, revisaba si su
