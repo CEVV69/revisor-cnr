@@ -645,13 +645,24 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     # Documentos obligatorios de admisibilidad (según las bases) que faltan en este proyecto.
     # Solo advierte si el revisor ya confirmó la lista en /admin/concursos/{id} — una extracción
     # de la IA sin revisar nunca dispara esta advertencia (ver documentos_obligatorios_revisado).
+    # `obligatorios_excepciones` (por proyecto, NO por concurso) cubre el caso puntual de un
+    # documento que las bases exigen en general pero que no aplica a ESTE proyecto en particular
+    # (ej. Prueba de bombeo cuando la fuente es superficial/canal o acumulación de aguas lluvias
+    # tipo SCALL/tranque — no corresponde exigirla si no hay pozo/bomba) — desactivarlo en el
+    # concurso afectaría a TODOS sus proyectos, la mayoría de los cuales sí la necesitan.
     faltan_obligatorios = []
+    obligatorios_exceptuados = []
     if concurso and concurso.get("documentos_obligatorios_revisado") and concurso.get("documentos_obligatorios"):
         tipos_presentes = {d.get("tipo_doc") for d in proyecto["documentos"]}
-        faltan_obligatorios = [
-            {"key": k, "label": TIPO_DOC_LABELS.get(k, k)}
-            for k in concurso["documentos_obligatorios"] if k not in tipos_presentes
-        ]
+        excepciones = proyecto.get("obligatorios_excepciones", {})
+        for k in concurso["documentos_obligatorios"]:
+            if k in tipos_presentes:
+                continue
+            if k in excepciones:
+                obligatorios_exceptuados.append({"key": k, "label": TIPO_DOC_LABELS.get(k, k),
+                                                 **excepciones[k]})
+            else:
+                faltan_obligatorios.append({"key": k, "label": TIPO_DOC_LABELS.get(k, k)})
     # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
     # Solo importa re-subir los que necesitan visión: escaneados/con poco texto, O un tipo de
     # `TIPOS_SIEMPRE_VISION` (planos + pruebas de bombeo — van a visión SIEMPRE aunque tenga
@@ -757,6 +768,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "items_info": items_info,
         "n_faltan_resubir": n_faltan_resubir,
         "faltan_obligatorios": faltan_obligatorios,
+        "obligatorios_exceptuados": obligatorios_exceptuados,
         # Método por ítems SEP
         "grupos_obs_item": _agrupar(prin_item, "item_nombre", "item", orden_item),
         "grupos_notas_item": _agrupar(notas_item, "item_nombre", "item", orden_item),
@@ -816,6 +828,50 @@ async def cambiar_estado_proyecto(
         proyecto["fecha_estado"] = _ahora().isoformat()
         proyecto["estado_por"] = user["nombre"]
         db.save_proyecto(proyecto)
+    return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
+
+
+# ─── Excepciones a documentos obligatorios (por proyecto, no por concurso) ────────────────────
+
+@app.post("/proyecto/{proyecto_id}/obligatorio/no-aplica")
+async def marcar_obligatorio_no_aplica(
+    request: Request, proyecto_id: str,
+    tipo_doc: str = Form(...), motivo: str = Form(...)
+):
+    """Marca un documento obligatorio (según las bases del concurso) como NO aplicable a ESTE
+    proyecto en particular — ej. Prueba de bombeo cuando la fuente es superficial/canal o
+    acumulación de aguas lluvias (SCALL/tranque), caso en que no corresponde exigirla. A
+    diferencia de desmarcarlo en /admin/concursos/{id} (que afectaría a TODOS los proyectos del
+    concurso), esta excepción es puntual y queda registrada con motivo/autor/fecha para
+    auditoría — no desaparece en silencio."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    motivo = motivo.strip()
+    if not motivo:
+        raise HTTPException(status_code=400, detail="Debe indicar un motivo")
+    proyecto.setdefault("obligatorios_excepciones", {})[tipo_doc] = {
+        "motivo": motivo, "por": user["nombre"], "fecha": _ahora().isoformat(),
+    }
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/obligatorio/no-aplica/quitar")
+async def quitar_obligatorio_no_aplica(request: Request, proyecto_id: str, tipo_doc: str = Form(...)):
+    """Revierte una excepción — el documento vuelve a advertirse como faltante si sigue sin
+    estar en el expediente."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    proyecto.setdefault("obligatorios_excepciones", {}).pop(tipo_doc, None)
+    db.save_proyecto(proyecto)
     return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
 
 

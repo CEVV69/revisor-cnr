@@ -2600,6 +2600,38 @@ igual).
   invertir tiempo revisando, no un candado, porque un falso positivo de la IA no debe impedir
   revisar un proyecto que en realidad sí es admisible.
 
+**Excepciones a documentos obligatorios — por PROYECTO, no por concurso (implementado,
+jul-2026):** caso real que planteó el usuario: la Prueba de bombeo suele estar marcada como
+obligatoria en las bases (dato de catálogo, aplica a "todo el concurso"), pero no corresponde
+exigirla en un proyecto puntual cuya fuente de agua es superficial (canal) o de acumulación de
+aguas lluvias (SCALL, tranque acumulador) — no hay pozo ni bomba que probar. Desactivarla desde
+`/admin/concursos/{id}` no sirve: afectaría a TODOS los proyectos del concurso, y la mayoría sí
+la necesita (fuente subterránea). Se evaluó hacerlo autónomo (que la IA detectara el tipo de
+fuente y decidiera sola) y se descartó — mismo criterio de "nunca adivinar" ya establecido en el
+resto de la app: es más confiable, transparente y auditable que el propio revisor lo marque a
+mano con un motivo, que inferirlo de texto libre con el riesgo de un falso negativo/positivo.
+- **Dato nuevo por proyecto:** `proyecto["obligatorios_excepciones"]` — dict `{tipo_doc:
+  {"motivo", "por", "fecha"}}`. `_render_proyecto()` separa `concurso["documentos_obligatorios"]`
+  en dos listas: `faltan_obligatorios` (banner rojo de siempre, sin cambios) y
+  `obligatorios_exceptuados` (los que faltan pero YA tienen una excepción registrada para este
+  proyecto — no entran al banner rojo).
+- **Rutas nuevas:** `POST /proyecto/{id}/obligatorio/no-aplica` (`tipo_doc`+`motivo`, motivo
+  obligatorio — sin motivo no se guarda, para que la excepción siempre quede justificada) y
+  `POST /proyecto/{id}/obligatorio/no-aplica/quitar` (revierte, el documento vuelve a advertirse
+  si sigue sin estar en el expediente).
+- **UI (`proyecto.html`):** cada ítem del banner rojo tiene un `<details>` "No aplica a este
+  proyecto" con un campo de motivo + botón Guardar — colapsado por defecto, no le agrega ruido
+  visual a la lista mientras no se use. Las excepciones ya activas se muestran en una tarjeta
+  APARTE, gris/neutra (no roja — ya no es una alerta, es una decisión ya tomada), con motivo +
+  quién + cuándo + botón "Deshacer" — nunca desaparece en silencio, queda auditable igual que el
+  resto de las decisiones del revisor en la app (aprobar/descartar observaciones, etc.).
+- **Alcance:** el mecanismo es genérico (cualquier tipo de documento obligatorio, no solo Prueba
+  de bombeo) — útil si aparece un caso similar con otro documento a futuro, sin código nuevo.
+- Verificado con las funciones reales de main.py (sin mocks de HTTP): flujo completo marcar →
+  banner pierde el ítem y aparece en la tarjeta de excepciones con motivo/autor correctos →
+  deshacer → vuelve al banner. Render completo de `proyecto.html` con banner + excepción activa
+  a la vez, confirmando que ambos bloques conviven sin pisarse.
+
 **Archivo de normativa DT-09 eliminado por corrupción (jul-2026):**
 `normativa/DT-09_Proyectos_Electricos.txt` (el que debía tener los requisitos eléctricos/FV) se
 detectó con texto ilegible en TODO el archivo — problema de codificación en el PDF fuente (glifos

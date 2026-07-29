@@ -365,7 +365,40 @@
   </div>
   <ul style="margin:0; padding-left:1.2rem; font-size:0.82rem; color:#742a2a;">
     {% for d in faltan_obligatorios %}
-    <li>{{ d.label }}</li>
+    <li style="margin-bottom:0.3rem;">
+      {{ d.label }}
+      <details style="display:inline-block; margin-left:0.4rem; vertical-align:middle;">
+        <summary style="display:inline; cursor:pointer; font-size:0.76rem; color:#9b2c2c; text-decoration:underline;">No aplica a este proyecto</summary>
+        <form method="post" action="/proyecto/{{ proyecto.id }}/obligatorio/no-aplica"
+              style="margin-top:0.35rem; display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="tipo_doc" value="{{ d.key }}">
+          <input type="text" name="motivo" required placeholder="Motivo (ej: fuente superficial, sin pozo/bomba)"
+                 style="flex:1; min-width:220px; padding:0.3rem 0.5rem; border-radius:5px; border:1px solid var(--border); font-size:0.78rem;">
+          <button type="submit" class="btn btn-outline btn-sm">Guardar</button>
+        </form>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Documentos obligatorios marcados como "no aplica" a ESTE proyecto en particular -->
+{% if obligatorios_exceptuados %}
+<div style="background:#f5f5f7; border:1px solid var(--border); border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem;">
+  <div style="font-size:0.8rem; color:var(--text-2); font-weight:600; margin-bottom:0.3rem;">
+    Documentos obligatorios marcados como "no aplica" en este proyecto
+  </div>
+  <ul style="margin:0; padding-left:1.2rem; font-size:0.78rem; color:var(--text-2);">
+    {% for d in obligatorios_exceptuados %}
+    <li style="margin-bottom:0.2rem;">
+      {{ d.label }} — {{ d.motivo }}
+      <span class="text-muted">({{ d.por }}, {{ d.fecha | fecha }})</span>
+      <form method="post" action="/proyecto/{{ proyecto.id }}/obligatorio/no-aplica/quitar" style="display:inline; margin-left:0.4rem;">
+        <input type="hidden" name="tipo_doc" value="{{ d.key }}">
+        <button type="submit" class="btn btn-ghost btn-sm" style="padding:0 0.3rem; font-size:0.75rem;">Deshacer</button>
+      </form>
+    </li>
     {% endfor %}
   </ul>
 </div>
