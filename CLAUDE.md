@@ -2104,9 +2104,13 @@ nada — es solo un atajo para abrir la calculadora aparte, el revisor pasa los 
   `mostrarGoteo || mostrarAspersion` (cubre Goteo, Microaspersión, Aspersión, Mixto y sin
   declarar; excluye solo Carrete puro — mismo criterio "mostrar si es ambiguo" del resto de la
   tarjeta).
-- Si se actualiza el archivo de Scall, reemplazar `static/scall_diseno_v4.html` (borrando la
+- Si se actualiza el archivo de Scall, reemplazar `static/scall_diseno_v{N}.html` (borrando la
   versión vieja del repo, no acumular) y actualizar el link en `calculos.html` si cambia el
   nombre de archivo — mismo procedimiento que ya está documentado para el Diseñador de Riego.
+  **Actualización v4→v11 (jul-2026):** el usuario no pidió portar ningún cambio puntual de
+  fórmula, solo reemplazar el archivo — mismo criterio que el Diseñador de Riego: sin pedido
+  explícito de portar algo, basta con el reemplazo de archivo/link, sin necesidad de leer el
+  HTML nuevo.
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

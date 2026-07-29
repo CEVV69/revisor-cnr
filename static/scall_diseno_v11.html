@@ -123,18 +123,19 @@ textarea{width:100%;min-height:120px;font:13px/1.35 ui-monospace,SFMono-Regular,
     <h2>Precipitación mensual</h2>
     <div class="btns no-print">
       <a class="btn sm sec" href="https://mawun.cr2.cl/" target="_blank" rel="noopener">Abrir Mawun (CR2)</a>
-      <button class="btn sm" id="btnPaste">Pegar datos de Mawun</button>
+      <button class="btn sm" id="btnPaste">Pegar / cargar datos de Mawun</button>
       <button class="btn sm sec" id="btnClearP">Limpiar</button>
     </div>
     <div id="pasteBox" class="hide" style="margin-top:12px">
-      <textarea id="pasteTxt" placeholder="Pega aquí la tabla copiada desde mawun.cr2.cl.
+      <textarea id="pasteTxt" placeholder="Pega aquí los datos copiados desde mawun.cr2.cl, o usa 'Cargar archivo CSV' abajo.
 
-Acepta dos formatos:
- A) Serie histórica: una fila por año (año + 12 valores mensuales).
-    La app calcula el promedio y la desviación estándar de cada mes.
- B) Resumen: 12 filas con promedio y desviación estándar."></textarea>
+Acepta:
+ A) Serie cruda con fecha: 'Fecha,valor' (diaria o mensual, tal como la entrega la web). La app detecta si es diaria o mensual, suma por mes-año y calcula promedio y desviación estándar automáticamente.
+ B) Serie histórica ya tabulada: una fila por año con 12 valores mensuales.
+ C) Resumen: 12 filas con promedio y desviación estándar."></textarea>
       <div class="btns">
-        <button class="btn sm" id="btnParse">Procesar</button>
+        <button class="btn sm" id="btnParse">Procesar texto pegado</button>
+        <label class="btn sm sec" style="cursor:pointer">Cargar archivo CSV<input type="file" id="fileCsv" accept=".csv,.txt" class="hide"></label>
         <button class="btn sm sec" id="btnCancelPaste">Cancelar</button>
       </div>
       <div id="pasteMsg"></div>
@@ -183,46 +184,34 @@ Acepta dos formatos:
 <!-- ============ TAB 2 : DEMANDA ============ -->
 <section id="tab-dem" class="hide">
   <div class="card">
-    <h2>Cultivo y localidad</h2>
+    <h2>Estación de referencia</h2>
     <div class="row">
       <label for="est">Estación / comuna <small>ETo de referencia (mm/mes)</small></label>
       <select id="est"></select>
     </div>
-    <div class="row">
-      <label for="cul">Cultivo <small>coeficiente de cultivo Kc mensual</small></label>
-      <select id="cul"></select>
-    </div>
-    <div class="row" style="display:block">
-      <label style="margin-bottom:8px;display:block">Meses de la temporada de riego</label>
-      <div class="chips" id="mesesChips"></div>
-    </div>
   </div>
 
   <div class="card">
-    <h2>Métodos de riego y superficie</h2>
+    <h2>Cultivos y trimestres productivos</h2>
     <table>
-      <thead><tr><th>Método</th><th>Eficiencia</th><th>Superficie (ha)</th></tr></thead>
-      <tbody id="tbMet"></tbody>
-      <tfoot><tr><td>Eficiencia ponderada</td><td id="efPond"></td><td id="supTot"></td></tr></tfoot>
+      <thead><tr><th style="text-align:left">Cultivo</th><th style="text-align:left">Trimestre</th><th style="text-align:left">Método</th><th>Sup. (ha)</th><th></th></tr></thead>
+      <tbody id="tbCrops"></tbody>
     </table>
-    <p class="note">La eficiencia ponderada se calcula por superficie: Σ(sup<sub>i</sub>/sup<sub>total</sub> × ef<sub>i</sub>).</p>
+    <div class="btns no-print"><button class="btn sm" id="btnAddCrop">+ Agregar cultivo</button></div>
+    <p class="note">El trimestre define en qué meses ese cultivo demanda agua. Réplica exacta de la metodología oficial CNR: para un cultivo anual se usa su curva de Kc mensual real; para un trimestre se usa [mínimo, máximo, cuartil 3] de esa curva; para dos trimestres consecutivos, [mínimo, mediana, cuartil 3, máximo, máximo, cuartil 3].</p>
   </div>
 
   <div class="card">
-    <h2>Demanda mensual</h2>
-    <div class="row no-print">
-      <label for="descPp">Descontar precipitación efectiva <small>usa la P de diseño del módulo Captación</small></label>
-      <select id="descPp" style="max-width:44%"><option value="0">No</option><option value="1">Sí</option></select>
-    </div>
-    <table style="margin-top:8px">
-      <thead><tr><th>Mes</th><th>ETo<br><span style="font-weight:400">mm</span></th><th>Kc</th><th>ETc<br><span style="font-weight:400">mm</span></th><th>Neta<br><span style="font-weight:400">m³/ha</span></th><th>Bruta<br><span style="font-weight:400">m³/ha</span></th></tr></thead>
+    <h2>Demanda mensual (todos los cultivos)</h2>
+    <table>
+      <thead><tr><th>Mes</th><th>ETo<br><span style="font-weight:400">mm</span></th><th>ETc total<br><span style="font-weight:400">mm equiv.</span></th><th>Demanda<br><span style="font-weight:400">m³</span></th></tr></thead>
       <tbody id="tbDem"></tbody>
-      <tfoot><tr><td>Temporada</td><td id="dEto"></td><td></td><td></td><td id="dNeta"></td><td id="dBruta"></td></tr></tfoot>
+      <tfoot><tr><td>Temporada</td><td id="dEto"></td><td></td><td id="dBruta"></td></tr></tfoot>
     </table>
     <div class="res" style="margin-top:14px">
-      <div><div class="k">Demanda bruta unitaria</div><div class="n" id="rDu">–</div><div class="u">m³/ha por temporada</div></div>
+      <div><div class="k">Superficie total</div><div class="n" id="rSupTot">–</div><div class="u">ha</div></div>
       <div><div class="k">Demanda total del proyecto</div><div class="n" id="rDt">–</div><div class="u">m³ por temporada</div></div>
-      <div class="big"><div class="k">Superficie regable con el volumen acumulado</div><div class="n" id="rSup">–</div><div class="u">ha · volumen disponible ÷ demanda unitaria</div></div>
+      <div class="big"><div class="k">Superficie regable con el volumen acumulado</div><div class="n" id="rSup">–</div><div class="u">ha · a prorrata de superficie de cada cultivo</div></div>
     </div>
   </div>
 </section>
@@ -230,30 +219,43 @@ Acepta dos formatos:
 <!-- ============ TAB 3 : BALANCE ============ -->
 <section id="tab-bal" class="hide">
   <div class="card">
-    <h2>Aportes adicionales</h2>
+    <h2>Proyecto a revisar</h2>
     <div class="row">
-      <label for="qd">Caudal de derechos disponible <small>se afecta por 0,85 (probabilidad 85%), como en la planilla</small></label>
-      <div><input type="text" inputmode="decimal" class="num" id="qd" value="0" min="0" step="0.1"><span class="unit">l/s</span></div>
+      <label for="cap">Capacidad del estanque propuesto <small>volumen útil declarado en el proyecto</small></label>
+      <div><input type="text" inputmode="decimal" class="num" id="cap" value="150"><span class="unit">m³</span></div>
     </div>
     <div class="row">
-      <label for="vini">Volumen inicial en el acumulador <small>al 1 de enero</small></label>
-      <div><input type="text" inputmode="decimal" class="num" id="vini" value="0" min="0" step="1"><span class="unit">m³</span></div>
+      <label>Superficie del proyecto <small>suma de las filas de cultivo en la pestaña Demanda</small></label>
+      <div><span id="bSup" style="font-weight:600">–</span><span class="unit">ha</span></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Balance mensual</h2>
-    <table>
-      <thead><tr><th>Mes</th><th>Ingreso<br><span style="font-weight:400">m³</span></th><th>Demanda<br><span style="font-weight:400">m³</span></th><th>Saldo<br><span style="font-weight:400">m³</span></th><th>Acumulado<br><span style="font-weight:400">m³</span></th></tr></thead>
-      <tbody id="tbBal"></tbody>
-      <tfoot><tr><td>Año</td><td id="bIn"></td><td id="bOut"></td><td id="bNet"></td><td></td></tr></tfoot>
-    </table>
-    <div class="res" style="margin-top:14px">
-      <div class="big"><div class="k">Capacidad requerida del acumulador</div><div class="n" id="rCap">–</div><div class="u">m³ · máximo volumen acumulado durante el año</div></div>
-      <div><div class="k">Déficit anual</div><div class="n" id="rDef">–</div><div class="u">m³ que no alcanzan a cubrirse</div></div>
-      <div><div class="k">Meses con déficit</div><div class="n" id="rMd">–</div><div class="u">de 12</div></div>
+    <h2>Otras fuentes de agua (opcional)</h2>
+    <div class="row">
+      <label for="qd">Caudal disponible <small>derechos de aprovechamiento u otra fuente, al 85% de probabilidad</small></label>
+      <div><input type="text" inputmode="decimal" class="num" id="qd" value="0"><span class="unit">l/s</span></div>
     </div>
-    <div id="balMsg"></div>
+    <div class="row">
+      <label for="qh">Horas de acumulación por día <small>tiempo efectivo de captación de ese caudal</small></label>
+      <div><input type="text" inputmode="decimal" class="num" id="qh" value="0"><span class="unit">h/d</span></div>
+    </div>
+    <p class="note">Aporte = Q × 3,6 × h/día × días del mes, igual que la planilla oficial. Déjalo en 0 si el SCALL se alimenta solo de lluvia.</p>
+  </div>
+
+  <div class="card">
+    <h2>Evaluación del proyecto</h2>
+    <div id="veredicto"></div>
+  </div>
+
+  <div class="card">
+    <h2>Balance mensual en régimen</h2>
+    <table>
+      <thead><tr><th>Mes</th><th>Ingreso<br><span style="font-weight:400">m³</span></th><th>Demanda<br><span style="font-weight:400">m³</span></th><th>Rebalse<br><span style="font-weight:400">m³</span></th><th>Déficit<br><span style="font-weight:400">m³</span></th><th>Almacenado<br><span style="font-weight:400">m³</span></th></tr></thead>
+      <tbody id="tbBal"></tbody>
+      <tfoot><tr><td>Año</td><td id="bIn"></td><td id="bOut"></td><td id="bReb"></td><td id="bDef"></td><td></td></tr></tfoot>
+    </table>
+    <p class="note">Simulación del ciclo anual repetido hasta estabilizarse, partiendo con el estanque vacío. El estanque no puede pasar de su capacidad (lo que sobra se rebalsa) ni bajar de cero (lo que falta es déficit).</p>
   </div>
 </section>
 
@@ -290,10 +292,10 @@ const GUM={10:[.4952,.9496],15:[.5128,1.0206],20:[.5236,1.0628],25:[.5309,1.0915
 const TEMPORADA_DEF=[0,1,2,3,8,9,10,11]; // Ene-Abr y Sep-Dic, igual que la planilla
 
 /* ---------- estado ---------- */
-const S={P:Array(12).fill(0),SD:Array(12).fill(0),meses:TEMPORADA_DEF.slice(),sup:Array(6).fill(0),Pd:Array(12).fill(0),V:Array(12).fill(0),dem:Array(12).fill(0)};
+const S={P:Array(12).fill(0),SD:Array(12).fill(0),Pd:Array(12).fill(0),V:Array(12).fill(0),dem:Array(12).fill(0),crops:[]};
 const $=id=>document.getElementById(id);
 const num=v=>{let t=String(v).trim();if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');const n=parseFloat(t);return isFinite(n)?n:0;};
-const fmt=(n,d=1)=>isFinite(n)?n.toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+const fmt=(n,d=3)=>isFinite(n)?n.toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200);}
 
 /* ---------- construcción de la interfaz ---------- */
@@ -306,14 +308,85 @@ $('tbPP').innerHTML=MES.map((m,i)=>
   <td><input type="text" inputmode="decimal" class="num" step="0.1" min="0" data-s="${i}"></td>
   <td class="out" id="pd${i}">–</td><td class="out v" id="v${i}">–</td></tr>`).join('');
 
-$('mesesChips').innerHTML=MESC.map((m,i)=>`<button class="chip" data-mes="${i}">${m}</button>`).join('');
-$('tbMet').innerHTML=METODOS.map((m,i)=>
- `<tr><td>${m[0]}</td><td class="out">${m[1].toFixed(2)}</td>
-  <td><input type="text" inputmode="decimal" class="num" step="0.1" min="0" data-met="${i}" value="0"></td></tr>`).join('');
-
 Object.keys(DATA.eto).sort((a,b)=>a.localeCompare(b,'es')).forEach(k=>$('est').add(new Option(k,k)));
-Object.keys(DATA.kc).sort((a,b)=>a.localeCompare(b,'es')).forEach(k=>$('cul').add(new Option(k,k)));
 $('est').value='Retiro' in DATA.eto?'Retiro':$('est').options[0].value;
+
+/* ---------- cultivos (multi-fila, con trimestre productivo) ---------- */
+const TRIMESTRES=[
+  ['anual','Anual (12 meses)'],
+  ['q1','Trim. 1 . Ene-Mar'],
+  ['q2','Trim. 2 . Abr-Jun'],
+  ['q3','Trim. 3 . Jul-Sep'],
+  ['q4','Trim. 4 . Oct-Dic'],
+  ['q1q2','Trim. 1-2 . Ene-Jun'],
+  ['q2q3','Trim. 2-3 . Abr-Sep'],
+  ['q3q4','Trim. 3-4 . Jul-Dic'],
+  ['q4q1','Trim. 4-1 . Oct-Mar'],
+];
+const MESES_TRIM={q1:[0,1,2],q2:[3,4,5],q3:[6,7,8],q4:[9,10,11],
+  q1q2:[0,1,2,3,4,5],q2q3:[3,4,5,6,7,8],q3q4:[6,7,8,9,10,11],q4q1:[9,10,11,0,1,2]};
+
+function quartil(arr,p){ // igual a Excel QUARTILE/PERCENTILE (interpolación lineal)
+  const a=arr.slice().sort((x,y)=>x-y);
+  const idx=p*(a.length-1),lo=Math.floor(idx),hi=Math.ceil(idx);
+  return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(idx-lo);
+}
+// Kc mensual segun la metodologia oficial CNR (hoja "Balance SCAALS"):
+// - anual: curva Kc calendario real del cultivo.
+// - un solo trimestre: dentro de ese trimestre se usa [minimo, maximo, cuartil3] de la curva anual del cultivo (no la curva calendario real).
+// - dos trimestres consecutivos (incl. 4-1): se usa [minimo, mediana, cuartil3, maximo, maximo, cuartil3] en los 6 meses.
+// Fuera del/los trimestre(s) elegido(s) la demanda es 0.
+function kcPorTrimestre(kcAnual,tri){
+  if(tri==='anual')return kcAnual.slice();
+  const out=Array(12).fill(0);
+  const min=quartil(kcAnual,0),q2=quartil(kcAnual,.5),q3=quartil(kcAnual,.75),max=quartil(kcAnual,1);
+  const meses=MESES_TRIM[tri];
+  const seq=meses.length===3?[min,max,q3]:[min,q2,q3,max,max,q3];
+  meses.forEach((m,i)=>out[m]=seq[i]);
+  return out;
+}
+const CULTIVOS=Object.keys(DATA.kc).sort((a,b)=>a.localeCompare(b,'es'));
+let cropSeq=0;
+S.crops=[{id:cropSeq++,cul:CULTIVOS[0],tri:'anual',met:5,sup:1}];
+
+function renderCrops(){
+  $('tbCrops').innerHTML=S.crops.map(c=>`
+    <tr data-row="${c.id}">
+      <td><select class="cCul" data-id="${c.id}"></select></td>
+      <td><select class="cTri" data-id="${c.id}"></select></td>
+      <td><select class="cMet" data-id="${c.id}"></select></td>
+      <td><input type="text" inputmode="decimal" class="num cSup" data-id="${c.id}" value="${c.sup}" style="max-width:70px"></td>
+      <td><button class="chip no-print" data-del="${c.id}" title="Eliminar" style="padding:6px 10px">×</button></td>
+    </tr>`).join('');
+  S.crops.forEach(c=>{
+    const row=document.querySelector('[data-row="'+c.id+'"]');
+    row.querySelector('.cCul').innerHTML=CULTIVOS.map(k=>`<option value="${k}" ${k===c.cul?'selected':''}>${k}</option>`).join('');
+    row.querySelector('.cTri').innerHTML=TRIMESTRES.map(t=>`<option value="${t[0]}" ${t[0]===c.tri?'selected':''}>${t[1]}</option>`).join('');
+    row.querySelector('.cMet').innerHTML=METODOS.map((m,i)=>`<option value="${i}" ${i===c.met?'selected':''}>${m[0]}</option>`).join('');
+  });
+}
+renderCrops();
+$('btnAddCrop').onclick=()=>{S.crops.push({id:cropSeq++,cul:CULTIVOS[0],tri:'anual',met:5,sup:0});renderCrops();calcDem();};
+$('tbCrops').addEventListener('click',e=>{
+  const b=e.target.closest('[data-del]');if(!b)return;
+  if(S.crops.length<=1)return;
+  S.crops=S.crops.filter(c=>c.id!==+b.dataset.del);renderCrops();calcDem();
+});
+$('tbCrops').addEventListener('input',e=>{
+  const t=e.target,id=+t.dataset.id;const c=S.crops.find(x=>x.id===id);if(!c)return;
+  if(t.classList.contains('cCul'))c.cul=t.value;
+  if(t.classList.contains('cTri'))c.tri=t.value;
+  if(t.classList.contains('cMet'))c.met=+t.value;
+  if(t.classList.contains('cSup'))c.sup=num(t.value);
+  calcDem();
+});
+$('tbCrops').addEventListener('change',e=>{if(e.target.tagName==='SELECT'){
+  const t=e.target,id=+t.dataset.id;const c=S.crops.find(x=>x.id===id);if(!c)return;
+  if(t.classList.contains('cCul'))c.cul=t.value;
+  if(t.classList.contains('cTri'))c.tri=t.value;
+  if(t.classList.contains('cMet'))c.met=+t.value;
+  calcDem();
+}});
 
 /* ---------- cálculo ---------- */
 function paramsGumbel(){
@@ -340,11 +413,11 @@ function calcPP(){
     const V=Ac*Pd*C/1000;
     S.Pd[i]=Pd;S.V[i]=V;sP+=P;sPd+=Pd;sV+=V;
     if(i>=4&&i<=7)vInv+=V;
-    $('pd'+i).textContent=(P+SD===0)?'–':fmt(Pd,1);
-    $('v'+i).textContent=(P+SD===0)?'–':fmt(V,1);
+    $('pd'+i).textContent=(P+SD===0)?'–':fmt(Pd,3);
+    $('v'+i).textContent=(P+SD===0)?'–':fmt(V,3);
   }
-  $('sumP').textContent=fmt(sP,1);$('sumPd').textContent=fmt(sPd,1);$('sumV').textContent=fmt(sV,1);
-  $('rPd').innerHTML=fmt(sPd,1);$('rV').innerHTML=fmt(sV,1);$('rVinv').innerHTML=fmt(vInv,1);
+  $('sumP').textContent=fmt(sP,3);$('sumPd').textContent=fmt(sPd,3);$('sumV').textContent=fmt(sV,3);
+  $('rPd').innerHTML=fmt(sPd,3);$('rV').innerHTML=fmt(sV,3);$('rVinv').innerHTML=fmt(vInv,3);
   chart();
 }
 
@@ -354,61 +427,164 @@ function chart(){
    `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">
      <span style="width:30px;font-size:12px;color:var(--txt2)">${MESC[i]}</span>
      <div class="bar" style="width:${(v/mx*100).toFixed(1)}%"></div>
-     <span style="font-size:12px;color:var(--txt2);font-variant-numeric:tabular-nums">${fmt(v,1)}</span>
+     <span style="font-size:12px;color:var(--txt2);font-variant-numeric:tabular-nums">${fmt(v,3)}</span>
     </div>`).join('');
 }
 
 function calcDem(){
   const eto=DATA.eto[$('est').value]||Array(12).fill(0);
-  const kc=DATA.kc[$('cul').value]||Array(12).fill(0);
-  let ef=0,supT=0;
-  S.sup.forEach((s,i)=>{supT+=s;});
-  if(supT>0)S.sup.forEach((s,i)=>{ef+=(s/supT)*METODOS[i][1];});
-  $('efPond').textContent=supT>0?ef.toFixed(3):'–';
-  $('supTot').textContent=fmt(supT,2);
-  const desc=$('descPp').value==='1';
+  const supT=S.crops.reduce((a,c)=>a+c.sup,0);
   S.dem.fill(0);
-  let tEto=0,tN=0,tB=0;
+  const etcTotal=Array(12).fill(0); // suma ponderada de ETc (mm) solo informativa
+  S.crops.forEach(c=>{
+    const kcAnual=DATA.kc[c.cul]||Array(12).fill(0);
+    const kcMes=kcPorTrimestre(kcAnual,c.tri);
+    const ef=METODOS[c.met][1];
+    for(let i=0;i<12;i++){
+      const etc=eto[i]*kcMes[i];
+      const neta=etc*10;           // m3/ha
+      const bruta=ef>0?neta/ef:0;  // m3/ha
+      S.dem[i]+=bruta*c.sup;       // m3 totales de esta fila
+      etcTotal[i]+=etc*c.sup;
+    }
+  });
+  let tEto=0,tB=0;
   const rows=MES.map((m,i)=>{
-    const on=S.meses.includes(i);
-    if(!on)return `<tr style="opacity:.35"><td>${m}</td><td class="out">${fmt(eto[i],1)}</td><td class="out">${kc[i].toFixed(2)}</td><td class="out">–</td><td class="out">–</td><td class="out">–</td></tr>`;
-    const etc=eto[i]*kc[i];
-    const neta=Math.max(0,(etc-(desc?S.Pd[i]:0)))*10;
-    const bruta=ef>0?neta/ef:0;
-    tEto+=eto[i];tN+=neta;tB+=bruta;S.dem[i]=bruta;
-    return `<tr><td>${m}</td><td class="out">${fmt(eto[i],1)}</td><td class="out">${kc[i].toFixed(2)}</td>
-      <td class="out">${fmt(etc,1)}</td><td class="out">${fmt(neta,0)}</td><td class="out v">${fmt(bruta,0)}</td></tr>`;
+    tEto+=eto[i];tB+=S.dem[i];
+    const etcEq=supT>0?etcTotal[i]/supT:0;
+    return `<tr><td>${m}</td><td class="out">${fmt(eto[i],3)}</td>
+      <td class="out">${fmt(etcEq,3)}</td><td class="out v">${fmt(S.dem[i],3)}</td></tr>`;
   });
   $('tbDem').innerHTML=rows.join('');
-  $('dEto').textContent=fmt(tEto,1);$('dNeta').textContent=fmt(tN,0);$('dBruta').textContent=fmt(tB,0);
+  $('dEto').textContent=fmt(tEto,3);$('dBruta').textContent=fmt(tB,3);
   const vDisp=S.V.reduce((a,b)=>a+b,0);
-  $('rDu').textContent=tB>0?fmt(tB,0):'–';
-  $('rDt').textContent=tB>0?fmt(tB*supT,0):'–';
-  $('rSup').textContent=tB>0?fmt(vDisp/tB,2):'–';
+  $('rSupTot').textContent=fmt(supT,3);
+  $('rDt').textContent=tB>0?fmt(tB,3):'–';
+  $('rSup').textContent=(tB>0&&supT>0)?fmt(vDisp/tB*supT,3):'–';
   calcBal();
 }
 
+function aporteQ(i){
+  const q=num($('qd').value), h=num($('qh').value);
+  return q*3.6*h*DIAS[i];   // m3 del mes, igual que la planilla
+}
+
+// Simula el ciclo anual repetido hasta estabilizarse, partiendo vacio.
+// factor escala la demanda (1 = proyecto tal como esta propuesto).
+function simular(capacidad,factor){
+  let s=0,r=null;
+  for(let ciclo=0;ciclo<6;ciclo++){
+    r={mes:[],tin:0,tout:0,treb:0,tdef:0,mesesDef:0,maxAlm:0};
+    for(let i=0;i<12;i++){
+      const ing=S.V[i]+aporteQ(i);
+      const dem=S.dem[i]*factor;
+      let reb=0,def=0;
+      s+=ing;
+      if(s>capacidad){reb=s-capacidad;s=capacidad;}
+      s-=dem;
+      if(s<0){def=-s;s=0;}
+      r.mes.push({ing,dem,reb,def,alm:s});
+      r.tin+=ing;r.tout+=dem;r.treb+=reb;r.tdef+=def;
+      if(def>0.001)r.mesesDef++;
+      r.maxAlm=Math.max(r.maxAlm,s);
+    }
+  }
+  return r;
+}
+
+// Capacidad minima que elimina el deficit. null si ninguna capacidad lo logra
+// (el agua disponible no cubre la demanda anual).
+function capacidadRequerida(factor){
+  const dem=S.dem.reduce((a,b)=>a+b,0)*factor;
+  if(dem<=0)return 0;
+  let hi=Math.max(dem,S.V.reduce((a,b)=>a+b,0))*2+1,g=0;
+  while(simular(hi,factor).tdef>0.001&&g++<24)hi*=2;
+  if(simular(hi,factor).tdef>0.001)return null;
+  let lo=0;
+  for(let k=0;k<50;k++){const m=(lo+hi)/2;simular(m,factor).tdef>0.001?lo=m:hi=m;}
+  return hi;
+}
+
+// Maximo factor de demanda sin deficit, para una capacidad dada
+function factorMaximo(capacidad){
+  if(S.dem.reduce((a,b)=>a+b,0)<=0)return 0;
+  if(simular(capacidad,1).tdef>0.001){
+    let lo=0,hi=1;
+    for(let k=0;k<40;k++){const m=(lo+hi)/2;simular(capacidad,m).tdef>0.001?hi=m:lo=m;}
+    return lo;
+  }
+  let lo=1,hi=2;
+  while(simular(capacidad,hi).tdef<=0.001&&hi<1000)hi*=2;
+  for(let k=0;k<40;k++){const m=(lo+hi)/2;simular(capacidad,m).tdef>0.001?hi=m:lo=m;}
+  return lo;
+}
+
 function calcBal(){
-  const q=num($('qd').value);
-  let acc=num($('vini').value),cap=0,tin=0,tout=0,def=0,md=0;
-  const rows=MES.map((m,i)=>{
-    const ap=q*86400*DIAS[i]/1000*0.85;
-    const ing=S.V[i]+ap;
-    const dem=S.dem[i]*S.sup.reduce((a,b)=>a+b,0);
-    const saldo=ing-dem;
-    acc+=saldo;
-    if(acc<0){def+=-acc;md++;acc=0;}
-    cap=Math.max(cap,acc);tin+=ing;tout+=dem;
-    return `<tr><td>${m}</td><td class="out">${fmt(ing,1)}</td><td class="out">${fmt(dem,1)}</td>
-      <td class="out" style="color:${saldo<0?'var(--red)':'var(--txt2)'}">${fmt(saldo,1)}</td>
-      <td class="out v">${fmt(acc,1)}</td></tr>`;
-  });
-  $('tbBal').innerHTML=rows.join('');
-  $('bIn').textContent=fmt(tin,0);$('bOut').textContent=fmt(tout,0);$('bNet').textContent=fmt(tin-tout,0);
-  $('rCap').textContent=fmt(cap,1);$('rDef').textContent=fmt(def,1);$('rMd').textContent=md;
-  $('balMsg').innerHTML = tout===0 ? '<div class="warn">Ingresa superficie de riego en el módulo Demanda para calcular el balance.</div>'
-    : (def>0 ? '<div class="warn">La demanda supera la oferta en '+md+' mes(es). Reduce superficie, cambia el método de riego o aumenta el área de captación.</div>'
-             : '<div class="ok">La oferta cubre la demanda todo el año. La capacidad requerida es '+fmt(cap,1)+' m³.</div>');
+  const capacidad=Math.max(0,num($('cap').value));
+  const supT=S.crops.reduce((a,c)=>a+c.sup,0);
+  const demAnual=S.dem.reduce((a,b)=>a+b,0);
+  $('bSup').textContent=fmt(supT,3);
+
+  const r=simular(capacidad||1e-9,1);
+  $('tbBal').innerHTML=r.mes.map((m,i)=>
+    `<tr><td>${MES[i]}</td><td class="out">${fmt(m.ing,3)}</td><td class="out">${fmt(m.dem,3)}</td>
+      <td class="out" style="color:${m.reb>0.001?'var(--orange)':'var(--txt3)'}">${fmt(m.reb,3)}</td>
+      <td class="out" style="color:${m.def>0.001?'var(--red)':'var(--txt3)'}">${fmt(m.def,3)}</td>
+      <td class="out v">${fmt(m.alm,3)}</td></tr>`).join('');
+  $('bIn').textContent=fmt(r.tin,3);$('bOut').textContent=fmt(r.tout,3);
+  $('bReb').textContent=fmt(r.treb,3);$('bDef').textContent=fmt(r.tdef,3);
+
+  if(demAnual<=0){
+    $('veredicto').innerHTML='<div class="warn">Ingresa los cultivos y superficies del proyecto en la pestaña Demanda para evaluarlo.</div>';
+    return;
+  }
+
+  const ofertaAnual=S.V.reduce((a,b)=>a+b,0)+DIAS.reduce((a,d,i)=>a+aporteQ(i),0);
+  const capReq=capacidadRequerida(1);
+  const fMax=factorMaximo(capacidad);
+  const supMax=supT*fMax;
+  const sinDeficit=r.tdef<=0.001;
+
+  // P1: el agua disponible en el ano cubre la demanda anual del proyecto
+  const faltanteAnual=demAnual-ofertaAnual;
+  const p1ok=faltanteAnual<=0.001;
+  // P2: el estanque propuesto regula el suministro sin deficit
+  const p2ok=sinDeficit;
+  // P3: potencial de ampliacion
+  const holgura=supMax-supT;
+
+  const bloque=(ok,titulo,cuerpo)=>
+    `<div style="background:${ok?'rgba(52,199,89,.12)':'rgba(255,59,48,.10)'};border-left:3px solid ${ok?'var(--green)':'var(--red)'};
+      border-radius:var(--rs);padding:12px 14px;margin-bottom:10px">
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${ok?'✓':'✕'} ${titulo}</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.45">${cuerpo}</div></div>`;
+
+  let h='';
+  h+=bloque(p1ok,
+    p1ok?'La captación alcanza para regar la superficie propuesta'
+        :'La captación NO alcanza para la superficie propuesta',
+    `Oferta anual ${fmt(ofertaAnual,3)} m³ frente a una demanda de ${fmt(demAnual,3)} m³ para ${fmt(supT,3)} ha.`+
+    (p1ok?` Queda un excedente de ${fmt(-faltanteAnual,3)} m³.`
+        :` Faltan ${fmt(faltanteAnual,3)} m³ al año. No se resuelve agrandando el estanque: hay que aumentar el área de captación, sumar otra fuente o reducir la superficie de riego.`));
+
+  h+=bloque(p2ok,
+    p2ok?'El estanque tiene capacidad suficiente para regar sin déficit'
+        :'El estanque propuesto es insuficiente para regar sin déficit',
+    capReq===null
+      ? `No es posible determinar una capacidad que elimine el déficit porque el agua disponible no cubre la demanda anual.`
+      : `Se requieren ${fmt(capReq,3)} m³ para regar sin déficit; el proyecto propone ${fmt(capacidad,3)} m³.`+
+        (p2ok?` Holgura de ${fmt(capacidad-capReq,3)} m³.`
+            :` Faltan ${fmt(capReq-capacidad,3)} m³ de capacidad. Con el estanque propuesto se rebalsan ${fmt(r.treb,3)} m³ al año que sí se captan pero no se pueden almacenar, y quedan ${fmt(r.tdef,3)} m³ de déficit en ${r.mesesDef} mes(es).`));
+
+  const p3ok=holgura>0.005;
+  h+=bloque(p3ok,
+    p3ok?'Existe potencial para aumentar la superficie de riego'
+        :'No existe potencial para aumentar la superficie de riego',
+    p3ok
+      ? `Con la captación y el estanque propuestos se podrían regar hasta ${fmt(supMax,3)} ha con la misma mezcla de cultivos, es decir ${fmt(holgura,3)} ha más que las ${fmt(supT,3)} ha del proyecto (+${fmt((fMax-1)*100,0)}%).`
+      : `La superficie máxima regable con la captación y el estanque propuestos es ${fmt(supMax,3)} ha, por debajo de las ${fmt(supT,3)} ha presentadas. El proyecto está sobredimensionado en superficie en ${fmt(supT-supMax,3)} ha.`);
+
+  $('veredicto').innerHTML=h;
 }
 
 const recalc=()=>{calcPP();calcDem();};
@@ -420,7 +596,7 @@ document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
   ['pp','dem','bal'].forEach(t=>$('tab-'+t).classList.toggle('hide',t!==b.dataset.tab));
 });
 $('sup').onchange=e=>{const c=SUPERF[+e.target.value][1];if(c!==null)$('cc').value=c;recalc();};
-['ac','cc','yn','sn','yt','nan','pex','modo','est','cul','descPp','qd','vini'].forEach(id=>{
+['ac','cc','yn','sn','yt','nan','pex','modo','est','qd','qh','cap'].forEach(id=>{
   $(id).addEventListener('input',recalc);$(id).addEventListener('change',recalc);});
 $('modo').onchange=()=>{$('rowN').classList.toggle('hide',$('modo').value!=='auto');recalc();};
 $('rowN').classList.add('hide');
@@ -430,14 +606,7 @@ $('tbPP').addEventListener('input',e=>{
   if(t.dataset.s!==undefined)S.SD[+t.dataset.s]=num(t.value);
   recalc();
 });
-$('tbMet').addEventListener('input',e=>{if(e.target.dataset.met!==undefined){S.sup[+e.target.dataset.met]=num(e.target.value);recalc();}});
-$('mesesChips').addEventListener('click',e=>{
-  const b=e.target.closest('[data-mes]');if(!b)return;
-  const i=+b.dataset.mes;
-  if(S.meses.includes(i)){S.meses=S.meses.filter(x=>x!==i);}else{S.meses.push(i);}
-  b.classList.toggle('on');calcDem();
-});
-document.querySelectorAll('#mesesChips .chip').forEach((c,i)=>{if(S.meses.includes(i))c.classList.add('on');});
+
 
 /* ---------- importar desde Mawun ---------- */
 $('btnPaste').onclick=()=>{$('pasteBox').classList.toggle('hide');$('pasteTxt').focus();};
@@ -448,10 +617,94 @@ $('btnClearP').onclick=()=>{S.P.fill(0);S.SD.fill(0);
 function parseNums(line){
   return (line.match(/-?\d+(?:[.,]\d+)?/g)||[]).map(x=>parseFloat(x.replace(',','.')));
 }
+const DIM=[31,28,31,30,31,30,31,31,30,31,30,31];
+function esBisiesto(y){return (y%4===0&&y%100!==0)||y%400===0;}
+function diasDelMes(y,m){return m===1&&esBisiesto(y)?29:DIM[m];}
+
+// Intenta interpretar una fecha en varios formatos: ISO, dd-mm-aaaa, dd/mm/aaaa, serial Excel
+function parseFecha(tok){
+  tok=tok.trim();
+  let m=tok.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m)return{y:+m[1],mes:+m[2]-1};
+  m=tok.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if(m)return{y:+m[3],mes:+m[2]-1};
+  m=tok.match(/^-?\d+(?:[.,]\d+)?$/);
+  if(m){
+    const n=parseFloat(tok.replace(',','.'));
+    if(n>15000&&n<60000){ // serial Excel (desde 1899-12-30)
+      const ms=(n-25569)*86400*1000;
+      const d=new Date(ms);
+      return{y:d.getUTCFullYear(),mes:d.getUTCMonth()};
+    }
+  }
+  return null;
+}
+
+// Procesa texto plano con líneas "fecha;valor" (diario o mensual) -> promedios y sigma por mes calendario
+function procesarSerieFechaValor(texto){
+  const lines=texto.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+  const grupos={}; // 'y-m' -> {suma, n}
+  let leidos=0;
+  lines.forEach(l=>{
+    const parts=l.split(/[;,\t]/).map(p=>p.trim()).filter(p=>p!=='');
+    if(parts.length<2)return;
+    const f=parseFecha(parts[0]);
+    if(!f)return;
+    const v=parseFloat(parts[1].replace(',','.'));
+    if(!isFinite(v))return;
+    leidos++;
+    const k=f.y+'-'+f.mes;
+    if(!grupos[k])grupos[k]={suma:0,n:0,y:f.y,mes:f.mes};
+    grupos[k].suma+=v;grupos[k].n++;
+  });
+  if(leidos<20)return null; // no parece una serie de fecha/valor válida
+  const claves=Object.keys(grupos);
+  const esDiario=claves.some(k=>grupos[k].n>3);
+  const porMes=Array.from({length:12},()=>[]);
+  let excluidos=0;
+  claves.forEach(k=>{
+    const g=grupos[k];
+    let valorMes;
+    if(esDiario){
+      const dm=diasDelMes(g.y,g.mes);
+      if(g.n<dm-2){excluidos++;return;} // mes incompleto (borde de la serie), se excluye
+      valorMes=g.suma;
+    }else{
+      valorMes=g.suma; // ya viene mensual (un solo dato por mes)
+    }
+    porMes[g.mes].push(valorMes);
+  });
+  const P=Array(12).fill(0),SD=Array(12).fill(0),nAnios=Array(12).fill(0);
+  for(let m=0;m<12;m++){
+    const v=porMes[m];
+    nAnios[m]=v.length;
+    if(v.length===0)continue;
+    const mean=v.reduce((a,b)=>a+b,0)/v.length;
+    const sd=v.length>1?Math.sqrt(v.reduce((a,b)=>a+(b-mean)**2,0)/(v.length-1)):0;
+    P[m]=mean;SD[m]=sd;
+  }
+  const anios=Math.max(...nAnios);
+  return{P,SD,anios,esDiario,excluidos,mesesConDatos:nAnios.filter(n=>n>0).length};
+}
+
 $('btnParse').onclick=()=>{
-  const lines=$('pasteTxt').value.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&/\d/.test(l));
-  const serie=[];  // filas de 12 valores mensuales
-  const resumen=[];// filas [prom, sd]
+  const texto=$('pasteTxt').value;
+  const r=procesarSerieFechaValor(texto);
+  if(r&&r.mesesConDatos>=6){
+    S.P=r.P;S.SD=r.SD;
+    if($('modo').value==='auto')$('nan').value=r.anios;
+    document.querySelectorAll('#tbPP input').forEach(inp=>{
+      if(inp.dataset.p!==undefined)inp.value=S.P[+inp.dataset.p].toFixed(2);
+      if(inp.dataset.s!==undefined)inp.value=S.SD[+inp.dataset.s].toFixed(2);
+    });
+    $('pasteMsg').innerHTML='<div class="ok">Serie '+(r.esDiario?'diaria':'mensual')+' procesada: '+r.anios+' años'+
+      (r.excluidos?' ('+r.excluidos+' mes(es) incompleto(s) de borde excluidos)':'')+
+      '. Promedio y desviación estándar calculados por mes calendario.</div>';
+    recalc();return;
+  }
+  // formatos anteriores: serie de 12 columnas por año, o resumen de 12 filas
+  const lines=texto.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&/\d/.test(l));
+  const serie=[];const resumen=[];
   lines.forEach(l=>{
     let n=parseNums(l);
     if(n.length>=13&&n[0]>=1900&&n[0]<=2100)n=n.slice(1,13);
@@ -462,7 +715,7 @@ $('btnParse').onclick=()=>{
   let msg='';
   if(serie.length>=2){
     for(let m=0;m<12;m++){
-      const v=serie.map(r=>r[m]).filter(x=>isFinite(x));
+      const v=serie.map(row=>row[m]).filter(x=>isFinite(x));
       const mean=v.reduce((a,b)=>a+b,0)/v.length;
       const sd=Math.sqrt(v.reduce((a,b)=>a+(b-mean)**2,0)/(v.length-1));
       S.P[m]=mean;S.SD[m]=sd;
@@ -470,10 +723,10 @@ $('btnParse').onclick=()=>{
     if($('modo').value==='auto')$('nan').value=serie.length;
     msg='<div class="ok">Serie procesada: '+serie.length+' años. Promedio y desviación estándar (n−1) calculados por mes.</div>';
   }else if(resumen.length===12){
-    resumen.forEach((r,i)=>{S.P[i]=r[0];S.SD[i]=r[1];});
+    resumen.forEach((r2,i)=>{S.P[i]=r2[0];S.SD[i]=r2[1];});
     msg='<div class="ok">12 meses cargados desde el resumen.</div>';
   }else{
-    msg='<div class="warn">No se reconoció el formato. Necesito filas de 12 valores mensuales (una por año) o 12 filas con promedio y desviación estándar.</div>';
+    msg='<div class="warn">No se reconoció el formato. Pega la serie con fecha+valor (diaria o mensual), una fila por año con 12 valores, o 12 filas con promedio y desviación estándar.</div>';
     $('pasteMsg').innerHTML=msg;return;
   }
   document.querySelectorAll('#tbPP input').forEach(inp=>{
@@ -482,27 +735,37 @@ $('btnParse').onclick=()=>{
   });
   $('pasteMsg').innerHTML=msg;recalc();
 };
+$('fileCsv').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{$('pasteTxt').value=r.result;$('btnParse').click();};
+  r.readAsText(f,'utf-8');
+  e.target.value='';
+};
 
 /* ---------- guardar / abrir / exportar ---------- */
-function estado(){return{n:$('pnom').value,ac:$('ac').value,sup:$('sup').value,cc:$('cc').value,
+function estado(){return{v:5,n:$('pnom').value,ac:$('ac').value,sup:$('sup').value,cc:$('cc').value,
   modo:$('modo').value,nan:$('nan').value,pex:$('pex').value,yn:$('yn').value,sn:$('sn').value,yt:$('yt').value,
-  P:S.P,SD:S.SD,est:$('est').value,cul:$('cul').value,meses:S.meses,supm:S.sup,
-  descPp:$('descPp').value,qd:$('qd').value,vini:$('vini').value};}
+  P:S.P,SD:S.SD,est:$('est').value,crops:S.crops,
+  qd:$('qd').value,qh:$('qh').value,cap:$('cap').value};}
 function dl(name,txt,type){const b=new Blob([txt],{type:type});const a=document.createElement('a');
   a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-$('btnSave').onclick=()=>{dl(($('pnom').value||'scall')+'.json',JSON.stringify(estado()),'application/json');toast('Archivo guardado');};
+function nombreArchivo(){const n=$('pnom').value.trim();return 'Scall '+(n||'proyecto');}
+$('btnSave').onclick=()=>{dl(nombreArchivo()+'.json',JSON.stringify(estado()),'application/json');toast('Archivo guardado');};
 $('btnLoad').onclick=()=>$('fileIn').click();
 $('fileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);
     $('pnom').value=d.n||'';$('ac').value=d.ac;$('sup').value=d.sup;$('cc').value=d.cc;
     $('modo').value=d.modo;$('nan').value=d.nan;$('pex').value=d.pex;$('yn').value=d.yn;$('sn').value=d.sn;$('yt').value=d.yt;
-    S.P=d.P;S.SD=d.SD;S.meses=d.meses;S.sup=d.supm;
-    $('est').value=d.est;$('cul').value=d.cul;$('descPp').value=d.descPp;$('qd').value=d.qd;$('vini').value=d.vini;
+    S.P=d.P;S.SD=d.SD;
+    $('est').value=d.est;$('qd').value=d.qd;
+    if(d.qh!==undefined)$('qh').value=d.qh;
+    if(d.cap!==undefined)$('cap').value=d.cap;
+    if(d.crops&&d.crops.length){S.crops=d.crops;cropSeq=Math.max(...S.crops.map(c=>c.id))+1;}
+    renderCrops();
     document.querySelectorAll('#tbPP input').forEach(inp=>{
       if(inp.dataset.p!==undefined)inp.value=S.P[+inp.dataset.p]||'';
       if(inp.dataset.s!==undefined)inp.value=S.SD[+inp.dataset.s]||'';});
-    document.querySelectorAll('[data-met]').forEach(inp=>inp.value=S.sup[+inp.dataset.met]||0);
-    document.querySelectorAll('#mesesChips .chip').forEach((c,i)=>c.classList.toggle('on',S.meses.includes(i)));
     $('rowN').classList.toggle('hide',d.modo!=='auto');recalc();toast('Proyecto cargado');
   }catch(err){toast('Archivo no válido');}};
   r.readAsText(f);e.target.value='';};
@@ -510,11 +773,11 @@ $('btnCsv').onclick=()=>{
   let c='Proyecto;'+($('pnom').value||'')+'\n';
   c+='Area captacion (m2);'+$('ac').value+'\nSuperficie;'+$('sup').selectedOptions[0].text+'\nCoef. escorrentia;'+$('cc').value+'\n';
   c+='yn;'+$('yn').value+'\nsigma_n;'+$('sn').value+'\nyT;'+$('yt').value+'\n\n';
-  c+='Mes;P prom (mm);sigma_P (mm);P diseno (mm);Volumen (m3);Demanda bruta (m3/ha)\n';
+  c+='Mes;P prom (mm);sigma_P (mm);P diseno (mm);Volumen captado (m3);Demanda total (m3)\n';
   MES.forEach((m,i)=>{c+=[m,S.P[i].toFixed(2),S.SD[i].toFixed(2),S.Pd[i].toFixed(2),S.V[i].toFixed(2),S.dem[i].toFixed(1)].join(';')+'\n';});
   c+='\nPrecipitacion de diseno anual (mm);'+S.Pd.reduce((a,b)=>a+b,0).toFixed(2)+'\n';
   c+='Volumen potencial acumulador (m3);'+S.V.reduce((a,b)=>a+b,0).toFixed(2)+'\n';
-  dl(($('pnom').value||'scall')+'.csv','\ufeff'+c,'text/csv;charset=utf-8');toast('CSV exportado');};
+  dl(nombreArchivo()+'.csv','\ufeff'+c,'text/csv;charset=utf-8');toast('CSV exportado');};
 $('btnPrint').onclick=()=>window.print();
 
 /* ---------- carga inicial: ejemplo de la planilla ---------- */
