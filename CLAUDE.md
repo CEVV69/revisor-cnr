@@ -2081,6 +2081,24 @@ solo que la implementación se quedó en "mostrar «—»" en vez de ocultar la 
   un volumen real declarado — las 4 filas quedan ocultas en los primeros dos casos y visibles en
   el tercero.
 
+**Botón "Cálculo Scall" — Goteo/Microaspersión/Aspersión (implementado, jul-2026):** el usuario
+pasó una app propia, `scalldisenoV4.html` ("Acumuladores SCALL — Diseño"), single-file HTML igual
+patrón que el Diseñador de Riego — se subió a `static/scall_diseno_v4.html` (servida en
+`/static/scall_diseno_v4.html`, mismo motivo que el Diseñador: mismo origen, funciona en
+cualquier equipo). Botón nuevo junto al campo "Volumen acumulador (m³)" del Chequeo Agronómico
+(`calculos.html`), `target="_blank" rel="noopener"`, sin wiring de datos (no exporta ni importa
+nada — es solo un atajo para abrir la calculadora aparte, el revisor pasa los datos a mano).
+- **Visible en Goteo/Microaspersión/Aspersión, oculto en Carrete** — a pedido explícito del
+  usuario, que no lo pidió para ese sistema (Carrete no usa el mismo modelo de acumulador que
+  los otros tres). Mismo mecanismo CSS-hidden-por-defecto + clase `.activo` que ya usan
+  `campo-goteo`/`campo-aspersion`/`campo-carrete` — el nuevo `campo-scall` se activa con
+  `mostrarGoteo || mostrarAspersion` (cubre Goteo, Microaspersión, Aspersión, Mixto y sin
+  declarar; excluye solo Carrete puro — mismo criterio "mostrar si es ambiguo" del resto de la
+  tarjeta).
+- Si se actualiza el archivo de Scall, reemplazar `static/scall_diseno_v4.html` (borrando la
+  versión vieja del repo, no acumular) y actualizar el link en `calculos.html` si cambia el
+  nombre de archivo — mismo procedimiento que ya está documentado para el Diseñador de Riego.
+
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras
 usar la app con proyectos reales:
