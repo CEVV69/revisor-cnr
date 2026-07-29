@@ -2050,6 +2050,37 @@ nuevos, son puramente derivados de los que ya se extraen/calculan.
   función (sin redondear, mismo criterio que el fix de Python) — verificado con los mismos casos
   de prueba, paridad numérica exacta entre Python y JS.
 
+**Las 4 filas "(con acumulador)" ahora se OCULTAN por completo si no hay acumulador declarado
+(jul-2026):** el usuario notó, revisando un proyecto real de Carrete sin estanque, que "Volumen
+mínimo del estanque", "ΔQ aporta estanque", "Autonomía del estanque" y "T. llenado del estanque"
+seguían apareciendo en la tabla con "—" en vez de no mostrarse — pese a que la intención original
+(ver la entrada de arriba) siempre fue que esas filas dependieran de tener acumulador declarado,
+solo que la implementación se quedó en "mostrar «—»" en vez de ocultar la fila completa. Fix:
+- CSS nuevo `tr.fila-acumulador { display:none; } tr.fila-acumulador.activa { display:table-row; }`
+  (mismo patrón `oculto por defecto + clase .activo` que ya usaba `.sistema-riego-campo` para
+  Goteo/Aspersión/Carrete) — se le agregó la clase `fila-acumulador` a las 4 `<tr>`.
+- **Estado inicial (server-side, evita el flash):** `class="fila-acumulador{{ ' activa' if
+  agro.volumen_acumulador_m3 else '' }}"` — con los datos YA guardados, para que la fila nazca en
+  el estado correcto antes de que corra el JS.
+  **Bug encontrado y corregido antes de desplegar:** el primer intento usaba `is not none` en vez
+  de la verdad simple (`if agro.volumen_acumulador_m3`) — con un proyecto que nunca pasó por el
+  flujo de "Guardar" del Chequeo (o uno con la clave `volumen_acumulador_m3` ausente del dict, no
+  solo `None`), Jinja devuelve `Undefined` para ese acceso, y `Undefined is not none` da `True`
+  (`Undefined` no es literalmente `None`) — las filas se mostraban igual pese a no haber ningún
+  dato. Se cambió a una verdad simple (`if agro.volumen_acumulador_m3`), que trata missing/None/""
+  todos como "sin acumulador" por igual — mismo criterio con el que ya se leen el resto de los
+  campos `agro.*` en esta plantilla. **Lección para código nuevo en este archivo:** con datos que
+  pueden venir de un dict que no pasó por el guardado completo (extracción parcial, proyecto
+  legado), preferir una verdad simple (`if campo`) a `is not none` — un campo ausente del dict no
+  es lo mismo que `None` para Jinja.
+- **JS (`recalcAgroSistema`):** justo después de calcular `volAcum`, `wrap.querySelectorAll(
+  ".fila-acumulador").forEach(el => el.classList.toggle("activa", volAcum !== null))` — reacciona
+  en vivo si el revisor escribe o borra el volumen acumulador, sin recargar la página.
+- Verificado con el render real de `pagina_calculos()` (no mocks de HTTP): proyecto sin la clave
+  `volumen_acumulador_m3` en absoluto, proyecto con la clave presente pero `None`, y proyecto con
+  un volumen real declarado — las 4 filas quedan ocultas en los primeros dos casos y visibles en
+  el tercero.
+
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras
 usar la app con proyectos reales:

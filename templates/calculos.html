@@ -42,6 +42,8 @@
   .calc-nota { display:block; font-size:0.78rem; font-weight:400; margin-top:0.15rem; }
   .agro-grid > div.sistema-riego-campo { display:none; }
   .agro-grid > div.sistema-riego-campo.activo { display:flex; }
+  tr.fila-acumulador { display:none; }
+  tr.fila-acumulador.activa { display:table-row; }
 </style>
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
@@ -328,22 +330,22 @@
               <span id="{{ p }}agro-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
-          <tr>
+          <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
             <td class="col-concepto">Volumen mínimo del estanque (con acumulador)</td><td class="text-muted">—</td>
             <td class="col-calc">
               <span id="{{ p }}agro-vmin-calc">—</span>
               <span id="{{ p }}agro-vmin-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
-          <tr>
+          <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
             <td class="col-concepto">ΔQ aporta estanque (con acumulador)</td><td class="text-muted">—</td>
             <td class="col-calc" id="{{ p }}agro-deltaq-calc">—</td>
           </tr>
-          <tr>
+          <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
             <td class="col-concepto">Autonomía del estanque (con acumulador)</td><td class="text-muted">—</td>
             <td class="col-calc" id="{{ p }}agro-autonomia-calc">—</td>
           </tr>
-          <tr>
+          <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
             <td class="col-concepto">T. llenado del estanque (con acumulador)</td><td class="text-muted">—</td>
             <td class="col-calc" id="{{ p }}agro-tllenado-calc">—</td>
           </tr>
@@ -934,6 +936,12 @@
     // necesitan tanto el acumulador (Q_estanque) como el N° de sectores más abajo.
     var tiempoRiego = precip !== null ? (db / precip) : null;
     var volAcum = numVal(p + "volumen_acumulador_m3");
+
+    // Filas "(con acumulador)" — solo tienen sentido si el proyecto declara un estanque/tranque
+    // regulador. Ocultas por completo (no solo "—") si no hay volumen acumulador declarado.
+    wrap.querySelectorAll(".fila-acumulador").forEach(function(el) {
+      el.classList.toggle("activa", volAcum !== null);
+    });
 
     // Caudal de trabajo por postura vs. caudal disponible — parte diferida del bloque de arriba.
     // NO se compara si hay acumulador declarado: el modelo de acumulador que sí se replicó abajo
