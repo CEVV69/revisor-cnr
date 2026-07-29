@@ -506,24 +506,33 @@ adivina ni se muestra un pin en un lugar incorrecto.
   `dark-mode` al `<html>` antes de que el navegador pinte nada. El script del final del `<body>`
   quedó solo con lo que sí necesita el DOM ya cargado: actualizar el ícono sol/luna y el
   `toggleModo()` manual.
-- **Estados del proyecto (5, jul-2026):** En revisión · Observado · Con respuesta Observaciones ·
-  Aprobado Técnicamente · Rechazado — única fuente de verdad: `ESTADOS_PROYECTO` (lista, define
-  también el orden del selector) + `ESTADOS_PROYECTO_BADGE` (clase `badge-*` para el color) +
-  `ESTADOS_PROYECTO_COLOR_SOLIDO` (hex, para el botón/opciones del selector), las 3 en main.py.
-  Se retiró **"Revisado"** (el usuario lo consideró redundante con el resto de la clasificación)
-  y se agregó **"Con respuesta Observaciones"** (el consultor ya respondió, en línea con la
-  página Respuestas/subsanación). `cambiar_estado_proyecto()` valida contra `ESTADOS_PROYECTO`
-  directamente (antes era un `set` hardcodeado aparte, quedaba fácil que se desincronizara del
-  selector). **Colores** (mismo criterio en el badge del dashboard y en el badge/selector del
-  encabezado del proyecto — filtro Jinja `estado_badge`, registrado junto a `fecha`/`fecha_hora`):
-  reutiliza las clases `badge-*` YA existentes en `base.html` en vez de CSS nuevo — En revisión
-  → `badge-estado` (celeste), Observado → `badge-menor` (amarillo), Con respuesta Observaciones
-  → `badge-legal` (morado claro), Aprobado Técnicamente → `badge-tecnica` (verde), Rechazado →
-  `badge-mayor` (rojo). Un valor legado que ya no está en la lista (ej. "Revisado" en un
-  proyecto viejo) cae al fallback neutro `badge-estado` en vez de romper — el estado guardado
-  en un proyecto antiguo no se migra, solo deja de poder volver a asignarse desde el selector.
-  (El estado "Aprobado Técnicamente" se agregó originalmente junto con la subsanación — ver
-  sección dedicada más abajo.)
+- **Estados del proyecto (6, jul-2026):** En revisión · Pendiente · Observado · Con respuesta
+  Observaciones · Aprobado Técnicamente · Rechazado — única fuente de verdad: `ESTADOS_PROYECTO`
+  (lista, define también el orden del selector) + `ESTADOS_PROYECTO_BADGE` (clase `badge-*` para
+  el color) + `ESTADOS_PROYECTO_COLOR_SOLIDO` (hex, para el botón/opciones del selector), las 3 en
+  main.py. Se retiró **"Revisado"** (el usuario lo consideró redundante con el resto de la
+  clasificación) y se agregó **"Con respuesta Observaciones"** (el consultor ya respondió, en
+  línea con la página Respuestas/subsanación). `cambiar_estado_proyecto()` valida contra
+  `ESTADOS_PROYECTO` directamente (antes era un `set` hardcodeado aparte, quedaba fácil que se
+  desincronizara del selector). **Colores** (mismo criterio en el badge del dashboard y en el
+  badge/selector del encabezado del proyecto — filtro Jinja `estado_badge`, registrado junto a
+  `fecha`/`fecha_hora`): reutiliza las clases `badge-*` YA existentes en `base.html` en vez de CSS
+  nuevo — En revisión → `badge-estado` (celeste), Observado → `badge-menor` (amarillo), Con
+  respuesta Observaciones → `badge-legal` (morado claro), Aprobado Técnicamente → `badge-tecnica`
+  (verde), Rechazado → `badge-mayor` (rojo). Un valor legado que ya no está en la lista (ej.
+  "Revisado" en un proyecto viejo) cae al fallback neutro `badge-estado` en vez de romper — el
+  estado guardado en un proyecto antiguo no se migra, solo deja de poder volver a asignarse desde
+  el selector. (El estado "Aprobado Técnicamente" se agregó originalmente junto con la
+  subsanación — ver sección dedicada más abajo.)
+  **"Pendiente" agregado (jul-2026):** a pedido del usuario, para proyectos que empezó a revisar
+  pero dejó a medio camino por atender otro más urgente — necesita un color BIEN DISTINTO de los
+  demás para no perderlo de vista en el dashboard. Como los 5 colores/badges existentes ya
+  estaban todos tomados por los otros 5 estados, se creó una clase nueva `badge-pendiente`
+  (rosa/magenta — `#ffe3f1` fondo, `#c2185b` texto, en `base.html`, mismo patrón de las demás
+  `.badge-*`) en vez de reutilizar una — es el único estado de los 6 que no comparte clase con
+  ningún otro. Insertado justo después de "En revisión" en `ESTADOS_PROYECTO` (segunda posición,
+  define el orden del selector) por ser conceptualmente un sub-estado de ese — un proyecto que
+  ya se empezó a trabajar, no uno nuevo sin tocar.
   **Bug de z-index resuelto (jul-2026):** el menú desplegable del selector (`#menu-estado`)
   quedaba tapado detrás de las pestañas "Chequeo de Cálculos"/"Respuestas" — causa: el selector
   genérico `nav { position:sticky; z-index:100; }` de `base.html` (pensado para la barra

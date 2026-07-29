@@ -382,22 +382,28 @@ templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 
 
 # ── Estados del proyecto ────────────────────────────────────────────────────────
-# Única fuente de verdad para las 5 clasificaciones válidas — usada para validar el cambio de
+# Única fuente de verdad para las 6 clasificaciones válidas — usada para validar el cambio de
 # estado, armar el selector del encabezado del proyecto y colorear el badge en el dashboard
 # (mismo color en los dos lugares). Reutiliza las clases `badge-*` ya existentes en base.html
 # (mismo criterio de color que ya usaban obs./items: azul=neutro, amarillo=alerta liviana,
-# morado=legal/en trámite, verde=aprobado, rojo=rechazo) en vez de definir CSS nuevo.
-ESTADOS_PROYECTO = ["En revisión", "Observado", "Con respuesta Observaciones",
+# morado=legal/en trámite, verde=aprobado, rojo=rechazo) en vez de definir CSS nuevo — salvo
+# "Pendiente" (jul-2026), que sí necesitó una clase nueva (`badge-pendiente`, rosa/magenta) porque
+# los 5 colores existentes ya estaban todos tomados y el usuario pidió explícitamente un color
+# DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
+# lado por otro más urgente) no pase desapercibido en el dashboard.
+ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Con respuesta Observaciones",
                     "Aprobado Técnicamente", "Rechazado"]
 ESTADOS_PROYECTO_BADGE = {
-    "En revisión":                 "badge-estado",    # celeste
-    "Observado":                   "badge-menor",      # amarillo
+    "En revisión":                 "badge-estado",     # celeste
+    "Pendiente":                   "badge-pendiente",   # rosa/magenta
+    "Observado":                   "badge-menor",       # amarillo
     "Con respuesta Observaciones": "badge-legal",       # morado claro
     "Aprobado Técnicamente":       "badge-tecnica",     # verde
     "Rechazado":                   "badge-mayor",       # rojo
 }
 ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "En revisión":                 "#2b6cb0",
+    "Pendiente":                   "#c2185b",
     "Observado":                   "#c05621",
     "Con respuesta Observaciones": "#5e35b1",
     "Aprobado Técnicamente":       "#276749",
