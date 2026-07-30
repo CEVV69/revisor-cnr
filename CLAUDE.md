@@ -1317,15 +1317,42 @@ evaluación:
   sacar `plano_ubicacion` de `render_plano_tiles` para ahorrar 4 de sus 5 imágenes por página;
   acotar el alcance de `revisar_invalidacion_cruzada` (su costo es casi todo *output*/thinking, y
   ya tiene 2 bugs de descarte incorrecto corregidos — tocarla es el mayor riesgo de la app).
-  **Pendiente propuesto, NO implementado:** evaluar TODAS las respuestas de un ítem en UNA llamada
-  (ahorro mayor que el de la caché, pero cambia la UX y agrega riesgo de que la IA juzgue con menos
-  cuidado varias observaciones a la vez), y usar la Batch API (−50 %) para un botón "evaluar todas
-  las respuestas pendientes", que sí encaja con subsanación aunque no con la revisión interactiva.
+  **Pendiente propuesto, NO implementado — a propósito EN ESPERA (jul-2026):** dos ideas más
+  agresivas, solo aplicables a Subsanación (no a la revisión inicial): (1) evaluar TODAS las
+  respuestas de un ítem en UNA llamada en vez de una por observación (ahorro mayor que el de la
+  caché, pero cambia la UX — ya no se evaluaría una observación puntual al vuelo con el botón,
+  habría que esperar a tener varias respondidas) y (2) Batch API (−50 %, hasta 24 h de espera) para
+  un botón "evaluar todas las respuestas pendientes", que encaja con subsanación pero no con el
+  flujo interactivo actual de apretar el botón y ver la respuesta al toque. El usuario prefiere
+  esperar a que lleguen las primeras respuestas reales de consultores (estima un par de meses,
+  recién a fines de jul-2026 empezó a usar la app con proyectos reales del 202-2026) y ver cómo se
+  siente el flujo de Subsanación en la práctica antes de decidir — no retomar por iniciativa propia,
+  solo si el usuario lo pide explícitamente al ver el costo real o la UX en uso.
 - **El aprendizaje NO es un costo aparte relevante:** `consolidar_aprendizaje` y
   `consolidar_perfil_consultor` usan Haiku sobre listas de feedback cortas y corren a demanda desde
   las páginas de administración (unos centavos por consolidación, no por proyecto). Lo que sí pesa
   es su INYECCIÓN en cada análisis — y eso ya viaja dentro del bloque cacheado desde la 1ª ronda de
   esta optimización (ver la entrada anterior).
+- **Estimación de costo total mensual por revisor (jul-2026):** a pedido del usuario, proyección
+  para 15 proyectos/mes de 25 documentos c/u, más el peor escenario que planteó (15 proyectos de un
+  concurso A en revisión + 15 de un concurso B en subsanación el mismo mes). El modelo se calibró
+  contra el desglose real que aportó el usuario de un proyecto de 35 documentos (USD 3,32 total,
+  por ítem — Coherencia Global 0,56 el más caro, Cronograma/Chequeo Agronómico 0,01 los más
+  baratos) y dio prácticamente el mismo número que el bloque medido en producción, lo que valida el
+  resto de la proyección:
+  - Revisión completa de un proyecto de 25 documentos: USD 2–3,5 (revisión de los 19 ítems +
+    invalidación cruzada + extracciones Haiku + chat + consultas).
+  - Subsanación de un proyecto, YA con la optimización de esta sesión: USD 1,5–2,7 según el N° de
+    observaciones aprobadas (17 a 38, rango real reportado por el usuario) — antes de la
+    optimización llegaba a USD 4,7 con 38 observaciones.
+  - **Total estimado, peor escenario (15+15):** ~USD 100/mes por revisor (antes de esta sesión:
+    ~USD 130). En pesos chilenos, aprox. $78.000–97.000/mes al cambio de jul-2026.
+  - La variable que más mueve el número no es la cantidad de documentos sino cuántas observaciones
+    de subsanación se evalúan con el botón de IA — ese botón es OPCIONAL, no todas las respuestas
+    necesitan pasar por él (ver la entrada de Subsanación en la sección de Ítems SEP).
+  - Sin cuantificar en dólares (no medible desde este entorno): el ahorro real de mantener la caché
+    de 1h viva revisando proyectos del mismo concurso de corrido, en vez de espaciados — es la
+    palanca más grande que no requiere ningún cambio de código, ver el punto de `_log_uso` arriba.
 
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
