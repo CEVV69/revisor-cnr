@@ -97,10 +97,20 @@ MAX_PAGINAS_POR_TIPO = {
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
 
-MAX_CHARS_POR_NORMATIVA = 4000   # ~1.000 tokens por archivo — parte más relevante va al inicio
+# Tope por archivo. Subido de 4.000 a 5.000 (jul-2026) al destilar los 5 documentos más grandes:
+# antes cada uno aportaba 4.000 caracteres de portada/índice y ahora aporta criterio revisable,
+# pero los extractos necesitan algo más de espacio para entrar COMPLETOS — truncarlos volvería a
+# cortar justo el final. Solo alcanza a esos archivos: los demás ya estaban bajo 4.000.
+# IMPORTANTE: los archivos de `normativa/` deben caber enteros bajo este tope. Si al editar uno se
+# pasa, se corta en silencio (solo queda la marca "[...extracto]") — revisar el tamaño al tocarlos.
+MAX_CHARS_POR_NORMATIVA = 5000
 
 def cargar_normativa() -> str:
-    """Carga los documentos normativos disponibles en /normativa, limitando por archivo."""
+    """Carga los documentos normativos disponibles en /normativa, limitando por archivo.
+
+    Solo lee el primer nivel (`glob("*.txt")`, no recursivo) — por eso las fuentes originales sin
+    destilar viven en `normativa/fuentes/`: quedan versionadas en el repo para poder re-destilarlas,
+    pero no se cargan en cada llamada a la IA."""
     textos = []
     if not NORMATIVA_DIR.exists():
         return ""
@@ -982,6 +992,28 @@ def _buscar_rango_kc(cultivo: str):
     return None
 
 
+# Eficiencia de aplicación por método de riego — valores OFICIALES que el consultor debe usar
+# para diseñar (Tabla 4 de la Guía Metodológica DT-24: Tendido 30 · Surcos 45 · Bordes 60 ·
+# Aspersión 75 · Cinta 90 · Goteo 90). Se expresan como rango cruzando DT-24 (valor puntual) con
+# DT-04 (rangos de referencia: aspersión 70-75, goteo/microaspersión 85-90), para no observar por
+# una diferencia de un punto porcentual.
+#
+# Solo se mapean los sistemas que la app declara en el Chequeo. CARRETE queda deliberadamente
+# FUERA: ni DT-24 ni DT-04 le fijan una eficiencia propia, y asignarle la de aspersión sería
+# inventar — mismo criterio que `_buscar_rango_kc`, que devuelve None antes que adivinar.
+EFICIENCIA_OFICIAL_POR_SISTEMA = {
+    "Goteo":          (85, 90),
+    "Microaspersión": (85, 90),
+    "Aspersión":      (70, 75),
+}
+
+
+def _rango_eficiencia_oficial(sistema_riego: str):
+    """(mín, máx) de eficiencia de aplicación admisible para el sistema declarado, o None si no
+    hay valor oficial que aplicar (Carrete, Mixto, o sistema sin declarar)."""
+    return EFICIENCIA_OFICIAL_POR_SISTEMA.get((sistema_riego or "").strip())
+
+
 async def _extraer_datos_agronomicos(docs_grupo: list, n_sistemas: int = 1) -> dict:
     """Extrae los datos de la cadena de demanda agronómica declarados en el diseño, más los
     datos base del diseño de riego (superficie, caudal disponible, precipitación del sistema,
@@ -1206,6 +1238,33 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"oficial ({kc_min}–{kc_max}) y el valor declarado ({kc}).")
             else:
                 texto += " Dentro del rango — no lo menciones como observación."
+
+    # Eficiencia de aplicación vs. valores oficiales — independiente del resto de la cadena (solo
+    # necesita sistema_riego + eficiencia_pct). Una eficiencia declarada POR SOBRE la oficial
+    # reduce artificialmente la demanda calculada, así que infla la superficie que el proyecto
+    # dice poder regar: es el error con consecuencia, y por eso se distingue del caso conservador.
+    eficiencia = datos.get("eficiencia_pct")
+    rango_ef = _rango_eficiencia_oficial(datos.get("sistema_riego"))
+    if eficiencia is not None and rango_ef:
+        ef_min, ef_max = rango_ef
+        texto += (f"\n\nVERIFICACIÓN EFICIENCIA DE APLICACIÓN (cálculo determinístico — valores "
+                  f"oficiales CNR, Tabla 4 de la Guía Metodológica DT-24 cruzada con DT-04; para "
+                  f"{datos.get('sistema_riego')} corresponde {ef_min}–{ef_max} %): el expediente "
+                  f"declara {eficiencia} %.")
+        if eficiencia > ef_max:
+            texto += (f" SUPERIOR a la eficiencia oficial máxima ({ef_max} %). Una eficiencia "
+                      f"sobreestimada reduce la demanda hídrica calculada (Tasa de riego = "
+                      f"Demanda neta / Eficiencia) y por lo tanto infla la superficie que el "
+                      f"proyecto declara poder regar con el caudal disponible. Genera una "
+                      f"observación citando el valor oficial y el declarado, salvo que el "
+                      f"expediente lo respalde con ensayos de uniformidad del propio sistema.")
+        elif eficiencia < ef_min:
+            texto += (f" INFERIOR al rango oficial ({ef_min}–{ef_max} %). No sobreestima la "
+                      f"superficie (es conservador), pero revisa que no se deba a un error de "
+                      f"cálculo o a que se aplicó la eficiencia del método ACTUAL en vez de la "
+                      f"del método proyectado.")
+        else:
+            texto += " Dentro del rango oficial — no lo menciones como observación."
 
     # VIB vs. Precipitación del sistema — solo Aspersión, independiente del resto de la cadena.
     vib = datos.get("vib_mmhr")

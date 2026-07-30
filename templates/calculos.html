@@ -201,6 +201,14 @@
               <span id="{{ p }}agro-kc-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
+          <tr>
+            <td class="col-concepto">Eficiencia vs. valor oficial (DT-24 / DT-04)</td>
+            <td id="{{ p }}agro-ef-decl">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-ef-calc">—</span>
+              <span id="{{ p }}agro-ef-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
           <tr class="campo-vib-aspersion">
             <td class="col-concepto">VIB vs. Precipitación del sistema (Aspersión)</td><td id="{{ p }}agro-vib-decl">—</td>
             <td class="col-calc">
@@ -756,6 +764,27 @@
     } else {
       setText(p + "agro-kc-calc", "—");
       nota(p + "agro-kc-nota", "");
+    }
+
+    // Eficiencia de aplicación vs. valores oficiales — independiente del resto de la cadena.
+    // Tabla 4 de la Guía Metodológica DT-24 cruzada con los rangos del DT-04. Carrete no tiene
+    // valor oficial en ninguno de los dos, así que no se valida (no se inventa uno).
+    // OJO: si se corrige EFICIENCIA_OFICIAL_POR_SISTEMA en analyzer.py, replicar acá.
+    var EF_OFICIAL = { "Goteo": [85, 90], "Microaspersión": [85, 90], "Aspersión": [70, 75] };
+    var rangoEf = EF_OFICIAL[sistema];
+    setText(p + "agro-ef-decl", ef !== null ? fmt(ef, 1) + " %" : "—");
+    if (ef !== null && rangoEf) {
+      setText(p + "agro-ef-calc", "Oficial " + sistema + ": " + rangoEf[0] + "–" + rangoEf[1] + " %");
+      if (ef > rangoEf[1]) {
+        nota(p + "agro-ef-nota", "Sobre la eficiencia oficial (" + rangoEf[1] + " %) — reduce la demanda calculada e infla la superficie regable.");
+      } else if (ef < rangoEf[0]) {
+        nota(p + "agro-ef-nota", "Bajo el rango oficial (" + rangoEf[0] + "–" + rangoEf[1] + " %) — conservador; revisar que no sea la eficiencia del método actual.");
+      } else {
+        nota(p + "agro-ef-nota", "");
+      }
+    } else {
+      setText(p + "agro-ef-calc", sistema === "Carrete" ? "Carrete: sin valor oficial" : "—");
+      nota(p + "agro-ef-nota", "");
     }
 
     // VIB vs. Precipitación del sistema (Aspersión) — independiente del resto, verifica que la

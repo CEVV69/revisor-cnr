@@ -3473,17 +3473,82 @@ workaround de un problema de Railway V2 ya superado. Aunque exigía rol admin, d
 de entorno del contenedor — no hay razón para exponer eso desde la app. Se eliminó junto con su
 helper `_leer_env_proc1()`.
 
-**Pendiente propuesto, NO aplicado (requiere decisión del usuario):** los 5 archivos más grandes
-de `normativa/` (DT-02, DT-06, DT-18, DT-24, Manual_Supervision) se truncan a los primeros 4.000
-caracteres (`MAX_CHARS_POR_NORMATIVA`), que es apenas el 5-7% de cada uno — y en 4 de los 5 esos
-primeros caracteres son **portada, índice con números de página o encabezado legal**, no
-contenido técnico. Son ~20.000 caracteres (~5.000 tokens) que viajan en el `SYSTEM_PROMPT` de
-CADA llamada sin aportar criterio (van en el bloque cacheado, así que el costo es reducido, pero
-no es cero: la escritura de caché cuesta más que el input normal y ocupa contexto). Arreglarlo
-bien significa curar esos extractos a mano (quedarse con las secciones útiles en vez de las
-primeras páginas), que es trabajo de contenido con impacto en la calidad del análisis — por eso
-no se tocó por iniciativa propia. La excepción es DT-18, cuyo extracto sí arranca con la tabla de
-precios real y está bien como está.
+---
+
+## Normativa destilada — los 5 documentos grandes reescritos como criterios (jul-2026)
+
+**El problema:** los 5 archivos más grandes de `normativa/` (DT-02, DT-06, DT-18, DT-24,
+Manual_Supervision, todos de 51-72 KB) se cargaban truncados a los primeros 4.000 caracteres
+(`MAX_CHARS_POR_NORMATIVA`) — apenas el 5-7 % de cada uno, y en 4 de los 5 esos primeros
+caracteres eran **portada, índice con números de página o encabezado legal**. Eran ~20.000
+caracteres viajando en el `SYSTEM_PROMPT` de CADA llamada sin aportar criterio.
+
+**La solución (misma que ya usaban ITT-01 a 04 e `Invernaderos_Criterios`):** destilarlos a
+extractos de CRITERIOS que caben completos, en vez de volcar el documento y truncarlo. Proceso:
+propuesta en Artifact + archivo descargable → el usuario revisó y corrigió → recién ahí se
+instalaron (mismo flujo que los checklists de los 18 ítems).
+
+- **`normativa/fuentes/`** (nueva): las 5 fuentes originales sin destilar viven ahí, versionadas
+  en el repo para poder re-destilarlas, pero **no se cargan** — `cargar_normativa()` usa
+  `glob("*.txt")`, que NO es recursivo. Si se agregan fuentes nuevas, van a esa subcarpeta.
+- **`MAX_CHARS_POR_NORMATIVA` subido de 4.000 a 5.000**: los destilados necesitan algo más de
+  espacio para entrar enteros (el mayor, DT-06, quedó en 4.991). Solo alcanza a estos archivos —
+  los otros 12 ya estaban bajo 4.000. **Regla: todo archivo de `normativa/` debe caber bajo el
+  tope; si se pasa, se corta en silencio.** Verificar el tamaño al editar cualquiera.
+- **DT-24 se dividió en dos** (`DT-24a_Balance_Hidrico`, y el de evaluación social que NO se
+  instaló, ver abajo) — son dominios distintos que alimentan ítems distintos, mismo criterio con
+  que los ITT están separados por tema.
+- **Evaluación Social MIDESO: deliberadamente NO se instaló.** El usuario decidió excluirla —
+  esos proyectos son obras más grandes que no se revisan en esta app. El extracto está hecho y
+  quedó en el historial de la conversación; si algún día se necesita, se reinstala y ahí sí
+  convendría darle ítem propio (hoy `evaluacion_social` no tiene ítem, solo lo ve Coherencia).
+- **Manual de Supervisión — recorte fuerte a pedido del usuario** (4.518 → 3.288): regula la
+  supervisión POSTERIOR a la adjudicación, que no es objeto de esta app. Quedaron solo 4 puntos
+  verificables sobre el expediente al postular (plazos de construcción para el cronograma, regla
+  de ITO según tamaño para el presupuesto, detalle exigible a las EETT para que los equipos sean
+  acreditables después, e inicio anticipado de obras). El encabezado del extracto le dice
+  explícitamente a la IA que NO observe nada de ejecución de obra. **Criterio general: nada de
+  etapa de construcción entra a esta app.**
+- **Hallazgo de la 2ª ronda:** el usuario notó que los extractos estaban "muy acotados" y tenía
+  razón — en la 1ª versión solo se había mineado la sección 3 del DT-24 (evaluación social),
+  saltándose toda la sección 2, que trae lo más aprovechable de los 5 documentos: la cadena
+  completa de cálculo de la demanda hídrica y la tabla oficial de eficiencias. **Lección: al
+  destilar un documento largo, recorrer su índice completo antes de decidir qué entra — no
+  quedarse con la primera sección que parezca relevante.**
+- **Costo:** 47.724 → 51.201 caracteres (~+870 tokens por llamada, ~USD 0,10/mes con el volumen
+  actual, al ir en el bloque cacheado). Sube, a diferencia de lo estimado en la 1ª versión, y es
+  un cambio favorable: entra criterio aplicable donde antes había índices.
+- **DT-02 y DT-18 no crecieron a propósito:** el 95 % de ambos son tablas de consulta (caudales
+  por estación, precios por partida) que no tiene sentido cargar — de DT-02 caben 3 estaciones de
+  cientos, así que la IA nunca encontraría la que busca. Se destiló la metodología: en DT-02, la
+  advertencia de que los caudales DGA NO descuentan extracciones aguas arriba; en DT-18, que cada
+  partida tiene un RANGO y qué factores justifican moverse dentro de él (distancia al centro de
+  abastecimiento, acceso, altura, zona extrema). **En DT-18 se decidió NO incluir precios**: se
+  desactualizan y competirían con la tabla de precios referenciales de `/admin/precios`, que es
+  la que la app usa para el contraste partida por partida.
+
+**Verificación de la EFICIENCIA DE APLICACIÓN contra valores oficiales (implementado junto con
+lo anterior):** salió de la Tabla 4 del DT-24 (Tendido 30 · Surcos 45 · Bordes 60 · Aspersión 75
+· Cinta 90 · Goteo 90 %), que el usuario confirmó como "oficial y lo que debe considerar el
+consultor para diseñar". Mismo mecanismo que la verificación de Kc contra DT-05:
+- `EFICIENCIA_OFICIAL_POR_SISTEMA` + `_rango_eficiencia_oficial()` (analyzer.py) — se expresa
+  como RANGO cruzando DT-24 (valor puntual) con DT-04 (rangos: aspersión 70-75, goteo/micro
+  85-90), para no observar por un punto porcentual de diferencia.
+- **Carrete queda deliberadamente FUERA**: ni DT-24 ni DT-04 le fijan eficiencia propia, y
+  asignarle la de aspersión sería inventar — mismo criterio que `_buscar_rango_kc`, que devuelve
+  None antes que adivinar. Mixto y "sin declarar" tampoco se validan.
+- Asimetría a propósito en el mensaje: una eficiencia **sobre** la oficial reduce la demanda
+  calculada (`TR = DHN / Ef`) y por lo tanto **infla la superficie que el proyecto dice poder
+  regar** — ese es el error con consecuencia, y se instruye a observarlo. Una **bajo** el rango
+  es conservadora: solo se advierte que puede ser un error o la eficiencia del método ACTUAL en
+  vez del proyectado.
+- Wiring: bloque en `_bloque_verificacion_agronomica_sistema` (independiente del resto de la
+  cadena, solo necesita `sistema_riego` + `eficiencia_pct`), `_eficiencia_oficial_calculo()` en
+  main.py para el preview, y fila nueva "Eficiencia vs. valor oficial (DT-24 / DT-04)" en
+  `calculos.html`. **La tabla está duplicada en el `<script>` (`EF_OFICIAL`)** — misma regla de
+  siempre: si se corrige en analyzer.py, replicar a mano en el template. Verificado con paridad
+  automática (el test lee la tabla JS del propio template y la compara con la de Python) más 11
+  casos de contraste.
 
 ---
 

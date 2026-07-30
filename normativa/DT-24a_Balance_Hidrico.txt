@@ -1,0 +1,64 @@
+CRITERIOS DE REVISIÓN — DT-24 (a) DEMANDA HÍDRICA Y BALANCE HÍDRICO (Guía Metodológica 2024)
+
+ALCANCE: metodología oficial para calcular la demanda hídrica y el déficit/balance del proyecto.
+Es una cadena de cálculo CERRADA y verificable paso a paso — si el proyecto declara un caudal
+demandado, debe poder reproducirse con estas fórmulas. Aplica al análisis hidrológico, al diseño
+agronómico y a la justificación de la superficie de riego.
+
+1. CADENA DE CÁLCULO DEL CAUDAL DEMANDADO (Tabla 5 de la guía) — nueve pasos, mensuales:
+   1. ETo (mm/mes) — evapotranspiración de referencia. Fuente: AGRIMED, Atlas de la
+      Evapotranspiración 2015.
+   2. Kc — coeficiente de cultivo por etapa fenológica. Fuente: hoja "Kc" de la planilla Excel
+      "Balance Hídrico" (MDSF, publicada por la CNR); si el cultivo no está, se consulta FAO.
+   3. ETc = ETo × Kc                                    [mm/mes]
+   4. X — precipitación media mensual. Fuente: DGA (snia.dga.cl).
+   5. Pef = −0,0022 · X² + 1,0903 · X                   [mm/mes]  (precipitación efectiva;
+      Blaney-Criddle modificado por Merlet y Santibáñez)
+   6. DHN = (ETc − Pef) × 10                            [m³/ha/mes]  (demanda hídrica neta)
+   7. TR = DHN / Ef                                     [m³/ha/mes]  (tasa de riego; Ef =
+      eficiencia de aplicación, ver punto 2)
+   8. MR = TR × 0,0004                                  [l/s/ha]     (módulo de riego)
+   9. Qd = MR × A                                       [l/s]        (caudal demandado; A =
+      superficie de cada cultivo)
+El análisis debe hacerse para TODOS los meses del año y para DOS situaciones: sin proyecto
+Qd(s/p) y con proyecto Qd(c/p).
+Observable: caudal demandado presentado como cifra única sin el desarrollo mensual, o que no
+reproduce esta cadena; uso de precipitación total en vez de precipitación efectiva (sobreestima
+el aporte de lluvia y subestima la demanda).
+
+2. EFICIENCIA DE APLICACIÓN POR MÉTODO DE RIEGO (Tabla 4 — valores oficiales):
+   Tendido 30 % · Surcos 45 % · Bordes 60 % · Aspersión 75 % · Cinta 90 % · Goteo 90 %
+- Cada cultivo tiene su método y por tanto su eficiencia asociada; debe distinguirse por cultivo,
+  tanto en la situación actual como en la proyectada. El dato de la situación actual se obtiene
+  de la encuesta a los agricultores o de los catastros de las Organizaciones de Usuarios de Agua.
+- Una eficiencia declarada por sobre estos valores debe justificarse; usar la eficiencia del
+  método proyectado para calcular también la situación actual es un error frecuente y observable
+  (infla el ahorro atribuible al proyecto).
+- Cuando en la situación actual coexisten varios métodos, la eficiencia se PONDERA según el
+  DT-04 (Efrpond = 1 / Σ(Si/Stotal × 1/Efri)), no se promedia simple.
+
+3. BALANCE HÍDRICO O DÉFICIT — es la suma algebraica de ganancias y pérdidas de agua del suelo,
+y se obtiene comparando la oferta (análisis de oferta hídrica) contra la demanda (punto 1):
+- Ganancias: precipitación, riego y ascenso capilar.
+- Pérdidas: evapotranspiración, escurrimiento superficial y percolación profunda.
+- Debe desarrollarse para la situación actual Y para la situación con proyecto.
+- La superficie de riego nueva que el proyecto declare debe sustentarse en el balance SIN
+  DÉFICIT: si el balance con proyecto sigue deficitario en los meses críticos, la superficie
+  declarada no está respaldada y es observable.
+
+4. COEFICIENTE C DE INFILTRACIÓN POR TIPO DE SUELO (Tabla 2, m/día) — se usa al estimar pérdidas
+por infiltración en obras de acumulación y conducción sin revestir:
+   Grava cementada / franco arenoso 0,10 · Arcillosos y franco arcilloso 0,13 ·
+   Franco arenoso 0,20 · Ceniza volcánica 0,21 · Arena, cenizas volcánicas o arcilla 0,37 ·
+   Arenoso con roca 0,51 · Arenoso con grava 0,67
+Observable: tranque o canal sin revestir proyectado sobre suelo de C alto (arenoso con grava)
+sin considerar pérdidas por infiltración ni impermeabilización.
+
+5. FACTORES DE RIESGO PARA OBRAS EXISTENTES (Tabla 3) — al evaluar el aporte de una obra que se
+repara o mejora: obra COLAPSADA = 1,0 · obra en ALTO RIESGO DE COLAPSO = 0,5. Es decir, en una
+obra en alto riesgo solo puede atribuirse al proyecto la mitad del caudal o volumen en juego.
+
+6. HERRAMIENTA OFICIAL: el balance hídrico se desarrolla en la planilla Excel "Balance Hídrico"
+del Ministerio de Desarrollo Social y Familia, que la CNR publica en su sitio web y trae una hoja
+"Instrucciones" con los pasos. Un balance construido por fuera de esa planilla debe, al menos,
+reproducir sus mismos pasos y fuentes de dato.

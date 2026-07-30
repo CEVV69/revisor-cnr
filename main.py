@@ -27,6 +27,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
+                      _rango_eficiencia_oficial,
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion)
 import calculos_riego
 import geo
@@ -1334,6 +1335,21 @@ def _kc_dt05_calculo(cultivo, kc):
             "kc_fuera_rango": not (kc_min <= float(kc) <= kc_max)}
 
 
+def _eficiencia_oficial_calculo(sistema_riego, eficiencia_pct):
+    """Contraste de la eficiencia de aplicación declarada contra los valores oficiales CNR
+    (Tabla 4 de la Guía Metodológica DT-24 cruzada con DT-04) — independiente del resto de la
+    cadena agronómica, igual que `_kc_dt05_calculo`. None si el sistema no tiene valor oficial
+    (Carrete, Mixto o sin declarar) o si no hay eficiencia declarada."""
+    rango = _rango_eficiencia_oficial(sistema_riego)
+    if not rango or eficiencia_pct in (None, ""):
+        return None
+    ef_min, ef_max = rango
+    ef = float(eficiencia_pct)
+    return {"ef_min": ef_min, "ef_max": ef_max,
+            "sobre_oficial": ef > ef_max,     # el caso que infla la superficie regable
+            "bajo_oficial":  ef < ef_min}
+
+
 def _n_sistemas_proyecto(verif: dict) -> int:
     """N° de sistemas de riego GLOBAL del proyecto (1 o 2) — selector ÚNICO, compartido entre
     el Chequeo Agronómico y el Hidráulico: un proyecto con 2 sistemas de riego tiene 2 diseños
@@ -1390,6 +1406,10 @@ def _agronomico_calculo(datos: dict):
         campos.insert(6, "factor_agotamiento_pct")
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
+    # Eficiencia declarada vs. valores oficiales — independiente del resto de la cadena.
+    eficiencia_check = _eficiencia_oficial_calculo(
+        datos.get("sistema_riego") if datos else None,
+        datos.get("eficiencia_pct") if datos else None)
     # VIB vs. Precipitación — independiente del resto, solo Aspersión.
     vib_check = None
     if datos and datos.get("sistema_riego") == "Aspersión":
@@ -1425,6 +1445,8 @@ def _agronomico_calculo(datos: dict):
         r = {}
         if kc_dt05:
             r["kc_dt05"] = kc_dt05
+        if eficiencia_check:
+            r["eficiencia_check"] = eficiencia_check
         if vib_check:
             r["vib_check"] = vib_check
         if postura_check:
@@ -1456,6 +1478,8 @@ def _agronomico_calculo(datos: dict):
     ))
     if kc_dt05:
         r["kc_dt05"] = kc_dt05
+    if eficiencia_check:
+        r["eficiencia_check"] = eficiencia_check
     if vib_check:
         r["vib_check"] = vib_check
     if postura_check:
