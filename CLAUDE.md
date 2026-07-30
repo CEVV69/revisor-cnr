@@ -220,9 +220,11 @@ es un envoltorio delgado sobre él.
    los docs del grupo (`max_chars_total // len(docs_texto)`, luego `_truncar_inteligente` por
    documento). **Ampliado a 120.000** (`MAX_CHARS_POR_ITEM`, jul-2026) para los ítems densos en
    datos: `diseno_hidraulico` (incluye el agronómico), `diseno_fotovoltaico`, `presupuesto`,
-   `presupuesto_electrico`, `coherencia` y `especificaciones_tecnicas` (este último agregado más
+   `presupuesto_electrico`, `coherencia`, `especificaciones_tecnicas` (este último agregado más
    tarde — ver el bug dedicado más abajo, el detonante ahí no es 2-3 archivos grandes sino MUCHOS
-   documentos repartiéndose el mismo presupuesto) — el resto de los ítems sigue en 45.000.
+   documentos repartiéndose el mismo presupuesto) y `cubicaciones` (agregado jul-2026 junto con
+   el ítem, ver "Ítem Cubicaciones agregado" más abajo — tabla de cantidades, igual de densa en
+   datos que presupuesto) — el resto de los ítems sigue en 45.000.
 4. **Manifiesto del expediente** — se inyecta la lista de TODOS los tipos de documento presentes,
    para que la IA detecte faltantes obligatorios ("Se sugiere declarar no admitido.").
 5. **System cacheado** — `SYSTEM_PROMPT` (normativa) + bases del concurso, con
@@ -281,7 +283,7 @@ contexto; hay una ruta GET por página:
 - `/proyecto/{id}` → redirige a `/resumen` (al abrir un proyecto se entra al Resumen).
 - `/proyecto/{id}/resumen` → ficha-formulario (ver sección Resumen).
 - `/proyecto/{id}/documentos` → subida + gestión + tabla de documentos.
-- `/proyecto/{id}/items` → 18 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + chat + obs de ítem.
+- `/proyecto/{id}/items` → 19 ítems SEP (`ITEMS_SEP`/`ITEMS_ORDEN`) + chat + obs de ítem.
 
 Dos páginas más, `/proyecto/{id}/calculos` (Chequeo de Cálculos) y `/proyecto/{id}/respuestas`
 (Respuestas del consultor / subsanación), tienen su propia plantilla y ruta, fuera de
@@ -484,7 +486,7 @@ adivina ni se muestra un pin en un lugar incorrecto.
 - Subida PDF/Word/Excel/ZIP → extracción → clasificación por anexo
 - **Proyecto en 3 páginas** (Resumen / Documentos / Revisión por Ítems SEP), navegación arriba
   — ver sección "Páginas del proyecto", más una 5ª página aparte "Chequeo de Cálculos".
-- **Revisión por 18 ÍTEMS del SEP** (único método vigente — el método por Ejes se eliminó, ver
+- **Revisión por 19 ÍTEMS del SEP** (único método vigente — el método por Ejes se eliminó, ver
   sección "Páginas del proyecto"). El análisis documento-por-documento fue eliminado de raíz.
 - **Resumen del proyecto** tipo formulario, autocompletable con IA y editable (campos Sí/No).
 - **Limpieza** de la revisión por ítems (`limpiar-items`).
@@ -780,7 +782,7 @@ Este método existió junto a un método por 9 EJES TEMÁTICOS que fue **elimina
 en jul-2026** (ver el changelog al final de esta sección) — hoy Ítems SEP es el único método
 de revisión.
 
-**Implementado (backbone):** `ITEMS_SEP` en `analyzer.py` define los 18 ítems (tipo_docs +
+**Implementado (backbone):** `ITEMS_SEP` en `analyzer.py` define los 19 ítems (tipo_docs +
 checklist). `analizar_item()` cruza TODOS los documentos del ítem en UNA llamada a Sonnet y
 devuelve observaciones tageadas con `item`. Ruta `POST /proyecto/{id}/revisar-item/{item_key}`.
 UI: panel de ítems en la página "Revisión por Ítems SEP" (`/proyecto/{id}/items`). Las obs de
@@ -2650,12 +2652,52 @@ off-grid) — ambos sí están limpios. Si se consigue una copia legible del PDF
 transcribe manualmente las secciones clave), agregar `normativa/DT-09_...txt` de nuevo con texto
 real — no reincorporar el archivo corrupto.
 
-Los **18 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) revisan su(s) documento(s) tal como se
+Los **19 ítems del SEP** (`ITEMS_SEP`/`ITEMS_ORDEN`) revisan su(s) documento(s) tal como se
 ingresan al Sistema Electrónico de Postulación, para copiar las observaciones directo al SEP.
 Página "Revisión por Ítems SEP" (`/proyecto/{id}/items`). Memoria de superficies e
 Identificación del área de riego son la base (definen demanda, escala, presupuesto y monto
 bonificable); Coherencia Global (último ítem) es el cierre transversal que atrapa los errores
 entre documentos — ver el changelog más abajo.
+
+**Bug resuelto — Ítem "Cubicaciones" (Anexo 9.9) faltaba por completo del análisis (jul-2026):**
+el usuario reportó que no aparecía en la página Ítems SEP, aunque el tipo de documento
+`cubicaciones` sí existía y se clasificaba bien en la página Documentos. Investigado: el tipo_doc
+estaba correctamente definido en `TIPO_DOC_LABELS`/`TIPO_DOC_ORDEN` (main.py) y en `ANEXOS_SEP`
+(extractor.py, auto-clasificación por nombre de archivo) desde siempre — el hueco real era que
+`cubicaciones` nunca se agregó a `ITEMS_SEP`/`ITEMS_ORDEN` (analyzer.py) cuando se armó el
+backbone de Ítems SEP: un documento clasificado como Cubicaciones se veía bien en Documentos, pero
+ningún ítem lo incluía en su `tipo_docs`, así que nunca recibía su propio análisis dedicado — solo
+entraba (sin más) al pool amplio de Coherencia Global, sin un checklist propio ni una tarjeta para
+copiar observaciones directo al SEP.
+- **Ítem nuevo `cubicaciones`** (19º ítem, `ITEMS_SEP`/`ITEMS_ORDEN`) — insertado entre Cronograma
+  y Presupuesto (mismo orden numérico del SEP: 9.8.1 → 9.9 → 9.10.1). Checklist propio: la
+  cubicación debe estar completa, con unidades correctas y consistentes, y sus cantidades deben
+  respaldarse en el resto del diseño (longitudes de tuberías vs. diseño hidráulico/planos,
+  superficies vs. memoria de superficies, volúmenes vs. obras civiles, cantidad de equipos vs.
+  dimensionamiento hidráulico/fotovoltaico) — además de que los metrados estén matemáticamente
+  correctos, sin errores aritméticos ni partidas duplicadas.
+- **`presupuesto` ahora también recibe los documentos de Cubicaciones** — `tipo_docs` pasó de
+  `["presupuesto"]` a `["presupuesto", "cubicaciones"]`. El checklist de Presupuesto ya pedía
+  verificar que "las partidas corresponden a las obras cubicadas", pero antes de este fix nunca
+  recibía el documento de Cubicaciones para poder hacer esa comparación en la práctica — ahora sí
+  cruza ambos documentos en la misma llamada. Cubicaciones sigue teniendo además su propio ítem
+  independiente (para poder copiar sus observaciones al anexo 9.9 correcto en el SEP, distinto
+  del anexo 9.10.1 de Presupuesto) — se analiza dos veces con propósitos distintos, mismo costo
+  moderado que ya acepta el resto de la app cuando hay un cruce real entre dos anexos SEP
+  distintos.
+- `MAX_CHARS_POR_ITEM["cubicaciones"] = 120000` — igual de denso en datos que Presupuesto (tabla
+  de cantidades), mismo criterio que los demás ítems ampliados.
+- **No se agregó a `TIPOS_EXCLUIDOS_COHERENCIA`** (ver la entrada de ahorro de costo más abajo) —
+  a diferencia de las cotizaciones/facturas/declaración IVA, las cantidades cubicadas SÍ son
+  relevantes para el cierre transversal de Coherencia Global (cruzan con diseño hidráulico,
+  superficies, obras civiles), así que se mantiene en su pool.
+- Como todo el resto de la app deriva de `ITEMS_SEP`/`ITEMS_ORDEN` de forma dinámica (página
+  Ítems SEP, aprendizaje por ítem, criterios de énfasis, selector "Derivar a ítem del SEP" en
+  Coherencia Global, ficha de revisión), el ítem nuevo quedó disponible en todos esos lugares sin
+  tocar código adicional — se verificó con `analizar_item()` real (mock solo de la llamada a la
+  API): Cubicaciones se analiza como ítem propio, sus documentos también entran al cruce de
+  Presupuesto, y Coherencia sigue incluyéndolos. Render completo de `proyecto.html` confirmando
+  la tarjeta nueva con su documento correspondiente.
 
 **Bug resuelto — Diseño Fotovoltaico mezclado dentro de "Diseño y cálculos hidráulicos"
 (jul-2026):** el ítem `diseno_hidraulico` incluía `diseno_fotovoltaico` y

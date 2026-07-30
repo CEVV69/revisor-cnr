@@ -350,6 +350,7 @@ MAX_CHARS_POR_ITEM = {
     "presupuesto_electrico":     120000,
     "coherencia":                120000,
     "especificaciones_tecnicas": 120000,
+    "cubicaciones":              120000,   # tabla de cantidades, densa en datos igual que presupuesto
 }
 
 
@@ -496,9 +497,23 @@ fecha de emisión del CBRD — o el plazo específico que fijen las bases del co
 restrictivo. Si el proyecto contempla sistema fotovoltaico, el cronograma debe incluir
 explícitamente su instalación y las gestiones de conexión/certificación SEC.""",
     },
+    "cubicaciones": {
+        "nombre": "Cubicaciones",
+        "tipo_docs": ["cubicaciones"],
+        "checklist": """Verifica que la cubicación (cómputo de cantidades) esté completa y sea la base real de cada
+partida relevante del presupuesto — unidades correctas y consistentes con lo cubicado (m, m², m³,
+unidad, kg, según corresponda), sin cantidades sueltas que no calcen con ninguna partida. Las
+cantidades deben ser coherentes con el resto del diseño: longitudes de tuberías por tramo/diámetro
+coinciden con el diseño hidráulico y los planos de tecnificación; superficies con la memoria de
+cálculo de superficies; volúmenes de excavación, hormigón y movimiento de tierras con las obras
+civiles proyectadas (planos de obras civiles); cantidad de equipos (paneles, bombas, aspersores,
+etc.) con el dimensionamiento declarado en el diseño hidráulico/fotovoltaico. Revisa que los
+cálculos de metrados (longitudes, áreas, volúmenes) sean matemáticamente correctos, sin errores
+aritméticos evidentes ni partidas duplicadas o de doble conteo.""",
+    },
     "presupuesto": {
         "nombre": "Presupuesto detallado de obras",
-        "tipo_docs": ["presupuesto"],
+        "tipo_docs": ["presupuesto", "cubicaciones"],
         "checklist": """Partidas corresponden a las obras cubicadas y descritas técnicamente (material, diámetro,
 marca/modelo cuando aplique — no descripciones genéricas), agrupadas en Sistema de Riego
 (materiales) y Obras Civiles según el formato FT-01 de la CNR. Precios unitarios deben ser de
@@ -691,9 +706,10 @@ segunda pasada que repite lo que cada ítem individual ya detectó por su cuenta
 # al final: cierre transversal después de haber revisado todos los ítems individuales.
 ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "pruebas_bombeo",
                "diseno_hidraulico", "diseno_fotovoltaico", "estudios_complementarios",
-               "especificaciones_tecnicas", "cronograma", "presupuesto", "presupuesto_electrico",
-               "cotizaciones_facturas", "declaracion_iva", "planos_tecnificacion",
-               "planos_obras_civiles", "memoria_superficies", "estudio_suelos", "coherencia"]
+               "especificaciones_tecnicas", "cronograma", "cubicaciones", "presupuesto",
+               "presupuesto_electrico", "cotizaciones_facturas", "declaracion_iva",
+               "planos_tecnificacion", "planos_obras_civiles", "memoria_superficies",
+               "estudio_suelos", "coherencia"]
 
 
 # ─── RESUMEN DEL PROYECTO (ficha tipo formulario) ──────────────────────────────
