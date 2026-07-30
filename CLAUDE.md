@@ -3407,6 +3407,86 @@ antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENE
 
 ---
 
+## Auditoría general (jul-2026) — hallazgos y correcciones
+
+Revisión completa del código a pedido del usuario, buscando fallas, conflictos, código muerto y
+cualquier cosa que amenace el funcionamiento o gaste de más. Lo aplicado:
+
+**1. Regresión propia corregida — 2 tipos de documento quedaron INVISIBLES para la IA.** Al
+excluir tipos del pool de Coherencia Global (ver esa entrada más arriba) se incluyeron
+`antecedentes_legales` y `lista_beneficiarios` con la justificación de que "ya se revisan a fondo
+en su propio ítem SEP" — **falso**: ninguno de los dos tiene ítem propio en `ITEMS_SEP`.
+Coherencia era el ÚNICO lugar donde se leían, así que quedaron sin analizarse en ninguna parte de
+la app. Agravante: el checklist de Coherencia depende de los antecedentes legales para verificar
+que el caudal de diseño no exceda el derecho de agua y que la superficie respete el título de
+dominio — justo el documento que se estaba excluyendo. Corregido: `TIPOS_EXCLUIDOS_COHERENCIA`
+quedó solo con los 3 que sí tienen ítem propio (`cotizaciones_facturas`, `cotizaciones`,
+`declaracion_iva`). **Blindaje para que no se repita:** al lado de la constante hay ahora una red
+de seguridad que compara la lista contra la cobertura real de `ITEMS_SEP` y, si alguien agrega un
+tipo sin ítem propio, lo reincorpora a Coherencia automáticamente avisando en el log, en vez de
+dejarlo invisible en silencio.
+- **Regla para el futuro:** antes de excluir un tipo de Coherencia, verificar que exista un ítem
+  en `ITEMS_SEP` cuyo `tipo_docs` lo incluya. Hoy quedan 4 tipos sin ítem propio que dependen
+  únicamente de Coherencia: `antecedentes_legales`, `lista_beneficiarios`, `evaluacion_social` y
+  `otro` (los dos últimos nunca se excluyeron). Si alguna vez se quiere revisar Evaluación Social
+  MIDESO a fondo, necesitaría su propio ítem — hoy solo la ve Coherencia.
+
+**2. La app quedaba caída hasta reiniciarla si Postgres cortaba la conexión.** `_get_pg()`
+reconectaba solo si `conn.closed`, pero psycopg2 marca eso únicamente cuando el CLIENTE cierra la
+conexión — no cuando el servidor la corta por su cuenta (reinicio de Postgres en Railway, timeout
+de inactividad, corte de red). En ese caso `_get_pg()` devolvía una conexión muerta y el error
+recién saltaba al ejecutar la consulta, sin que nadie lo atrapara: **error 500 en todas las
+páginas hasta reiniciar el proceso**. Corregido con el decorador `_reintenta_si_cae` (database.py)
+aplicado a las 11 funciones que tocan Postgres: ante `OperationalError`/`InterfaceError` cierra la
+conexión muerta, reconecta y reintenta una vez. El reintento es seguro porque todas las escrituras
+del módulo son idempotentes (UPSERT `ON CONFLICT DO UPDATE`, o DELETE). Verificado simulando una
+conexión que el servidor cortó (`closed == 0` pero la consulta falla): se recupera sola.
+
+**3. Bug latente — el dashboard entero caía con 500 por un solo proyecto sin `fecha_creacion`.**
+`get_proyectos_ligero` ordena por ese campo, pero la proyección de Postgres
+(`jsonb_build_object`) devuelve los campos ausentes como **null, no ausentes** — así que
+`.get("fecha_creacion", "")` daba `None` y `sorted()` reventaba mezclando `None` con `str`.
+Corregido con `or ""` ahí y en la numeración por antigüedad del dashboard. **Esta diferencia
+(null vs. ausente) es la trampa principal de las proyecciones** — cualquier lectura de un campo
+proyectado debe usar `or {}` / `or ""`, nunca el default de `.get()`.
+
+**4. Polling del análisis: traía el proyecto COMPLETO cada 4 segundos.** `estado_item` (el
+endpoint que consulta la página mientras corre un análisis en segundo plano) usaba
+`db.get_proyecto()`, cargando y deserializando todas las observaciones del proyecto en cada
+vuelta solo para leer 3 campos de estado. Se agregó `db.get_proyecto_campos(proyecto_id, campos)`
+(+ `_pg_load_campos`, con coincidencia EXACTA de clave, no `LIKE` con prefijo) y el endpoint
+ahora pide solo `items_en_progreso`/`items_error`/`items_revisados`. Verificados los 5 casos
+(sin campos, en progreso, error, listo con invalidadas, inexistente) en modo JSON y el SQL
+generado en el camino PostgreSQL.
+
+**5. Código muerto eliminado** (todo del flujo viejo de análisis documento-por-documento, ya
+marcado como obsoleto en este documento): `seleccionar_modelo`, `DOCS_COMPLEJOS`,
+`DOCS_FORZAR_HAIKU`, `DOCS_FORZAR_VISION`, `MAX_TOKENS_HAIKU`, `MAX_PAGINAS_ESCANEADO`,
+`MAX_CHARS_POR_TIPO`, `MAX_CHARS_COMPLEJO_DEFAULT`, `MAX_CHARS_SIMPLE` (analyzer.py) y
+`require_user` (main.py, además usaba `HTTPException(302)`, un patrón que no corresponde). Se
+conservó `MAX_PAGINAS_POR_TIPO`, que SÍ sigue en uso (tope de páginas por documento en visión).
+También se quitaron 3 imports sin uso en main.py (`timedelta`, `Depends`, `HTTPBearer`).
+
+**6. Endpoint `/debug-env` eliminado (seguridad).** Estaba rotulado "Debug temporal" y era un
+workaround de un problema de Railway V2 ya superado. Aunque exigía rol admin, devolvía los
+**primeros 10 caracteres de `ANTHROPIC_API_KEY`** más la lista completa de nombres de variables
+de entorno del contenedor — no hay razón para exponer eso desde la app. Se eliminó junto con su
+helper `_leer_env_proc1()`.
+
+**Pendiente propuesto, NO aplicado (requiere decisión del usuario):** los 5 archivos más grandes
+de `normativa/` (DT-02, DT-06, DT-18, DT-24, Manual_Supervision) se truncan a los primeros 4.000
+caracteres (`MAX_CHARS_POR_NORMATIVA`), que es apenas el 5-7% de cada uno — y en 4 de los 5 esos
+primeros caracteres son **portada, índice con números de página o encabezado legal**, no
+contenido técnico. Son ~20.000 caracteres (~5.000 tokens) que viajan en el `SYSTEM_PROMPT` de
+CADA llamada sin aportar criterio (van en el bloque cacheado, así que el costo es reducido, pero
+no es cero: la escritura de caché cuesta más que el input normal y ocupa contexto). Arreglarlo
+bien significa curar esos extractos a mano (quedarse con las secciones útiles en vez de las
+primeras páginas), que es trabajo de contenido con impacto en la calidad del análisis — por eso
+no se tocó por iniciativa propia. La excepción es DT-18, cuyo extracto sí arranca con la tabla de
+precios real y está bien como está.
+
+---
+
 ## Instrucciones del usuario (SIEMPRE respetar)
 
 1. **Paso a paso** — nunca asumir, guiar con pasos numerados.

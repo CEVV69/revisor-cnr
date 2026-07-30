@@ -26,22 +26,6 @@ NORMATIVA_DIR = BASE_DIR / "normativa"
 MODELO_SONNET = "claude-sonnet-5"     # Revisión por ejes, chat y consultas (última generación)
 MODELO_HAIKU  = "claude-haiku-4-5"    # Extracción de datos numéricos para verificación (barato)
 
-# Tipos de documento que requieren mayor capacidad analítica
-DOCS_COMPLEJOS = {
-    "diseno_hidraulico",       # Cálculos hidráulicos
-    "diseno_agronomico",       # Diseño agronómico / demanda hídrica
-    "diseno_fotovoltaico",     # Sistema fotovoltaico de bombeo
-    # reporte_explorador_solar → Haiku (formato estandarizado CNR, no requiere Sonnet)
-    "estudio_hidrologico",     # Metodología y caudales
-    "estudio_suelos",          # Capacidad de uso, clasificación
-    "presupuesto",             # APU, coherencia de cifras
-    "presupuesto_electrico",   # Ídem electrificación
-    "evaluacion_social",       # MIDESO, cálculo socioeconómico
-    "memoria_superficies",     # Geometría y cálculos de área
-    "pruebas_bombeo",          # Curvas, eficiencia, datos técnicos
-    "estudios_complementarios",# Variable — mejor Sonnet por precaución
-}
-
 def _texto_respuesta(response) -> str:
     """
     Extrae el texto de la respuesta de Claude. Sonnet 5 puede incluir bloques de
@@ -72,14 +56,6 @@ def _log_uso(etiqueta: str, response) -> None:
         pass
 
 
-def seleccionar_modelo(tipo_doc: str, es_escaneado: bool = False) -> str:
-    """Elige el modelo según complejidad del documento."""
-    if tipo_doc in DOCS_FORZAR_HAIKU:
-        return MODELO_HAIKU   # Formato estandarizado — Haiku suficiente aunque sea imagen
-    if es_escaneado or tipo_doc in DOCS_COMPLEJOS:
-        return MODELO_SONNET
-    return MODELO_HAIKU
-MAX_TOKENS_HAIKU  = 2000   # Documentos simples
 MAX_TOKENS_SONNET = 16000  # Documentos complejos — Sonnet 5 gasta parte del cupo en thinking
 MIN_CHARS_TEXTO   = 300    # Menos de esto → tratar como imagen aunque haya "texto"
 
@@ -110,39 +86,14 @@ for _tipo_plano in ("planos_tecnificacion", "planos_obras_civiles", "plano_ubica
     MAX_TOKENS_POR_ITEM[_tipo_plano] = 24000
 del _tipo_plano
 
-# Páginas máximas para visión (PDFs escaneados / con imágenes)
-MAX_PAGINAS_ESCANEADO = 5   # Mapas, planos, documentos generales
+# Páginas máximas a renderizar como imagen por tipo de documento (visión). Se usa en
+# `_analizar_grupo` como tope por documento, dentro de la cuota que reparte MAX_IMG_EJE.
 MAX_PAGINAS_POR_TIPO = {
     "reporte_explorador_solar": 15,  # 21 páginas — necesita más cobertura
     "diseno_fotovoltaico":      8,
     "diseno_hidraulico":        8,
     "diseno_agronomico":        8,
 }
-
-# Tipos que usan Haiku incluso si son escaneados (formatos estandarizados)
-DOCS_FORZAR_HAIKU = {"reporte_explorador_solar"}
-
-# Tipos que SIEMPRE usan visión (aunque tengan texto extraíble)
-# porque su contenido clave está en gráficos/tablas como imágenes
-DOCS_FORZAR_VISION = {"reporte_explorador_solar"}
-
-# Límite de caracteres por tipo (optimizados por costo/calidad)
-MAX_CHARS_POR_TIPO = {
-    "reporte_explorador_solar": 40000,  # Haiku — 21 págs, formato CNR estandarizado
-    "diseno_agronomico":        35000,  # Puede ser muy largo
-    "diseno_fotovoltaico":      25000,
-    "diseno_hidraulico":        25000,
-    "presupuesto":              30000,  # Excel con hasta 13 hojas
-    "presupuesto_electrico":    30000,
-    "estudio_hidrologico":      15000,
-    "estudio_suelos":           15000,
-    "evaluacion_social":        12000,
-    "memoria_superficies":      12000,
-    "pruebas_bombeo":           12000,
-    "estudios_complementarios": 12000,
-}
-MAX_CHARS_COMPLEJO_DEFAULT = 12000   # Sonnet para tipos complejos sin límite específico
-MAX_CHARS_SIMPLE           =  5000   # Haiku para tipos simples
 
 # ─── Carga de normativa real desde archivos ────────────────────────────────────
 
@@ -826,20 +777,39 @@ TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubi
 # del documento (la parte narrativa), sin poder leer la tabla ni ver la forma de la curva.
 TIPOS_SIEMPRE_VISION = TIPOS_PLANO_VISION | {"pruebas_bombeo"}
 
-# Tipos EXCLUIDOS del pool de documentos de Coherencia Global (jul-2026) — administrativos o
-# financieros, sin señal de coherencia CRUZADA entre documentos de diseño (no son planos, no son
-# cálculos, no describen equipos): su volumen puede ser alto (proyectos reales con 10+
-# cotizaciones/facturas) sin aportar nada al cierre transversal, y ya se revisan a fondo en su
-# propio ítem SEP (Cotizaciones y Facturas, Cotizaciones, Declaración IVA) — incluirlos de nuevo
-# en Coherencia es puro costo, sin beneficio. Deliberadamente NO incluye
-# "especificaciones_tecnicas" (aunque también puede tener volumen alto, ej. manuales de equipos
-# mezclados con la memoria técnica) porque el propio checklist de Coherencia exige cruzar specs
-# de equipos contra el resto del diseño (ej. "la potencia del sistema FV cubre la bomba del
-# diseño hidráulico") — excluirlo arriesgaría perder justo el hallazgo para el que existe este
-# ítem, así que ahí el ahorro debe venir de otro lado (reparto adaptativo ya evita gastar de más
-# en manuales cortos).
-TIPOS_EXCLUIDOS_COHERENCIA = {"cotizaciones_facturas", "cotizaciones", "declaracion_iva",
-                              "lista_beneficiarios", "antecedentes_legales"}
+# Tipos EXCLUIDOS del pool de documentos de Coherencia Global (jul-2026) — financieros, sin
+# señal de coherencia CRUZADA entre documentos de diseño (no son planos, no son cálculos, no
+# describen equipos): su volumen puede ser alto (proyectos reales con 10+ cotizaciones/facturas)
+# sin aportar nada al cierre transversal, y ya se revisan a fondo en su propio ítem SEP
+# (Cotizaciones y Facturas, Cotizaciones, Declaración IVA) — incluirlos de nuevo en Coherencia es
+# puro costo, sin beneficio.
+#
+# REQUISITO para agregar un tipo acá: debe tener un ítem propio en ITEMS_SEP que lo analice. Si
+# no lo tiene, excluirlo de Coherencia lo deja INVISIBLE para la IA en toda la app (bug real
+# jul-2026: se excluyeron "antecedentes_legales" y "lista_beneficiarios" asumiendo que tenían
+# ítem propio — no lo tienen, Coherencia era el ÚNICO lugar donde se leían, y encima el
+# checklist de Coherencia depende de los antecedentes legales para verificar que el caudal de
+# diseño no exceda el derecho de agua y que la superficie respete el título de dominio).
+# Ver el test de cobertura en CLAUDE.md → "Auditoría general".
+#
+# Deliberadamente NO incluye "especificaciones_tecnicas" (aunque también puede tener volumen
+# alto, ej. manuales de equipos mezclados con la memoria técnica) porque el propio checklist de
+# Coherencia exige cruzar specs de equipos contra el resto del diseño (ej. "la potencia del
+# sistema FV cubre la bomba del diseño hidráulico") — excluirlo arriesgaría perder justo el
+# hallazgo para el que existe este ítem, así que ahí el ahorro debe venir de otro lado (el
+# reparto adaptativo ya evita gastar de más en manuales cortos).
+TIPOS_EXCLUIDOS_COHERENCIA = {"cotizaciones_facturas", "cotizaciones", "declaracion_iva"}
+
+# Red de seguridad del requisito de arriba: si alguna vez se agrega a la lista un tipo que NO
+# tiene ítem propio, se saca automáticamente de la exclusión (vuelve a Coherencia, que sería su
+# único lugar de análisis) y se avisa en el log, en vez de dejarlo invisible en silencio.
+_TIPOS_CON_ITEM_PROPIO = {td for it in ITEMS_SEP.values() for td in it.get("tipo_docs", [])}
+_sin_item = TIPOS_EXCLUIDOS_COHERENCIA - _TIPOS_CON_ITEM_PROPIO
+if _sin_item:
+    print(f"⚠️ TIPOS_EXCLUIDOS_COHERENCIA incluye tipos sin ítem propio {sorted(_sin_item)} — "
+          f"se reincorporan a Coherencia para no dejarlos sin analizar en ninguna parte.")
+    TIPOS_EXCLUIDOS_COHERENCIA = TIPOS_EXCLUIDOS_COHERENCIA & _TIPOS_CON_ITEM_PROPIO
+del _sin_item
 
 
 # ── Verificación numérica determinística (hidráulica y agronómica) ─────────────

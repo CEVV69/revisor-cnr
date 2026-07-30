@@ -1,4 +1,5 @@
 """Base de datos: PostgreSQL en producción, JSON en desarrollo local."""
+import functools
 import json
 import os
 from pathlib import Path
@@ -64,6 +65,39 @@ def _get_pg():
     return _pg_conn
 
 
+def _reintenta_si_cae(fn):
+    """Reintenta UNA vez con conexión nueva si la consulta falla porque la conexión guardada
+    estaba muerta.
+
+    `_get_pg()` por sí solo NO alcanza: psycopg2 marca `conn.closed` solo cuando el cliente
+    cierra la conexión, no cuando el servidor la cortó por su cuenta (reinicio de Postgres en
+    Railway, timeout de inactividad, corte de red). En ese caso `_get_pg()` devuelve tan campante
+    una conexión muerta y el error recién aparece al ejecutar la consulta — como esa excepción no
+    la atrapaba nadie, la app quedaba devolviendo error 500 en TODAS las páginas hasta que se
+    reiniciara el proceso completo. Con esto se recupera sola.
+
+    El reintento es seguro para lectura y escritura: todas las escrituras de este módulo son
+    idempotentes (UPSERT con ON CONFLICT DO UPDATE, o DELETE), así que repetirlas no duplica ni
+    corrompe nada."""
+    @functools.wraps(fn)
+    def envoltorio(*args, **kwargs):
+        global _pg_conn
+        import psycopg2
+        try:
+            return fn(*args, **kwargs)
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            print(f"⚠️ Conexión PostgreSQL caída en {fn.__name__} ({e}) — reconectando y reintentando…")
+            try:
+                if _pg_conn is not None and not _pg_conn.closed:
+                    _pg_conn.close()
+            except Exception:
+                pass
+            _pg_conn = None          # fuerza reconexión limpia en el _get_pg() de adentro
+            return fn(*args, **kwargs)
+    return envoltorio
+
+
+@_reintenta_si_cae
 def _pg_load(key: str) -> dict:
     conn = _get_pg()
     with conn.cursor() as cur:
@@ -72,6 +106,7 @@ def _pg_load(key: str) -> dict:
         return json.loads(row[0]) if row else {}
 
 
+@_reintenta_si_cae
 def _pg_save(key: str, data: dict):
     conn = _get_pg()
     with conn.cursor() as cur:
@@ -83,6 +118,7 @@ def _pg_save(key: str, data: dict):
         """, (key, json.dumps(data, ensure_ascii=False)))
 
 
+@_reintenta_si_cae
 def _pg_load_prefix(prefix: str) -> list:
     """Carga todos los values cuyo key empieza con `prefix` (una sola query)."""
     conn = _get_pg()
@@ -91,6 +127,7 @@ def _pg_load_prefix(prefix: str) -> list:
         return [json.loads(r[0]) for r in cur.fetchall()]
 
 
+@_reintenta_si_cae
 def _pg_load_prefix_campos(prefix: str, campos: list) -> list:
     """Como _pg_load_prefix, pero le pide a Postgres que arme un objeto SOLO con los `campos`
     pedidos (vía jsonb_build_object) en vez de traer y deserializar el JSON completo de cada
@@ -110,6 +147,23 @@ def _pg_load_prefix_campos(prefix: str, campos: list) -> list:
         return [r[0] for r in cur.fetchall()]
 
 
+@_reintenta_si_cae
+def _pg_load_campos(key: str, campos: list) -> dict:
+    """Como _pg_load, pero deja que Postgres arme un objeto SOLO con los `campos` pedidos, en vez
+    de traer y deserializar el JSON completo de la fila. Misma advertencia que
+    _pg_load_prefix_campos: `campos` son nombres FIJOS del código, nunca input de un request."""
+    conn = _get_pg()
+    partes = ", ".join(f"'{c}', v -> '{c}'" for c in campos)
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT jsonb_build_object({partes})
+            FROM (SELECT value::jsonb AS v FROM storage WHERE key = %s) t
+        """, (key,))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+@_reintenta_si_cae
 def _pg_delete(key: str):
     conn = _get_pg()
     with conn.cursor() as cur:
@@ -223,12 +277,29 @@ class Database:
                      for p in _json_load(PROYECTOS_FILE).values()]
         if username:
             all_p = [p for p in all_p if p.get("revisor") == username]
-        return sorted(all_p, key=lambda x: x.get("fecha_creacion", ""), reverse=True)
+        # `or ""`: la proyección de Postgres devuelve el campo en null (no ausente) si el proyecto
+        # no lo tiene, y ordenar mezclando None con str revienta con TypeError — tumbaría el
+        # dashboard entero por un solo proyecto legado sin fecha_creacion.
+        return sorted(all_p, key=lambda x: x.get("fecha_creacion") or "", reverse=True)
 
     def get_proyecto(self, proyecto_id: str) -> dict:
         if self._use_pg:
             return _pg_load(f"proyecto:{proyecto_id}") or None
         return _json_load(PROYECTOS_FILE).get(proyecto_id)
+
+    def get_proyecto_campos(self, proyecto_id: str, campos: list) -> dict:
+        """Como get_proyecto(), pero trae SOLO los `campos` pedidos — para endpoints que se
+        consultan seguido y no necesitan el proyecto entero. El caso que motivó esto es el
+        *polling* de `estado_item` (cada 4 segundos mientras dura un análisis en segundo plano):
+        con `get_proyecto()` traía y deserializaba todas las observaciones del proyecto en cada
+        vuelta solo para leer 3 campos de estado.
+
+        Devuelve None si el proyecto no existe. `campos` son nombres FIJOS del propio código,
+        nunca datos de un request (ver la advertencia de _pg_load_prefix_campos)."""
+        if not self._use_pg:
+            p = _json_load(PROYECTOS_FILE).get(proyecto_id)
+            return {k: p.get(k) for k in campos} if p else None
+        return _pg_load_campos(f"proyecto:{proyecto_id}", campos)
 
     def save_proyecto(self, proyecto: dict):
         if self._use_pg:
@@ -450,6 +521,7 @@ class Database:
     # Solo aplica en modo PostgreSQL: en modo JSON local el disco ya persiste entre
     # ejecuciones, así que estos métodos son no-op.
 
+    @_reintenta_si_cae
     def guardar_archivo(self, proyecto_id: str, doc_id: str, filename: str, contenido: bytes):
         if not self._use_pg:
             return
@@ -464,6 +536,7 @@ class Database:
                         tamano = EXCLUDED.tamano, fecha = NOW()
             """, (proyecto_id, doc_id, filename, psycopg2.Binary(contenido), len(contenido)))
 
+    @_reintenta_si_cae
     def obtener_archivo(self, proyecto_id: str, doc_id: str) -> bytes:
         if not self._use_pg:
             return None
@@ -474,6 +547,7 @@ class Database:
             row = cur.fetchone()
             return bytes(row[0]) if row else None
 
+    @_reintenta_si_cae
     def ids_con_archivo(self, proyecto_id: str) -> set:
         """IDs de documentos con archivo guardado en la base (chequeo en lote, evita N
         consultas al armar la tabla de documentos de un proyecto)."""
@@ -484,6 +558,7 @@ class Database:
             cur.execute("SELECT doc_id FROM archivos WHERE proyecto_id=%s", (proyecto_id,))
             return {r[0] for r in cur.fetchall()}
 
+    @_reintenta_si_cae
     def eliminar_archivo(self, proyecto_id: str, doc_id: str):
         if not self._use_pg:
             return
@@ -492,6 +567,7 @@ class Database:
             cur.execute("DELETE FROM archivos WHERE proyecto_id=%s AND doc_id=%s",
                         (proyecto_id, doc_id))
 
+    @_reintenta_si_cae
     def eliminar_archivos_proyectos(self, proyecto_ids: list):
         """Borra TODOS los archivos guardados de una lista de proyectos (ej. al dar por
         terminado un concurso). No toca texto_extraido/observaciones — solo libera espacio."""
@@ -501,6 +577,7 @@ class Database:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM archivos WHERE proyecto_id = ANY(%s)", (list(proyecto_ids),))
 
+    @_reintenta_si_cae
     def resumen_archivos(self, proyecto_ids: list) -> dict:
         """Cantidad y peso total de los archivos guardados para una lista de proyectos."""
         if not self._use_pg or not proyecto_ids:

@@ -7,17 +7,16 @@ import json
 import uuid
 import asyncio
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional, List
 from urllib.parse import quote
 
-from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.security import HTTPBearer
 import uvicorn
 from dotenv import load_dotenv
 
@@ -484,45 +483,6 @@ def get_current_user(request: Request) -> Optional[dict]:
     return verify_token(token)
 
 
-def require_user(request: Request) -> dict:
-    user = get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=302, headers={"Location": "/login"})
-    return user
-
-
-# ─── Debug temporal ──────────────────────────────────────────────────────────
-
-def _leer_env_proc1() -> dict:
-    """Lee variables del proceso init del contenedor (workaround Railway V2)."""
-    try:
-        with open("/proc/1/environ", "rb") as f:
-            data = f.read()
-        return dict(
-            item.split(b"=", 1)
-            for item in data.split(b"\x00")
-            if b"=" in item
-        )
-    except Exception:
-        return {}
-
-
-@app.get("/debug-env")
-async def debug_env(request: Request):
-    user = get_current_user(request)
-    if not user or user.get("rol") != "admin":
-        return {"error": "forbidden"}
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    proc1 = _leer_env_proc1()
-    key_proc1 = proc1.get(b"ANTHROPIC_API_KEY", b"").decode("utf-8", errors="replace")
-    return {
-        "os_environ_tiene_key": bool(key),
-        "proc1_tiene_key": bool(key_proc1),
-        "proc1_primeros_chars": key_proc1[:10] if key_proc1 else "(vacio)",
-        "proc1_vars": sorted(k.decode("utf-8", errors="replace") for k in proc1.keys()),
-    }
-
-
 # ─── Rutas de autenticación ───────────────────────────────────────────────────
 
 @app.get("/login", response_class=HTMLResponse)
@@ -568,11 +528,11 @@ async def dashboard(request: Request):
          "resumen"],
         username=user["username"])
     for p in proyectos:
-        p["consultor"] = (p.get("resumen") or {}).get("consultor", "").strip()
+        p["consultor"] = ((p.get("resumen") or {}).get("consultor") or "").strip()
     # Numeración por antigüedad (el más antiguo = 1) — la tabla sigue mostrando los más
     # recientes primero (orden de siempre, sin cambios), solo se le agrega este número como
     # referencia estable de cuándo se creó cada proyecto relativo a los demás.
-    orden_antiguedad = sorted(proyectos, key=lambda p: p.get("fecha_creacion", ""))
+    orden_antiguedad = sorted(proyectos, key=lambda p: p.get("fecha_creacion") or "")
     numero_por_id = {p["id"]: i + 1 for i, p in enumerate(orden_antiguedad)}
     for p in proyectos:
         p["numero"] = numero_por_id.get(p["id"])
@@ -1150,19 +1110,25 @@ async def estado_item(request: Request, proyecto_id: str, item_key: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    proyecto = db.get_proyecto(proyecto_id)
+    # Proyección liviana: solo los 3 campos de estado. Este endpoint se consulta cada 4 segundos
+    # mientras dura un análisis, y con el proyecto completo traía y deserializaba TODAS las
+    # observaciones en cada vuelta solo para leer si el ítem ya terminó.
+    proyecto = db.get_proyecto_campos(
+        proyecto_id, ["items_en_progreso", "items_error", "items_revisados"])
     if not proyecto:
         raise HTTPException(status_code=404)
 
-    if item_key in proyecto.get("items_en_progreso", {}):
+    if item_key in (proyecto.get("items_en_progreso") or {}):
         return JSONResponse({"estado": "analizando"})
 
-    error = proyecto.get("items_error", {}).get(item_key)
+    # OJO con el `or {}`: la proyección de Postgres devuelve el campo en null (no ausente) cuando
+    # el proyecto todavía no lo tiene, así que `.get(campo, {})` devolvería None, no {}.
+    error = (proyecto.get("items_error") or {}).get(item_key)
     if error:
         return JSONResponse({"estado": "error", "mensaje": error.get("mensaje", ""),
                              "sin_documentos": bool(error.get("sin_docs"))})
 
-    revisado = proyecto.get("items_revisados", {}).get(item_key)
+    revisado = (proyecto.get("items_revisados") or {}).get(item_key)
     n_invalidadas = revisado.get("ultima_invalidadas", 0) if revisado else 0
     return JSONResponse({"estado": "listo", "item_invalidadas": n_invalidadas})
 
