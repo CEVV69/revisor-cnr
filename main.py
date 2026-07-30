@@ -2597,12 +2597,21 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         doc_ids_extra = [a.get("id") for a in pendientes]
 
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+
+        # Cuántas observaciones aprobadas tiene ESTE ítem: los antecedentes que se le mandan a la
+        # IA son los mismos para todas ellas, así que con varias conviene cachearlos en vez de
+        # pagarlos frescos una vez por observación (ver `evaluar_respuesta_subsanacion`).
+        item_obs = obs.get("item", "")
+        n_obs_item = sum(1 for o in proyecto.get("observaciones", [])
+                         if o.get("estado") == "aprobada" and o.get("item", "") == item_obs)
+
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=obs.get("texto", ""),
             referencia=obs.get("referencia_normativa", ""),
-            respuesta_consultor=respuesta, item_key=obs.get("item", ""),
+            respuesta_consultor=respuesta, item_key=item_obs,
             documentos=documentos_con_texto, resumen=proyecto.get("resumen", {}),
             bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
+            n_obs_item=n_obs_item,
         )
         return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
                              "fundamento": resultado.get("fundamento", "")})

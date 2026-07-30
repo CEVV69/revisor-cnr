@@ -1273,6 +1273,60 @@ una optimización mecánica de costo real y sin ningún riesgo de calidad:
   correctamente los 4 campos de `usage` sin lanzar excepción cuando faltan (try/except silencioso,
   no puede romper un análisis por un problema de logging).
 
+**Ahorro de costo — 2ª ronda: la SUBSANACIÓN era el bloque más caro y estaba sin medir (jul-2026):**
+el usuario midió con datos reales el gasto de un proyecto de 35 documentos (**USD 3,32** en total,
+desglosado por ítem: Coherencia Global 0,56 · Cotizaciones y facturas 0,34 · Plano Ubicación 0,30 ·
+Presupuesto 0,26 · Diseño hidráulico 0,24 · Especificaciones técnicas 0,24 · el resto ≤0,21) y pidió
+una proyección a 15 proyectos/mes por revisor, incluyendo por primera vez la fase de respuestas a
+observaciones. Al modelarlo apareció el hallazgo: **`evaluar_respuesta_subsanacion` costaba tanto o
+más que la revisión completa** (rango real de observaciones aprobadas por proyecto: 17 a 38, y el
+peor escenario del usuario es 15 proyectos de un concurso A en revisión + 15 de un concurso B en
+subsanación, el mismo mes). Dos causas concretas, ambas corregidas sin tocar el criterio de
+evaluación:
+- **Contexto sobredimensionado:** usaba `max_chars=80000` fijo para TODOS los ítems — MÁS contexto
+  del que había visto la propia revisión que generó la observación (`MAX_CHARS_POR_ITEM` es 45.000
+  en 12 de los 19 ítems). Gasto sin ganancia de criterio: la observación se juzga contra los mismos
+  antecedentes con los que se originó. Ahora usa
+  `min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))` — 45.000 en esos 12 ítems
+  (−44 % de input), y 80.000 sin cambios en los densos (presupuesto, coherencia, etc., que declaran
+  120.000).
+- **Antecedentes reenviados frescos una vez por observación:** el bloque de documentos del ítem es
+  IDÉNTICO para todas las observaciones de ese ítem, pero viajaba en el mensaje `user` (sin caché),
+  así que con 4 observaciones de un mismo ítem se pagaba 4 veces el mismo texto. Ahora se manda como
+  un 3er bloque `system` cacheado (TTL 1h). **No se cachea siempre, a propósito:** escribir la caché
+  cuesta 2× el precio de input y leerla 0,1×, así que el punto de equilibrio está sobre 2 lecturas —
+  con 1 o 2 observaciones cachear saldría IGUAL O MÁS CARO que mandarlo fresco. De ahí el parámetro
+  nuevo `n_obs_item` (lo calcula `evaluar_respuesta_subsanacion_route` en main.py contando las
+  observaciones `estado == "aprobada"` de ese mismo ítem) y el umbral `>= 3`. Con `n_obs_item < 3`
+  el comportamiento es exactamente el anterior. **Regla general para código nuevo:** un bloque solo
+  conviene cachearlo si se va a releer 3 veces o más dentro de la ventana del TTL; cachear algo que
+  se lee una sola vez es un 2× de sobrecosto, no un ahorro.
+- **Efecto medido** (modelo con los precios reales, no estimación a ojo): 17 obs → −30 % · 25 obs →
+  −30 % · **38 obs → −43 %**. En el peor escenario del usuario baja de ~USD 71 a ~USD 41 al mes.
+- **`_log_uso` ahora imprime el costo en USD** (`PRECIOS_USD_POR_MTOK`, tabla de precios por millón
+  de tokens con las 4 tarifas: input, output, escritura de caché 2×, lectura 0,1×) y se cableó a las
+  3 llamadas que NO lo tenían: `evaluar_respuesta_subsanacion` (por eso el costo de subsanación era
+  invisible en Railway y el usuario no lo tenía en su desglose), `_chatear_grupo` y
+  `consultar_expediente`. **Señal a vigilar en el log:** `cache_creado` alto de forma repetida dentro
+  de un mismo concurso significa que la caché se está REESCRIBIENDO (2×) en vez de leerse (0,1×) —
+  pasa cuando entre un ítem y el siguiente pasa más de 1 hora. Revisar proyectos del mismo concurso
+  de corrido es notoriamente más barato que hacerlo espaciado; es la palanca de ahorro más grande
+  que NO requiere tocar código.
+- **Evaluado y descartado** (no cumplían "sin perjudicar la calidad" o exceden el pedido):
+  reducir el presupuesto de Coherencia Global (120.000, el ítem más caro) o el de Cotizaciones;
+  sacar `plano_ubicacion` de `render_plano_tiles` para ahorrar 4 de sus 5 imágenes por página;
+  acotar el alcance de `revisar_invalidacion_cruzada` (su costo es casi todo *output*/thinking, y
+  ya tiene 2 bugs de descarte incorrecto corregidos — tocarla es el mayor riesgo de la app).
+  **Pendiente propuesto, NO implementado:** evaluar TODAS las respuestas de un ítem en UNA llamada
+  (ahorro mayor que el de la caché, pero cambia la UX y agrega riesgo de que la IA juzgue con menos
+  cuidado varias observaciones a la vez), y usar la Batch API (−50 %) para un botón "evaluar todas
+  las respuestas pendientes", que sí encaja con subsanación aunque no con la revisión interactiva.
+- **El aprendizaje NO es un costo aparte relevante:** `consolidar_aprendizaje` y
+  `consolidar_perfil_consultor` usan Haiku sobre listas de feedback cortas y corren a demanda desde
+  las páginas de administración (unos centavos por consolidación, no por proyecto). Lo que sí pesa
+  es su INYECCIÓN en cada análisis — y eso ya viaja dentro del bloque cacheado desde la 1ª ronda de
+  esta optimización (ver la entrada anterior).
+
 **Criterios de énfasis por ítem — PERMANENTES/globales, con excepción puntual por concurso
 (implementado jul-2026, rediseñado jul-2026):** distinto del "aprendizaje" automático de abajo.
 Es texto que el revisor **escribe y edita a mano** (nunca se toca automáticamente — supervisión

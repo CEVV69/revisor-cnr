@@ -40,18 +40,40 @@ def _texto_respuesta(response) -> str:
     return "\n".join(partes).strip()
 
 
-def _log_uso(etiqueta: str, response) -> None:
+# Precios USD por millón de tokens, para estimar el costo real de cada llamada en el log.
+# Referencia: lista pública de Anthropic. La caché con TTL de 1h se escribe a 2× el precio de
+# input y se lee a 0,1× — por eso se contabilizan por separado, es donde está la diferencia entre
+# un concurso bien cacheado y uno que reescribe la caché en cada ítem.
+PRECIOS_USD_POR_MTOK = {
+    "claude-sonnet-5":   {"in": 3.00, "out": 15.00, "cache_w": 6.00, "cache_r": 0.30},
+    "claude-haiku-4-5":  {"in": 1.00, "out":  5.00, "cache_w": 2.00, "cache_r": 0.10},
+}
+
+
+def _log_uso(etiqueta: str, response, modelo: str = None) -> None:
     """Registra en el log de Railway el uso REAL de tokens de una respuesta (incluida la lectura
-    de caché) — visibilidad para poder medir el gasto real de la API en vez de estimarlo, y
-    confirmar que la caché de prompt (SYSTEM_PROMPT + bases + criterios aprendidos/énfasis, ver
-    `_analizar_grupo`) efectivamente se está reutilizando. Puramente informativo — no cambia
-    nada del análisis ni cuesta una llamada extra, `usage` viene incluido en toda respuesta."""
+    de caché) MÁS el costo estimado en USD — visibilidad para poder medir el gasto real de la API
+    en vez de estimarlo, y confirmar que la caché de prompt (SYSTEM_PROMPT + bases + criterios
+    aprendidos/énfasis, ver `_analizar_grupo`) efectivamente se está reutilizando. Puramente
+    informativo — no cambia nada del análisis ni cuesta una llamada extra, `usage` viene incluido
+    en toda respuesta.
+
+    Señal a vigilar en el log: `cache_creado` alto de forma repetida dentro de un mismo concurso
+    significa que la caché se está reescribiendo (2× el precio de input) en vez de leerse (0,1×);
+    pasa cuando entre un ítem y el siguiente transcurre más de 1 hora. Revisar varios proyectos
+    del mismo concurso de corrido es notoriamente más barato que hacerlo espaciado."""
     try:
         u = response.usage
         cache_leido = getattr(u, "cache_read_input_tokens", 0) or 0
         cache_creado = getattr(u, "cache_creation_input_tokens", 0) or 0
-        print(f"💲 Uso '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
-              f"cache_leido={cache_leido} cache_creado={cache_creado}")
+        p = PRECIOS_USD_POR_MTOK.get(modelo or MODELO_SONNET)
+        costo = ""
+        if p:
+            usd = (u.input_tokens * p["in"] + u.output_tokens * p["out"]
+                   + cache_creado * p["cache_w"] + cache_leido * p["cache_r"]) / 1_000_000
+            costo = f" ≈ USD {usd:.4f}"
+        print(f"Uso '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
+              f"cache_leido={cache_leido} cache_creado={cache_creado}{costo}")
     except Exception:
         pass
 
@@ -2643,6 +2665,7 @@ Reglas del marcador:
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
+    _log_uso(f"chat '{nombre}'", response)
     texto_crudo = _texto_respuesta(response)
     if not texto_crudo:
         print(f"⚠️ Chat '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3123,6 +3146,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
+    _log_uso("consulta libre", response)
     texto = _texto_respuesta(response)
     if not texto:
         print(f"⚠️ consultar_expediente: respuesta vacía — stop_reason={response.stop_reason}")
@@ -3142,13 +3166,18 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                                         respuesta_consultor: str, item_key: str,
                                         documentos: list, resumen: dict = None,
                                         bases_texto: str = "", concurso_id: str = "",
-                                        doc_ids_extra: list = None) -> dict:
+                                        doc_ids_extra: list = None,
+                                        n_obs_item: int = 1) -> dict:
     """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
 
     `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
     nueva prueba de bombeo). Se incluyen SIEMPRE en el contexto, aunque su tipo_doc no pertenezca
     al ítem observado — si no, un respaldo clasificado bajo otro tipo quedaría invisible para la
-    evaluación."""
+    evaluación.
+
+    `n_obs_item`: cuántas observaciones aprobadas tiene ESE ítem en el proyecto. Solo decide si
+    los antecedentes viajan cacheados o frescos (ver más abajo) — no cambia en nada el contenido
+    que lee la IA ni el criterio de evaluación."""
     if not (respuesta_consultor or "").strip():
         return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
 
@@ -3168,7 +3197,14 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         ya = {d.get("id") for d in docs_grupo}
         docs_grupo = docs_grupo + [d for d in documentos
                                    if d.get("id") in ids_extra and d.get("id") not in ya]
-    contexto_docs = _texto_grupo_para_extraccion(docs_grupo, max_chars=80000)
+    # Presupuesto de caracteres: el MISMO que usó el análisis original de este ítem
+    # (MAX_CHARS_POR_ITEM), con tope 80.000. Antes eran 80.000 fijos para todos los ítems — más
+    # contexto del que había visto la propia revisión que generó la observación (45.000 en 12 de
+    # los 19 ítems), así que era gasto sin ninguna ganancia de criterio: la observación se juzga
+    # contra los mismos antecedentes con los que se originó. En los ítems densos (presupuesto,
+    # coherencia, etc., 120.000) el tope de 80.000 manda igual que antes, sin cambio.
+    max_chars_ctx = min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))
+    contexto_docs = _texto_grupo_para_extraccion(docs_grupo, max_chars=max_chars_ctx)
     if not contexto_docs.strip():
         contexto_docs = "(No hay antecedentes con texto extraíble para este ítem.)"
 
@@ -3179,6 +3215,19 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
     if bloque_bases.strip():
         system_con_cache.append({"type": "text", "text": bloque_bases,
                                  "cache_control": {"type": "ephemeral", "ttl": "1h"}})
+
+    # Los antecedentes del ítem son IDÉNTICOS para todas las observaciones de ese mismo ítem, así
+    # que si hay varias que evaluar conviene cachearlos (se leen a 0,1× en vez de pagarse frescos
+    # una vez por observación). No se cachea siempre porque escribir la caché cuesta 2× (TTL 1h):
+    # con 1 o 2 evaluaciones saldría igual o más caro que mandarlo fresco — el punto de equilibrio
+    # está sobre 2 lecturas, de ahí el umbral de 3. `n_obs_item` lo calcula main.py contando las
+    # observaciones aprobadas de este mismo ítem en el proyecto.
+    cachear_antecedentes = (n_obs_item or 1) >= 3
+    if cachear_antecedentes:
+        system_con_cache.append({
+            "type": "text",
+            "text": f"\nANTECEDENTES ACTUALES DEL ÍTEM EN REVISIÓN:\n{contexto_docs}",
+            "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
     nombre_item = item["nombre"] if item else item_key
     prompt = f"""{bloque_resumen}
@@ -3195,7 +3244,7 @@ RESPUESTA DEL CONSULTOR (transcrita por el revisor):
 {respuesta_consultor.strip()}
 
 ANTECEDENTES ACTUALES DEL ÍTEM:
-{contexto_docs}
+{'(Se adjuntan más arriba, en el bloque "ANTECEDENTES ACTUALES DEL ÍTEM EN REVISIÓN".)' if cachear_antecedentes else contexto_docs}
 
 CRITERIOS:
 - "resuelta": la respuesta aporta lo que faltaba, corrige lo observado o aclara satisfactoriamente
@@ -3223,6 +3272,7 @@ Responde SOLO este JSON, sin texto adicional:
         print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
         return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
 
+    _log_uso(f"subsanación '{nombre_item}'", response)
     content = _texto_respuesta(response)
     data = _extraer_json_tolerante(content)
     rec = data.get("recomendacion", "")
