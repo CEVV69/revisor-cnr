@@ -422,6 +422,11 @@ autocompletar con IA y para `_construir_bloque_resumen()` (se inyecta como conte
 análisis de ítem, ver la entrada siguiente) — los tres puntos iteran `RESUMEN_SECCIONES` sin
 conocer las claves de antemano. No lleva `resumen_ia` porque no hace falta una instrucción de
 estilo especial (a diferencia de "Características obras") — la IA ya interpreta "UF" del label.
+**Combinado con "Código proyecto" en el informe impreso (jul-2026):** a pedido del usuario, para
+no seguir sumando altura al informe — mismo mecanismo `"linea_con"` ya usado por `clase` +
+`superficie_clase_sep` en "3. Predios" (ver esa entrada más arriba), acá aplicado a `codigo`
+(`"linea_con": "costo_total_uf"`). Solo afecta `informe_resumen.html` — el formulario editable
+sigue con cada campo en su propia línea, sin cambios.
 
 **El Resumen se inyecta como contexto en TODO análisis de ítem (implementado, jul-2026):** bug
 real reportado por el usuario — en "Prueba de bombeo" la IA observaba que faltaba la inscripción

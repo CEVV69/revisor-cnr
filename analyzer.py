@@ -700,7 +700,8 @@ ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "prueba
 # revisor completa/edita el resto. tipo: "text" | "textarea" | "sino".
 RESUMEN_SECCIONES = [
     {"titulo": "Identificación", "campos": [
-        {"key": "codigo",          "label": "Código proyecto",     "tipo": "text", "auto": "codigo_sep"},
+        {"key": "codigo",          "label": "Código proyecto",     "tipo": "text", "auto": "codigo_sep",
+         "linea_con": "costo_total_uf"},
         {"key": "postulante",      "label": "Postulante",          "tipo": "text", "auto": "postulante"},
         {"key": "comuna",          "label": "Comuna",              "tipo": "text"},
         {"key": "consultor",       "label": "Consultor",           "tipo": "text"},
