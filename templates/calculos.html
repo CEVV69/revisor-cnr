@@ -150,13 +150,13 @@
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
       <div class="agro-grid">
         <div><label>Cultivo</label><input type="text" id="{{ p }}cultivo" name="{{ p }}cultivo" value="{{ agro.cultivo if agro.cultivo is not none else '' }}"></div>
-        <div><label>CC (%)</label><input type="number" step="0.1" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
-        <div><label>PMP (%)</label><input type="number" step="0.1" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
-        <div><label>Da (g/cc)</label><input type="number" step="0.01" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
-        <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+        <div class="campo-suelo"><label>CC (%)</label><input type="number" step="0.1" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
+        <div class="campo-suelo"><label>PMP (%)</label><input type="number" step="0.1" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
+        <div class="campo-suelo"><label>Da (g/cc)</label><input type="number" step="0.01" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
+        <div class="campo-suelo"><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+        <div class="campo-suelo"><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
         <div><label>Kc</label><input type="number" step="0.01" id="{{ p }}kc" name="{{ p }}kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
         <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
-        <div class="campo-criterio-riego"><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
         <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
         <div class="campo-vib"><label>VIB del suelo (mm/hr)</label><input type="number" step="0.1" id="{{ p }}vib_mmhr" name="{{ p }}vib_mmhr" value="{{ agro.vib_mmhr if agro.vib_mmhr is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-goteo"><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
@@ -447,7 +447,7 @@
           {% endfor %}
         </table>
       </div>
-      <div class="agro-grid" style="margin-top:0.7rem;">
+      <div class="agro-grid" style="margin-top:0.7rem; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));">
         <div>
           <label>Altura manométrica total — AMT/CDT (m)</label>
           <input type="number" step="0.01" id="{{ sp }}amt_declarada" name="{{ sp }}amt_declarada" value="{{ hsis.amt_declarada_m if hsis.amt_declarada_m is not none else '' }}">
@@ -745,9 +745,11 @@
       setText(p + "agro-nsec-calc", "—");
       nota(p + "agro-nsec-nota", "");
     }
-    // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc, sin criterio de riego —
-    // se oculta ese campo para que no confunda ni bloquee el cálculo (modelo calcGA del Diseñador).
-    wrap.querySelectorAll(".campo-criterio-riego").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
+    // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc/Ef, sin pasar por
+    // CC/PMP/Da/Prof. radicular ni Criterio de Riego (agotamiento) — se ocultan esos 5 campos
+    // (agrupados en el HTML, se ven/ocultan juntos) para que la tarjeta no quede con campos que
+    // no aplican ni pueden bloquear el cálculo (modelo calcGA del Diseñador).
+    wrap.querySelectorAll(".campo-suelo").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
     // VIB (Velocidad de Infiltración Básica) aplica a Aspersión Y Carrete (con umbrales/lógica
     // distinta cada uno, ver más abajo) — el campo de ENTRADA es el mismo. La fila de resultado
     // "VIB vs. Precipitación del sistema" es específica de Aspersión (Carrete tiene su propia

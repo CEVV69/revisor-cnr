@@ -1896,6 +1896,43 @@ que la corrección anterior — Kc/ETo/Eficiencia siguen siendo obligatorios en 
   SIGUE bloqueada (sí los necesita, no se tocó su comportamiento); render completo de
   `pagina_calculos()` con un proyecto de Goteo sin datos de suelo, sin excepciones.
 
+**Seguimiento — CC/PMP/Da/Prof. radicular y Criterio de Riego OCULTOS en Goteo, reordenados y
+agrupados (jul-2026):** el fix anterior solo dejó de EXIGIRLOS — el usuario aclaró que además
+quería que, igual que ya pasa con otros campos condicionales de la tarjeta (`campo-goteo`/
+`campo-aspersion`/`campo-carrete`/`campo-vib`), no se MOSTRARAN en Goteo, para que la página se
+vea más ordenada. Se agregó una clase nueva `campo-suelo` a los 5 campos que Goteo no usa (CC,
+PMP, Da, Prof. radicular, Criterio de Riego) — antes solo Criterio de Riego tenía su propia clase
+`campo-criterio-riego`, que se retiró (reemplazada por `campo-suelo`, mismo criterio de
+ocultamiento: `el.style.display = esGoteo ? "none" : ""`, ahora un solo `querySelectorAll`
+cubre los 5 en vez de solo 1).
+- **Reordenados y agrupados en el HTML** (antes: Cultivo, CC, PMP, Da, Prof., Kc, ETo, Criterio
+  de Riego, Eficiencia — Criterio de Riego quedaba separado del resto de los campos de suelo por
+  Kc/ETo) — ahora: Cultivo, [CC, PMP, Da, Prof. radicular, Criterio de Riego] (bloque contiguo,
+  los 5 con `campo-suelo`), Kc, ETo, Eficiencia, VIB. Al ocultarse juntos como bloque contiguo, la
+  tarjeta de Goteo queda con un flujo limpio (Cultivo → Kc → ETo → Eficiencia → campos propios del
+  sistema) sin huecos ni saltos — antes, aunque los campos individuales ya se ocultaban de a uno,
+  no estaban agrupados, así que el orden visual con Aspersión/Carrete quedaba menos intuitivo.
+- Verificado con Playwright contra un render real de la página (HTML servido vía `file://`, sin
+  necesidad de un servidor vivo — el bug conocido de Jinja2/Starlette del sandbox que impide
+  levantar la app acá con `uvicorn` no aplica a este método): con Goteo seleccionado, los 5 campos
+  `.campo-suelo` quedan con `display:none` (`is_visible() == False`); al cambiar a Aspersión,
+  reaparecen los 5 juntos, en el mismo bloque, justo después de Cultivo. Capturas de pantalla
+  confirmaron el resultado visual en ambos casos.
+
+**Chequeo Hidráulico — ancho de "Caudal de diseño del equipo de bombeo" ajustado para que el
+título no ocupe 2 líneas (jul-2026):** el campo nuevo (ver la entrada de arriba, "Chequeo
+Hidráulico — pérdida de carga declarada...") usaba el `.agro-grid` genérico (columnas
+`minmax(115px, 1fr)`, pensado para labels cortos como "Kc" o "Da (g/cc)") — con un label largo
+("Caudal de diseño del equipo de bombeo (l/s)", ~44 caracteres) el título se partía en 2 líneas,
+empujando el resto de los elementos hacia abajo. A pedido del usuario ("trata siempre de ahorrar
+espacio vertical... aumentando el ancho del campo"), se sobrescribió `grid-template-columns` SOLO
+en este `.agro-grid` puntual (`style="grid-template-columns:repeat(auto-fill, minmax(260px,
+1fr));"`, el estilo inline gana por especificidad sobre la regla de la clase) — no se tocó la
+regla genérica de `.agro-grid`, que sigue en 115px para el resto de los campos de la página
+(labels cortos, no tienen este problema). Verificado con Playwright midiendo la altura real del
+`<label>` en el navegador (14px, una sola línea; 2 líneas habría dado ~28px) para ambos campos
+(AMT y Caudal de bombeo).
+
 **Chequeo Hidráulico — pérdida de carga declarada por tramo + AMT y caudal de bombeo declarados
 (implementado, jul-2026):** a pedido del usuario, dos agregados a la tabla de tramos para que el
 revisor tenga a la vista lo que el propio consultor calculó, junto al recálculo de la app:
