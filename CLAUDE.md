@@ -1933,6 +1933,37 @@ regla genérica de `.agro-grid`, que sigue en 115px para el resto de los campos 
 `<label>` en el navegador (14px, una sola línea; 2 líneas habría dado ~28px) para ambos campos
 (AMT y Caudal de bombeo).
 
+**Filas AD/Dn ocultas en Goteo — mismo patrón que las filas "(con acumulador)" (jul-2026):** el
+usuario reportó que en Goteo las filas "AD — agua disponible" y "Dn — lámina neta" de la tabla de
+resultados quedaban mostrando "—" en vez de un cálculo, y preguntó por qué. Es por diseño (ver
+"Chequeo Agronómico — modelo de GOTEO sin criterio de riego" más abajo): en Goteo, `Db = ETc/Ef`
+sale DIRECTO de la ETc, sin pasar por la cadena AD→Dn — esos dos valores intermedios no existen
+en ese modelo, así que nunca se calculan. El usuario pidió, con buen criterio, que en vez de dejar
+la fila visible con un guión (que "confunde más que ayuda", sus palabras) se ocultara por
+completo — mismo patrón que ya usan las 4 filas "(con acumulador)" cuando no hay estanque
+declarado.
+- CSS nuevo `tr.fila-agotamiento { display:none; } tr.fila-agotamiento.activa { display:table-
+  row; }` (mismo patrón exacto que `fila-acumulador`) aplicado a las `<tr>` de AD y Dn.
+- **Estado inicial server-side** (evita el flash, mismo criterio que `fila-acumulador`):
+  `class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}"` — acá SÍ se
+  usa comparación de igualdad (`== 'Goteo'`) en vez de la verdad simple que se prefiere para
+  campos que pueden venir `Undefined` (ver la lección de la entrada de `fila-acumulador` más
+  abajo), porque es segura por construcción: `Undefined == 'Goteo'` da `False` en Jinja sin
+  lanzar excepción, así que un proyecto sin sistema declarado (o legado) cae al lado "visible"
+  (`' activa'`) — correcto, mismo criterio de "mostrar si es ambiguo" que usa el resto de la
+  tarjeta (VIB, campo-goteo/aspersion, etc.).
+- **JS (`recalcAgroSistema`):** junto al toggle de `.campo-suelo`, `wrap.querySelectorAll(
+  ".fila-agotamiento").forEach(el => el.classList.toggle("activa", !esGoteo))` — reacciona en
+  vivo al cambiar el sistema de riego, sin recargar la página.
+- **Fr — frecuencia de riego" NO se ocultó a propósito:** a diferencia de AD/Dn (que muestran un
+  guión vacío en Goteo, sin ningún valor), Fr sí muestra algo informativo en Goteo ("1 (riego
+  diario)") — no es un placeholder vacío, así que no aplica el mismo criterio de "fila sin
+  contenido útil".
+- Verificado con Playwright contra un render real (`file://`, mismo método de siempre en este
+  sandbox): con un proyecto YA guardado como Goteo, las filas nacen ocultas sin necesidad de
+  ningún evento JS (confirma que el estado server-side funciona, no solo el toggle en vivo); al
+  cambiar el `<select>` a Aspersión reaparecen; al volver a Goteo se ocultan de nuevo.
+
 **Chequeo Hidráulico — pérdida de carga declarada por tramo + AMT y caudal de bombeo declarados
 (implementado, jul-2026):** a pedido del usuario, dos agregados a la tabla de tramos para que el
 revisor tenga a la vista lo que el propio consultor calculó, junto al recálculo de la app:
