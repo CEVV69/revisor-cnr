@@ -916,12 +916,19 @@ async def _extraer_datos_hidraulicos(docs_grupo: list, n_sistemas: int = 1) -> d
 (matriz, terciaria, lateral, succión, etc.) con sus datos numéricos declarados.
 {instr_sistemas}
 
+También extrae, si el expediente los declara, la PÉRDIDA DE CARGA que el propio consultor
+calculó para cada tramo, y — una vez por sistema, no por tramo — la ALTURA MANOMÉTRICA TOTAL
+(AMT/CDT) y el CAUDAL DE DISEÑO que usó para dimensionar el equipo de bombeo (puede ser distinto
+del caudal de cada tramo individual).
+
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
 {{"sistemas": [
 {{"tramos": [{{"nombre": "ej: Matriz / Lateral crítico", "caudal_ls": number|null,
 "diametro_mm": number|null, "longitud_m": number|null,
-"material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null}}]}}
+"material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null,
+"hf_declarada_mca": number|null}}],
+"amt_declarada_m": number|null, "caudal_bombeo_ls": number|null}}
 ]}}
 
 EXPEDIENTE:
@@ -1171,7 +1178,13 @@ def _bloque_verificacion_hidraulica(datos: dict) -> str:
 
 def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
     """Recalcula velocidad/pérdida de carga por tramo (Hazen-Williams) para UN sistema de
-    riego y arma el bloque. Solo compara lo que efectivamente se pudo extraer."""
+    riego y arma el bloque. Solo compara lo que efectivamente se pudo extraer.
+
+    Además, si el expediente declara AMT/CDT y el caudal de diseño del equipo de bombeo, los
+    surface como dato de referencia — la app NO recalcula la cadena CDT/potencia de bomba
+    (necesita succión, elevación, pérdidas menores y margen de seguridad; ver alcance
+    documentado), así que acá solo se muestran para que el revisor/la IA los tenga a la vista
+    y los contraste manualmente contra el resto del diseño."""
     tramos = (datos or {}).get("tramos") or []
     lineas = []
     for t in tramos:
@@ -1185,23 +1198,48 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
         linea = (f"- {nombre}: Q={q} l/s, Ø={d} mm → V recalculada = {r['velocidad_ms']} m/s "
                  f"(Ø sugerido para V≤1,5 m/s: {r['diametro_sugerido_mm']} mm)")
         if r["hf_mca"] is not None:
-            linea += f", Hf = {r['hf_mca']} mca (Hazen-Williams, C={c})"
+            linea += f", Hf recalculada = {r['hf_mca']} mca (Hazen-Williams, C={c})"
         if r["alerta"]:
             linea += f" ⚠️ {r['alerta']}"
         vel_decl = t.get("velocidad_declarada_ms")
         if vel_decl is not None and _diferencia_relevante(r["velocidad_ms"], vel_decl, 15):
             linea += (f" — el expediente declara V={vel_decl} m/s, no coincide con el "
                       f"cálculo (revisar el dato base o la fórmula usada por el consultor).")
+        hf_decl = t.get("hf_declarada_mca")
+        if hf_decl is not None and r["hf_mca"] is not None and _diferencia_relevante(r["hf_mca"], hf_decl, 15):
+            linea += (f" — el expediente declara Hf={hf_decl} mca para este tramo, no coincide "
+                      f"con el cálculo (revisar el dato base o la fórmula usada por el consultor).")
         lineas.append(linea)
     if not lineas:
         return ""
-    return ("\n\nVERIFICACIÓN HIDRÁULICA (cálculo determinístico con Hazen-Williams, misma "
-            "fórmula normativa del Diseñador de Riego — no es una estimación de la IA, es un "
-            "recálculo exacto a partir del caudal y diámetro que declara el expediente):\n"
-            + "\n".join(lineas) +
-            "\n\nSi hay una alerta de velocidad fuera de rango (0,5–2,0 m/s) o una diferencia "
-            "relevante con lo declarado, genera una observación citando los números exactos "
-            "de este cálculo. Si todo está dentro de rango, NO lo menciones como observación.")
+    texto = ("\n\nVERIFICACIÓN HIDRÁULICA (cálculo determinístico con Hazen-Williams, misma "
+             "fórmula normativa del Diseñador de Riego — no es una estimación de la IA, es un "
+             "recálculo exacto a partir del caudal y diámetro que declara el expediente):\n"
+             + "\n".join(lineas) +
+             "\n\nSi hay una alerta de velocidad o pérdida de carga fuera de lo esperado (rango "
+             "de velocidad recomendado 0,5–2,0 m/s) o una diferencia relevante con lo declarado, "
+             "genera una observación citando los números exactos de este cálculo. Si todo está "
+             "dentro de rango, NO lo menciones como observación.")
+    amt = (datos or {}).get("amt_declarada_m")
+    q_bombeo = (datos or {}).get("caudal_bombeo_ls")
+    if amt is not None or q_bombeo is not None:
+        texto += ("\n\nDATOS DECLARADOS PARA EL EQUIPO DE BOMBEO (la app NO recalcula la cadena "
+                  "CDT/potencia de bomba — succión, elevación, pérdidas menores y margen de "
+                  "seguridad no se extraen; estos valores son solo lo que declara el expediente, "
+                  "para contrastar manualmente contra el resto del diseño):")
+        if amt is not None:
+            texto += f"\n- Altura Manométrica Total (AMT/CDT) declarada: {amt} m."
+        if q_bombeo is not None:
+            texto += f"\n- Caudal de diseño para el equipo de bombeo declarado: {q_bombeo} l/s."
+            caudales_tramos = [t.get("caudal_ls") for t in tramos if t.get("caudal_ls")]
+            q_max_tramo = max(caudales_tramos) if caudales_tramos else None
+            if q_max_tramo and _diferencia_relevante(q_max_tramo, q_bombeo, 15):
+                texto += (f" El caudal máximo entre los tramos de este sistema es {q_max_tramo} "
+                          f"l/s (normalmente el tramo de succión/impulsión, el más cercano a la "
+                          f"bomba, transporta el caudal total de diseño) — si no coinciden, "
+                          f"verifica que la diferencia tenga una explicación técnica (ej. varios "
+                          f"sectores no simultáneos) antes de observarla.")
+    return texto
 
 
 def _bloque_verificacion_agronomica(datos: dict) -> str:
@@ -1428,15 +1466,19 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                       "exactamente con la Pluviometría calculada arriba.")
 
     # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
-    # calcGA del Diseñador). No requiere ni usa el criterio de riego.
+    # calcGA del Diseñador). No requiere ni usa el criterio de riego NI los datos de suelo
+    # (CC/PMP/Da/Prof. radicular) — esos solo alimentan AD, que en goteo no se usa ni se
+    # muestra. Exigirlos acá bloqueaba todo el bloque de verificación sin necesidad real.
     alta_frec = datos.get("sistema_riego") == "Goteo"
-    base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm", "eficiencia_pct"]
-    if not alta_frec:
-        base.append("factor_agotamiento_pct")
+    if alta_frec:
+        base = ["kc", "eto_dia_mm", "eficiencia_pct"]
+    else:
+        base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
+                "factor_agotamiento_pct", "eficiencia_pct"]
     if any(datos.get(k) is None for k in base):
         return texto
     r = calculos_riego.cadena_agronomica(
-        datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
+        datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec)
     declarado = datos.get("declarado") or {}

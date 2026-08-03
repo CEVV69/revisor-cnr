@@ -1862,6 +1862,77 @@ con agotamiento. Se alineó el Chequeo con ese modelo, SOLO para Goteo:
   tocó porque el usuario reportó específicamente goteo; si en el futuro molesta lo mismo en micro,
   aplicar el mismo patrón o un default 50.
 
+**Segundo bug del mismo origen — Goteo TAMBIÉN exigía CC/PMP/Da/Prof. radicular para calcular
+(fix jul-2026):** el fix de arriba sacó `factor_agotamiento_pct` de los campos requeridos en
+Goteo, pero dejó `cc_pct`/`pmp_pct`/`da`/`prof_radicular_cm` en la lista — pese a que en el modelo
+de alta frecuencia (`alta_frecuencia=True`) esos 4 datos NO entran en el cálculo de Db, solo
+alimentan AD (agua disponible del suelo), que en goteo es un dato puramente informativo (si falta
+alguno, `cadena_agronomica` ya lo dejaba en `None` sin problema — la propia fórmula nunca los
+necesitó). El usuario reportó el síntoma exacto: la mayoría de los proyectos de Goteo no declaran
+esos 3 datos de suelo, y sin ellos el Chequeo simplemente no calculaba nada — tenía que poner "1"
+a mano en los tres solo para destrabar el resto (Db, superficie segura, N° de sectores, etc.),
+aunque el resultado no cambiara con ese valor (confirmado con una prueba: mismo `db_mm` con los 3
+campos ausentes que con los 3 en "1"). Mismo bug, en 3 lugares (arreglados los 3, mismo criterio
+que la corrección anterior — Kc/ETo/Eficiencia siguen siendo obligatorios en ambos modelos):
+- `main._agronomico_calculo()`: `campos` en Goteo pasó a `["kc", "eto_dia_mm", "eficiencia_pct"]`
+  (antes incluía también los 4 de suelo). Al sacarlos de la lista de requeridos, la llamada a
+  `cadena_agronomica(...)` ya no puede usar `datos["cc_pct"]` (indexado directo, asumía que la
+  validación previa garantizaba la clave) porque ahora la clave puede faltar del todo si la
+  extracción nunca la encontró — se cambió a `datos.get("cc_pct")` (y los otros 3) para evitar un
+  `KeyError` en producción; `kc`/`eto_dia_mm`/`eficiencia_pct` siguen con indexado directo porque
+  esos SÍ quedan garantizados por la validación previa en ambos modelos.
+- `analyzer._bloque_verificacion_agronomica_sistema()`: mismo cambio en `base` (la lista que
+  decide si el bloque de verificación para la IA se arma o no) y mismo cambio de `datos[...]` a
+  `datos.get(...)` para los 4 campos de suelo, por la misma razón.
+- `templates/calculos.html` (JS, `recalcAgroSistema`): `base` pasó de `[cc, pmp, da, prof, kc,
+  eto, ef]` a `[kc, eto, ef]` en goteo; el hint de "completa estos datos" también se acortó para
+  Goteo (ya no menciona CC/PMP/Da/Prof.); `ad` ahora se calcula con una guarda (`null` si falta
+  cualquiera de los 4), en vez de arrastrar `NaN` en silencio (inofensivo porque en goteo `ad`
+  nunca se muestra, pero más prolijo).
+- **Verificado** con pruebas funcionales sobre `main._agronomico_calculo()` y
+  `analyzer._bloque_verificacion_agronomica_sistema()` reales (sin mocks de HTTP): Goteo con los 4
+  campos de suelo AUSENTES del dict (no solo `None` — el caso real de una extracción que nunca los
+  encontró) calcula igual que con "1" puesto a mano, mismo `db_mm`; Aspersión sin esos 4 datos
+  SIGUE bloqueada (sí los necesita, no se tocó su comportamiento); render completo de
+  `pagina_calculos()` con un proyecto de Goteo sin datos de suelo, sin excepciones.
+
+**Chequeo Hidráulico — pérdida de carga declarada por tramo + AMT y caudal de bombeo declarados
+(implementado, jul-2026):** a pedido del usuario, dos agregados a la tabla de tramos para que el
+revisor tenga a la vista lo que el propio consultor calculó, junto al recálculo de la app:
+- **Columna "Hf declarada (mca)" por tramo** — mismo patrón que "V declarada (m/s)", ya existente:
+  el revisor transcribe la pérdida de carga que el consultor calculó para ESE tramo, y se compara
+  contra el `hf_mca` recalculado con Hazen-Williams (tolerancia 15%, misma que usa la comparación
+  de velocidad). Si no coincide, tanto el bloque que ve la IA (`_bloque_verificacion_hidraulica_
+  sistema`, analyzer.py) como el recálculo en vivo (JS, `recalcHidraulicoSistema`) lo señalan.
+  Nuevo campo `hf_declarada_mca` en cada tramo — se extrae junto con el resto (`_extraer_datos_
+  hidraulicos`), se guarda (`calculos_guardar_hidraulico`) y se compara (ambos lados, Python y JS,
+  mismo patrón dual de siempre).
+- **AMT/CDT y caudal de bombeo declarados, por sistema** — dos campos nuevos DEBAJO de la tabla de
+  tramos (no por tramo, uno por sistema de riego): Altura Manométrica Total y el caudal de diseño
+  que el consultor usó para dimensionar el equipo de bombeo. **Deliberadamente NO se recalculan**
+  — la cadena completa de CDT/potencia de bomba sigue fuera de alcance (necesita succión,
+  elevación, pérdidas menores y margen de seguridad, no portada — ver "Alcance actual (v1)" más
+  arriba en esta sección, sin cambios). Son puramente informativos: se guardan
+  (`amt_declarada_m`/`caudal_bombeo_ls`, a nivel de sistema, siblings de `"tramos"`) y se
+  muestran, con una nota explícita de que la app no los recalcula. El único chequeo automático que
+  sí se agregó es una comparación de coherencia BARATA (no una fórmula nueva): si el caudal de
+  bombeo declarado difiere >15% del caudal máximo entre los tramos del sistema (normalmente el
+  tramo de succión/impulsión transporta el caudal total de diseño), se le pide a la IA que
+  verifique si la diferencia tiene una explicación técnica antes de observarla — no asume que es
+  un error, porque puede haber sectores no simultáneos.
+- `_extraer_datos_hidraulicos()` (analyzer.py) extrae los 3 campos nuevos (`hf_declarada_mca` por
+  tramo, `amt_declarada_m`/`caudal_bombeo_ls` por sistema) en la misma llamada de siempre, sin
+  llamadas adicionales — mismo criterio null-si-no-aparece.
+- **UI (`calculos.html`)**: columna nueva en la tabla de tramos, y un `.agro-grid` con los 2 campos
+  nuevos + nota aclaratoria debajo de cada tarjeta de sistema. Recálculo en vivo (JS) agrega la
+  comparación de Hf al mismo `<span>` de resultado por tramo que ya mostraba V/Ø sugerido — AMT y
+  caudal de bombeo son campos de solo transcripción, sin recálculo JS (no hay fórmula que
+  duplicar, a diferencia del resto de la tarjeta).
+- **Verificado** con pruebas funcionales sobre `analyzer._bloque_verificacion_hidraulica_sistema()`
+  y el guardado real (`_num_form` con notación chilena de coma decimal), más el render completo de
+  `pagina_calculos()`/Jinja con un proyecto que declara Hf/AMT/caudal de bombeo — sin excepciones,
+  los 3 campos nuevos llegan correctamente a la plantilla.
+
 **Acumulador (estanque/tranque regulador) en el Chequeo Agronómico (implementado, jul-2026):**
 caso real del concurso 202-2026: un proyecto con caudal disponible de la fuente muy bajo (0,4 l/s)
 declara un acumulador de 10 m³ para regar una superficie mayor de la que el caudal de la fuente

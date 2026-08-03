@@ -1399,11 +1399,14 @@ def _es_goteo(datos: dict) -> bool:
 
 def _agronomico_calculo(datos: dict):
     alta_frec = _es_goteo(datos)
-    # En goteo el factor de agotamiento no se usa (ni se pide) — no debe bloquear el cálculo.
-    campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "eficiencia_pct"]
+    # En goteo (alta frecuencia) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof. radicular
+    # NO entran en esa cuenta, solo se usan para el dato informativo AD (que en goteo ni
+    # siquiera se muestra). Exigirlos ahí bloqueaba el cálculo sin necesidad — el revisor tenía
+    # que rellenarlos con un valor cualquiera (ej. "1") solo para que el resto se calculara.
+    campos = ["kc", "eto_dia_mm", "eficiencia_pct"]
     if not alta_frec:
-        campos.insert(6, "factor_agotamiento_pct")
+        campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
+                  "factor_agotamiento_pct", "eficiencia_pct"]
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
     # Eficiencia declarada vs. valores oficiales — independiente del resto de la cadena.
@@ -1454,8 +1457,11 @@ def _agronomico_calculo(datos: dict):
         if carrete_check:
             r["carrete_check"] = carrete_check
         return r or None
+    # cc_pct/pmp_pct/da/prof_radicular_cm van con .get() (no datos[...]): en goteo ya no están
+    # garantizados por `campos` — cadena_agronomica los admite en None (AD queda None, dato
+    # puramente informativo que en goteo ni se usa ni se muestra).
     r = calculos_riego.cadena_agronomica(
-        datos["cc_pct"], datos["pmp_pct"], datos["da"], datos["prof_radicular_cm"],
+        datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec)
     # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
@@ -1538,7 +1544,11 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         while len(tramos) < N_TRAMOS_HIDRAULICOS:
             tramos.append({})
         sistema_riego = agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
-        hid_sistemas.append({"idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego})
+        hid_sistemas.append({
+            "idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego,
+            "amt_declarada_m": (s or {}).get("amt_declarada_m"),
+            "caudal_bombeo_ls": (s or {}).get("caudal_bombeo_ls"),
+        })
     fv = verif.get("energetico", {})
 
     return templates.TemplateResponse("calculos.html", {
@@ -1623,8 +1633,13 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
                 "longitud_m": _num_form(form, f"{sp}t{i}_longitud"),
                 "material": (form.get(f"{sp}t{i}_material") or "").strip() or None,
                 "velocidad_declarada_ms": _num_form(form, f"{sp}t{i}_vel_declarada"),
+                "hf_declarada_mca": _num_form(form, f"{sp}t{i}_hf_declarada"),
             })
-        sistemas.append({"tramos": tramos})
+        sistemas.append({
+            "tramos": tramos,
+            "amt_declarada_m": _num_form(form, f"{sp}amt_declarada"),
+            "caudal_bombeo_ls": _num_form(form, f"{sp}caudal_bombeo"),
+        })
 
     validado = form.get("validar") == "on"
     proyecto.setdefault("verificacion_calculos", {})

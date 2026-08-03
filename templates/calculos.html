@@ -410,11 +410,12 @@
           <colgroup>
             <col style="width:200px;"><col style="width:75px;"><col style="width:75px;">
             <col style="width:75px;"><col style="width:170px;"><col style="width:120px;">
-            <col>
+            <col style="width:120px;"><col>
           </colgroup>
           <tr>
             <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
-            <th>V declarada (m/s)</th><th>Extraído/declarado vs. calculado por la app</th>
+            <th>V declarada (m/s)</th><th>Hf declarada (mca)</th>
+            <th>Extraído/declarado vs. calculado por la app</th>
           </tr>
           {% for t in hsis.tramos %}
           <tr>
@@ -431,6 +432,7 @@
               </select>
             </td>
             <td><input type="number" step="0.01" id="{{ sp }}t{{ loop.index0 }}_vel_declarada" name="{{ sp }}t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
+            <td><input type="number" step="0.01" id="{{ sp }}t{{ loop.index0 }}_hf_declarada" name="{{ sp }}t{{ loop.index0 }}_hf_declarada" value="{{ t.hf_declarada_mca if t.hf_declarada_mca is not none else '' }}"></td>
             <td class="calc-resultado" id="{{ sp }}t{{ loop.index0 }}_resultado">
               {% if t.calculo %}
                 V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
@@ -445,6 +447,21 @@
           {% endfor %}
         </table>
       </div>
+      <div class="agro-grid" style="margin-top:0.7rem;">
+        <div>
+          <label>Altura manométrica total — AMT/CDT (m)</label>
+          <input type="number" step="0.01" id="{{ sp }}amt_declarada" name="{{ sp }}amt_declarada" value="{{ hsis.amt_declarada_m if hsis.amt_declarada_m is not none else '' }}">
+        </div>
+        <div>
+          <label>Caudal de diseño del equipo de bombeo (l/s)</label>
+          <input type="number" step="0.01" id="{{ sp }}caudal_bombeo" name="{{ sp }}caudal_bombeo" value="{{ hsis.caudal_bombeo_ls if hsis.caudal_bombeo_ls is not none else '' }}">
+        </div>
+      </div>
+      <p class="text-muted" style="font-size:0.78rem; margin-top:0.3rem;">
+        AMT/CDT y caudal de bombeo son datos DECLARADOS por el consultor — la app no recalcula
+        la cadena completa de CDT/potencia de bomba (succión, elevación, pérdidas menores, margen
+        de seguridad), solo los muestra para contrastarlos manualmente contra el resto del diseño.
+      </p>
     </div>
     {% endfor %}
     <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
@@ -914,8 +931,10 @@
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
 
-    // En goteo el factor de agotamiento (criterio de riego) no se usa ni se pide.
-    var base = esGoteo ? [cc, pmp, da, prof, kc, eto, ef] : [cc, pmp, da, prof, kc, eto, fa, ef];
+    // En goteo (alta frecuencia) Db sale directo de ETc/Ef — CC/PMP/Da/Prof. radicular NO
+    // entran en esa cuenta, solo alimentan AD (dato informativo que en goteo ni se usa ni se
+    // muestra), así que no deben bloquear el cálculo si faltan.
+    var base = esGoteo ? [kc, eto, ef] : [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
@@ -923,14 +942,16 @@
        "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
       ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota",
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
-      setText(p + "agro-hint", "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, "
-        + (esGoteo ? "" : "Criterio de Riego, ") + "Eficiencia) para ver el recálculo.");
+      setText(p + "agro-hint", esGoteo
+        ? "Completa Kc, ETo y Eficiencia para ver el recálculo."
+        : "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Criterio de Riego, Eficiencia) para ver el recálculo.");
       return;
     }
     setText(p + "agro-hint", "");
 
     var etc = eto * kc;
-    var ad = (cc - pmp) / 100 * da * (prof / 100) * 1000;
+    var ad = (cc !== null && pmp !== null && da !== null && prof !== null)
+      ? (cc - pmp) / 100 * da * (prof / 100) * 1000 : null;
     var dn, fr, frAdj, dnAdj, db;
     if (esGoteo) {
       // Goteo: riego diario, Db directo de la ETc, sin factor de agotamiento (Fr=1).
@@ -1142,6 +1163,7 @@
       var l = numVal(sp + "t" + i + "_longitud");
       var mat = strVal(sp + "t" + i + "_material");
       var velDecl = numVal(sp + "t" + i + "_vel_declarada");
+      var hfDecl = numVal(sp + "t" + i + "_hf_declarada");
       var cellId = sp + "t" + i + "_resultado";
       if (!q || !d) { setHtml(cellId, '<span class="text-muted">— completa Q y Ø —</span>'); continue; }
 
@@ -1159,6 +1181,9 @@
       else if (vel > 0 && vel < 0.5) alerta = "velocidad " + fmt(vel, 2) + " m/s bajo el mínimo recomendado (0,5 m/s) — riesgo de sedimentación";
       if (velDecl !== null && vel && Math.abs(vel - velDecl) / vel * 100 > 15) {
         alerta = (alerta ? alerta + "<br>" : "") + "el expediente declara V=" + fmt(velDecl, 2) + " m/s, no coincide con el cálculo.";
+      }
+      if (hfDecl !== null && hf !== null && hf && Math.abs(hf - hfDecl) / hf * 100 > 15) {
+        alerta = (alerta ? alerta + "<br>" : "") + "el expediente declara Hf=" + fmt(hfDecl, 3) + " mca, no coincide con el cálculo.";
       }
       var html = "V=<b>" + fmt(vel, 2) + "</b> m/s";
       if (hf !== null) html += " · Hf=<b>" + fmt(hf, 3) + "</b> mca";
