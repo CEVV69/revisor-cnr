@@ -706,6 +706,7 @@ RESUMEN_SECCIONES = [
         {"key": "consultor",       "label": "Consultor",           "tipo": "text"},
         {"key": "nombre_proyecto", "label": "Nombre del proyecto", "tipo": "textarea", "auto": "nombre"},
         {"key": "estrato",         "label": "Estrato",             "tipo": "text"},
+        {"key": "costo_total_uf",  "label": "Costo total (UF)",    "tipo": "text"},
     ]},
     {"titulo": "1. Proyecto / Legal", "campos": [
         {"key": "servidumbres", "label": "Servidumbres", "tipo": "sino"},

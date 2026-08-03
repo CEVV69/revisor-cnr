@@ -412,6 +412,17 @@ pedido del usuario, insumo directo para los ítems "Memoria de cálculo de super
   formulario de edición** (`proyecto.html`, página Resumen) — ahí cada campo sigue en su propia
   línea como siempre, el mecanismo `linea_con` solo lo lee el informe impreso.
 
+**Campo "Costo total (UF)" en Identificación (implementado, jul-2026):** a pedido del usuario,
+campo nuevo `costo_total_uf` (tipo `text`, sin `auto` ni `maxlen`) al final de la sección
+"Identificación" de `RESUMEN_SECCIONES` — el monto total del proyecto, en UF. Al ser puramente
+declarativo del mecanismo ya genérico de `RESUMEN_SECCIONES` (documentado en el resto de esta
+sección), no requirió tocar `main.py` ni las plantillas: aparece solo en el formulario editable
+(`proyecto.html`, página Resumen), en el Informe Resumen impreso, y queda disponible para el
+autocompletar con IA y para `_construir_bloque_resumen()` (se inyecta como contexto en todo
+análisis de ítem, ver la entrada siguiente) — los tres puntos iteran `RESUMEN_SECCIONES` sin
+conocer las claves de antemano. No lleva `resumen_ia` porque no hace falta una instrucción de
+estilo especial (a diferencia de "Características obras") — la IA ya interpreta "UF" del label.
+
 **El Resumen se inyecta como contexto en TODO análisis de ítem (implementado, jul-2026):** bug
 real reportado por el usuario — en "Prueba de bombeo" la IA observaba que faltaba la inscripción
 del derecho de agua, pese a que el Resumen del proyecto ya declaraba "No tiene derechos de agua
