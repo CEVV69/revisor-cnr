@@ -2190,10 +2190,10 @@ nada — es solo un atajo para abrir la calculadora aparte, el revisor pasa los 
 - Si se actualiza el archivo de Scall, reemplazar `static/scall_diseno_v{N}.html` (borrando la
   versión vieja del repo, no acumular) y actualizar el link en `calculos.html` si cambia el
   nombre de archivo — mismo procedimiento que ya está documentado para el Diseñador de Riego.
-  **Actualización v4→v11 (jul-2026):** el usuario no pidió portar ningún cambio puntual de
-  fórmula, solo reemplazar el archivo — mismo criterio que el Diseñador de Riego: sin pedido
-  explícito de portar algo, basta con el reemplazo de archivo/link, sin necesidad de leer el
-  HTML nuevo.
+  **Actualizaciones de versión (jul-2026):** v4→v11, y v11→v20 — en ninguna el usuario pidió
+  portar un cambio puntual de fórmula, solo reemplazar el archivo — mismo criterio que el
+  Diseñador de Riego: sin pedido explícito de portar algo, basta con el reemplazo de
+  archivo/link, sin necesidad de leer el HTML nuevo. Archivo actual: `static/scall_diseno_v20.html`.
 
 **VIB (Velocidad de Infiltración Básica) y limpieza del marco de plantación en Aspersión
 (implementado, jul-2026):** dos ajustes al Chequeo Agronómico pedidos juntos por el usuario tras

@@ -183,7 +183,7 @@
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-scall"><label>&nbsp;</label><a href="/static/scall_diseno_v11.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Cálculo Scall</a></div>
+        <div class="sistema-riego-campo campo-scall"><label>&nbsp;</label><a href="/static/scall_diseno_v20.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Cálculo Scall</a></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Si el proyecto declara un estanque/tranque regulador, complétalo aquí — reduce el N° de sectores necesario (filas de abajo) y se verifica que su volumen alcance. Ya NO se suma al caudal disponible para la Superficie de riego segura (esa fila usa solo el caudal de la fuente). Vacío = sin acumulador.</p>
 
