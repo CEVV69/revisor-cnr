@@ -1783,8 +1783,9 @@ Agronómico de `calculos.html`.
   (rediseño completo del acumulador + N° de sectores en forma cerrada — ver la entrada
   "Acumulador y N° de sectores — rediseño completo en forma cerrada" más abajo), v104→v106
   (3 datos informativos nuevos del aporte del estanque — ver la entrada "Datos informativos del
-  aporte del estanque" más abajo), y v106→v108 (cambios en el diseño de Carrete — ver la entrada
-  "Chequeo Agronómico — Carrete de riego (INIA-Carillanca)" más abajo). Cada vez: reemplazar `static/disenador_riego_v{N}.html` (el
+  aporte del estanque" más abajo), v106→v108 (cambios en el diseño de Carrete — ver la entrada
+  "Chequeo Agronómico — Carrete de riego (INIA-Carillanca)" más abajo), y v108→v112 (el usuario
+  no pidió portar ningún cambio puntual, solo reemplazar el archivo). Cada vez: reemplazar `static/disenador_riego_v{N}.html` (el
   archivo viejo se borra del repo, no se acumulan versiones), actualizar el link en
   `calculos.html` y la referencia en el docstring de `exportar_disenador.py`. Regla para el
   futuro: si el usuario NO pide portar ningún cambio puntual, basta con reemplazar el
