@@ -3278,10 +3278,10 @@ async def cambiar_password(
 
     def _render(error=None, ok=False):
         return templates.TemplateResponse("mi_cuenta.html", {
-            "request": request, "user": user, "error": error, "ok": ok
+            "request": request, "user": user, "error_pass": error, "ok_pass": ok
         })
 
-    if not verify_password(password_actual, db_user["password_hash"]):
+    if not await asyncio.to_thread(verify_password, password_actual, db_user["password_hash"]):
         return _render("Contraseña actual incorrecta.")
     if password_nuevo != password_confirmar:
         return _render("Las contraseñas nuevas no coinciden.")
@@ -3289,6 +3289,33 @@ async def cambiar_password(
         return _render("La contraseña debe tener al menos 6 caracteres.")
     db.update_password(user["username"], password_nuevo)
     return _render(ok=True)
+
+
+@app.post("/mi-cuenta/nombre", response_class=HTMLResponse)
+async def cambiar_nombre(request: Request, nombre_nuevo: str = Form(...)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    nombre_nuevo = nombre_nuevo.strip()
+
+    def _render(error=None, ok=False, user_actual=None):
+        return templates.TemplateResponse("mi_cuenta.html", {
+            "request": request, "user": user_actual or user, "error_nombre": error, "ok_nombre": ok
+        })
+
+    if not nombre_nuevo:
+        return _render("El nombre no puede quedar vacío.")
+    db.update_nombre(user["username"], nombre_nuevo)
+    # El nombre viaja en el JWT de la sesión (fijado al hacer login) — sin reemitir la cookie,
+    # el cambio no se vería reflejado en la app (nav, "Mi cuenta", registros nuevos como
+    # "validado_por"/"agregada_por") hasta el próximo login. Se reemite con el mismo patrón que
+    # usa login() (mismo max_age de 8 h, no reinicia el conteo de la sesión desde cero salvo por
+    # la duración total).
+    user_actualizado = {**user, "nombre": nombre_nuevo}
+    token = create_token({"username": user["username"], "nombre": nombre_nuevo, "rol": user["rol"]})
+    response = _render(ok=True, user_actual=user_actualizado)
+    response.set_cookie("session", token, httponly=True, max_age=28800)
+    return response
 
 
 # ─── Inicio ───────────────────────────────────────────────────────────────────

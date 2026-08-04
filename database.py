@@ -233,6 +233,12 @@ class Database:
             users[username]["password_hash"] = hash_password(new_password)
             self._save("users", USERS_FILE, users)
 
+    def update_nombre(self, username: str, nuevo_nombre: str):
+        users = self._load("users", USERS_FILE)
+        if username in users:
+            users[username]["nombre"] = nuevo_nombre
+            self._save("users", USERS_FILE, users)
+
     # ── Proyectos ─────────────────────────────────────────────────────────────
     # En PostgreSQL, cada proyecto vive bajo su propia clave "proyecto:{id}" — antes TODOS
     # los proyectos (con el texto extraído completo de cada documento) se guardaban en un

@@ -8,22 +8,34 @@
   </div>
 
   <div class="card">
-    <div style="margin-bottom:1rem;padding-bottom:0.85rem;border-bottom:1px solid var(--border);">
+    <div style="margin-bottom:1.2rem;padding-bottom:0.85rem;border-bottom:1px solid var(--border);">
       <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">Usuario</div>
       <div style="font-family:monospace;font-size:0.9rem;">{{ user.username }}</div>
     </div>
-    <div style="margin-bottom:1.2rem;">
-      <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">Nombre</div>
-      <div>{{ user.nombre }}</div>
-    </div>
+
+    <div class="card-title">Nombre</div>
+
+    {% if ok_nombre %}
+    <div class="alert alert-success" style="margin-bottom:1rem;">Nombre actualizado correctamente.</div>
+    {% endif %}
+    {% if error_nombre %}
+    <div class="alert alert-error" style="margin-bottom:1rem;">{{ error_nombre }}</div>
+    {% endif %}
+
+    <form method="post" action="/mi-cuenta/nombre" style="margin-bottom:1.4rem;">
+      <div class="form-group">
+        <input type="text" name="nombre_nuevo" required value="{{ user.nombre }}">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Guardar nombre</button>
+    </form>
 
     <div class="card-title">Cambiar contraseña</div>
 
-    {% if ok %}
+    {% if ok_pass %}
     <div class="alert alert-success" style="margin-bottom:1rem;">Contraseña actualizada correctamente.</div>
     {% endif %}
-    {% if error %}
-    <div class="alert alert-error" style="margin-bottom:1rem;">{{ error }}</div>
+    {% if error_pass %}
+    <div class="alert alert-error" style="margin-bottom:1rem;">{{ error_pass }}</div>
     {% endif %}
 
     <form method="post" action="/mi-cuenta">

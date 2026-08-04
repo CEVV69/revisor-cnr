@@ -3789,6 +3789,42 @@ consultor para diseñar". Mismo mecanismo que la verificación de Kc contra DT-0
 
 ---
 
+## Mi cuenta — cambiar nombre (implementado, jul-2026)
+
+El usuario notó que su perfil mostraba "Administrador CNR" (nombre por defecto del usuario admin
+creado al iniciar la app) y preguntó si se podía cambiar el nombre — solo existía cambio de
+contraseña. Se agregó `POST /mi-cuenta/nombre` (además del `GET/POST /mi-cuenta` ya existentes) —
+mismo patrón que el cambio de contraseña, ambos en la misma página/tarjeta, cada uno con su
+propio formulario y sus propias variables de error/ok (`ok_nombre`/`error_nombre` vs.
+`ok_pass`/`error_pass` — antes el cambio de contraseña usaba las genéricas `ok`/`error`, se
+renombraron para no colisionar entre los dos formularios de la misma página).
+- `db.update_nombre(username, nuevo_nombre)` (database.py, mismo patrón que `update_password`).
+- **El nombre viaja en el JWT de la sesión** (`create_token({"username", "nombre", "rol"})`,
+  fijado al hacer login, 8 h de expiración) — sin reemitir la cookie, el cambio no se habría
+  reflejado en la app (barra de navegación, "Mi cuenta", y cualquier registro nuevo que guarde
+  `user["nombre"]` — ej. `validado_por` de Chequeo de Cálculos, `agregada_por` de una observación
+  manual) hasta el próximo login. `cambiar_nombre()` reemite la cookie con el mismo patrón que
+  `login()` (mismo `max_age=28800`) apenas guarda el cambio, y arma el `user` del contexto de
+  render con el nombre ya actualizado — así la propia página, sin recargar, ya muestra el nombre
+  nuevo en el campo y en la barra de navegación.
+- **Registros ya guardados con el nombre anterior NO se migran** (mismo criterio que el resto de
+  la app con cambios de nombre/etiqueta — ver por ejemplo el estado "Revisado" retirado sin
+  migrar proyectos viejos) — es un registro histórico de quién hizo qué en su momento, no algo
+  que deba reescribirse retroactivamente.
+- **De paso, mismo bug de bcrypt bloqueante ya corregido en `login()` pero no en
+  `cambiar_password()`:** `verify_password(...)` (bcrypt, deliberadamente lento, ~100-300 ms) se
+  llamaba sincrónico dentro de la ruta `async def cambiar_password()`, bloqueando el event loop
+  entero — mismo patrón de bug ya documentado y arreglado en `login()` (ver "Auditoría de
+  rendimiento — 2ª ronda", punto 3) pero que no se había replicado acá. Corregido al tocar esta
+  función: `await asyncio.to_thread(verify_password, ...)`.
+- Verificado con pruebas funcionales sobre las rutas reales (`main.cambiar_nombre`, sin mocks de
+  HTTP): actualiza la base, reemite la cookie con el nombre nuevo (confirmado decodificando el
+  JWT resultante), el contexto de render ya trae el nombre actualizado, y un nombre vacío se
+  rechaza sin tocar la base. Render completo de `mi_cuenta.html` (Jinja + captura de pantalla)
+  confirmando los dos formularios uno debajo del otro, sin solaparse.
+
+---
+
 ## Instrucciones del usuario (SIEMPRE respetar)
 
 1. **Paso a paso** — nunca asumir, guiar con pasos numerados.
