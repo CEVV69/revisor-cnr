@@ -190,6 +190,25 @@ al consultor, NO lo marques. Prefiere omitir un problema menor a generar ruido q
 el revisor va a descartar. Máximo 10-15 observaciones por documento salvo casos excepcionales.
 
 ═══════════════════════════════════════════════════════
+CADA OBSERVACIÓN VA EN UN SOLO ÍTEM — NO REPETIR ENTRE ÍTEMS
+═══════════════════════════════════════════════════════
+El expediente se revisa ítem por ítem y las observaciones se copian al SEP en el ítem que
+corresponde, así que un mismo hallazgo repetido en dos ítems es ruido para el revisor y
+desordena el traspaso al SEP.
+
+1. Si más abajo se te entrega una lista de observaciones YA REGISTRADAS en otros ítems, NO
+   vuelvas a señalar ninguna de ellas, aunque la veas otra vez en los documentos de este ítem
+   y aunque la redactes distinto.
+2. Observa SOLO lo que le corresponde a este ítem según su checklist. Un dato que falta en la
+   especificación de un material (espesor, clase, norma) es una observación de Especificaciones
+   Técnicas — NO de Presupuesto, aunque ese mismo material aparezca listado en el presupuesto.
+   Pregúntate siempre: "¿en qué ítem del SEP tiene que corregir esto el consultor?". Si la
+   respuesta es otro ítem, no la generes acá.
+3. Lo anterior NO te impide observar un problema DISTINTO sobre el mismo elemento. Si en este
+   ítem hay un hallazgo propio (ej. el precio unitario de ese material está fuera de mercado, o
+   la cantidad no cuadra con la cubicación), obsérvalo — es un hallazgo nuevo, no una repetición.
+
+═══════════════════════════════════════════════════════
 NOTACIÓN NUMÉRICA CHILENA — OBLIGATORIO RESPETAR
 ═══════════════════════════════════════════════════════
 - La COMA (,) es separador decimal → "34,56" = 34.56
@@ -2257,20 +2276,39 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     # Se le pasa lo YA observado en los demás ítems para que no lo repita y se concentre en lo
     # que solo se ve mirando el conjunto: la lógica global del proyecto, su viabilidad como
     # sistema, contradicciones entre documentos que ningún ítem individual detecta solo.
+    # El mismo bloque sirve para DOS casos, con cierre distinto: Coherencia Global (que debe
+    # limitarse a lo transversal) y cualquier OTRO ítem (que no debe repetir un hallazgo ya
+    # registrado en un ítem anterior — caso real reportado: el espesor no declarado de un material
+    # se observaba en Especificaciones Técnicas y otra vez en Presupuesto, donde además no
+    # corresponde). La regla general y el criterio de "en qué ítem va cada observación" están en
+    # SYSTEM_PROMPT, que va CACHEADO; acá solo viaja la lista, que cambia en cada ítem y por eso
+    # no se puede cachear (ver la nota de costo en CLAUDE.md).
     bloque_obs_previas = ""
-    if es_coherencia and observaciones_previas:
-        lineas = [f"• [{o.get('item_nombre', '')}] {(o.get('texto', '') or '')[:400]}"
-                  for o in observaciones_previas[:200]]
+    if observaciones_previas:
+        tope_texto, tope_lista = (400, 200) if es_coherencia else (250, 150)
+        lineas = [f"• [{o.get('item_nombre', '')}] {(o.get('texto', '') or '')[:tope_texto]}"
+                  for o in observaciones_previas[:tope_lista]]
+        if es_coherencia:
+            cierre = (
+                f"\n\nTu tarea acá es EXCLUSIVAMENTE detectar lo que SOLO se ve mirando el "
+                f"expediente COMPLETO: si la idea del proyecto, su forma de operar y su lógica de "
+                f"diseño y construcción son coherentes y viables en conjunto. NO vuelvas a señalar "
+                f"algo de la lista de arriba aunque lo veas de nuevo en los documentos, aunque lo "
+                f"redactes distinto. Si no encuentras una incoherencia genuinamente NUEVA (no "
+                f"cubierta arriba), no fuerces una observación — la ausencia de hallazgos nuevos "
+                f"es un resultado válido.")
+        else:
+            cierre = (
+                f"\n\nNO vuelvas a señalar nada de esa lista, aunque lo veas otra vez en los "
+                f"documentos de este ítem y aunque lo redactes distinto: ya está registrado y el "
+                f"consultor lo va a corregir desde el ítem donde quedó. Sí puedes observar un "
+                f"problema DISTINTO sobre el mismo elemento, si le corresponde a este ítem según "
+                f"su checklist. No fuerces observaciones para llenar: quedarte con pocas (o "
+                f"ninguna) porque lo demás ya está cubierto es un resultado correcto.")
         bloque_obs_previas = (
-            f"\n\n{'═'*60}\nOBSERVACIONES YA REGISTRADAS AL REVISAR CADA ÍTEM POR SEPARADO "
-            f"(NO LAS REPITAS — ya están cubiertas y se gestionan en su propio ítem)\n{'═'*60}\n"
-            + "\n".join(lineas) +
-            f"\n\nTu tarea acá es EXCLUSIVAMENTE detectar lo que SOLO se ve mirando el expediente "
-            f"COMPLETO: si la idea del proyecto, su forma de operar y su lógica de diseño y "
-            f"construcción son coherentes y viables en conjunto. NO vuelvas a señalar algo de la "
-            f"lista de arriba aunque lo veas de nuevo en los documentos, aunque lo redactes "
-            f"distinto. Si no encuentras una incoherencia genuinamente NUEVA (no cubierta arriba), "
-            f"no fuerces una observación — la ausencia de hallazgos nuevos es un resultado válido.")
+            f"\n\n{'═'*60}\nOBSERVACIONES YA REGISTRADAS EN OTROS ÍTEMS DE ESTE MISMO EXPEDIENTE "
+            f"(NO LAS REPITAS — cada una ya se gestiona en su propio ítem)\n{'═'*60}\n"
+            + "\n".join(lineas) + cierre)
 
     prompt = f"""{bloque_bases}{bloque_resumen}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
@@ -2538,10 +2576,12 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     es una referencia aproximada. Si es None/vacía (nunca se ha subido nada), la verificación
     de precios del ítem Presupuesto simplemente no corre.
 
-    `observaciones_previas`: solo se usa para `item_key == "coherencia"` — las observaciones ya
-    generadas en los OTROS ítems del mismo proyecto ([{item_nombre, texto}, ...]), para que el
-    cierre transversal no repita hallazgos puntuales ya cubiertos y se concentre en lo que solo
-    se ve mirando el expediente completo (ver `_analizar_grupo`).
+    `observaciones_previas`: las observaciones ya generadas en los OTROS ítems del mismo proyecto
+    ([{item_nombre, texto}, ...]), para que este ítem NO repita un hallazgo que ya quedó
+    registrado en otro (caso real: el espesor no declarado de un material observado en
+    Especificaciones Técnicas y otra vez en Presupuesto, donde además no corresponde). En
+    "coherencia" cumple además su rol original: que el cierre transversal se concentre en lo que
+    solo se ve mirando el expediente completo. Ver `_analizar_grupo` para los dos cierres.
 
     `observaciones_pendientes_otros`: observaciones PENDIENTES de OTROS ítems ya revisados
     ([{id, item_nombre, texto}, ...]) — si el contenido de ESTE ítem las resuelve, se devuelven
@@ -2620,7 +2660,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     analisis_task = _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
-        observaciones_previas=observaciones_previas if item_key == "coherencia" else None,
+        observaciones_previas=observaciones_previas,
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,

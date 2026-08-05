@@ -989,6 +989,39 @@ el resto en vez de anotarlo aparte en el SEP — así se beneficia del mismo seg
   categoría/severidad, en `bloque_observaciones()` y `bloque_notas()` — para distinguir de un
   vistazo cuáles observaciones vinieron de la IA y cuáles se escribieron a mano.
 
+**Observaciones repetidas entre ítems — lo ya observado se le pasa a TODO ítem, no solo a
+Coherencia (implementado, ago-2026):** caso real reportado por el usuario: en "Especificaciones
+técnicas" se observaba que no se declara el espesor de un material, y al revisar "Presupuesto
+detallado" se volvía a observar lo mismo. Doble problema: es redundante para el revisor, y además
+**no es una observación de presupuesto** — el consultor la tiene que corregir en las EETT.
+- **Causa:** el mecanismo para esto YA existía (`observaciones_previas` → bloque "OBSERVACIONES YA
+  REGISTRADAS… NO LAS REPITAS"), pero `analizar_item()` solo se lo pasaba a `coherencia`. Todos
+  los demás ítems se analizaban a ciegas de lo que ya se había observado en los otros.
+- **Fix:** `main._analizar_item_fondo` arma ahora la lista para CUALQUIER ítem (excluye las del
+  propio ítem — si no, re-revisarlo no volvería a generar lo suyo — y las `descartada`, que el
+  revisor ya rechazó y no deben condicionar nada), y `analizar_item()` la pasa siempre.
+- **Dos cierres distintos en `_analizar_grupo`:** Coherencia Global conserva el suyo ("tu tarea es
+  EXCLUSIVAMENTE lo transversal"); el resto de los ítems recibe uno nuevo que además aclara que SÍ
+  puede observar un problema DISTINTO sobre el mismo elemento si le corresponde por su checklist
+  — la idea es no repetir, no dejar de observar. Topes distintos también: 400 chars × 200 obs en
+  coherencia (sin cambios), 250 × 150 en el resto, que alcanza de sobra para reconocer un
+  duplicado.
+- **Qué se cachea y qué no** (el usuario preguntó explícitamente por esto): la **regla** se agregó
+  al `SYSTEM_PROMPT` — sección "CADA OBSERVACIÓN VA EN UN SOLO ÍTEM — NO REPETIR ENTRE ÍTEMS", con
+  el criterio de a qué ítem pertenece cada hallazgo y el ejemplo del espesor — y por lo tanto viaja
+  **cacheada**, gratis desde la segunda llamada. La **lista** de observaciones NO se puede cachear:
+  crece con cada ítem revisado, así que cada llamada escribiría una entrada nueva a 2× y no la
+  leería nunca — cachearla saldría más caro, no más barato (misma regla de los 1024 tokens y del
+  punto de equilibrio ya documentada más abajo).
+- **Costo:** solo la lista se paga fresca, y crece a lo largo del proyecto. Modelado con el precio
+  real de Sonnet 5: +USD 0,07 con 2 observaciones por ítem, +0,14 con 4, +0,22 con 6 — sobre los
+  ~USD 3 que cuesta revisar un proyecto completo (≈5%). El primer ítem de un proyecto no paga nada
+  (lista vacía → el bloque ni se arma).
+- Verificado con `_analizar_item_fondo()` y `analizar_item()` reales (mock solo del cliente de la
+  API, interceptando el prompt efectivamente enviado): el bloque aparece en un ítem normal con el
+  cierre nuevo, coherencia conserva el suyo, la regla estática está dentro del bloque `system`
+  cacheado, y la lista excluye correctamente las propias y las descartadas.
+
 **Revisar todos los ítems en tanda (implementado, ago-2026):** botón OPCIONAL, adicional a los
 botones por ítem de siempre (que no se tocaron). `POST /proyecto/{id}/revisar-todos` arma un lote
 y lanza `_revisar_lote_fondo()`, que recorre los ítems **uno después del otro**.

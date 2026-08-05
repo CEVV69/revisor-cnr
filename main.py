@@ -1007,13 +1007,16 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             precios_data = db.get_precios()
             tabla_precios = precios_data.get("items") if precios_data else None
 
-        observaciones_previas = None
-        if item_key == "coherencia":
-            observaciones_previas = [
-                {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
-                for o in proyecto.get("observaciones", [])
-                if o.get("item") and o.get("item") != "coherencia" and o.get("estado") != "descartada"
-            ]
+        # Lo ya observado en los OTROS ítems, para que este no lo repita (ver `_analizar_grupo`).
+        # Antes solo se le pasaba a Coherencia Global; desde ago-2026 lo recibe todo ítem, porque
+        # la repetición también se daba entre ítems normales (ej. el espesor no declarado de un
+        # material observado en Especificaciones Técnicas y otra vez en Presupuesto). Se excluyen
+        # las descartadas: si el revisor ya las descartó, no deben condicionar nada.
+        observaciones_previas = [
+            {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+            for o in proyecto.get("observaciones", [])
+            if o.get("item") and o.get("item") != item_key and o.get("estado") != "descartada"
+        ]
 
         observaciones_pendientes_otros = [
             {"id": o.get("id"), "item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
