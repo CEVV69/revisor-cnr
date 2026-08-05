@@ -4017,6 +4017,29 @@ Python — solo existe una fórmula homónima dentro del HTML del Diseñador de 
 aparte) y el import sin uso de `hash_password` en `main.py`. Barrido AST de símbolos definidos vs.
 usados sobre los 8 módulos + los templates: no quedó nada más.
 
+**6. `_log_uso` cableado a las 8 llamadas de Haiku (ago-2026).** Hasta ahora solo registraban
+costo las llamadas a Sonnet 5; las de Haiku (extracción hidráulica, agronómica, FV, partidas de
+presupuesto, autocompletar Resumen, documentos obligatorios y las dos consolidaciones de
+aprendizaje) no aparecían en el log, así que **una parte del gasto de cada proyecto era
+literalmente invisible** al intentar explicar por qué costó lo que costó. Ahora todas pasan por
+`_log_uso(..., MODELO_HAIKU)` — con el precio de Haiku, no el de Sonnet.
+
+**Cómo diagnosticar un proyecto que costó de más** (el usuario reportó uno de USD 4,48 contra los
+~3 habituales, sin saber por qué). Los dos sospechosos, en orden de magnitud, ambos visibles en el
+log de Railway:
+- **Reintento por `max_tokens`** — el primer intento se paga COMPLETO y se descarta. En
+  Presupuesto o Planos (`max_tokens` 24.000) eso son **USD 0,36 tirados por reintento**; en un
+  ítem normal (16.000), USD 0,24. Tres o cuatro reintentos explican solo eso el salto. Se ve
+  buscando en el log: `respuesta vacía por max_tokens — reintentando con más cupo`. Si un ítem lo
+  hace SIEMPRE, la solución es subirle su entrada en `MAX_TOKENS_POR_ITEM` (arrancar en el cupo
+  del reintento sale más barato que pagar dos intentos).
+- **Caché reescrita en vez de leída** — el `SYSTEM_PROMPT` son 14.318 tokens: leerlo cuesta USD
+  0,0043 y escribirlo USD 0,086, o sea **USD 0,082 de diferencia por ítem**. Si pasan más de 1 h
+  entre un ítem y el siguiente, la caché expira y se reescribe: con los 19 ítems fallando son
+  **+USD 1,55 en el proyecto**. Se ve en el log como `cache_creado` alto de forma repetida con
+  `cache_leido` en 0. Es la palanca más grande que NO requiere tocar código: revisar de corrido
+  (o con el botón de tanda) en vez de espaciado.
+
 **Evaluado y NO cambiado (con el motivo, para no volver a revisarlo desde cero):**
 - **El caché de prompt está bien montado, no había el bug que sospeché.** Se verificó contra la
   referencia oficial de la API: el prompt caching es **GA** y el `ttl: "1h"` NO requiere ningún

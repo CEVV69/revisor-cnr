@@ -1036,6 +1036,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_uso("extracción hidráulica", response, MODELO_HAIKU)
         data = _extraer_json_simple(_texto_respuesta(response))
         sistemas = data.get("sistemas")
         if not isinstance(sistemas, list) or not sistemas:
@@ -1232,6 +1233,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_uso("extracción agronómica", response, MODELO_HAIKU)
         data = _extraer_json_simple(_texto_respuesta(response))
         sistemas = data.get("sistemas")
         if not isinstance(sistemas, list) or not sistemas:
@@ -1839,6 +1841,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_uso("extracción FV", response, MODELO_HAIKU)
         return _extraer_json_simple(_texto_respuesta(response))
     except Exception as e:
         print(f"⚠️ _extraer_datos_fv: {e}")
@@ -1953,6 +1956,7 @@ PRESUPUESTO:
             model=MODELO_HAIKU, max_tokens=4000,   # presupuestos pueden tener muchas partidas
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_uso("extracción partidas de presupuesto", response, MODELO_HAIKU)
         return _extraer_json_tolerante(_texto_respuesta(response))
     except Exception as e:
         print(f"⚠️ _extraer_partidas_presupuesto: {e}")
@@ -2921,6 +2925,7 @@ Responde SOLO el JSON, sin texto adicional."""
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_uso("autocompletar Resumen", response, MODELO_HAIKU)
 
     content = _texto_respuesta(response)
     datos = {}
@@ -3118,6 +3123,7 @@ BASES DEL CONCURSO:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_uso("documentos obligatorios", response, MODELO_HAIKU)
         data = _extraer_json_tolerante(_texto_respuesta(response))
         obligatorios = data.get("obligatorios", [])
         if not isinstance(obligatorios, list):
@@ -3237,6 +3243,7 @@ Responde SOLO el perfil, en viñetas con "-"."""
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_uso("consolidar aprendizaje", response, MODELO_HAIKU)
     texto = _texto_respuesta(response).strip()
     if not texto:
         print(f"⚠️ consolidar_perfil_consultor '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3278,6 +3285,7 @@ Responde SOLO las reglas, en viñetas con "-"."""
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
+    _log_uso("perfil de consultor", response, MODELO_HAIKU)
     texto = _texto_respuesta(response).strip()
     if not texto:
         print(f"⚠️ consolidar_aprendizaje '{clave}': respuesta vacía — stop_reason={response.stop_reason}")
