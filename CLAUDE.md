@@ -1017,6 +1017,20 @@ detallado" se volvía a observar lo mismo. Doble problema: es redundante para el
   real de Sonnet 5: +USD 0,07 con 2 observaciones por ítem, +0,14 con 4, +0,22 con 6 — sobre los
   ~USD 3 que cuesta revisar un proyecto completo (≈5%). El primer ítem de un proyecto no paga nada
   (lista vacía → el bloque ni se arma).
+- **`ITEMS_SIN_OBS_PREVIAS` (ago-2026):** el usuario propuso excluir del bloque los ítems que
+  "por su especificidad no pueden repetir" — Cronograma, Cubicaciones, Memoria de superficies e
+  Identificación del área de riego. Al contrastarlo contra los checklists reales, **solo
+  Cronograma cumple**; los otros tres se descartaron con evidencia (ver el comentario de la
+  constante en analyzer.py): Cubicaciones cruza explícitamente con 5 ítems y comparte documento
+  con Presupuesto; Memoria de superficies exige cuadrar con Identificación y va en la posición 17,
+  con casi todo lo previo acumulado; Identificación cruza con superficies y planos, y al ir en la
+  posición 2 excluirla no ahorra nada. **Criterio para agregar uno a la lista:** su checklist NO
+  debe pedir contrastar contra otro ítem ("coincide con…", "cuadra con…", "coherente con…").
+- **El costo del bloque es proporcional a la POSICIÓN del ítem en la tanda** (solo contiene lo ya
+  revisado antes): posición 2 ≈ USD 0,0008; posición 9 ≈ 0,007; posición 17 ≈ 0,013. Por eso
+  excluir ítems tempranos no ahorra nada, y los tardíos —que sí ahorrarían— son justamente los que
+  más tienen que evitar repetir. Excluir los 4 propuestos habría ahorrado USD 0,03 por proyecto
+  (~USD 0,43/mes con 15 proyectos): el ahorro NO es la razón para tocar esto.
 - Verificado con `_analizar_item_fondo()` y `analizar_item()` reales (mock solo del cliente de la
   API, interceptando el prompt efectivamente enviado): el bloque aparece en un ítem normal con el
   cierre nuevo, coherencia conserva el suyo, la regla estática está dentro del bloque `system`

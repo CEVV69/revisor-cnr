@@ -844,6 +844,28 @@ def _limitar_texto(texto: str, maxlen: int) -> str:
 # según cómo haya quedado clasificado el archivo. Cada extracción igual solo saca del texto los
 # datos que le corresponden (Haiku recibe instrucciones específicas por tipo de cálculo), así
 # que darles el mismo pool de documentos no mezcla resultados, solo evita el falso negativo.
+# Ítems que NO reciben la lista de "observaciones ya registradas en otros ítems" (ver
+# `_analizar_grupo`): su documento es propio y su checklist no cruza con el de ningún otro, así
+# que no tienen con qué repetir y el bloque sería solo ruido y costo.
+#
+# CRITERIO para agregar uno acá: su checklist NO debe pedir contrastar contra el contenido de
+# otro ítem. Si dice "coincide con…", "coherente con…", "cuadra con…" apuntando a otro ítem,
+# NO va — justamente ahí es donde nace la repetición.
+#
+# Evaluados y DESCARTADOS a propósito (ago-2026), pese a haber sido propuestos:
+#   • cubicaciones        — su checklist cruza explícitamente con diseño hidráulico, planos de
+#                           tecnificación, memoria de superficies, planos de obras civiles y
+#                           diseño FV; además comparte su documento con Presupuesto (que lo
+#                           recibe en su `tipo_docs`). Es de los ítems con MÁS riesgo de repetir.
+#   • memoria_superficies — su punto (6) exige que los resultados "cuadren exactamente con los
+#                           usados en Identificación del área de riego", y va casi al final de la
+#                           tanda (posición 17), o sea con casi todas las observaciones previas ya
+#                           acumuladas. Las superficies son el tema más transversal del expediente.
+#   • identificacion_riego — cruza con memoria de superficies y con el plano de tecnificación; y
+#                           al ir en posición 2 la lista está casi vacía, así que excluirlo no
+#                           ahorra nada de todos modos.
+ITEMS_SIN_OBS_PREVIAS = {"cronograma"}
+
 DOCS_VERIFICACION = {
     "hidraulico": ["diseno_hidraulico", "diseno_agronomico", "planos_tecnificacion",
                    "especificaciones_tecnicas", "pruebas_bombeo"],
@@ -2660,7 +2682,8 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     analisis_task = _analizar_grupo(
         item["nombre"], item["checklist"], docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
-        observaciones_previas=observaciones_previas,
+        observaciones_previas=(None if item_key in ITEMS_SIN_OBS_PREVIAS
+                               else observaciones_previas),
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
