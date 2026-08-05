@@ -62,19 +62,6 @@
 </nav>
 
 <div class="card" style="border-left:4px solid #2b6cb0;">
-  <p class="text-muted" style="font-size:0.85rem; margin:0;">
-    Aquí puedes ver y <strong>corregir a mano</strong> los datos numéricos que la IA extrajo de
-    los documentos, antes de que se usen para comparar contra lo declarado por el consultor.
-    La extracción automática puede fallar en algunos casos — mientras un grupo no esté
-    <strong>validado</strong>, el análisis sigue extrayendo los datos de nuevo cada vez
-    (comportamiento automático de siempre). Una vez que marcas "Validado", esos datos corregidos
-    se usan tal cual en cada revisión futura, sin volver a depender de la extracción. El
-    recálculo de abajo se actualiza <strong>en tiempo real</strong> a medida que editas los
-    campos, antes de guardar.
-  </p>
-</div>
-
-<div class="card" style="border-left:4px solid #2b6cb0;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
     <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/n-sistemas"
           style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin:0;">
@@ -90,11 +77,7 @@
     <a href="/static/disenador_riego_v112.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
-    Único selector para AMBOS chequeos (Agronómico e Hidráulico) — un proyecto con 2 sistemas de
-    riego (ej. goteo en un sector y aspersión en otro) tiene 2 diseños completos, uno por sistema,
-    así que no puede declararse 2 en un chequeo y 1 en el otro. Elígelo aquí ANTES de extraer —
-    el consultor normalmente presenta el cálculo de cada sistema en un bloque separado con su
-    propio encabezado, y la IA extrae cada uno por separado en vez de mezclarlos.
+    Aplica a los dos chequeos. Elígelo antes de extraer.
   </p>
 </div>
 
@@ -106,21 +89,11 @@
     <span class="badge-validado">Validado por {{ agro_por }}{% if agro_fecha %} · {{ agro_fecha | fecha_hora }}{% endif %}</span>
     {% endif %}
   </div>
-  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
-    Recalcula ETc = ETo×Kc · AD = (CC−PMP)/100×Da×Prof(m)×1000 · Dn = AD×fa · Fr = Dn/ETc ·
-    Db = Dn_adj/Ef, y con eso el tiempo de riego y el N° de sectores — misma cadena y relación
-    del Diseñador de Riego. La Superficie de riego segura usa Db "diario" (ETc/Ef, sin pasar por
-    Fr) — misma distinción que hace el Diseñador (esa verificación es de balance diario, no de
-    ciclo de riego). Si el sistema es Carrete, además se calcula la operación del cañón
-    (metodología INIA-Carillanca: caudal de diseño, espaciamiento entre franjas, pluviometría,
-    superficie/tiempo por postura).
-  </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
-    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño Agronómico / estudio de suelos.</span>
+    <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
@@ -176,7 +149,7 @@
         <div class="sistema-riego-campo campo-carrete"><label>Longitud de franja (m)</label><input type="number" step="1" id="{{ p }}longitud_franja_m" name="{{ p }}longitud_franja_m" value="{{ agro.longitud_franja_m if agro.longitud_franja_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="1" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Marco de plantación (Goteo/Microaspersión) y espaciamiento del sistema (Aspersión): dato de referencia para verificar contra el plano y el presupuesto — no se usa en el recálculo de abajo. Los datos del cañón (Carrete) SÍ se usan — alimentan el modelo INIA-Carillanca de la tabla de resultados.</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Referencia para contrastar contra el plano y el presupuesto: no entra al recálculo. Los datos del cañón (Carrete) sí — alimentan el modelo INIA-Carillanca.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
       <div class="agro-grid">
@@ -187,10 +160,10 @@
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-scall"><label>&nbsp;</label><a href="/static/scall_diseno_v20.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Cálculo Scall</a></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Si el proyecto declara un estanque/tranque regulador, complétalo aquí — reduce el N° de sectores necesario (filas de abajo) y se verifica que su volumen alcance. Ya NO se suma al caudal disponible para la Superficie de riego segura (esa fila usa solo el caudal de la fuente). Vacío = sin acumulador.</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
-      <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Los resultados declarados por el consultor se editan directo en la columna del medio de la tabla — para comparar de un vistazo con lo calculado por la app.</p>
+      <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Lo declarado por el consultor se edita en la columna del medio.</p>
       <p id="{{ p }}agro-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa todos los datos base para ver el recálculo.</p>
       <div style="overflow-x:auto;">
         <table class="calc-resultados-tbl">
@@ -388,16 +361,13 @@
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
-    Recalcula velocidad y pérdida de carga con Hazen-Williams
-    (<code>Hf = 10,67 × L × Q¹·⁸⁵² / (C¹·⁸⁵² × D⁴·⁸⁷)</code>) — misma fórmula del Diseñador de
-    Riego. Rango recomendado de velocidad: 0,5–2,0 m/s.
+    Hazen-Williams. Rango recomendado de velocidad: 0,5–2,0 m/s.
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
-    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los tramos de abajo con lo que encuentre la IA en el Diseño Hidráulico / planos.</span>
+    <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar" id="form-hid">
@@ -460,9 +430,7 @@
         </div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin-top:0.3rem;">
-        AMT/CDT y caudal de bombeo son datos DECLARADOS por el consultor — la app no recalcula
-        la cadena completa de CDT/potencia de bomba (succión, elevación, pérdidas menores, margen
-        de seguridad), solo los muestra para contrastarlos manualmente contra el resto del diseño.
+        Solo declarados: la app no recalcula la cadena de CDT/potencia de bomba.
       </p>
     </div>
     {% endfor %}
@@ -482,17 +450,11 @@
     <span class="badge-validado">Validado por {{ fv_por }}{% if fv_fecha %} · {{ fv_fecha | fecha_hora }}{% endif %}</span>
     {% endif %}
   </div>
-  <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
-    Recalcula energía diaria requerida, corrección por temperatura, N° de paneles, configuración
-    serie/paralelo y sección de cable DC — misma cadena del Diseñador de Riego. Cobertura parcial
-    (falta AC, protecciones y estructura de montaje — ver nota abajo).
-  </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/extraer"
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm">Extraer de los documentos</button>
-    <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Sobrescribe los campos de abajo con lo que encuentre la IA en el Diseño FV / Explorador Solar / presupuesto eléctrico.</span>
+    <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
@@ -570,11 +532,9 @@
 
 <div class="card" style="background:rgba(128,128,128,0.05); border:none;">
   <p class="text-muted" style="font-size:0.8rem; margin:0;">
-    Fotovoltaico cubre energía diaria, N° de paneles, configuración serie/paralelo y cable DC
-    (distancia campo→inversor asumida en 50 m). Todavía falta: cableado AC, protecciones
-    (DPS/fusibles), estructura de montaje y contraste explícito con el Explorador Solar.
-    Carrete de avance frontal y microaspersión todavía no tienen verificación numérica —
-    quedan para una próxima iteración.
+    Fotovoltaico no cubre cableado AC, protecciones (DPS/fusibles), estructura de montaje ni
+    contraste con el Explorador Solar; asume 50 m de campo a inversor. Carrete de avance frontal
+    y microaspersión todavía no tienen verificación numérica.
   </p>
 </div>
 

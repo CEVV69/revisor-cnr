@@ -4157,3 +4157,14 @@ renombraron para no colisionar entre los dos formularios de la misma página).
    perdieron su texto explicativo adyacente. Aplica este criterio por defecto a cualquier UI
    nueva — texto de ayuda solo cuando es genuinamente indispensable, nunca como descripción del
    botón que ya se entiende por su propia etiqueta.
+   **Pasada de limpieza en `calculos.html` (ago-2026):** se eliminó la tarjeta azul de
+   introducción de la página ("Aquí puedes ver y corregir a mano…" — además había quedado
+   FACTUALMENTE INCORRECTA tras el cambio de reuso de la extracción: decía que sin el tilde
+   "validado" el análisis re-extrae cada vez, y ya no es así), los 3 párrafos que repetían las
+   fórmulas (ETc/AD/Dn/Fr/Db, Hazen-Williams, cadena FV — ya están paso a paso en la "Memoria de
+   cálculo explicada" y cada concepto aparece en la tabla de resultados) y los 3 textos junto a
+   "Extraer de los documentos" (la advertencia real de que SOBRESCRIBE pasó al `title` del
+   botón). Los 6 párrafos restantes se acortaron a una línea cada uno, conservando solo lo que
+   no se ve en pantalla: que el marco de plantación no entra al recálculo salvo en Carrete, que
+   vacío = sin acumulador, que la columna del medio es editable, que AMT/CDT no se recalcula, y
+   qué NO cubre el chequeo FV. Neto: 40 líneas menos de plantilla.
