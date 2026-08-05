@@ -83,10 +83,7 @@
       <button type="submit" class="btn-mc" onclick="this.disabled=true; this.textContent='Extrayendo…'; this.form.submit();">Volver a generar</button>
     </form>
   {% else %}
-    Este informe recalcula lo mismo que ya calcula la app (gratis, instantáneo). Para además ver
-    <strong>cómo llegó el CONSULTOR</strong> a cada resultado (su propia fórmula, citada del
-    expediente) y comparar ambas metodologías lado a lado, pide la comparación con IA:
-    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/informe/{{ idx }}/metodologia-consultor" style="margin-left:0.3rem;">
+    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/informe/{{ idx }}/metodologia-consultor">
       <button type="submit" class="btn-mc" onclick="this.disabled=true; this.textContent='Extrayendo…'; this.form.submit();">Comparar con la metodología del consultor (usa IA)</button>
     </form>
   {% endif %}
