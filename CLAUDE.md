@@ -2329,6 +2329,75 @@ solo que la implementación se quedó en "mostrar «—»" en vez de ocultar la 
   un volumen real declarado — las 4 filas quedan ocultas en los primeros dos casos y visibles en
   el tercero.
 
+**"Memoria de cálculo explicada" — informe paso a paso del Chequeo Agronómico e Hidráulico
+(implementado, jul-2026):** el usuario revisó un caso real (proyecto Goteo con invernadero +
+acumulador SCALL, expediente completo aportado como Excel) y planteó que casi nunca le calzan el
+N° de sectores ni la superficie de riego segura que calcula la app contra lo declarado por el
+consultor — pidió una forma de auditar, de un vistazo, TODA la cadena de cálculo con su fórmula y
+una explicación breve, "parecido a lo de abrir el Diseñador o el Scall" (botón, pestaña nueva).
+- **Decisión de diseño clave: NO es una extracción nueva.** Reutiliza exactamente los mismos
+  datos ya guardados en `verificacion_calculos` y las mismas funciones que ya alimentan la tabla
+  de `calculos.html` (`_agronomico_calculo()`, `_tramos_con_calculo()`) — cero llamadas a la IA,
+  cero riesgo de que el informe muestre un número distinto al que efectivamente usó el análisis
+  (evaluado y descartado: una segunda extracción independiente habría podido divergir de los
+  datos ya validados, y es exactamente el tipo de duplicación de fuente de verdad que este
+  proyecto evita en todos lados).
+- **Ruta nueva** `GET /proyecto/{id}/calculos/informe/{idx}` (`informe_calculo()`, main.py) — por
+  sistema de riego (mismo `idx` que ya usa "Exportar para el Diseñador"), arma el contexto y
+  renderiza `templates/informe_calculo.html` (standalone, mismo patrón que `informe_resumen.html`
+  — propio `<head>`, botón "Imprimir", sin necesidad de "Descargar PDF"/html2pdf.js por ahora).
+  Botón "Ver memoria de cálculo explicada" en cada tarjeta de sistema Agronómico de
+  `calculos.html`, junto al de exportar — a diferencia de ese, se muestra siempre (no solo para
+  los 4 sistemas conocidos), porque el informe no depende de un formato externo.
+- **Contenido:** 1) Datos base declarados (oculta CC/PMP/Da/Prof/Criterio de riego en Goteo,
+  mismo criterio que la tarjeta). 2) Cadena agronómica paso a paso (ETc→Db directo en Goteo;
+  ETc→AD→Dn→Fr→Db en el resto), cada paso con fórmula, valores sustituidos, resultado, una
+  explicación de una línea, y comparación contra lo declarado si existe. 3) Verificaciones
+  independientes que apliquen (Kc vs DT-05, Eficiencia vs oficial, VIB, Postura de Aspersión,
+  Carrete INIA-Carillanca completo). 4) Diseño base — demanda, superficie segura, tiempo de
+  riego, N° de sectores/posturas, balance diario, volumen mínimo del estanque/ΔQ/autonomía/T.
+  llenado si hay acumulador. 5) Tabla de tramos hidráulicos con Hazen-Williams explicado una vez
+  al inicio, V/Hf recalculadas vs. declaradas. 6) Equipo de bombeo (AMT, caudal de bombeo)
+  declarados, con nota explícita de que no se recalculan (mismo alcance de siempre) y una
+  comparación liviana contra el caudal máximo entre los tramos.
+- **Bug real encontrado y corregido durante la verificación — MISMO patrón que el ya conocido de
+  `fila-acumulador` (Undefined vs. None en Jinja), pero acá mucho más extendido:** a diferencia
+  de `calculos.html` (que solo deja "—" server-side y rellena todo por JS, nunca lee `calc.*`
+  directo en Jinja), este informe SÍ lee los dicts ya calculados directo en el servidor —
+  exponiendo de lleno el problema. `_agronomico_calculo()`/`calculos_riego.py` son ADITIVOS por
+  diseño (una clave que no se pudo calcular queda AUSENTE del dict, no en `None`), y en Jinja
+  `dict.clave_ausente` da `Undefined`, con `Undefined is not none` evaluando `True` — cada
+  `{% if calc.x is not none %}` del informe se habría comportado como si el dato SÍ existiera.
+  Se centralizó el fix en la ruta (`_rellenar_none()`, helper que aplica `setdefault(clave, None)`
+  a los dicts `agro`, `agro["declarado"]`, `calc`, `calc["postura_check"]` y cada tramo) en vez de
+  parchar cada condicional del template — un solo lugar por dict, no un riesgo repetido por cada
+  campo nuevo que se agregue a futuro.
+- **Segunda vuelta del mismo bug, más sutil — campos que usan `is defined` a propósito.** Dos
+  campos (`cabe_en_horas_disponibles`, `balance_diario_ok`) y dos de `carrete_check`
+  (`vib_supera_pp`, `vib_cumple_minimo_inia`) están AUSENTES del dict cuando el dato que
+  necesitan (horas disponibles, caudal disponible, VIB) nunca se declaró — el template los
+  distingue correctamente con `is defined` ("¿se pudo verificar?"), no con `is not none`. La
+  primera versión del fix los incluyó por error en la normalización general — al rellenarlos a
+  `None`, `is defined` pasó a dar `True` siempre, y como `None` es falsy iguales que "no cumple",
+  el informe mostraba alertas falsas ("La fuente NO repone el volumen diario", "NO cabe en las
+  horas disponibles (None hr)") en proyectos que ni siquiera habían declarado esos datos.
+  Detectado por inspección visual del render (no por los asserts automatizados, que no cubrían
+  este caso) — se sacaron esos 4 campos de la normalización general, dejándolos con su
+  comportamiento natural de "ausente = no se pudo verificar". **Lección para código nuevo:**
+  antes de normalizar un dict aditivo con `setdefault`, revisar CADA condicional del template que
+  lo consuma — si usa `is defined` en vez de `is not none`, es a propósito (distingue "no hay
+  dato" de "el resultado fue negativo/cero") y no debe normalizarse.
+- **Formato numérico:** los valores declarados/extraídos (a diferencia de los ya calculados, que
+  `calculos_riego.py` redondea con `round()`) pueden traer muchos decimales (ej. `0,444444...`
+  l/s, resultado de una división que el consultor hizo y guardó completa). Se agregaron macros
+  Jinja `val()`/`num()` que redondean a 4 decimales solo para mostrar (no tocan el dato guardado).
+- **Verificado** con pruebas funcionales sobre la ruta real (`main.informe_calculo`, sin mocks de
+  HTTP) cubriendo Goteo con acumulador y sin caudal disponible, un proyecto vacío, Aspersión con
+  postura completa (con y sin datos suficientes para horas/balance), Carrete con y sin VIB
+  declarada, tramos hidráulicos con discrepancias V/Hf a propósito, e idx fuera de rango (404) —
+  más una captura de pantalla del render real (Playwright) confirmando visualmente que las dos
+  rondas de bugs quedaron corregidas y los números se leen limpios.
+
 **Botón "Cálculo Scall" — Goteo/Microaspersión/Aspersión (implementado, jul-2026):** el usuario
 pasó una app propia, `scalldisenoV4.html` ("Acumuladores SCALL — Diseño"), single-file HTML igual
 patrón que el Diseñador de Riego — se subió a `static/scall_diseno_v4.html` (servida en
@@ -2995,6 +3064,32 @@ homónimo (que hacía de cierre transversal): usa TODOS los documentos con texto
 la tarjeta del ítem). Al eliminar el método por Ejes (ver siguiente entrada), el checklist de
 Coherencia Global se inlineó directamente en `ITEMS_SEP["coherencia"]` (antes lo tomaba de
 `EJES_REVISION["coherencia"]["checklist"]`).
+
+**Checklist de Coherencia Global — reforzado con razonamiento de costo/complejidad y coherencia
+de cultivo (jul-2026):** revisando un caso real (Goteo con acumulador SCALL, invernadero + aire
+libre) el usuario detectó tres patrones que la IA no cuestionaba y que Coherencia Global —por
+tener acceso a TODOS los documentos a la vez— es el lugar correcto para atraparlos:
+- **Consistencia del cultivo entre documentos.** El Balance Hídrico puede asumir una ROTACIÓN de
+  cultivos (distinto cultivo por trimestre, cada uno con su propio Kc) para que el balance anual
+  dé positivo, mientras el Diseño Agronómico y el Resumen/SEP declaran un solo cultivo todo el
+  año — si el cultivo real no rota como asumió el balance, el margen anual no está garantizado.
+  Ya se detectaba a veces en el ítem Análisis Hidrológico; se reforzó también en Coherencia
+  Global, que tiene la vista de conjunto para cruzarlo contra el Resumen y el resto de los
+  documentos.
+- **N° de sectores — cuestionable si no está justificado.** Más sectores implica más válvulas,
+  materiales y complejidad operativa para el agricultor. Si el expediente no explica por qué se
+  eligió esa sectorización en vez de la alternativa (menos sectores, bomba de mayor capacidad),
+  o la sectorización no calza con ninguna limitación técnica real, es observable — sobre todo en
+  fuentes de acumulador (SCALL/tranque), donde el N° de sectores casi siempre viene dado por la
+  capacidad del equipo de bombeo elegido (más barato = bomba chica + más sectores en secuencia),
+  no por la disponibilidad de agua.
+- **Invernadero vs. aire libre sin identificar.** Cuando el proyecto combina superficie bajo
+  cubierta y al aire libre, los documentos deben decir cuál sector es cuál — invernadero y aire
+  libre tienen exigencias técnicas distintas (exposición al viento y su efecto en la uniformidad
+  del riego, estructura, obras civiles asociadas); una superficie total sin distinguir es
+  observable.
+Los tres se agregaron como ejemplos (no exhaustivos, mismo formato que el resto del checklist) a
+`ITEMS_SEP["coherencia"]["checklist"]` — sin cambios de código, solo texto del prompt.
 
 **Derivar observaciones de Coherencia Global a un ítem real del SEP (implementado, jul-2026):**
 "Coherencia Global" no existe como ítem en el SEP real — es un cierre transversal interno de la

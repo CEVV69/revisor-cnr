@@ -1660,6 +1660,98 @@ def _fecha_disenador() -> str:
     return f"{now.day:02d}-{now.month:02d}-{now.year}, {h12}:{now.minute:02d}:{now.second:02d} {ampm}"
 
 
+@app.get("/proyecto/{proyecto_id}/calculos/informe/{idx}")
+async def informe_calculo(request: Request, proyecto_id: str, idx: int):
+    """Memoria de cálculo explicada, paso a paso, del sistema de riego `idx` — página aparte
+    (pestaña nueva, mismo patrón que "Exportar para el Diseñador"), pensada para auditar de un
+    vistazo lo que YA calculó/verificó el Chequeo de Cálculos, con la fórmula y una explicación
+    breve en cada paso. No hace ninguna extracción ni cálculo nuevo — reutiliza exactamente los
+    mismos datos guardados y las mismas funciones (`_agronomico_calculo`, `_tramos_con_calculo`)
+    que ya alimentan la tabla de `calculos.html`, así nunca puede mostrar un número distinto al
+    que efectivamente usó el análisis."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    if idx < 0 or idx >= len(agro_norm["sistemas"]):
+        raise HTTPException(status_code=404, detail="Sistema no válido")
+
+    agro = dict(agro_norm["sistemas"][idx])
+    hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
+    tramos_raw = list((hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
+    hid_sistema = hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}
+
+    # Varios de estos dicts son ADITIVOS por diseño (`calculos_riego.py`, y los datos "en bruto"
+    # recién extraídos por la IA, aún sin pasar por "Guardar"): una clave que no se pudo calcular
+    # o extraer queda AUSENTE del dict, no en None — correcto para el resto de la app (que solo
+    # lee con `.get()` en Python o la ignora en JS), pero en Jinja `dict.clave_ausente` devuelve
+    # `Undefined`, y `Undefined is not none` da `True` (mismo bug ya documentado para
+    # `fila-acumulador` en calculos.html) — rompería cada `{% if x is not none %}` de este
+    # informe, que SÍ lee estos campos directo en el servidor (a diferencia de calculos.html, que
+    # los deja en "—" y los rellena por JS). Se normaliza acá, una sola vez por dict, en vez de
+    # repetir la trampa en cada condicional del template.
+    def _rellenar_none(d: dict, claves) -> dict:
+        for k in claves:
+            d.setdefault(k, None)
+        return d
+
+    _rellenar_none(agro, (
+        "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
+        "kc", "eto_dia_mm", "eficiencia_pct", "superficie_riego_ha", "caudal_disponible_ls",
+        "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
+        "vib_mmhr", "caudal_canon_m3h", "margen_sobredimensionamiento_pct", "radio_alcance_m",
+        "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh",
+    ))
+    if isinstance(agro.get("declarado"), dict):
+        _rellenar_none(agro["declarado"], (
+            "dn_mm", "fr_dias", "db_mm", "caudal_diseno_ls", "tiempo_riego_hr", "n_sectores",
+            "pluviometria_mmhr",
+        ))
+
+    calc = _agronomico_calculo(agro) or {}
+    # `cabe_en_horas_disponibles` y `balance_diario_ok` NO se incluyen acá a propósito — a
+    # diferencia del resto, el template los distingue con `is defined` (¿se pudo verificar o no,
+    # por faltar horas_disponibles_dia/caudal_disponible_ls?), no con `is not none`. Si se
+    # rellenaran a None, "no se pudo verificar" pasaría a mostrarse igual que "no cumple" (None
+    # es falsy) — un resultado incorrecto (falso positivo de incumplimiento sin datos reales).
+    _rellenar_none(calc, (
+        "etc_mm_dia", "ad_mm", "dn_mm", "fr_dias", "fr_adj_dias", "dn_adj_mm", "db_mm",
+        "db_diario_mm", "demanda_ls_ha", "superficie_segura_ha", "tiempo_riego_hr", "n_sectores",
+        "tiempo_total_dia_hr", "caudal_operacion_ls",
+        "v_requerido_dia_l", "v_fuente_dia_l", "volumen_minimo_estanque_l",
+        "acumulador_ok", "delta_q_estanque_ls", "autonomia_estanque_hr",
+        "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
+    ))
+    if calc.get("postura_check"):
+        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia"))
+    # `vib_supera_pp`/`vib_cumple_minimo_inia` de carrete_check NO se normalizan a propósito: el
+    # template los distingue con `is defined` (¿se declaró VIB o no?), no con `is not none` — si
+    # se rellenaran a None acá, "no se declaró VIB" pasaría a verse igual que "VIB no cumple"
+    # (None es falsy), un resultado incorrecto y distinto del real.
+
+    tramos = _tramos_con_calculo(tramos_raw)
+    for t in tramos:
+        _rellenar_none(t, ("nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
+                           "velocidad_declarada_ms", "hf_declarada_mca"))
+
+    return templates.TemplateResponse("informe_calculo.html", {
+        "request": request, "proyecto": proyecto,
+        "idx": idx, "n_sistemas": n_sistemas,
+        "sistema_riego": agro.get("sistema_riego"),
+        "agro": agro, "calc": calc,
+        "tramos": tramos,
+        "amt_declarada_m": hid_sistema.get("amt_declarada_m"),
+        "caudal_bombeo_ls": hid_sistema.get("caudal_bombeo_ls"),
+        "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+    })
+
+
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")
 async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
     """Descarga un .json con el formato del Diseñador de Riego, armado con los datos GUARDADOS del

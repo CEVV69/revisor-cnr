@@ -679,6 +679,22 @@ Ejemplos de la relación entre documentos que hay que verificar (no es una lista
 - La estructura de partidas del presupuesto (Sistema de riego / Obras civiles) refleja lo
   mostrado en planos y cubicaciones, sin ítems de un componente apareciendo solo en el otro
   documento.
+- El cultivo declarado es el MISMO en el Balance Hídrico/Análisis Hidrológico, el Diseño
+  Agronómico y el Resumen/SEP. Si el Balance Hídrico asume una ROTACIÓN de cultivos (distinto
+  cultivo por trimestre, con su propio Kc) para que el balance anual dé positivo, pero el resto
+  del expediente declara un solo cultivo todo el año, el margen del balance no está garantizado
+  — obsérvalo explícitamente citando la discrepancia.
+- El N° de sectores de riego está JUSTIFICADO, no solo declarado. Más sectores implica más
+  válvulas/materiales/complejidad operativa para el agricultor — si el expediente no explica por
+  qué se sectorizó así (ej. limitación de caudal/presión de la bomba elegida) en vez de una
+  alternativa con menos sectores y una bomba de mayor capacidad, o si la sectorización no calza
+  con ninguna limitación técnica real (caudal disponible, presión, capacidad de la bomba), es
+  observable — sobre todo en fuentes de acumulador (SCALL/tranque), donde el N° de sectores
+  suele derivar de la capacidad del equipo de bombeo elegido, no de la disponibilidad de agua.
+- Cuando el proyecto combina invernadero/estructura cubierta y sectores al aire libre, los
+  documentos deben identificar CUÁL superficie es cuál (no basta con una superficie total sin
+  distinguir) — invernadero y aire libre tienen exigencias técnicas distintas (exposición al
+  viento y su efecto en la uniformidad del riego, estructura, obras civiles asociadas).
 Marca cualquier CONTRADICCIÓN entre documentos o quiebre en la lógica global del proyecto. Este
 es el cierre que atrapa los errores que se escapan al revisar documento por documento — NO es una
 segunda pasada que repite lo que cada ítem individual ya detectó por su cuenta.""",
