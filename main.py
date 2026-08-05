@@ -963,22 +963,29 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
 
         verif_calc = proyecto.get("verificacion_calculos", {})
 
-        def _validado(clave):
-            v = verif_calc.get(clave)
-            return v if v and v.get("validado") else None
+        # Si el Chequeo de Cálculos YA tiene datos guardados para este grupo, se reusan tal cual
+        # en vez de volver a extraerlos con Haiku — SIN exigir que estén marcados "validado"
+        # (ago-2026, corrección del usuario sobre cómo usa realmente la app; ver
+        # "Reuso de la extracción del Chequeo de Cálculos" en CLAUDE.md). El tilde "Ya revisé
+        # estos datos" sigue existiendo y mostrándose con fecha/autor, pero ya no decide esto.
+        def _datos_guardados(valor):
+            return valor if _tiene_datos(valor) else None
 
         n_sistemas = _n_sistemas_proyecto(verif_calc)
         verif_hid_norm = _normalizar_verif_multisistema(verif_calc.get("hidraulico"), n_sistemas, "tramos")
         datos_verificacion_hidraulica = (
-            {"sistemas": verif_hid_norm["sistemas"]}
-            if item_key == "diseno_hidraulico" and verif_hid_norm.get("validado") else None
+            _datos_guardados({"sistemas": verif_hid_norm["sistemas"]})
+            if item_key == "diseno_hidraulico" else None
         )
         verif_agro_norm = _normalizar_verif_multisistema(verif_calc.get("agronomico"), n_sistemas)
         datos_verificacion_agronomica = (
-            {"sistemas": verif_agro_norm["sistemas"]}
-            if item_key == "diseno_hidraulico" and verif_agro_norm.get("validado") else None
+            _datos_guardados({"sistemas": verif_agro_norm["sistemas"]})
+            if item_key == "diseno_hidraulico" else None
         )
-        datos_verificacion_fv = _validado("energetico") if item_key == "diseno_fotovoltaico" else None
+        datos_verificacion_fv = (
+            _datos_guardados(verif_calc.get("energetico"))
+            if item_key == "diseno_fotovoltaico" else None
+        )
 
         tabla_precios = None
         if item_key in ("presupuesto", "presupuesto_electrico"):
@@ -1358,6 +1365,24 @@ def _eficiencia_oficial_calculo(sistema_riego, eficiencia_pct):
     return {"ef_min": ef_min, "ef_max": ef_max,
             "sobre_oficial": ef > ef_max,     # el caso que infla la superficie regable
             "bajo_oficial":  ef < ef_min}
+
+
+_CLAVES_META_VERIF = ("validado", "fecha_validado", "validado_por", "n_sistemas")
+
+
+def _tiene_datos(valor) -> bool:
+    """True si hay AL MENOS UN dato real en cualquier nivel de la estructura (ignorando la
+    metadata de validación, que existe siempre). Sirve para distinguir "el revisor ya cargó o
+    extrajo datos en el Chequeo de Cálculos" de "la clave existe pero está vacía" — un
+    formulario guardado en blanco deja `{"sistemas": [{"tramos": [], "amt_declarada_m": None,
+    ...}]}`, que NO debe impedir que el análisis extraiga por su cuenta."""
+    if isinstance(valor, dict):
+        return any(_tiene_datos(v) for k, v in valor.items() if k not in _CLAVES_META_VERIF)
+    if isinstance(valor, (list, tuple)):
+        return any(_tiene_datos(v) for v in valor)
+    if isinstance(valor, str):
+        return bool(valor.strip())
+    return valor is not None
 
 
 def _n_sistemas_proyecto(verif: dict) -> int:

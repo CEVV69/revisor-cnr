@@ -3883,7 +3883,39 @@ vez de recién en el `gather` final, así corre en paralelo también con las ext
   invalidación, los demás ítems quedan igual, y una excepción en la extracción se sigue tragando
   sin dejar la tarea de invalidación colgada (probado con `warnings.simplefilter("error")`).
 
-**4. Código muerto eliminado:** `calculos_riego.factor_christiansen()` (nunca se llamó desde
+**4. Reuso de la extracción del Chequeo de Cálculos — ya NO exige el tilde "validado"
+(ago-2026).** Hasta ahora, al revisar "Diseño y cálculos hidráulicos" la app solo reusaba los
+datos del Chequeo si estaban marcados "Ya revisé estos datos"; si no, los volvía a extraer con
+Haiku desde cero. En la auditoría lo dejé así con dos argumentos, y **el usuario corrigió que
+ambos eran falsos** para cómo usa realmente la app:
+- *"Los documentos pueden haber cambiado entre extraer y revisar"* — **no pasa**: nunca se sube
+  un documento nuevo entre una cosa y la otra.
+- *"Sin el tilde, nadie revisó esos datos"* — **falso**: el revisor SIEMPRE revisa lo extraído en
+  el Chequeo. No tilda "validado" por un motivo distinto y deliberado: los números de la app y
+  los del consultor a veces no cuadran, y **la referencia de la revisión son siempre los datos
+  del consultor**, no los recalculados por la app (esos son solo para comparar y, si la
+  diferencia es grande, observarla). O sea que el tilde no significa "esto está revisado" sino
+  otra cosa, y no correspondía usarlo como condición para reusar.
+- **Argumento adicional del usuario, y es el más fuerte:** si una extracción ya encontró ciertos
+  datos, una segunda extracción sobre los MISMOS documentos con el MISMO prompt debería devolver
+  lo mismo — pero "debería", no "garantiza". Al re-extraer, el análisis puede terminar usando
+  números levemente distintos a los que el revisor tiene a la vista en la página Chequeo. Reusar
+  elimina esa inconsistencia: lo que se analiza es exactamente lo que el revisor vio.
+- **Implementado:** `_datos_guardados()` + `_tiene_datos()` (main.py) reemplazan al `_validado()`
+  anterior en `_analizar_item_fondo`, para los 3 grupos (hidráulico, agronómico, energético). La
+  condición pasó de "está validado" a "hay algún dato real guardado". El tilde "Ya revisé estos
+  datos" **se mantiene** y se sigue mostrando con fecha/autor — simplemente ya no decide esto.
+- **La guarda que sí hace falta:** un formulario guardado EN BLANCO deja la clave existiendo pero
+  vacía (`{"sistemas": [{"tramos": [], "amt_declarada_m": None, ...}]}`). Reusar eso habría
+  matado la verificación numérica en silencio, que es peor que pagar la extracción. `_tiene_datos`
+  recorre la estructura completa ignorando la metadata de validación y solo devuelve `True` si hay
+  al menos un valor real — si está en blanco, el análisis extrae por su cuenta, como antes.
+- Verificado con `_analizar_item_fondo()` real (mocks de `db.*` y de `analizar_item`, sin mocks de
+  HTTP), interceptando qué recibe `analizar_item`: extraído-sin-tildar ahora se reusa; validado se
+  reusa igual que antes; formulario en blanco NO se reusa y deja extraer; sin Chequeo previo
+  extrae como siempre. Más `_tiene_datos` contra los shapes reales de los 3 grupos.
+
+**5. Código muerto eliminado:** `calculos_riego.factor_christiansen()` (nunca se llamó desde
 Python — solo existe una fórmula homónima dentro del HTML del Diseñador de Riego, que es una app
 aparte) y el import sin uso de `hash_password` en `main.py`. Barrido AST de símbolos definidos vs.
 usados sobre los 8 módulos + los templates: no quedó nada más.
@@ -3901,11 +3933,11 @@ usados sobre los 8 módulos + los templates: no quedó nada más.
   llamadas por proyecto): **745 tokens**, bajo el mínimo de 1024 — un breakpoint ahí NO se
   cachearía, y la API no avisa, simplemente `cache_creation_input_tokens: 0`. **Regla para el
   futuro: medir el bloque antes de agregar un `cache_control`; bajo 1024 tokens no hace nada.**
-- **Reusar datos extraídos pero NO validados** (el revisor apretó "Extraer" en Chequeo de Cálculos
-  y después revisa el ítem sin marcar "Ya revisé estos datos" → se paga Haiku dos veces): se dejó
-  como está a propósito. Los documentos pueden haber cambiado entre una cosa y la otra; reusar
-  datos sin el VB humano cambiaría la semántica de "validado", que es justo la garantía que da esa
-  página.
+- **Cachear el bloque de reglas — revisar de nuevo SI se agregan más reglas fijas.** Los 745
+  tokens son de la parte estática actual (TAREA + las 4 REGLAS ESTRICTAS + los 2 ejemplos
+  negativos). Si a futuro se suma más texto fijo a ese mismo prompt (una regla 5 con su ejemplo,
+  etc.) y el bloque cruza los 1024 tokens, ahí sí conviene cachearlo — medirlo de nuevo antes de
+  decidir, no asumir que sigue quedando corto.
 - **Envolver las ~127 llamadas `db.*` restantes en `to_thread`:** sigue descartado por el mismo
   motivo de la 2ª auditoría (no acelera la latencia de la propia acción del revisor), pero con el
   `_pg_lock` de arriba ya no está el impedimento técnico si alguna vez se quiere hacer.
