@@ -28,7 +28,19 @@ El usuario sigue usando la app con el concurso 202-2026 con proyectos reales. No
 abierto conocido a esta fecha — si retomas y el usuario reporta algo raro, lo más probable es
 que sea un caso nuevo, no una regresión de lo ya resuelto.
 
-**Lo último de esta sesión (ago-2026):** a partir de dos Excel reales de un consultor que el
+**Lo último de esta sesión (ago-2026):** auditoría completa de la app (ver "Auditoría general
+(ago-2026)" más abajo — 7 puntos: bug de bloqueo del event loop, `database.py` thread-safe, dos
+extracciones de Haiku paralelizadas, reuso de la extracción del Chequeo sin exigir el tilde
+"validado", código muerto, `_log_uso` en las 8 llamadas de Haiku) y, a partir de un proyecto real
+que salió USD 4,48 contra los ~3 habituales, un **contador de costo por proyecto visible en la
+app** (punto 7 de esa sección): US$ discreto en el encabezado, con desglose por paso y por ítem al
+hacer clic. Antes de esto el costo solo existía en el log de Railway, así que el usuario lo
+verificaba a mano comparando el saldo de la consola de Anthropic antes y después de revisar.
+También se agregó el botón **"Revisar todos"** (tanda secuencial de ítems), el tope duro de 300
+caracteres en "Características obras" del Resumen, y el mecanismo para que un ítem NO repita una
+observación ya hecha en otro (ver "Observaciones repetidas entre ítems").
+
+**Antes de eso, en la misma sesión:** a partir de dos Excel reales de un consultor que el
 usuario compartió (memoria de cálculo de Goteo/invernadero con SCALL + balance hídrico), se
 reforzó el checklist de Coherencia Global (consistencia de cultivo entre documentos, N° de
 sectores justificado, invernadero vs. aire libre identificado — ver "Checklist de Coherencia
@@ -4024,9 +4036,65 @@ aprendizaje) no aparecían en el log, así que **una parte del gasto de cada pro
 literalmente invisible** al intentar explicar por qué costó lo que costó. Ahora todas pasan por
 `_log_uso(..., MODELO_HAIKU)` — con el precio de Haiku, no el de Sonnet.
 
+**7. Contador de costo POR PROYECTO, visible en la app (ago-2026).** Al explicarle el punto
+anterior al usuario, la pregunta obvia: *"¿dónde se ven los costos? Yo solo lo verifico en la
+página de la API de Claude, viendo el antes y el después de una revisión"* — y tenía razón: hasta
+acá `_log_uso` solo imprimía en el log de Railway, que él no mira. Pidió *"un contador de costo,
+visible en revisión y en cada paso que use API, es decir en resumen, chequeo y revisión, algo
+discreto"*. Implementado:
+- **`analyzer.iniciar_costo()` + el ContextVar `_costo_acumulado`.** La operación en curso abre un
+  acumulador y todo `_log_uso` posterior suma ahí, además de seguir imprimiendo en el log igual
+  que siempre. Es un ContextVar y no una global porque puede haber varias operaciones en vuelo a
+  la vez (un análisis en segundo plano mientras el revisor consulta desde otra pestaña) y cada una
+  debe sumar en el suyo. **El truco que lo hace no invasivo:** `asyncio.create_task` y
+  `asyncio.to_thread` COPIAN el contexto pero comparten el mismo objeto dict — así las llamadas
+  anidadas (las extracciones de Haiku, la invalidación cruzada, que corren como subtareas) suman
+  solas, sin tocar ni una firma de `analyzer.py`.
+- **`main._registrar_costo(proyecto, paso, acc, detalle)`** suma al proyecto:
+  `proyecto["costo_api"] = {total_usd, llamadas, pasos:{paso:{usd,llamadas}}, items:{item_key:usd},
+  actualizado}`. Muta en memoria y NO guarda — el llamador ya hace `db.save_proyecto()` con el
+  resto del resultado, así que se suma a ese guardado en vez de pagar un round-trip extra. Si la
+  operación no hizo ninguna llamada (datos reusados del Chequeo, error antes de llegar a la IA) no
+  escribe nada: un paso con 0 llamadas no debe ensuciar el desglose.
+- **Cableado en los 9 puntos del proyecto:** revisar ítem (con `detalle=item_key`, de ahí el
+  desglose por ítem), chat, las 3 extracciones del Chequeo, metodología del consultor,
+  autocompletar Resumen, consulta libre y evaluar respuesta de subsanación. **NO** se cargan las
+  llamadas de administración (documentos obligatorios de un concurso, consolidar aprendizaje,
+  perfil de consultor): no son de un proyecto puntual y cargarlas a uno cualquiera falsearía su
+  costo.
+- **Caso especial — evaluar respuesta de subsanación.** Es la única de las 9 que NO modifica el
+  proyecto (devuelve la recomendación por AJAX y nada más), así que hubo que agregarle un
+  guardado. Relee el proyecto FRESCO antes de guardar: la evaluación tarda decenas de segundos y
+  en ese lapso un análisis en segundo plano pudo haber escrito sus observaciones — guardar la
+  copia vieja las habría borrado.
+- **UI (`templates/_costo_api.html`, incluido en proyecto.html / calculos.html / respuestas.html;
+  CSS `.costo-api*` en base.html).** Discreto por el punto 8 de las instrucciones del usuario: un
+  `US$ 3,32` gris en la fila de badges del encabezado; al hacer clic se abre un panel FLOTANTE
+  (`position:absolute`, igual que el menú de estado) con el desglose por paso, el desglose por
+  ítem ordenado de mayor a menor, y el total de llamadas. Flotante y no inline a propósito: un
+  `<details>` que expandiera en el flujo empujaría toda la fila de badges hacia abajo al abrirse
+  (verificado con Playwright que el botón de estado no se mueve). Si el proyecto no gastó nada,
+  `_costo_para_vista()` devuelve `None` y no se muestra NADA — un "US$ 0,00" no aporta.
+- **Bug pisado en el camino, el mismo de siempre:** la clave de la lista por ítem NO puede
+  llamarse `items` — en Jinja `costo_api.items` resuelve al método `dict.items()` y el render
+  revienta en runtime. Se llama `por_item`. Es la tercera vez que este proyecto tropieza con eso
+  (ver la nota de `grupo.items` en "Criterio de análisis"); **nunca usar `items` como clave de un
+  dict que se lea desde una plantilla.**
+- **Lo que el contador NO es:** una factura. Son los precios de lista aplicados al `usage` que
+  devuelve cada respuesta — sirve para comparar proyectos entre sí y detectar uno anómalo, no para
+  cuadrar al centavo contra la consola de Anthropic. Y solo cuenta desde que se desplegó: los
+  proyectos ya revisados arrancan sin `costo_api` y no muestran nada (no hay dato histórico que
+  reconstruir, el log de Railway rota).
+- Verificado con las funciones reales (sin mocks de HTTP): acumulación correcta sumando una
+  subtarea de `create_task` y una llamada dentro de `to_thread`; dos operaciones en paralelo no se
+  mezclan; sin acumulador activo `_log_uso` no falla; el registro ignora los pasos con 0 llamadas
+  y ordena el desglose de mayor a menor; render de las 5 páginas (Resumen/Documentos/Ítems/
+  Chequeo/Respuestas) con y sin costo; y captura de pantalla del panel abierto.
+
 **Cómo diagnosticar un proyecto que costó de más** (el usuario reportó uno de USD 4,48 contra los
-~3 habituales, sin saber por qué). Los dos sospechosos, en orden de magnitud, ambos visibles en el
-log de Railway:
+~3 habituales, sin saber por qué). Con el contador del punto 7 el desglose por ítem ya se ve en la
+propia app; para la causa, los dos sospechosos, en orden de magnitud, ambos visibles en el log de
+Railway:
 - **Reintento por `max_tokens`** — el primer intento se paga COMPLETO y se descarta. En
   Presupuesto o Planos (`max_tokens` 24.000) eso son **USD 0,36 tirados por reintento**; en un
   ítem normal (16.000), USD 0,24. Tres o cuatro reintentos explican solo eso el salto. Se ve

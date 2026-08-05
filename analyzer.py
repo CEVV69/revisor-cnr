@@ -3,6 +3,7 @@ import os
 import json
 import re
 import asyncio
+import contextvars
 from pathlib import Path
 import anthropic
 import calculos_riego
@@ -50,6 +51,30 @@ PRECIOS_USD_POR_MTOK = {
 }
 
 
+# Acumulador de costo de la operación en curso. `_log_uso` sigue imprimiendo en el log de Railway
+# igual que siempre, pero además suma el costo al acumulador que esté activo — así main.py puede
+# guardar EN EL PROYECTO cuánto costó cada acción (revisar un ítem, autocompletar el Resumen,
+# extraer el Chequeo) y mostrarlo en la app, en vez de obligar al revisor a mirar el antes/después
+# en la consola de Anthropic.
+#
+# Es un ContextVar y no una global a secas porque puede haber varias operaciones en vuelo a la vez
+# (un análisis en segundo plano mientras el revisor hace una consulta desde otra pestaña) y cada
+# una debe sumar en SU propio acumulador. `asyncio.create_task` y `asyncio.to_thread` copian el
+# contexto pero comparten el mismo objeto dict, así que las llamadas anidadas (las extracciones de
+# Haiku, la invalidación cruzada) suman en el acumulador de su operación sin trabajo extra.
+_costo_acumulado: contextvars.ContextVar = contextvars.ContextVar("_costo_acumulado", default=None)
+
+
+def iniciar_costo() -> dict:
+    """Abre un acumulador de costo para la operación en curso y lo devuelve. Todo `_log_uso`
+    posterior dentro de esta misma tarea (incluidas sus subtareas) suma ahí. Devuelve el dict
+    vivo — se lee DESPUÉS de terminar la operación, cuando ya está poblado."""
+    acc = {"usd": 0.0, "llamadas": 0, "input": 0, "output": 0,
+           "cache_leido": 0, "cache_creado": 0}
+    _costo_acumulado.set(acc)
+    return acc
+
+
 def _log_uso(etiqueta: str, response, modelo: str = None) -> None:
     """Registra en el log de Railway el uso REAL de tokens de una respuesta (incluida la lectura
     de caché) MÁS el costo estimado en USD — visibilidad para poder medir el gasto real de la API
@@ -68,12 +93,22 @@ def _log_uso(etiqueta: str, response, modelo: str = None) -> None:
         cache_creado = getattr(u, "cache_creation_input_tokens", 0) or 0
         p = PRECIOS_USD_POR_MTOK.get(modelo or MODELO_SONNET)
         costo = ""
+        usd = 0.0
         if p:
             usd = (u.input_tokens * p["in"] + u.output_tokens * p["out"]
                    + cache_creado * p["cache_w"] + cache_leido * p["cache_r"]) / 1_000_000
             costo = f" ≈ USD {usd:.4f}"
         print(f"Uso '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
               f"cache_leido={cache_leido} cache_creado={cache_creado}{costo}")
+
+        acc = _costo_acumulado.get()
+        if acc is not None:
+            acc["usd"]          += usd
+            acc["llamadas"]     += 1
+            acc["input"]        += u.input_tokens
+            acc["output"]       += u.output_tokens
+            acc["cache_leido"]  += cache_leido
+            acc["cache_creado"] += cache_creado
     except Exception:
         pass
 

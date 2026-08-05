@@ -279,6 +279,7 @@
     {% endif %}
     <!-- Badge estado con color dinámico -->
     <span class="badge {{ proyecto.estado | estado_badge }}">{{ proyecto.estado }}</span>
+    {% include "_costo_api.html" %}
     <span style="flex:1;"></span>
     <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">Consultas</a>
 

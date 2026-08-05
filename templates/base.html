@@ -187,6 +187,27 @@
     .dot-red   { background: var(--red); }
     .dot-gray  { background: var(--text-3); }
 
+    /* Contador de costo de la API (ver templates/_costo_api.html). Discreto por diseño: un
+       número gris en el encabezado del proyecto; el desglose se abre como panel flotante para
+       no empujar la fila de badges hacia abajo al desplegarse. */
+    .costo-api { position: relative; display: inline-block; }
+    .costo-api > summary { list-style: none; cursor: pointer; font-size: 0.76rem;
+      color: var(--text-2); padding: 0.18rem 0.45rem; border-radius: 5px; white-space: nowrap; }
+    .costo-api > summary::-webkit-details-marker { display: none; }
+    .costo-api > summary:hover { background: rgba(128,128,128,0.09); color: var(--text); }
+    .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 300px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: var(--shadow); padding: 0.6rem 0.75rem; font-size: 0.78rem; }
+    .costo-api-fila { display: flex; justify-content: space-between; gap: 1.2rem;
+      padding: 0.16rem 0; color: var(--text-2); }
+    .costo-api-fila > :last-child { white-space: nowrap; }
+    .costo-api-fila strong { color: var(--text); }
+    .costo-api-sub { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-3); margin: 0.5rem 0 0.15rem; border-top: 1px solid var(--border);
+      padding-top: 0.4rem; }
+    .costo-api-pie { font-size: 0.7rem; color: var(--text-3); margin-top: 0.5rem;
+      border-top: 1px solid var(--border); padding-top: 0.4rem; }
+
     /* Utils */
     .text-muted { color: var(--text-2); font-size: 0.81rem; }
     .text-sm    { font-size: 0.81rem; }

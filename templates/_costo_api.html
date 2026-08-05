@@ -1,0 +1,27 @@
+{# Contador de costo de la API de Claude para ESTE proyecto. Se incluye en el encabezado de las
+   páginas del proyecto (proyecto.html, calculos.html, respuestas.html). Espera `costo_api`, que
+   arma `main._costo_para_vista()` — si el proyecto todavía no gastó nada, viene None y acá no se
+   muestra nada (un "US$ 0,00" no aporta).
+   Estilos en base.html (.costo-api*). Cerrado por defecto: el total a la vista, el desglose solo
+   si el revisor lo pide. #}
+{% if costo_api %}
+<details class="costo-api">
+  <summary title="Costo estimado de la API de Claude en este proyecto — clic para ver el desglose">US$ {{ costo_api.total_usd | usd }}</summary>
+  <div class="costo-api-panel">
+    <div class="costo-api-fila"><strong>Total del proyecto</strong><strong>US$ {{ costo_api.total_usd | usd }}</strong></div>
+    {% for p in costo_api.pasos %}
+    <div class="costo-api-fila"><span>{{ p.nombre }}</span><span>US$ {{ p.usd | usd }}</span></div>
+    {% endfor %}
+    {% if costo_api.por_item %}
+    <div class="costo-api-sub">Revisión, por ítem</div>
+    {% for i in costo_api.por_item %}
+    <div class="costo-api-fila"><span>{{ i.nombre }}</span><span>US$ {{ i.usd | usd(3) }}</span></div>
+    {% endfor %}
+    {% endif %}
+    <div class="costo-api-pie">
+      {{ costo_api.llamadas }} llamada{{ '' if costo_api.llamadas == 1 else 's' }} a la API ·
+      última {{ costo_api.actualizado | fecha_hora }}
+    </div>
+  </div>
+</details>
+{% endif %}

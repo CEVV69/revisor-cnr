@@ -34,6 +34,7 @@
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
   <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Respuestas del consultor</h1>
+  {% include "_costo_api.html" %}
 </div>
 
 <nav class="proj-nav">

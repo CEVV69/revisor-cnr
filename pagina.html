@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- Modo claro/oscuro: se decide ACÁ, sincrónico y antes de pintar nada, para no mostrar un
+       destello en claro antes de aplicar el oscuro (pasaba porque este cálculo vivía al final
+       del <body> — recién corría después de que el navegador ya había pintado toda la página).
+       Con navegación de página completa (sin SPA) esto se repite en cada cambio de página, así
+       que tiene que ser lo primero que se ejecuta, no algo que espera a que cargue el resto. -->
+  <script>
+    (function() {
+      var saved = localStorage.getItem('cnr_modo');
+      var h = new Date().getHours();
+      var autoDark = (h >= 19 || h < 7);
+      if (saved !== null ? saved === 'dark' : autoDark) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>202-2026-99 — Revisor CNR</title>
+
+  <!-- PWA: manifest + íconos, para que el navegador ofrezca "Instalar app" -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#2b6cb0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Revisor CNR">
+
+  <style>
+    :root {
+      --bg:       #f5f5f7;
+      --surface:  #ffffff;
+      --border:   rgba(0,0,0,0.08);
+      --text:     #1d1d1f;
+      --text-2:   #6e6e73;
+      --text-3:   #86868b;
+      --blue:     #0071e3;
+      --blue-h:   #0077ed;
+      --red:      #ff3b30;
+      --red-h:    #d93025;
+      --green:    #34c759;
+      --green-dk: #248a3d;
+      --orange:   #ff9f0a;
+      --shadow:   0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05);
+      --r-lg: 14px; --r: 10px; --r-sm: 7px;
+    }
+    /* ── Modo oscuro (19:00 – 07:00) ─────────────────────────── */
+    html.dark-mode {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #e6edf3;
+      --text-2:  #8b949e;
+      --text-3:  #6e7681;
+      --blue:    #58a6ff;
+      --blue-h:  #79b8ff;
+      --red:     #ff7b72;
+      --red-h:   #ffa198;
+      --green:   #3fb950;
+      --green-dk:#2ea043;
+      --orange:  #d29922;
+      --shadow:  0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.5);
+    }
+    html.dark-mode nav {
+      background: rgba(22,27,34,0.92);
+    }
+    html.dark-mode input, html.dark-mode select, html.dark-mode textarea {
+      background: #0d1117;
+      color: var(--text);
+      border-color: rgba(255,255,255,0.12);
+    }
+    html.dark-mode input:disabled, html.dark-mode select:disabled {
+      background: #161b22;
+    }
+    html.dark-mode tr:hover td { background: rgba(255,255,255,0.03); }
+    /* Indicador de modo en nav */
+    #modo-indicator {
+      font-size:0.75rem; color:var(--text-3); cursor:pointer;
+      user-select:none; padding:2px 6px; border-radius:12px;
+      border:1px solid var(--border);
+    }
+    #modo-indicator:hover { background: rgba(128,128,128,0.1); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Nav */
+    nav {
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      height: 52px; display: flex; align-items: center;
+      padding: 0 2rem; justify-content: space-between;
+    }
+    .nav-logo { font-size: 0.95rem; font-weight: 600; color: var(--text); text-decoration: none; letter-spacing: -0.01em; }
+    .nav-logo span { color: var(--blue); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; font-size: 0.83rem; color: var(--text-2); }
+    .nav-right a { color: var(--blue); text-decoration: none; }
+    .nav-right a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .container { max-width: 1020px; margin: 2rem auto; padding: 0 1.5rem; }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 1.2rem 1.4rem; margin-bottom: 0.9rem; }
+    .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
+
+    /* Botones */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.4rem 1rem; border-radius: 980px;
+      font-size: 0.83rem; font-weight: 500;
+      cursor: pointer; text-decoration: none; border: none;
+      transition: opacity .15s, background .15s; white-space: nowrap;
+      font-family: inherit; line-height: 1.4;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary  { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-h); }
+    .btn-danger   { background: var(--red); color: #fff; }
+    .btn-danger:hover { background: var(--red-h); }
+    .btn-success  { background: var(--green-dk); color: #fff; }
+    .btn-success:hover { background: #1e7a35; }
+    .btn-outline  { background: transparent; color: var(--blue); border: 1px solid rgba(0,113,227,0.3); }
+    .btn-outline:hover { background: rgba(0,113,227,0.06); }
+    .btn-ghost    { background: rgba(0,0,0,0.05); color: var(--text); border: none; }
+    .btn-ghost:hover { background: rgba(0,0,0,0.09); }
+    .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
+
+    /* Formularios */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.78rem; font-weight: 500; color: var(--text-2); margin-bottom: 0.3rem; }
+    input, select, textarea {
+      width: 100%; padding: 0.52rem 0.82rem;
+      border: 1px solid rgba(0,0,0,0.14); border-radius: var(--r-sm);
+      font-size: 0.88rem; color: var(--text); background: var(--surface);
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.14);
+    }
+    input[type="checkbox"], input[type="radio"] {
+      width: auto; padding: 0; accent-color: var(--blue);
+    }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 0.16rem 0.55rem; border-radius: 980px; font-size: 0.71rem; font-weight: 500; }
+    .badge-mayor        { background: #fff0f0; color: #c41230; border: 1px solid rgba(196,18,48,.18); }
+    .badge-menor        { background: #fff8e6; color: #7d4e00; border: 1px solid rgba(255,159,10,.28); }
+    .badge-informativa  { background: #e8f4fd; color: #0055b3; border: 1px solid rgba(0,113,227,.18); }
+    .badge-tecnica      { background: #edfaf1; color: var(--green-dk); border: 1px solid rgba(52,199,89,.22); }
+    .badge-legal        { background: #f3eeff; color: #5e35b1; border: 1px solid rgba(94,53,177,.18); }
+    .badge-presupuesto  { background: #fff3e0; color: #7d4e00; border: 1px solid rgba(255,159,10,.28); }
+    .badge-administrativa { background: #f5f5f7; color: var(--text-2); border: 1px solid var(--border); }
+    .badge-estado       { background: #e8f4fd; color: var(--blue); border: 1px solid rgba(0,113,227,.18); }
+    .badge-pendiente    { background: #ffe3f1; color: #c2185b; border: 1px solid rgba(194,24,91,.28); }
+    .badge-validado { display:inline-flex; align-items:center; gap:0.3rem; background:#f0fff4;
+      border:1px solid #68d391; color:#276749; padding:0.25rem 0.6rem; border-radius:20px;
+      font-size:0.78rem; font-weight:600; }
+
+    /* Tabla */
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th { font-size: 0.72rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; padding: 0.5rem 0.85rem; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0,0,0,0.015); }
+
+    /* Alertas */
+    .alert { padding: 0.7rem 1rem; border-radius: var(--r-sm); margin-bottom: 1rem; font-size: 0.85rem; }
+    .alert-error   { background: #fff0f0; color: #c41230; border: 1px solid rgba(196,18,48,.18); }
+    .alert-success { background: #edfaf1; color: var(--green-dk); border: 1px solid rgba(52,199,89,.22); }
+
+    /* Indicador de estado (semáforo) */
+    .dot { display: inline-block; width: 0.55em; height: 0.55em; border-radius: 50%;
+      margin-right: 0.4em; vertical-align: middle; }
+    .dot-green { background: var(--green); }
+    .dot-red   { background: var(--red); }
+    .dot-gray  { background: var(--text-3); }
+
+    /* Contador de costo de la API (ver templates/_costo_api.html). Discreto por diseño: un
+       número gris en el encabezado del proyecto; el desglose se abre como panel flotante para
+       no empujar la fila de badges hacia abajo al desplegarse. */
+    .costo-api { position: relative; display: inline-block; }
+    .costo-api > summary { list-style: none; cursor: pointer; font-size: 0.76rem;
+      color: var(--text-2); padding: 0.18rem 0.45rem; border-radius: 5px; white-space: nowrap; }
+    .costo-api > summary::-webkit-details-marker { display: none; }
+    .costo-api > summary:hover { background: rgba(128,128,128,0.09); color: var(--text); }
+    .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 250px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: var(--shadow); padding: 0.6rem 0.75rem; font-size: 0.78rem; }
+    .costo-api-fila { display: flex; justify-content: space-between; gap: 1.2rem;
+      padding: 0.16rem 0; color: var(--text-2); }
+    .costo-api-fila strong { color: var(--text); }
+    .costo-api-sub { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-3); margin: 0.5rem 0 0.15rem; border-top: 1px solid var(--border);
+      padding-top: 0.4rem; }
+    .costo-api-pie { font-size: 0.7rem; color: var(--text-3); margin-top: 0.5rem;
+      border-top: 1px solid var(--border); padding-top: 0.4rem; }
+
+    /* Utils */
+    .text-muted { color: var(--text-2); font-size: 0.81rem; }
+    .text-sm    { font-size: 0.81rem; }
+    .mt-1 { margin-top: 0.4rem; }
+    .mt-2 { margin-top: 0.85rem; }
+    .flex { display: flex; }
+    .gap-1 { gap: 0.35rem; }
+    .gap-2 { gap: 0.7rem; }
+    .items-center  { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .section-label {
+      font-size: 0.7rem; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin: 1.4rem 0 0.45rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">Revisor <span>CNR</span></a>
+    
+    <div class="nav-right">
+      <a href="/mi-cuenta">Revisor</a>
+      <span class="badge badge-estado">admin</span>
+      <a href="/admin/usuarios">Usuarios</a>
+      <a href="/admin/concursos">Concursos</a>
+      <a href="/admin/aprendizaje">Aprendizaje</a>
+      <a href="/admin/precios">Precios</a>
+      <span id="modo-indicator" onclick="toggleModo()" title="Cambiar modo claro/oscuro" style="cursor:pointer; display:inline-flex;"></span>
+      <a href="/logout">Salir</a>
+    </div>
+    
+  </nav>
+  <div class="container">
+    
+
+<style>
+  .chat-msgs { display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem; }
+  .chat-bubble { max-width:85%; padding:0.55rem 0.75rem; border-radius:10px;
+    font-size:0.86rem; line-height:1.5; white-space:pre-wrap; }
+  .chat-bubble.rev { align-self:flex-end; background:var(--blue); color:#fff; }
+  .chat-bubble.ia  { align-self:flex-start; background:rgba(128,128,128,0.12); color:var(--text); }
+  .chat-bubble.pensando { align-self:flex-start; background:rgba(128,128,128,0.12);
+    color:var(--text-2); font-style:italic; }
+
+  /* Navegación entre páginas del proyecto (Resumen / Documentos / Ítems) */
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
+    padding:0 0.4rem; margin-left:0.15rem; }
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Encabezado -->
+<div style="margin:1.4rem 0 1.2rem;">
+
+  <!-- Línea 1: acciones y badges -->
+  <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.85rem;">
+    <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
+    <span style="width:1px; height:18px; background:var(--border); margin:0 0.2rem;"></span>
+    
+      <span class="badge badge-tecnica">Tipo revisión: Técnica</span>
+    
+    <!-- Badge estado con color dinámico -->
+    <span class="badge badge-estado">En revisión</span>
+    
+
+<details class="costo-api">
+  <summary title="Costo estimado de la API de Claude en este proyecto — clic para ver el desglose">US$ 3,32</summary>
+  <div class="costo-api-panel">
+    <div class="costo-api-fila"><strong>Total del proyecto</strong><strong>US$ 3,32</strong></div>
+    
+    <div class="costo-api-fila"><span>Revisión de ítems</span><span>US$ 3,10</span></div>
+    
+    <div class="costo-api-fila"><span>Chequeo de cálculos</span><span>US$ 0,15</span></div>
+    
+    <div class="costo-api-fila"><span>Resumen del proyecto</span><span>US$ 0,07</span></div>
+    
+    
+    <div class="costo-api-sub">Revisión, por ítem</div>
+    
+    <div class="costo-api-fila"><span>Coherencia Global</span><span>US$ 0,560</span></div>
+    
+    <div class="costo-api-fila"><span>Presupuesto detallado de obras</span><span>US$ 0,260</span></div>
+    
+    <div class="costo-api-fila"><span>Cronograma</span><span>US$ 0,008</span></div>
+    
+    
+    <div class="costo-api-pie">
+      41 llamadas a la API ·
+      última 05/08/2026 15:42
+    </div>
+  </div>
+</details>
+
+    <span style="flex:1;"></span>
+    <a href="/proyecto/p1/consultar" class="btn btn-outline btn-sm">Consultas</a>
+
+    <!-- Botón de estado -->
+    <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
+      <button onclick="toggleMenuEstado()" class="btn btn-sm"
+              style="background:#2b6cb0;color:white;white-space:nowrap;">
+        ● En revisión ▾
+        
+      </button>
+      <!-- z-index alto a propósito: el selector genérico `nav { z-index:100 }` de base.html
+           (pensado para la barra superior del sitio) también alcanza a `.proj-nav` de acá abajo
+           (sigue siendo un <nav>), así que sin esto el menú quedaba tapado detrás de las
+           pestañas Chequeo de Cálculos / Respuestas. -->
+      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="En revisión"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:#f7fafc;
+                         color:#2b6cb0;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            ● En revisión
+          </button>
+        </form>
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="Pendiente"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:transparent;
+                         color:#c2185b;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            Pendiente
+          </button>
+        </form>
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="Observado"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:transparent;
+                         color:#c05621;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            Observado
+          </button>
+        </form>
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="Con respuesta Observaciones"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:transparent;
+                         color:#5e35b1;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            Con respuesta Observaciones
+          </button>
+        </form>
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="Aprobado Técnicamente"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:transparent;
+                         color:#276749;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            Aprobado Técnicamente
+          </button>
+        </form>
+        
+        <form method="post" action="/proyecto/p1/estado">
+          <button type="submit" name="estado" value="Rechazado"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:transparent;
+                         color:#c41230;border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            Rechazado
+          </button>
+        </form>
+        
+      </div>
+    </div>
+
+    <form method="post" action="/proyecto/p1/eliminar"
+          onsubmit="return confirm('¿Eliminar este proyecto? Se borrarán todos sus documentos y observaciones.')">
+      <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+    </form>
+  </div>
+
+  <!-- Línea 2: nombre del proyecto -->
+  <h1 style="text-align:center; font-size:1.3rem; font-weight:700; letter-spacing:-0.02em; color:var(--text); margin-bottom:0.25rem; word-break:break-word;">
+    Proyecto de prueba
+  </h1>
+
+  <!-- Línea 3: código y beneficiario -->
+  <p style="text-align:center; color:var(--text-2); font-size:0.85rem;">
+    <span style="font-family:monospace; font-weight:500;">202-2026-99</span>
+    &nbsp;·&nbsp;
+    Juan Pérez
+  </p>
+
+</div>
+
+<!-- Banner bases del concurso -->
+
+<div style="background:#fffbeb; border:1px solid #f6ad55; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
+  <span style="font-size:0.85rem; color:#92400e;">
+    El concurso <strong>202-2026</strong> no tiene bases cargadas.
+    Los análisis no podrán verificar el cumplimiento de bases específicas.
+  </span>
+  
+  <a href="/admin/concursos/202-2026?crear=1"
+     style="margin-left:auto; font-size:0.82rem; color:#c05621; text-decoration:underline; white-space:nowrap;">
+    Configurar bases →
+  </a>
+  
+</div>
+
+
+<!-- Advertencia: documentos obligatorios (admisibilidad) faltantes según las bases -->
+
+
+<!-- Documentos obligatorios marcados como "no aplica" a ESTE proyecto en particular — colapsado
+     por defecto (jul-2026): una vez registrado el motivo no hace falta seguir viéndolo desplegado,
+     solo agrega alto a la página; el resumen de una línea alcanza para recordar que existe. -->
+
+
+<!-- Barra de navegación entre páginas del proyecto -->
+<nav class="proj-nav">
+  <a href="/proyecto/p1/resumen" class="proj-tab ">Resumen</a>
+  <a href="/proyecto/p1/documentos" class="proj-tab ">Documentos</a>
+  <a href="/proyecto/p1/items" class="proj-tab activa">Revisión por Ítems SEP</a>
+  <a href="/proyecto/p1/calculos" class="proj-tab">Chequeo de Cálculos</a>
+  <a href="/proyecto/p1/respuestas" class="proj-tab">Respuestas</a>
+</nav>
+
+
+
+
+
+
+
+<!-- ══════════ PÁGINA: REVISIÓN POR ÍTEMS SEP ══════════ -->
+
+
+<div class="card">
+  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
+    <h2 style="margin:0; border:none; padding:0;">Revisión por ítems del SEP</h2>
+    <span style="font-size:0.8rem; color:var(--text-2);">Cada ítem revisa su documento tal como se ingresa al Sistema Electrónico de Postulación</span>
+  </div>
+  
+  
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.75rem;">
+    
+    <div id="item-card-plano_ubicacion" data-item-key="plano_ubicacion"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Plano de ubicación del proyecto</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/plano_ubicacion"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-identificacion_riego" data-item-key="identificacion_riego"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Identificación del área de riego</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      <a href="https://esri.ciren.cl/portal/apps/experiencebuilder/experience/?id=77b51b8c89c3461ab7aea120be55c4b4" target="_blank" rel="noopener" style="font-size:0.76rem;">Roles y uso de suelo (IDE Minagri) ↗</a>
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/identificacion_riego"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-hidrologico" data-item-key="hidrologico"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Análisis Hidrológico</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/hidrologico"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-pruebas_bombeo" data-item-key="pruebas_bombeo"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Pruebas de Bombeo</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/pruebas_bombeo"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-diseno_hidraulico" data-item-key="diseno_hidraulico"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Diseño y cálculos hidráulicos</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/diseno_hidraulico"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-diseno_fotovoltaico" data-item-key="diseno_fotovoltaico"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Diseño Fotovoltaico</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/diseno_fotovoltaico"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-estudios_complementarios" data-item-key="estudios_complementarios"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Estudios y diseños complementarios</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/estudios_complementarios"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-especificaciones_tecnicas" data-item-key="especificaciones_tecnicas"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Especificaciones técnicas de construcción e instalación</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/especificaciones_tecnicas"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-cronograma" data-item-key="cronograma"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Cronograma</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/cronograma"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-cubicaciones" data-item-key="cubicaciones"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Cubicaciones</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/cubicaciones"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-presupuesto" data-item-key="presupuesto"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Presupuesto detallado de obras</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      <a href="https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00YzEyLWEyZjctNDhjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIsImMiOjR9" target="_blank" rel="noopener" style="font-size:0.76rem;">Precios referenciales CNR ↗</a>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/presupuesto"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-presupuesto_electrico" data-item-key="presupuesto_electrico"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Presupuesto detallado electrificación</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      <a href="https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00YzEyLWEyZjctNDhjN2E0NjFlOTBiIiwidCI6IjBmOWNhOGViLWI4MjctNGEyMS1iNmNkLTAxNmRlODNkYmRlNyIsImMiOjR9" target="_blank" rel="noopener" style="font-size:0.76rem;">Precios referenciales CNR ↗</a>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/presupuesto_electrico"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-cotizaciones_facturas" data-item-key="cotizaciones_facturas"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Cotizaciones y Facturas</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/cotizaciones_facturas"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-declaracion_iva" data-item-key="declaracion_iva"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Declaración No Contribuyente IVA</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/declaracion_iva"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-planos_tecnificacion" data-item-key="planos_tecnificacion"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Planos Proyecto tecnificación</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/planos_tecnificacion"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-planos_obras_civiles" data-item-key="planos_obras_civiles"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Planos Obras Civiles proy. de tecnificación</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/planos_obras_civiles"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-memoria_superficies" data-item-key="memoria_superficies"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Memoria de cálculo de superficies</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      <a href="https://esri.ciren.cl/portal/apps/experiencebuilder/experience/?id=77b51b8c89c3461ab7aea120be55c4b4" target="_blank" rel="noopener" style="font-size:0.76rem;">Roles y uso de suelo (IDE Minagri) ↗</a>
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/memoria_superficies"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-estudio_suelos" data-item-key="estudio_suelos"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Estudio de suelo - Informe de asimilación</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      <a href="https://esri.ciren.cl/portal/apps/experiencebuilder/experience/?id=77b51b8c89c3461ab7aea120be55c4b4" target="_blank" rel="noopener" style="font-size:0.76rem;">Roles y uso de suelo (IDE Minagri) ↗</a>
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/estudio_suelos"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+    <div id="item-card-coherencia" data-item-key="coherencia"
+         
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
+                ">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <strong style="font-size:0.86rem; flex:1;">Coherencia Global</strong>
+        
+      </div>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        0 documentos disponibles
+      </div>
+      
+      
+      
+      
+      
+      <form method="post" action="/proyecto/p1/revisar-item/coherencia"
+            >
+        <button type="submit"
+                class="btn btn-sm btn-primary"
+                style="width:100%;"
+                disabled title="Sin documentos para este ítem">
+          Revisar ítem
+        </button>
+      </form>
+      
+    </div>
+    
+
+    
+    
+  </div>
+  <style>
+    .spinner-chico {
+      display:inline-block; width:0.9rem; height:0.9rem; border-radius:50%;
+      border:2px solid var(--border); border-top-color:var(--text-2);
+      animation:girar-spinner 0.8s linear infinite;
+    }
+    @keyframes girar-spinner { to { transform:rotate(360deg); } }
+  </style>
+  <script>
+    (function() {
+      var proyectoId = "p1";
+      function estadoUrl(key) { return "/proyecto/" + proyectoId + "/item/" + key + "/estado"; }
+      function irA(url) { window.location.href = url; }
+      function poll(key) {
+        fetch(estadoUrl(key)).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.estado === "analizando") {
+            setTimeout(function() { poll(key); }, 4000);
+            return;
+          }
+          if (data.estado === "listo") {
+            var extra = data.item_invalidadas ? "&item_invalidadas=" + data.item_invalidadas : "";
+            irA("/proyecto/" + proyectoId + "/items?item_ok=" + key + extra + "#item-" + key);
+          } else if (data.estado === "error") {
+            if (data.sin_documentos) {
+              irA("/proyecto/" + proyectoId + "/items?item_sin_docs=" + key + "#item-" + key);
+            } else {
+              // Recarga simple: el servidor ya guardó el mensaje de error, el próximo render lo
+              // muestra en la tarjeta (mismo bloque que ya maneja item.error_analisis).
+              irA("/proyecto/" + proyectoId + "/items#item-" + key);
+            }
+          }
+        }).catch(function() {
+          // Error de red puntual (ej. el propio deploy en curso) — reintenta, no se rinde.
+          setTimeout(function() { poll(key); }, 4000);
+        });
+      }
+      
+      document.querySelectorAll('[data-poll="1"]').forEach(function(card) {
+        poll(card.getAttribute("data-item-key"));
+      });
+      
+    })();
+  </script>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Limpiar la revisión por ítems (no afecta los documentos) -->
+<form method="post" action="/proyecto/p1/limpiar-items" style="margin-top:0.5rem;"
+      onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta los documentos.')">
+  <button type="submit" class="btn btn-ghost btn-sm">Limpiar revisión por ítems</button>
+</form>
+
+
+<!-- ══════════ PÁGINA: RESUMEN DEL PROYECTO ══════════ -->
+
+
+<script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var w = document.getElementById('menu-estado-wrapper');
+  if (w && !w.contains(e.target)) {
+    document.getElementById('menu-estado').style.display = 'none';
+  }
+});
+
+function cambiarTipo(proyectoId, docId, select) {
+  const tipo = select.value;
+  const fd = new FormData();
+  fd.append('tipo_doc', tipo);
+  select.style.borderColor = '#ff9f0a';
+  fetch(`/proyecto/${proyectoId}/documento/${docId}/tipo`, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        select.style.borderColor = '#34c759';
+        setTimeout(() => select.style.borderColor = '', 1200);
+      } else {
+        select.style.borderColor = '#ff3b30';
+      }
+    })
+    .catch(() => { select.style.borderColor = '#ff3b30'; });
+}
+
+// Chat de ítem: enviar y mostrar la respuesta SIN recargar la página
+// (evita el salto de pantalla, que se cierre el panel y la recarga completa).
+// Si la IA modificó una observación (descartar/reclasificar/editar), sí recargamos
+// la página al final, porque esa observación puede moverse de sección o cambiar contadores.
+function enviarChat(event, tipo, key) {
+  event.preventDefault();
+  const form = event.target;
+  const textarea = form.querySelector('textarea[name="mensaje"]');
+  const boton = form.querySelector('button[type="submit"]');
+  const mensaje = (textarea.value || '').trim();
+  if (!mensaje) return false;
+
+  const cont = document.getElementById('chat-msgs-' + tipo + '-' + key);
+  const vacio = cont.querySelector('.chat-vacio');
+  if (vacio) vacio.remove();
+
+  // Burbuja del revisor (lo que acaba de escribir)
+  const burbujaRev = document.createElement('div');
+  burbujaRev.className = 'chat-bubble rev';
+  burbujaRev.textContent = mensaje;
+  cont.appendChild(burbujaRev);
+
+  // Burbuja "pensando..." mientras responde la IA
+  const pensando = document.createElement('div');
+  pensando.className = 'chat-bubble pensando';
+  pensando.textContent = 'La IA está pensando…';
+  cont.appendChild(pensando);
+
+  // Construir el envío ANTES de vaciar el textarea: FormData(form) lee el valor
+  // ACTUAL del campo en ese momento, así que si se arma después de limpiar el
+  // textarea, el mensaje viaja vacío al servidor (bug: el chat "siempre fallaba").
+  const datos = new FormData();
+  datos.append('mensaje', mensaje);
+
+  textarea.value = '';
+  textarea.disabled = true;
+  boton.disabled = true;
+  boton.textContent = 'Enviando…';
+
+  fetch(form.action, {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'fetch' },
+    body: datos
+  })
+    .then(r => r.json())
+    .then(data => {
+      pensando.remove();
+      const burbujaIA = document.createElement('div');
+      burbujaIA.className = 'chat-bubble ia';
+      burbujaIA.textContent = data.ok ? data.respuesta
+        : ('No se pudo obtener respuesta' + (data.error ? (': ' + data.error) : '.') + ' Intenta de nuevo.');
+      cont.appendChild(burbujaIA);
+
+      if (data.ok && data.modificado) {
+        const nota = document.createElement('div');
+        nota.className = 'chat-bubble ia';
+        nota.style.fontStyle = 'italic';
+        nota.style.opacity = '0.75';
+        nota.textContent = 'Se actualizó la observación. Recargando para reflejar el cambio…';
+        cont.appendChild(nota);
+        const param = tipo + '_ok=' + encodeURIComponent(key);
+        setTimeout(function() {
+          window.location.href = window.location.pathname + '?' + param + '#chat-' + tipo + '-' + key;
+        }, 1100);
+        return;   // no reactivar el formulario, la página va a recargar
+      }
+      textarea.disabled = false;
+      boton.disabled = false;
+      boton.textContent = 'Enviar';
+      textarea.focus();
+    })
+    .catch(() => {
+      pensando.remove();
+      const burbujaIA = document.createElement('div');
+      burbujaIA.className = 'chat-bubble ia';
+      burbujaIA.textContent = 'Error de conexión. Intenta de nuevo.';
+      cont.appendChild(burbujaIA);
+      textarea.disabled = false;
+      boton.disabled = false;
+      boton.textContent = 'Enviar';
+      textarea.focus();
+    });
+  return false;
+}
+
+// Auto-expandir textareas de observaciones/notas para mostrar el texto completo
+function autoExpand(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight + 2) + 'px';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('textarea.auto-expand').forEach(function(t) {
+    autoExpand(t);
+    t.addEventListener('input', function() { autoExpand(t); });
+  });
+});
+</script>
+
+  </div>
+<script>
+  // ── Modo claro/oscuro: el CÁLCULO de si toca oscuro ya corrió en <head> (para no destellar
+  // en claro), acá solo se actualiza el ícono y se maneja el toggle manual. ──
+  (function() {
+    var KEY = 'cnr_modo';
+    // Íconos SVG (no emoji, para que se vean igual en cualquier equipo)
+    var ICONO_SOL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    var ICONO_LUNA = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    // Actualizar indicador
+    function updateIndicator() {
+      var el = document.getElementById('modo-indicator');
+      if (el) el.innerHTML = document.documentElement.classList.contains('dark-mode') ? ICONO_SOL : ICONO_LUNA;
+    }
+    document.addEventListener('DOMContentLoaded', updateIndicator);
+    window.toggleModo = function() {
+      var isDark = document.documentElement.classList.toggle('dark-mode');
+      localStorage.setItem(KEY, isDark ? 'dark' : 'light');
+      updateIndicator();
+    };
+  })();
+
+  document.addEventListener('submit', function(e) {
+    if (!e.target.querySelector('input[type="file"]')) {
+      sessionStorage.setItem('cnr_scroll', window.scrollY);
+    }
+  });
+  window.addEventListener('load', function() {
+    var pos = sessionStorage.getItem('cnr_scroll');
+    if (pos !== null) { sessionStorage.removeItem('cnr_scroll'); window.scrollTo({ top: parseInt(pos), behavior: 'instant' }); }
+  });
+
+  // Registro del service worker mínimo — habilita el botón "Instalar app" del navegador.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/static/sw.js');
+    });
+  }
+</script>
+</body>
+</html>

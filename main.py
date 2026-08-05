@@ -29,7 +29,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
-                      TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion)
+                      TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -378,8 +378,88 @@ def _fmt_fecha(iso_str: str, con_hora: bool = False) -> str:
     return dt.strftime("%d/%m/%Y %H:%M" if con_hora else "%d/%m/%Y")
 
 
+def _fmt_usd(valor, decimales: int = 2) -> str:
+    """Monto en dólares con notación chilena (coma decimal), para el contador de costo."""
+    try:
+        return f"{float(valor):.{decimales}f}".replace(".", ",")
+    except (TypeError, ValueError):
+        return "0,00"
+
+
 templates.env.filters["fecha"] = _fmt_fecha
 templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
+templates.env.filters["usd"] = _fmt_usd
+
+
+# ── Contador de costo de la API por proyecto ────────────────────────────────────
+# El costo real de cada llamada ya se calculaba (`analyzer._log_uso`), pero solo se imprimía en
+# el log de Railway — que el revisor no mira. Sin esto, la única forma de saber cuánto costó un
+# proyecto era comparar el saldo de la consola de Anthropic antes y después de revisarlo, que es
+# lo que el usuario venía haciendo a mano. Ahora cada operación que llama a la IA abre un
+# acumulador (`analyzer.iniciar_costo()`), y al terminar suma el resultado acá, en el propio
+# proyecto, desglosado por paso — así el número queda a la vista en la app.
+#
+# NO se incluyen las llamadas que no son de un proyecto puntual (documentos obligatorios de un
+# concurso, consolidar aprendizaje, perfil de consultor): son de administración, corren a demanda
+# unas pocas veces y cargarlas a un proyecto cualquiera falsearía su costo.
+PASOS_COSTO = {
+    "revision":    "Revisión de ítems",
+    "chequeo":     "Chequeo de cálculos",
+    "resumen":     "Resumen del proyecto",
+    "chat":        "Debatir con la IA",
+    "consulta":    "Consulta al expediente",
+    "subsanacion": "Respuestas del consultor",
+}
+
+
+def _registrar_costo(proyecto: dict, paso: str, acc: dict, detalle: str = None) -> None:
+    """Suma al proyecto lo que costó una operación de IA. `acc` es el dict devuelto por
+    `analyzer.iniciar_costo()`, ya poblado. `detalle` (opcional) es el item_key, para poder
+    mostrar qué ítem salió más caro.
+
+    Muta `proyecto` en memoria — NO guarda; el llamador ya hace `db.save_proyecto()` con el
+    resto del resultado, así que sumarse a ese guardado evita un round-trip extra a Postgres.
+    Si la operación no registró ninguna llamada (datos reusados del Chequeo, error antes de
+    llamar a la IA), no escribe nada: un paso con 0 llamadas no debe ensuciar el desglose."""
+    if not acc or not acc.get("llamadas"):
+        return
+    usd = round(acc.get("usd", 0.0), 6)
+    costo = proyecto.setdefault("costo_api", {})
+    costo["total_usd"] = round(costo.get("total_usd", 0.0) + usd, 6)
+    costo["llamadas"]  = costo.get("llamadas", 0) + acc["llamadas"]
+    p = costo.setdefault("pasos", {}).setdefault(paso, {"usd": 0.0, "llamadas": 0})
+    p["usd"]      = round(p["usd"] + usd, 6)
+    p["llamadas"] = p["llamadas"] + acc["llamadas"]
+    if detalle:
+        items = costo.setdefault("items", {})
+        items[detalle] = round(items.get(detalle, 0.0) + usd, 6)
+    costo["actualizado"] = _ahora().isoformat()
+
+
+def _costo_para_vista(proyecto: dict) -> dict:
+    """Arma el desglose que consumen las plantillas: total, y las líneas por paso ordenadas de
+    mayor a menor (el ítem más caro primero dentro de Revisión). `None` si el proyecto todavía
+    no gastó nada — así la plantilla puede no mostrar nada en vez de un '0,00' sin sentido."""
+    costo = proyecto.get("costo_api") or {}
+    if not costo.get("llamadas"):
+        return None
+    pasos = [{"nombre": PASOS_COSTO.get(k, k), "usd": v.get("usd", 0.0),
+              "llamadas": v.get("llamadas", 0)}
+             for k, v in (costo.get("pasos") or {}).items()]
+    pasos.sort(key=lambda x: x["usd"], reverse=True)
+    por_item = [{"nombre": ITEMS_SEP.get(k, {}).get("nombre", k), "usd": v}
+                for k, v in (costo.get("items") or {}).items()]
+    por_item.sort(key=lambda x: x["usd"], reverse=True)
+    # OJO: la clave NO puede llamarse "items" — en Jinja `costo_api.items` resolvería al método
+    # `dict.items()` en vez de a la lista, y el render revienta en runtime (mismo bug ya sufrido
+    # con `grupo.items` en las observaciones, ver CLAUDE.md).
+    return {
+        "total_usd": costo.get("total_usd", 0.0),
+        "llamadas": costo.get("llamadas", 0),
+        "actualizado": costo.get("actualizado", ""),
+        "pasos": pasos,
+        "por_item": por_item,
+    }
 
 
 # ── Estados del proyecto ────────────────────────────────────────────────────────
@@ -762,6 +842,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "url_ideminagri": URL_IDEMINAGRI,
         # Selector de estado del encabezado — (nombre, color sólido para el botón/opciones)
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
+        "costo_api": _costo_para_vista(proyecto),
     })
 
 
@@ -961,6 +1042,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
     cortar. La lógica de negocio (qué se le pasa a `analizar_item()`, cómo se guardan las
     observaciones, la invalidación cruzada) es EXACTAMENTE la misma de siempre — no cambia el
     análisis, solo cuándo/cómo le llega el resultado al navegador."""
+    acc_costo = iniciar_costo()
     try:
         proyecto = db.get_proyecto(proyecto_id)
         if not proyecto:
@@ -1135,6 +1217,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
     }
     proyecto.setdefault("items_en_progreso", {}).pop(item_key, None)
     proyecto.setdefault("items_error", {}).pop(item_key, None)
+    _registrar_costo(proyecto, "revision", acc_costo, detalle=item_key)
     db.save_proyecto(proyecto)
 
 
@@ -1428,6 +1511,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         historial = proyecto["item_chats"].get(key, [])
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
+        acc_costo = iniciar_costo()
         resultado = await chatear_item(
             item_key=key, documentos=documentos_con_texto,
             observaciones_item=observaciones_grupo, historial=historial,
@@ -1448,6 +1532,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         historial.append({"rol": "revisor", "texto": mensaje, "fecha": _ahora().isoformat()})
         historial.append({"rol": "ia", "texto": respuesta, "fecha": _ahora().isoformat()})
         proyecto["item_chats"][key] = historial[-40:]   # conservar últimos 40 turnos
+        _registrar_costo(proyecto, "chat", acc_costo)
         db.save_proyecto(proyecto)
     except Exception as e:
         import traceback
@@ -1755,6 +1840,7 @@ async def pagina_calculos(request: Request, proyecto_id: str):
 
     return templates.TemplateResponse("calculos.html", {
         "request": request, "user": user, "proyecto": proyecto,
+        "costo_api": _costo_para_vista(proyecto),
         "n_sistemas": n_sistemas,
         "hid_sistemas": hid_sistemas,
         "hid_validado": hid_norm.get("validado"), "hid_fecha": hid_norm.get("fecha_validado"),
@@ -1798,12 +1884,14 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
+    acc_costo = iniciar_costo()
     datos = await _extraer_datos_hidraulicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
         "sistemas": sistemas, "validado": False,
     }
+    _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -1993,6 +2081,7 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
 
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
+    acc_costo = iniciar_costo()
     conceptos = await extraer_metodologia_consultor(docs_grupo, sistema_riego)
 
     proyecto.setdefault("verificacion_calculos", {})
@@ -2002,6 +2091,7 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
         sistemas_mc.append(None)
     sistemas_mc[idx] = {"conceptos": conceptos, "fecha": _ahora().isoformat()}
     mc_bloque["sistemas"] = sistemas_mc
+    _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe/{idx}", status_code=302)
 
@@ -2065,12 +2155,14 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_grupo = _documentos_para_verificacion("agronomico", documentos_con_texto)
+    acc_costo = iniciar_costo()
     datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = {
         "sistemas": sistemas, "validado": False,
     }
+    _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -2134,10 +2226,12 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_grupo = _documentos_para_verificacion("energetico", documentos_con_texto)
+    acc_costo = iniciar_costo()
     datos = await _extraer_datos_fv(docs_grupo)
     datos["validado"] = False
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["energetico"] = datos
+    _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -2585,6 +2679,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     concurso = db.get_concurso(concurso_id)
     bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
+    acc_costo = iniciar_costo()
     try:
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
         datos = await resumir_proyecto(
@@ -2606,6 +2701,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
             resumen[k] = datos[k]
             completados += 1
     proyecto["resumen"] = resumen
+    _registrar_costo(proyecto, "resumen", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/resumen?auto_ok={completados}",
@@ -2637,6 +2733,7 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
         raise HTTPException(status_code=404)
 
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    acc_costo = iniciar_costo()
     respuesta = await consultar_expediente(pregunta, documentos_con_texto)
 
     consulta = {
@@ -2649,6 +2746,7 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
     if "consultas" not in proyecto:
         proyecto["consultas"] = []
     proyecto["consultas"].insert(0, consulta)   # más reciente primero
+    _registrar_costo(proyecto, "consulta", acc_costo)
     db.save_proyecto(proyecto)
 
     return templates.TemplateResponse("consultar.html", {
@@ -2877,6 +2975,7 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
 
     return templates.TemplateResponse("respuestas.html", {
         "request": request, "user": user, "proyecto": proyecto,
+        "costo_api": _costo_para_vista(proyecto),
         "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
         "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
         "todas_resueltas": todas_resueltas,
@@ -2966,6 +3065,7 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         n_obs_item = sum(1 for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("item", "") == item_obs)
 
+        acc_costo = iniciar_costo()
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=obs.get("texto", ""),
             referencia=obs.get("referencia_normativa", ""),
@@ -2974,6 +3074,16 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
             bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
             n_obs_item=n_obs_item,
         )
+
+        # Esta ruta no modifica el proyecto (solo devuelve la recomendación por AJAX), pero el
+        # costo sí hay que persistirlo. Se relee FRESCO antes de guardar porque la evaluación
+        # tarda decenas de segundos y en ese lapso un análisis en segundo plano pudo haber
+        # escrito sus observaciones — guardar la copia vieja las borraría.
+        proyecto_fresco = db.get_proyecto(proyecto_id)
+        if proyecto_fresco:
+            _registrar_costo(proyecto_fresco, "subsanacion", acc_costo)
+            db.save_proyecto(proyecto_fresco)
+
         return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
                              "fundamento": resultado.get("fundamento", "")})
     except Exception as e:
