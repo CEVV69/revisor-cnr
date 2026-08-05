@@ -1396,6 +1396,8 @@ async def estado_lote(request: Request, proyecto_id: str):
     return JSONResponse({
         "activo": True,
         "actual": ITEMS_SEP[actual]["nombre"] if actual in ITEMS_SEP else None,
+        "actual_key": actual,
+        "completados_keys": lote.get("completados") or [],
         "hechos": len(lote.get("completados") or []),
         "total": lote.get("total", 0),
     })

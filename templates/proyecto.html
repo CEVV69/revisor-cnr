@@ -650,8 +650,8 @@ function actualizarEtiqueta(input) {
     {% for item in items_info %}
     <div id="item-card-{{ item.key }}" data-item-key="{{ item.key }}"
          {% if item.en_progreso %}data-poll="1"{% endif %}
-         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;
-                {% if item.revisado %}background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3);{% endif %}">
+         class="item-card-sep{% if item.revisado %} item-card-revisado{% endif %}"
+         style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <strong style="font-size:0.86rem; flex:1;">{{ item.nombre }}</strong>
         {% if item.revisado %}
@@ -685,6 +685,7 @@ function actualizarEtiqueta(input) {
         </ul>
       </details>
       {% endif %}
+      <div id="item-accion-{{ item.key }}">
       {% if item.en_progreso %}
       <div class="item-analizando" style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; color:var(--text-2); padding:0.4rem 0;">
         <span class="spinner-chico" aria-hidden="true"></span> Analizando…
@@ -703,13 +704,17 @@ function actualizarEtiqueta(input) {
         </button>
       </form>
       {% endif %}
+      </div>
     </div>
     {% endfor %}
 
-    {# Revisión en tanda — va DENTRO de la grilla, ocupando la celda que sigue al último ítem,
-       para no agregar altura a la página. Es opcional: los botones por ítem siguen intactos. #}
+    {# Revisión en tanda — va DENTRO de la grilla, en la última columna de la fila donde caiga
+       (ver `.item-lote-cell` en <style>: `grid-column:-1` la empuja a la derecha sin importar
+       cuántas columnas tenga la grilla en cada ancho de pantalla — con la grilla actual queda en
+       la misma fila que Coherencia Global, la última tarjeta). Es opcional: los botones por ítem
+       siguen intactos. #}
     {% if lote or lote_pendientes %}
-    <div style="display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; gap:0.4rem;">
+    <div class="item-lote-cell" style="display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; gap:0.4rem;">
       {% if lote %}
       <div id="lote-estado" style="font-size:0.78rem; color:var(--text-2); text-align:right;">Revisando {{ lote.completados|length }}/{{ lote.total }}…</div>
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-todos/detener">
@@ -719,7 +724,7 @@ function actualizarEtiqueta(input) {
       {% else %}
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-todos"
             onsubmit="return confirm('¿Revisar los {{ lote_pendientes }} ítems que tienen documentos y aún no están revisados?\n\nSe revisan uno tras otro y puede tardar. Los ya revisados no se tocan.')">
-        <button type="submit" class="btn btn-primary btn-sm" style="width:100%;"
+        <button type="submit" class="btn btn-outline btn-sm" style="width:100%;"
                 title="Revisa uno tras otro los ítems con documentos que aún no están revisados">
           Revisar los {{ lote_pendientes }} ítems restantes
         </button>
@@ -735,6 +740,8 @@ function actualizarEtiqueta(input) {
       animation:girar-spinner 0.8s linear infinite;
     }
     @keyframes girar-spinner { to { transform:rotate(360deg); } }
+    .item-card-revisado { background:rgba(52,199,89,0.06); border-color:rgba(52,199,89,0.3); }
+    .item-lote-cell { grid-column:-1; }
   </style>
   <script>
     (function() {
@@ -767,7 +774,15 @@ function actualizarEtiqueta(input) {
       {% if lote %}
       // Durante una revisión en tanda manda UN solo poller, el del lote: si cada tarjeta hiciera
       // el suyo, al terminar cada ítem navegaría con ?item_ok=... y cortaría la tanda a la vista
-      // del revisor. Acá solo se actualiza el contador, y al cerrarse el lote se recarga una vez.
+      // del revisor. Acá se actualiza el contador Y, a mano, el estado visual de cada tarjeta
+      // (spinner en la que se está analizando, marca de revisado en las ya terminadas) — antes
+      // solo se actualizaba el texto del contador, y la tarjeta que estaba "analizando" al cargar
+      // la página se quedaba con la flecha girando sin avanzar hasta que el lote entero cerraba.
+      var SPINNER_HTML = '<div class="item-analizando" style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; color:var(--text-2); padding:0.4rem 0;">'
+                        + '<span class="spinner-chico" aria-hidden="true"></span> Analizando…</div>';
+      var HECHO_HTML = '<div style="font-size:0.82rem; color:var(--green-dk); padding:0.4rem 0;">Revisado — el detalle se actualiza al terminar la tanda</div>';
+      var loteActualPrevio = null;
+      var loteHechos = {};
       (function pollLote() {
         fetch("/proyecto/" + proyectoId + "/lote/estado")
           .then(function(r) { return r.json(); })
@@ -777,6 +792,19 @@ function actualizarEtiqueta(input) {
             if (el) {
               el.textContent = "Revisando " + d.hechos + "/" + d.total
                              + (d.actual ? ": " + d.actual : "") + "…";
+            }
+            (d.completados_keys || []).forEach(function(key) {
+              if (loteHechos[key]) return;
+              loteHechos[key] = true;
+              var accion = document.getElementById("item-accion-" + key);
+              if (accion) accion.innerHTML = HECHO_HTML;
+              var card = document.getElementById("item-card-" + key);
+              if (card) card.classList.add("item-card-revisado");
+            });
+            if (d.actual_key && d.actual_key !== loteActualPrevio) {
+              loteActualPrevio = d.actual_key;
+              var accionActual = document.getElementById("item-accion-" + d.actual_key);
+              if (accionActual) accionActual.innerHTML = SPINNER_HTML;
             }
             setTimeout(pollLote, 4000);
           })

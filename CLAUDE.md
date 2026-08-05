@@ -1085,6 +1085,69 @@ y lanza `_revisar_lote_fondo()`, que recorre los ítems **uno después del otro*
   pase lo que pase (`finally`), y un lote huérfano se limpia al arrancar. Más el render de la
   página en sus 4 estados (sin lote / corriendo / todo revisado / sin documentos) con `node
   --check` del JS en ambas ramas.
+**Ajustes de UI tras la primera prueba real (ago-2026):** el usuario usó el botón por primera vez
+y reportó dos cosas.
+1. **Color del botón** — "Revisar los N ítems restantes" tenía el mismo `btn-primary` (azul
+   sólido) que el botón individual "Revisar ítem" de cada tarjeta, y pidió un tono distinto del
+   mismo color para diferenciarlo de un vistazo. Pasó a `btn-outline` (mismo azul, texto/borde
+   sobre fondo transparente) — clase ya existente en la app, sin CSS nuevo. También pidió que la
+   celda quedara alineada con Coherencia Global (el último ítem) y a la derecha — se agregó
+   `.item-lote-cell { grid-column:-1; }`, que empuja la celda a la ÚLTIMA columna de la fila en la
+   que caiga (sin importar cuántas columnas tenga la grilla en cada ancho de pantalla, gracias a
+   `auto-fill`) en vez de depender de que el conteo de ítems cuadre justo para caer al lado de
+   Coherencia — más robusto que contar ítems a mano.
+2. **La tanda no avanzaba visualmente** — el ítem que estaba "Analizando…" al cargar la página se
+   quedaba con la flecha girando durante TODA la tanda, sin reflejar que el lote iba avanzando de
+   ítem en ítem (solo el contador de texto "Revisando X/Y" se actualizaba). Causa: `pollLote()`
+   solo leía `hechos`/`total`/`actual` (el NOMBRE del ítem) de `GET .../lote/estado` — no tenía
+   forma de saber CUÁL tarjeta actualizar en el DOM. Arreglado en dos puntos:
+   - **Backend** (`estado_lote()`): la respuesta ganó `actual_key` (item_key crudo) y
+     `completados_keys` (lista de item_key ya terminados), además de lo que ya devolvía.
+   - **Frontend**: cada tarjeta ganó un contenedor `<div id="item-accion-{{ item.key }}">`
+     envolviendo su bloque de spinner/formulario (antes ese HTML estaba suelto dentro de la
+     tarjeta, sin id propio) — así `pollLote()` puede reemplazar SOLO esa porción sin tocar el
+     resto de la tarjeta. En cada vuelta del poll: por cada key en `completados_keys` que no se
+     había visto antes, reemplaza el contenido de su slot por un aviso "Revisado — el detalle se
+     actualiza al terminar la tanda" (no hay conteo real de obs/notas disponible sin traer el
+     proyecto completo — mismo criterio de "liviano" que ya tenía `estado_item()` — así que se
+     posterga el número real a la recarga final) y le agrega la clase `item-card-revisado`
+     (fondo verde, la misma que ya usa `item.revisado` — se pasó de estilo inline a esta clase
+     para poder reutilizarla desde JS); si `actual_key` cambió respecto de la vuelta anterior,
+     reemplaza el slot de esa tarjeta por el spinner. El resto de la tarjeta (nombre, badge,
+     documentos, enlaces) no se toca — solo el slot de acción.
+   - Verificado con Playwright: además del HTML (slots presentes, botón outline + `grid-column:-1`
+     en la fila de Coherencia), se simuló exactamente lo que hace `pollLote()` sobre una página
+     real — la tarjeta que "termina" pierde el spinner, gana el aviso y el fondo verde, y la
+     siguiente tarjeta gana el spinner — confirmando visualmente (captura de pantalla) que ahora
+     sí avanza ítem por ítem en vez de quedar congelada hasta el final.
+
+**Bug de precio real encontrado — Sonnet 5 seguía cobrándose al precio de LISTA, no al
+promocional vigente (ago-2026):** apenas desplegado el contador de costo (punto 7 de la auditoría
+de arriba), el usuario lo probó en un proyecto real: 27 llamadas a la API, el contador marcó
+**USD 3,71**, pero la medición de siempre (saldo de la consola de Anthropic antes/después) dio
+**USD 2,60** — una diferencia de ~40%, mucho más que cualquier redondeo esperable.
+- **Causa:** `PRECIOS_USD_POR_MTOK["claude-sonnet-5"]` tenía el precio de LISTA (USD 3/15 por
+  MTok in/out) desde que se escribió, en jul-2026 — pero Sonnet 5 tiene un precio PROMOCIONAL de
+  lanzamiento (USD 2/10) vigente **hasta el 31-08-2026**, que es el que efectivamente cobra
+  Anthropic hoy. El contador nunca lo tuvo en cuenta, así que sobreestimaba el costo real de la
+  revisión en ~40% desde que existe (incluido el USD 4,48 que motivó todo el trabajo de esta
+  sesión — ese número, igual que el 3,71 de esta prueba, también estaba inflado por este mismo
+  bug).
+- **Fix:** `_precio_sonnet5()` (analyzer.py) calcula el precio vigente según la fecha —
+  `datetime.date.today() <= 31-08-2026` → USD 2/10 (con caché a 2×/0,1× de ESE valor: USD 4/0,20);
+  después de esa fecha → USD 3/15 de lista, automáticamente, sin volver a tocar el código.
+  `_log_uso` llama a esta función para Sonnet 5 en vez de leer un valor fijo del diccionario;
+  Haiku no se tocó (no tiene precio promocional).
+- **Verificado:** con el precio corregido, el mismo proyecto (27 llamadas) recalcula a
+  ≈ USD 2,47 — mucho más cerca de la medición real del usuario (USD 2,60; la diferencia residual
+  cae dentro de lo esperable — precios de lista aplicados al `usage` reportado, no una factura
+  exacta, ver la entrada del contador más arriba). Prueba adicional simulando la fecha del sistema
+  después del 31-08-2026: confirma que vuelve solo al precio de lista sin cambios de código.
+- **Ya estaba desplegado con el bug** — todos los números de costo que el contador mostró antes de
+  este fix (incluida la propia investigación del USD 4,48 de esta sesión) estaban ~40% inflados.
+  No se puede corregir retroactivamente (no se guardó el desglose de tokens de esas corridas, solo
+  el USD ya calculado) — el número visible en cada proyecto ya revisado queda como estaba, pero
+  las revisiones nuevas desde este fix son correctas.
 
 **Tope de caracteres del Resumen aplicado en código, no solo en el prompt (ago-2026):** el campo
 "Características obras" declara `maxlen: 300`, pero eso solo viajaba como instrucción en el
