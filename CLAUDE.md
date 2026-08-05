@@ -22,14 +22,35 @@ este CLAUDE.md y súbelas, para que el otro entorno las lea.
 
 ---
 
-## Estado al cierre de esta sesión (jul-2026) — leer antes de seguir
+## Estado al cierre de esta sesión (ago-2026) — leer antes de seguir
 
-El usuario ya está usando la app con el concurso 202-2026 **con proyectos reales** — va en el
-**segundo proyecto real** revisado. Todos los fixes de la auditoría de rendimiento y las
-funcionalidades nuevas de esta sesión (ver secciones dedicadas más abajo) ya están en producción
-y en uso real, no solo probados con mocks. No hay ningún bug abierto conocido a esta fecha —
-si retomas y el usuario reporta algo raro, lo más probable es que sea un caso nuevo, no una
-regresión de lo ya resuelto.
+El usuario sigue usando la app con el concurso 202-2026 con proyectos reales. No hay ningún bug
+abierto conocido a esta fecha — si retomas y el usuario reporta algo raro, lo más probable es
+que sea un caso nuevo, no una regresión de lo ya resuelto.
+
+**Lo último de esta sesión (ago-2026):** a partir de dos Excel reales de un consultor que el
+usuario compartió (memoria de cálculo de Goteo/invernadero con SCALL + balance hídrico), se
+reforzó el checklist de Coherencia Global (consistencia de cultivo entre documentos, N° de
+sectores justificado, invernadero vs. aire libre identificado — ver "Checklist de Coherencia
+Global" más abajo) y se construyó la **"Memoria de cálculo explicada"** (`/proyecto/{id}/
+calculos/informe/{idx}`, botón junto a "Exportar para el Diseñador de Riego" en la tarjeta de
+cada sistema del Chequeo de Cálculos): un informe paso a paso, sin recalcular ni extraer nada
+nuevo (reutiliza los mismos datos ya guardados), con un botón opcional "Comparar con la
+metodología del consultor (usa IA)" que arma una vista en 2 columnas (cómo lo calculó el
+consultor, citado textual del expediente — vs. cómo lo calcula la app) para los 14 conceptos de
+`CONCEPTOS_METODOLOGIA` — ver la sección dedicada "Memoria de cálculo explicada" más abajo para
+el detalle completo (diseño, costo ~US$0,15–0,25/sistema, alcance acotado, verificación).
+**Pasada de minimalismo (ago-2026):** a pedido explícito del usuario, se quitó el texto
+explicativo que acompañaba a los botones "Ver memoria de cálculo explicada", "Exportar para el
+Diseñador de Riego" y "Comparar con la metodología del consultor" (los botones ya son
+autoexplicativos por su etiqueta) y los dos primeros se pusieron en la misma fila — ver el
+punto 8 de "Instrucciones del usuario" al final de este documento: **por defecto, para toda UI
+nueva, minimizar texto de acompañamiento y preferir botones autoexplicativos** (aclaraciones
+indispensables van en el `title`/tooltip, no como texto siempre visible).
+
+**Nota:** el resto de esta sección ("Checklists de los 18 ítems del SEP reescritos...") es el
+cierre de una sesión bastante anterior (jul-2026) — se mantiene como historial/referencia, no
+como el estado más reciente.
 
 **Checklists de los 18 ítems del SEP reescritos con normativa real (jul-2026):** el pendiente de
 la sesión anterior (revisar los `checklist` fijos de `ITEMS_SEP`) se cerró. Proceso: 4 lecturas
