@@ -704,6 +704,28 @@ function actualizarEtiqueta(input) {
       {% endif %}
     </div>
     {% endfor %}
+
+    {# Revisión en tanda — va DENTRO de la grilla, ocupando la celda que sigue al último ítem,
+       para no agregar altura a la página. Es opcional: los botones por ítem siguen intactos. #}
+    {% if lote or lote_pendientes %}
+    <div style="display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; gap:0.4rem;">
+      {% if lote %}
+      <div id="lote-estado" style="font-size:0.78rem; color:var(--text-2); text-align:right;">Revisando {{ lote.completados|length }}/{{ lote.total }}…</div>
+      <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-todos/detener">
+        <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;"
+                title="El ítem en curso termina y se guarda; no se empieza ninguno más">Detener</button>
+      </form>
+      {% else %}
+      <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-todos"
+            onsubmit="return confirm('¿Revisar los {{ lote_pendientes }} ítems que tienen documentos y aún no están revisados?\n\nSe revisan uno tras otro y puede tardar. Los ya revisados no se tocan.')">
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%;"
+                title="Revisa uno tras otro los ítems con documentos que aún no están revisados">
+          Revisar los {{ lote_pendientes }} ítems restantes
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
   <style>
     .spinner-chico {
@@ -741,9 +763,29 @@ function actualizarEtiqueta(input) {
           setTimeout(function() { poll(key); }, 4000);
         });
       }
+      {% if lote %}
+      // Durante una revisión en tanda manda UN solo poller, el del lote: si cada tarjeta hiciera
+      // el suyo, al terminar cada ítem navegaría con ?item_ok=... y cortaría la tanda a la vista
+      // del revisor. Acá solo se actualiza el contador, y al cerrarse el lote se recarga una vez.
+      (function pollLote() {
+        fetch("/proyecto/" + proyectoId + "/lote/estado")
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.activo) { window.location.reload(); return; }
+            var el = document.getElementById("lote-estado");
+            if (el) {
+              el.textContent = "Revisando " + d.hechos + "/" + d.total
+                             + (d.actual ? ": " + d.actual : "") + "…";
+            }
+            setTimeout(pollLote, 4000);
+          })
+          .catch(function() { setTimeout(pollLote, 4000); });
+      })();
+      {% else %}
       document.querySelectorAll('[data-poll="1"]').forEach(function(card) {
         poll(card.getAttribute("data-item-key"));
       });
+      {% endif %}
     })();
   </script>
 </div>

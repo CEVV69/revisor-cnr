@@ -761,7 +761,9 @@ RESUMEN_SECCIONES = [
     {"titulo": "Características de obras", "campos": [
         {"key": "caracteristicas_obras_resumen", "label": "Características obras", "tipo": "textarea",
          "maxlen": 300, "resumen_ia": "resumen breve, en prosa, explicando de qué se trata el "
-         "proyecto — qué construye/instala y para qué (no una lista de datos sueltos)"},
+         "proyecto — qué construye/instala y para qué (no una lista de datos sueltos). "
+         "APUNTA A 250 caracteres para no pasarte del tope: 2 o 3 frases cortas, sin repetir "
+         "datos que ya van en otros campos (volumen, KWp, N° de placas, caudal)"},
         {"key": "volumen_embalsado",   "label": "Volumen embalsado (m³)", "tipo": "text"},
         {"key": "fv_kwp",              "label": "FV (KWp)",               "tipo": "text"},
         {"key": "n_placas",            "label": "N° placas",              "tipo": "text"},
@@ -776,6 +778,41 @@ RESUMEN_CAMPOS_SINO = {c["key"] for sec in RESUMEN_SECCIONES for c in sec["campo
                        if c["tipo"] == "sino"}
 # Todas las claves válidas del resumen
 RESUMEN_KEYS = [c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]]
+# Tope de caracteres por campo, para los que declaran `maxlen` (hoy solo "Características obras")
+RESUMEN_MAXLEN = {c["key"]: c["maxlen"] for sec in RESUMEN_SECCIONES for c in sec["campos"]
+                  if c.get("maxlen")}
+
+
+def _limitar_texto(texto: str, maxlen: int) -> str:
+    """Recorta `texto` a `maxlen` caracteres COMO MÁXIMO, cortando en un límite natural para que
+    no quede una frase a medias.
+
+    Hace falta porque pedirle el largo a la IA en el prompt NO alcanza: los modelos no cuentan
+    caracteres de forma confiable y devolvían textos más largos que el tope, que el revisor tenía
+    que recortar a mano (el `maxlength` del `<textarea>` tampoco ayuda — solo limita lo que se
+    ESCRIBE a mano, no lo que se carga por código). El tope se aplica acá, en el único punto donde
+    se normalizan los valores devueltos por la IA, así vale para cualquier campo que declare
+    `maxlen` en `RESUMEN_SECCIONES`, no solo el actual.
+
+    Orden de preferencia del corte: (1) el último final de oración que quepa, para que el texto
+    lea completo; (2) si no hay ninguno en la segunda mitad, la última palabra entera + "…". El
+    resultado NUNCA supera `maxlen`."""
+    texto = (texto or "").strip()
+    if len(texto) <= maxlen:
+        return texto
+
+    recorte = texto[:maxlen]
+    corte_oracion = max(recorte.rfind(". "), recorte.rfind("; "),
+                        recorte.rfind(".\n"), recorte.rfind("\n"))
+    if recorte.endswith("."):
+        corte_oracion = max(corte_oracion, len(recorte) - 1)
+    if corte_oracion >= maxlen // 2:                 # hay una oración completa razonable
+        return recorte[:corte_oracion + 1].strip()
+
+    corte_palabra = recorte[:maxlen - 1].rfind(" ")   # -1: deja lugar para el "…"
+    if corte_palabra > 0:
+        return recorte[:corte_palabra].rstrip(" ,;:") + "…"
+    return recorte[:maxlen - 1] + "…"
 
 
 # Documentos que alimentan cada verificación numérica determinística (independiente del ítem
@@ -2803,6 +2840,8 @@ CLAVES A COMPLETAR:
 {campos_lista}
 
 Para los campos Sí/No responde exactamente "Sí" o "No" (o "" si no consta).
+Los campos que indican un máximo de caracteres son un LÍMITE DURO: cuenta los caracteres antes de
+responder y quédate por debajo. Si te pasas, el texto se corta y se pierde el final.
 ⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles.
 
 EXPEDIENTE:
@@ -2839,7 +2878,7 @@ Responde SOLO el JSON, sin texto adicional."""
         print(f"⚠️ resumir_proyecto: sin datos — stop_reason={response.stop_reason}, "
               f"preview={content[:200]!r}")
 
-    # Quedarse solo con claves válidas y normalizar Sí/No
+    # Quedarse solo con claves válidas, normalizar Sí/No y APLICAR el tope de longitud
     limpio = {}
     for k in RESUMEN_KEYS:
         v = datos.get(k, "")
@@ -2847,6 +2886,9 @@ Responde SOLO el JSON, sin texto adicional."""
         if k in RESUMEN_CAMPOS_SINO:
             vl = v.lower()
             v = "Sí" if vl in ("sí", "si", "true", "1") else ("No" if vl in ("no", "false", "0") else "")
+        tope = RESUMEN_MAXLEN.get(k)
+        if tope:
+            v = _limitar_texto(v, tope)
         limpio[k] = v
     return limpio
 

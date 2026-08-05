@@ -457,21 +457,30 @@ def _limpiar_analisis_huerfanos():
     al arrancar es seguro y suficiente: cualquier entrada de `items_en_progreso` que exista en
     este momento es, por definición, huérfana (ningún proceso vivo la está trabajando todavía —
     recién estamos arrancando)."""
-    ligeros = db.get_proyectos_ligero(["id", "items_en_progreso"])
-    afectados = [p for p in ligeros if p.get("items_en_progreso")]
+    ligeros = db.get_proyectos_ligero(["id", "items_en_progreso", "revision_lote"])
+    afectados = [p for p in ligeros
+                 if p.get("items_en_progreso") or (p.get("revision_lote") or {}).get("activo")]
     if not afectados:
         return
     for p_ligero in afectados:
         proyecto = db.get_proyecto(p_ligero["id"])
-        if not proyecto or not proyecto.get("items_en_progreso"):
+        if not proyecto:
             continue
         proyecto.setdefault("items_error", {})
-        for item_key in list(proyecto["items_en_progreso"].keys()):
+        for item_key in list((proyecto.get("items_en_progreso") or {}).keys()):
             proyecto["items_error"][item_key] = {
                 "mensaje": "El análisis se interrumpió (reinicio del servidor) — puedes volver a intentarlo.",
                 "fecha": _ahora().isoformat(),
             }
         proyecto["items_en_progreso"] = {}
+        # Una revisión en tanda del proceso anterior tampoco puede continuar: la tarea que la
+        # encadenaba murió con ese proceso. Se cierra para que el botón vuelva a estar disponible
+        # (los ítems que alcanzó a terminar quedan revisados; los que faltan se relanzan con otro
+        # clic, que los tomará como pendientes por no estar en `items_revisados`).
+        if (proyecto.get("revision_lote") or {}).get("activo"):
+            proyecto["revision_lote"]["activo"] = False
+            proyecto["revision_lote"]["actual"] = None
+            proyecto["revision_lote"]["interrumpido"] = True
         db.save_proyecto(proyecto)
     print(f"🧹 Limpiados {len(afectados)} proyecto(s) con análisis huérfanos tras el reinicio")
 
@@ -728,6 +737,12 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "concurso": concurso,
         "concurso_id": concurso_id,
         "items_info": items_info,
+        # Revisión en tanda: `lote` solo si está corriendo ahora; `lote_pendientes` es cuántos
+        # ítems tomaría el botón si se apretara (con documentos y todavía sin revisar) — sirve
+        # para decidir si mostrarlo y para avisar el N° antes de gastar.
+        "lote": (proyecto.get("revision_lote") or {}) if (proyecto.get("revision_lote") or {}).get("activo") else None,
+        "lote_pendientes": len([k for k in _items_con_documentos(proyecto)
+                                if k not in items_revisados and k not in items_en_progreso]),
         "n_faltan_resubir": n_faltan_resubir,
         "faltan_obligatorios": faltan_obligatorios,
         "obligatorios_exceptuados": obligatorios_exceptuados,
@@ -1149,6 +1164,155 @@ async def estado_item(request: Request, proyecto_id: str, item_key: str):
     revisado = (proyecto.get("items_revisados") or {}).get(item_key)
     n_invalidadas = revisado.get("ultima_invalidadas", 0) if revisado else 0
     return JSONResponse({"estado": "listo", "item_invalidadas": n_invalidadas})
+
+
+# ─── Revisión de todos los ítems en tanda (opcional, adicional a los botones por ítem) ──────
+
+def _items_con_documentos(proyecto: dict) -> list:
+    """Ítems que tienen al menos un documento disponible para analizar, en el orden del SEP.
+    Misma cuenta que muestra cada tarjeta en la página ("N documentos disponibles")."""
+    docs = proyecto.get("documentos", [])
+    pendientes = []
+    for item_key in ITEMS_ORDEN:
+        if item_key == "coherencia":
+            n_docs = len([d for d in docs if _doc_disponible_analisis(d, permite_vision=False)])
+        else:
+            tipos = set(ITEMS_SEP[item_key]["tipo_docs"])
+            n_docs = len([d for d in docs
+                          if d.get("tipo_doc") in tipos and _doc_disponible_analisis(d)])
+        if n_docs:
+            pendientes.append(item_key)
+    return pendientes
+
+
+async def _revisar_lote_fondo(proyecto_id: str):
+    """Recorre los ítems del lote UNO DESPUÉS DEL OTRO (nunca en paralelo) y corre para cada uno
+    exactamente el mismo análisis que el botón individual.
+
+    El orden secuencial no es un detalle de implementación: la **invalidación cruzada** compara
+    el ítem recién revisado contra las observaciones PENDIENTES de los otros ítems, así que solo
+    funciona si los anteriores ya terminaron y dejaron sus observaciones guardadas. En paralelo,
+    cada ítem no vería nada de los demás y el auto-descarte quedaría muerto.
+
+    Vive en el servidor (no en el navegador) a propósito: un lote completo puede tardar bastante,
+    y así el revisor puede cerrar la pestaña o irse sin cortarlo."""
+    try:
+        while True:
+            proyecto = db.get_proyecto(proyecto_id)
+            lote = (proyecto or {}).get("revision_lote") or {}
+            pendientes = lote.get("pendientes") or []
+            if not proyecto or not lote.get("activo") or not pendientes:
+                break
+
+            item_key = pendientes[0]
+            lote["pendientes"] = pendientes[1:]
+            lote["actual"] = item_key
+            proyecto["revision_lote"] = lote
+            proyecto.setdefault("items_en_progreso", {})[item_key] = {"inicio": _ahora().isoformat()}
+            proyecto.setdefault("items_error", {}).pop(item_key, None)
+            db.save_proyecto(proyecto)
+
+            # `_analizar_item_fondo` ya trae su propio try/except y cierra el ítem con su error
+            # en `items_error`; un ítem que falle no debe cortar el resto del lote.
+            await _analizar_item_fondo(proyecto_id, item_key)
+
+            proyecto = db.get_proyecto(proyecto_id)
+            if not proyecto:
+                break
+            lote = proyecto.get("revision_lote") or {}
+            lote.setdefault("completados", []).append(item_key)
+            lote["actual"] = None
+            proyecto["revision_lote"] = lote
+            db.save_proyecto(proyecto)
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en _revisar_lote_fondo {proyecto_id}: {e}")
+        print(traceback.format_exc())
+    finally:
+        # Cierre del lote pase lo que pase — si no, el botón quedaría deshabilitado para siempre.
+        proyecto = db.get_proyecto(proyecto_id)
+        if proyecto and proyecto.get("revision_lote"):
+            proyecto["revision_lote"]["activo"] = False
+            proyecto["revision_lote"]["actual"] = None
+            proyecto["revision_lote"]["fin"] = _ahora().isoformat()
+            db.save_proyecto(proyecto)
+
+
+@app.post("/proyecto/{proyecto_id}/revisar-todos")
+async def revisar_todos_items(request: Request, proyecto_id: str):
+    """Revisa en tanda todos los ítems que tengan documentos y NO estén revisados todavía.
+
+    Deja fuera los ya revisados a propósito: `revisar_item()` borra las observaciones de la IA del
+    ítem antes de insertar las nuevas, así que re-analizar en masa borraría observaciones que el
+    revisor quizá ya aprobó o editó. Para rehacer un ítem puntual está su botón individual, y para
+    rehacer todo está "Limpiar revisión"."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    if (proyecto.get("revision_lote") or {}).get("activo"):
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+
+    revisados = proyecto.get("items_revisados", {})
+    en_progreso = proyecto.get("items_en_progreso", {})
+    pendientes = [k for k in _items_con_documentos(proyecto)
+                  if k not in revisados and k not in en_progreso]
+    if not pendientes:
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?lote_vacio=1", status_code=302)
+
+    proyecto["revision_lote"] = {
+        "activo": True, "pendientes": pendientes, "actual": None, "completados": [],
+        "total": len(pendientes), "inicio": _ahora().isoformat(), "por": user["nombre"],
+    }
+    db.save_proyecto(proyecto)
+
+    tarea = asyncio.create_task(_revisar_lote_fondo(proyecto_id))
+    _tareas_fondo.add(tarea)
+    tarea.add_done_callback(_tareas_fondo.discard)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/revisar-todos/detener")
+async def detener_lote(request: Request, proyecto_id: str):
+    """Corta el lote: el ítem que esté analizándose en este momento igual termina y se guarda
+    (no se pierde lo pagado), pero no se empieza ninguno más."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    if proyecto.get("revision_lote"):
+        proyecto["revision_lote"]["pendientes"] = []
+        proyecto["revision_lote"]["detenido_por"] = user["nombre"]
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+
+
+@app.get("/proyecto/{proyecto_id}/lote/estado")
+async def estado_lote(request: Request, proyecto_id: str):
+    """*Polling* del lote — mismo patrón liviano que `estado_item()`: solo lee el estado guardado.
+    Mientras el lote corre, la página consulta esto en vez de que cada tarjeta haga su propio
+    poll (que navegaría al terminar cada ítem e interrumpiría la tanda)."""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401)
+    proyecto = db.get_proyecto_campos(proyecto_id, ["revision_lote"])
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    lote = proyecto.get("revision_lote") or {}
+    if not lote.get("activo"):
+        return JSONResponse({"activo": False})
+    actual = lote.get("actual")
+    return JSONResponse({
+        "activo": True,
+        "actual": ITEMS_SEP[actual]["nombre"] if actual in ITEMS_SEP else None,
+        "hechos": len(lote.get("completados") or []),
+        "total": lote.get("total", 0),
+    })
 
 
 @app.post("/proyecto/{proyecto_id}/item/{item_key}/observacion/agregar-manual")

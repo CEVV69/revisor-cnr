@@ -989,6 +989,56 @@ el resto en vez de anotarlo aparte en el SEP — así se beneficia del mismo seg
   categoría/severidad, en `bloque_observaciones()` y `bloque_notas()` — para distinguir de un
   vistazo cuáles observaciones vinieron de la IA y cuáles se escribieron a mano.
 
+**Revisar todos los ítems en tanda (implementado, ago-2026):** botón OPCIONAL, adicional a los
+botones por ítem de siempre (que no se tocaron). `POST /proyecto/{id}/revisar-todos` arma un lote
+y lanza `_revisar_lote_fondo()`, que recorre los ítems **uno después del otro**.
+- **El orden secuencial no es un detalle de implementación**, es un requisito: la invalidación
+  cruzada compara el ítem recién revisado contra las observaciones PENDIENTES de los OTROS ítems,
+  así que solo funciona si los anteriores ya terminaron y guardaron las suyas. En paralelo, cada
+  ítem no vería nada de los demás y el auto-descarte quedaría muerto.
+- **Qué ítems toma:** los que tienen al menos un documento disponible (`_items_con_documentos()`,
+  misma cuenta que muestra cada tarjeta) Y **todavía no están revisados**. Lo segundo es
+  deliberado: `revisar_item()` borra las observaciones de la IA del ítem antes de insertar las
+  nuevas, así que un botón masivo que re-analizara lo ya revisado podría borrar observaciones que
+  el revisor ya aprobó o editó. Para rehacer un ítem puntual está su botón individual; para
+  rehacer todo, "Limpiar revisión".
+- **Corre en el SERVIDOR, no en el navegador** (`asyncio.create_task`, mismo patrón que
+  `_analizar_item_fondo`): un lote completo puede tardar bastante, y así el revisor puede cerrar
+  la pestaña o irse sin cortarlo.
+- **Estado en `proyecto["revision_lote"]`**: `{activo, pendientes[], actual, completados[], total,
+  inicio, por}`. `GET .../lote/estado` es el *polling* liviano (mismo patrón que `estado_item()`).
+- **Durante el lote las tarjetas NO hacen su propio polling** — si lo hicieran, al terminar cada
+  ítem navegarían con `?item_ok=...` y cortarían la tanda a la vista del revisor. La plantilla
+  emite UN solo poller (`pollLote`) que actualiza el contador y recarga la página una vez, al
+  cerrarse el lote.
+- **Botón "Detener"**: vacía `pendientes` — el ítem en curso igual termina y se guarda (no se
+  pierde lo ya pagado), pero no se empieza ninguno más. No estaba pedido; se agregó porque un
+  lote sin forma de cortarlo es dinero corriendo sin freno.
+- **Ubicación**: DENTRO de la grilla de ítems, ocupando la celda que sigue al último — así no
+  agrega altura a la página, que era el requisito del usuario.
+- **Reinicio de Railway**: `_limpiar_analisis_huerfanos()` (startup) ahora también cierra un lote
+  que quedara `activo` de un proceso anterior — la tarea que lo encadenaba murió con ese proceso.
+  Los ítems que alcanzó a terminar quedan revisados; los que faltan se retoman con otro clic (el
+  botón los vuelve a tomar por no estar en `items_revisados`).
+- Verificado con las funciones reales (`revisar_todos_items`, `_revisar_lote_fondo`,
+  `detener_lote`, `_limpiar_analisis_huerfanos`, sin mocks de HTTP): respeta el orden del SEP con
+  Coherencia Global al final, salta los ya revisados, "Detener" corta el resto, el lote se cierra
+  pase lo que pase (`finally`), y un lote huérfano se limpia al arrancar. Más el render de la
+  página en sus 4 estados (sin lote / corriendo / todo revisado / sin documentos) con `node
+  --check` del JS en ambas ramas.
+
+**Tope de caracteres del Resumen aplicado en código, no solo en el prompt (ago-2026):** el campo
+"Características obras" declara `maxlen: 300`, pero eso solo viajaba como instrucción en el
+prompt y como `maxlength` del `<textarea>` — y ninguna de las dos garantiza nada: los modelos no
+cuentan caracteres de forma confiable, y `maxlength` solo limita lo que se ESCRIBE a mano, no lo
+que se carga por código. El revisor tenía que recortar a mano cada vez. Ahora `_limitar_texto()`
+(analyzer.py) se aplica en el único punto donde se normalizan los valores que devuelve la IA, así
+que vale para cualquier campo que declare `maxlen`, no solo el actual. Corta en el último final
+de oración que quepa (para que el texto lea completo) y, si no hay ninguno en la segunda mitad,
+en la última palabra entera + "…". El resultado NUNCA supera el tope — verificado con 3.000
+entradas aleatorias. De paso se reforzó el prompt (apuntar a 250 caracteres, y aviso de que el
+límite es duro) para que el recorte sea la red de seguridad y no el mecanismo habitual.
+
 **Aprendizaje por ítem (implementado):** `consolidar_aprendizaje()` (analyzer, usa Haiku) destila
 el `feedback[]` de un ítem en CRITERIOS APRENDIDOS (reglas concretas). Se guarda en
 `concurso["criterios_aprendidos"]["item_"+item_key]`. Se dispara desde `/admin/concursos/{id}`
