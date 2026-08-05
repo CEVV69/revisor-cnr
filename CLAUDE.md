@@ -2738,6 +2738,81 @@ del Diseñador (línea ~2207): son dos conceptos DISTINTOS, no un problema de no
     ahora 2,556 l/s (con N° posturas=20 real) — confirma que el resultado cambia, tal como pidió
     el usuario. Paridad numérica Python↔JS exacta en todos los casos.
 
+**Memoria de cálculo explicada — informe paso a paso, con comparación opcional contra la
+metodología del consultor (implementado, jul-2026):** el usuario, tras revisar a mano dos
+Excel reales de un consultor (memoria de cálculo de Goteo/invernadero con SCALL, y el balance
+hídrico que sustenta el N° de sectores), pidió una forma de auditar de un vistazo cómo el
+Chequeo de Cálculos llegó a cada número, sin tener que leer `calculos_riego.py`. Botón "Ver
+memoria de cálculo explicada" (`target="_blank"`, junto al de "Exportar para el Diseñador de
+Riego" en cada tarjeta de sistema Agronómico de `calculos.html`) → `GET
+/proyecto/{id}/calculos/informe/{idx}` (`informe_calculo()`, main.py) → `templates/
+informe_calculo.html` (standalone, mismo patrón imprimible que `ficha.html`/`informe_resumen.html`
+— `@page { margin: 0; }`, padding del body como única fuente de margen, botón "Imprimir" con
+`window.print()`, sin html2pdf.js porque no lo pidió el usuario para este informe). **No
+recalcula ni extrae nada nuevo** — reutiliza exactamente `_agronomico_calculo()`/
+`_tramos_con_calculo()`, los mismos datos GUARDADOS de `verificacion_calculos`, así nunca puede
+mostrar un número distinto al que ya usa `calculos.html`. Cada "paso" es una tarjeta con la
+fórmula, el resultado, una explicación breve, y —si hay un valor declarado por el consultor— la
+comparación con el mismo criterio de alerta que ya usa el Chequeo (tolerancia 10-15%, según el
+paso).
+- **Corrección de diseño del propio usuario antes de implementar** (turno completo de solo
+  clarificación, sin tocar código, a pedido explícito): la primera versión mostraba cómo la APP
+  calcula cada paso — el usuario aclaró que lo que realmente quería era ver cómo el CONSULTOR
+  llegó a SUS resultados, para poder comparar metodologías, no una segunda explicación de la app
+  sola. Eso llevó al diseño final: comparación en 2 columnas.
+- **Comparar con la metodología del consultor (usa IA) — bajo demanda, no automático:** un botón
+  aparte (`mc-estado`, arriba del informe) dispara `POST .../calculos/informe/{idx}/metodologia-
+  consultor` (`extraer_metodologia_consultor_route`, main.py) → `analyzer.
+  extraer_metodologia_consultor()` (Sonnet 5, streaming, sin caché — es una acción puntual, no
+  repetida 18 veces como el resto de la app). Por cada uno de los 14 `CONCEPTOS_METODOLOGIA`
+  (ETc, AD, Dn, Fr, Db, demanda l/s/ha, superficie segura, tiempo de riego, N° de
+  sectores/posturas, caudal de operación, balance diario, volumen del estanque, AMT/caudal de
+  bombeo, método hidráulico general), busca en el expediente si el consultor MUESTRA la fórmula/
+  desarrollo (no solo el resultado) y devuelve `{"formula": str|null, "resultado": str|null}` —
+  **null en ambos si el concepto no aparece o solo se declara el resultado sin desarrollo, nunca
+  reconstruye una fórmula que el consultor no escribió** (misma regla de "nunca inventar" que el
+  resto de la app — reforzada con un ejemplo negativo explícito en el prompt). El resultado se
+  GUARDA en `verificacion_calculos["metodologia_consultor"]["sistemas"][idx]`
+  (`{"conceptos": {...}, "fecha": ...}`) — no se vuelve a pagar en cada recarga del informe, solo
+  al pedir "Volver a generar" explícitamente.
+- **Costo evaluado antes de implementar** (a pedido del usuario, con números reales): ~US$0,15–
+  0,25 por sistema (Sonnet 5, sin beneficio de caché porque es una llamada única, no repetida) —
+  el usuario dio el "sí, avanza" con ese costo a la vista.
+- **Alcance deliberadamente acotado — por qué algunos pasos quedan SOLO en la columna App:** los
+  14 conceptos cubren la cadena agronómica principal, el bloque "Diseño base" y el resumen
+  hidráulico — pero NO las verificaciones "independientes" de la Sección 3 (Kc-DT05, eficiencia
+  vs. oficial, VIB, postura/carrete completos) ni los sub-pasos informativos del acumulador (Q
+  requerido, ΔQ/autonomía/tiempo de llenado). Esos son contrastes contra un valor OFICIAL/
+  catálogo (no algo que el consultor "calcule" con una metodología propia comparable) o
+  derivaciones puramente informativas — forzarlos a la comparación habría inflado el alcance sin
+  aportar una comparación real. La macro `paso(clave)` (Jinja, `{% call paso('etc') %}...{%
+  endcall %}`) decide sola: si `clave` no está en `CONCEPTOS_METODOLOGIA`/no se envuelve en
+  `{% call paso(...) %}`, el paso queda en su formato original de una sola columna, sin cambios.
+- **Caso raro de expediente sin fórmulas — no se maneja como caso especial:** el usuario aclaró
+  que un proyecto donde el consultor presenta solo resultados sin desarrollo debe observarse por
+  ese motivo (le falta presentar el cálculo) — son casos aislados, y la app ya los refleja bien
+  con el mensaje "No se encontró una fórmula o lógica explícita..." en la columna Consultor, sin
+  necesitar lógica adicional. Confirmado también que PDF vs. Excel no cambia la viabilidad — el
+  texto del PDF ya pasa por el mismo pipeline de extracción que el resto de la app.
+- **Jinja `{% macro %}...{% call %}` para envolver contenido existente sin duplicar markup:** la
+  macro `paso(clave)` recibe el contenido interno (fórmula/explicación/comparación, sin cambios)
+  vía `{{ caller() }}` — cuando `mc` (la metodología ya extraída) existe, envuelve ese mismo
+  contenido en la columna "App" de un grid de 2 columnas, con la columna "Consultor" al lado;
+  cuando `mc` es `None` (nunca se pidió la comparación), el contenido se muestra tal cual, sin
+  grid — mismo aspecto que antes de esta funcionalidad. Nota técnica: macros definidas en el
+  MISMO archivo donde se usan sí tienen acceso a las variables del contexto de `render()` (agro,
+  calc, mc, etc.) sin necesidad de `with context` — esa restricción solo aplica a macros
+  `{% import %}`-adas desde otro archivo.
+- **Verificado sin acceso a la Postgres/API real:** parseo Jinja limpio; render funcional
+  llamando `main.informe_calculo()`/`main.extraer_metodologia_consultor_route()` reales (con
+  `db.get_proyecto`/`db.save_proyecto`/`extraer_metodologia_consultor` mockeados, sin mocks de
+  HTTP) para los 2 casos — `mc=None` (regresión: el HTML es idéntico en estructura al formato de
+  una sola columna de siempre) y `mc` poblado (columna Consultor con fórmula/resultado citados,
+  o el aviso de "no se encontró" cuando el concepto no se extrajo); confirmado que el POST guarda
+  correctamente en `verificacion_calculos["metodologia_consultor"]` con la fecha. Capturas de
+  pantalla con Playwright de ambos estados confirmando legibilidad y que el grid de 2 columnas no
+  rompe el diseño para imprimir.
+
 **Página "Chequeo de Cálculos" (implementado, jul-2026):** `/proyecto/{id}/calculos`
 (`templates/calculos.html`), página aparte del proyecto — mismo estilo de navegación arriba
 que las otras, pero con su propia ruta/template (no pasa por `_render_proyecto`, para no

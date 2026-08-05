@@ -38,6 +38,22 @@
     .alerta { color: #b7191e; font-weight: bold; }
     .muted { color: #888; font-style: italic; }
 
+    /* Comparación en 2 columnas — Consultor vs. App (solo cuando ya se pidió la extracción con
+       IA de la metodología del consultor; sin eso, los pasos quedan de una sola columna, App). */
+    .paso-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .paso-2col > div { border-radius: 4px; padding: 0.5rem 0.6rem; }
+    .paso-2col .col-consultor { background: #fdf6ec; border: 1px solid #e8d5b5; }
+    .paso-2col .col-app { background: #eef5f0; border: 1px solid #bfe0c8; }
+    .col-titulo { font-size: 9.5px; font-weight: bold; color: #666; text-transform: uppercase;
+                   letter-spacing: 0.4px; margin-bottom: 0.3rem; }
+
+    .mc-estado { border: 1px solid #cbd5e0; border-radius: 4px; padding: 0.6rem 0.8rem;
+                 margin-bottom: 1rem; background: #f7fafc; font-size: 12px; }
+    .mc-estado form { display: inline; }
+    .btn-mc { background: #6b46c1; color: white; border: none; padding: 0.4rem 0.9rem;
+              border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .btn-mc:hover { background: #553c9a; }
+
     .tabla-tramos { width: 100%; border-collapse: collapse; margin-bottom: 0.4rem; font-size: 11px; }
     .tabla-tramos th, .tabla-tramos td { border: 1px solid #ccc; padding: 3px 6px; text-align: left; }
     .tabla-tramos th { background: #eef2f8; }
@@ -60,8 +76,52 @@
   <div class="header-fecha">Fecha: {{ fecha_informe }}</div>
 </div>
 
+<div class="mc-estado no-print">
+  {% if mc %}
+    Comparación con la metodología del consultor generada el {{ mc_fecha[:10] if mc_fecha else '' }}.
+    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/informe/{{ idx }}/metodologia-consultor" style="margin-left:0.5rem;">
+      <button type="submit" class="btn-mc" onclick="this.disabled=true; this.textContent='Extrayendo…'; this.form.submit();">Volver a generar</button>
+    </form>
+  {% else %}
+    Este informe recalcula lo mismo que ya calcula la app (gratis, instantáneo). Para además ver
+    <strong>cómo llegó el CONSULTOR</strong> a cada resultado (su propia fórmula, citada del
+    expediente) y comparar ambas metodologías lado a lado, pide la comparación con IA:
+    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/informe/{{ idx }}/metodologia-consultor" style="margin-left:0.3rem;">
+      <button type="submit" class="btn-mc" onclick="this.disabled=true; this.textContent='Extrayendo…'; this.form.submit();">Comparar con la metodología del consultor (usa IA)</button>
+    </form>
+  {% endif %}
+</div>
+
 {% macro val(v, unidad='') %}{% if v is not none %}{{ (v | round(4)) if v is number else v }}{{ unidad }}{% else %}<span class="muted">sin dato</span>{% endif %}{% endmacro %}
 {% macro num(v) %}{% if v is not none %}{{ (v | round(4)) if v is number else v }}{% else %}—{% endif %}{% endmacro %}
+
+{# Envuelve un "paso" en 2 columnas (Consultor | App) cuando ya se pidió la comparación con IA;
+   si no, muestra solo la columna App (comportamiento de siempre, sin cambios visuales). El
+   contenido del paso (fórmula + explicación + comparación) se pasa como bloque via {% call %}. #}
+{% macro paso(clave) %}
+<div class="paso">
+  {% if mc %}
+  <div class="paso-2col">
+    <div class="col-consultor">
+      <div class="col-titulo">Cómo lo calcula el consultor</div>
+      {% set c = mc.get(clave) %}
+      {% if c and (c.formula or c.resultado) %}
+        {% if c.formula %}<div class="formula">{{ c.formula }}</div>{% endif %}
+        {% if c.resultado %}<div class="explica">Resultado citado: <strong>{{ c.resultado }}</strong></div>{% endif %}
+      {% else %}
+        <div class="muted">No se encontró una fórmula o lógica explícita en el expediente para este cálculo — solo puede haber un resultado final sin desarrollo, o no aparecer en absoluto.</div>
+      {% endif %}
+    </div>
+    <div class="col-app">
+      <div class="col-titulo">Cómo lo calcula la app</div>
+      {{ caller() }}
+    </div>
+  </div>
+  {% else %}
+    {{ caller() }}
+  {% endif %}
+</div>
+{% endmacro %}
 
 <!-- ══════════ 1. DATOS BASE DECLARADOS ══════════ -->
 <div class="titulo-seccion">1. Datos base declarados</div>
@@ -86,45 +146,45 @@
 <!-- ══════════ 2. CADENA AGRONÓMICA ══════════ -->
 <div class="titulo-seccion">2. Cadena de cálculo agronómico — paso a paso</div>
 
-<div class="paso">
+{% call paso('etc') %}
   <div class="formula">ETc = ETo × Kc = {{ val(agro.eto_dia_mm) }} × {{ val(agro.kc) }} = <strong>{{ val(calc.etc_mm_dia, ' mm/día') }}</strong></div>
   <div class="explica">Evapotranspiración del cultivo — cuánta agua consume la planta ese día. Es el punto de partida de toda la cadena.</div>
-</div>
+{% endcall %}
 
 {% if sistema_riego == 'Goteo' %}
-<div class="paso">
+{% call paso('db') %}
   <div class="formula">Db = ETc / Eficiencia = {{ val(calc.etc_mm_dia) }} / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
   <div class="explica">Demanda bruta diaria. En Goteo se riega a diario reponiendo lo que la planta consumió ese mismo día (riego de alta frecuencia) — la demanda sale DIRECTO de la ETc, sin pasar por la cadena de agotamiento del suelo (por eso no hay AD, Dn ni Fr en este modelo; Fr=1 siempre).</div>
   {% if agro.declarado and agro.declarado.db_mm is not none %}
   <div class="compara">Declarado por el consultor: {{ num(agro.declarado.db_mm) }} mm/día — {% if calc.db_mm and (calc.db_mm - agro.declarado.db_mm) | abs / calc.db_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% else %}
-<div class="paso">
+{% call paso('ad') %}
   <div class="formula">AD = (CC − PMP)/100 × Da × Prof(m) × 1000 = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
   <div class="explica">Agua disponible del suelo — cuánta agua puede retener y ceder el suelo en la profundidad de raíces del cultivo.</div>
-</div>
-<div class="paso">
+{% endcall %}
+{% call paso('dn') %}
   <div class="formula">Dn = AD × Criterio de riego = {{ val(calc.ad_mm) }} × ({{ val(agro.factor_agotamiento_pct) }}/100) = <strong>{{ val(calc.dn_mm, ' mm') }}</strong></div>
   <div class="explica">Lámina neta — cuánta agua se repone en cada riego, sin agotar más allá del criterio definido.</div>
   {% if agro.declarado and agro.declarado.dn_mm is not none %}
   <div class="compara">Declarado: {{ num(agro.declarado.dn_mm) }} mm — {% if calc.dn_adj_mm and (calc.dn_adj_mm - agro.declarado.dn_mm) | abs / calc.dn_adj_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo ({{ num(calc.dn_adj_mm) }} mm).</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
-<div class="paso">
+{% endcall %}
+{% call paso('fr') %}
   <div class="formula">Fr = Dn / ETc = {{ val(calc.dn_mm) }} / {{ val(calc.etc_mm_dia) }} = {{ val(calc.fr_dias) }} días → redondeado (mínimo 1 día): <strong>{{ val(calc.fr_adj_dias, ' días') }}</strong></div>
   <div class="explica">Frecuencia de riego — cada cuántos días corresponde regar.</div>
   {% if agro.declarado and agro.declarado.fr_dias is not none %}
   <div class="compara">Declarado: {{ agro.declarado.fr_dias }} días — {% if calc.fr_adj_dias is not none and calc.fr_adj_dias != agro.declarado.fr_dias %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
-<div class="paso">
+{% endcall %}
+{% call paso('db') %}
   <div class="formula">Db = (ETc × Fr_adj) / Eficiencia = ({{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }}) / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
   <div class="explica">Demanda bruta — lo que hay que aplicar en cada riego, considerando la eficiencia real del sistema.</div>
   {% if agro.declarado and agro.declarado.db_mm is not none %}
   <div class="compara">Declarado: {{ num(agro.declarado.db_mm) }} mm/día — {% if calc.db_mm and (calc.db_mm - agro.declarado.db_mm) | abs / calc.db_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% endif %}
 
 {% if not calc.etc_mm_dia %}
@@ -222,29 +282,29 @@
 {% if calc.demanda_ls_ha is not none %}
 <div class="titulo-seccion">4. Diseño base — superficie, caudal y sectorización</div>
 
-<div class="paso">
+{% call paso('demanda_ls_ha') %}
   <div class="formula">Demanda = Db diario / 8,64 = {{ val(calc.db_diario_mm) }} / 8,64 = <strong>{{ val(calc.demanda_ls_ha, ' l/s/ha') }}</strong></div>
   <div class="explica">1 mm/día por hectárea equivale a 1/8,64 l/s/ha — conversión estándar para pasar de lámina diaria a caudal continuo.</div>
-</div>
+{% endcall %}
 
 {% if calc.superficie_segura_ha is not none %}
-<div class="paso">
+{% call paso('superficie_segura') %}
   <div class="formula">Superficie de riego segura = Caudal de la fuente / Demanda = {{ val(agro.caudal_disponible_ls) }} / {{ val(calc.demanda_ls_ha) }} = <strong>{{ val(calc.superficie_segura_ha, ' ha') }}</strong></div>
   <div class="explica">Cuánta superficie puede regarse de forma segura SOLO con el caudal de la fuente (sin considerar el acumulador — ITT-03 §1, balance diario). Usa la demanda "diaria" (ETc/Ef, sin pasar por Fr), no la de ciclo de riego.</div>
   {% if agro.superficie_riego_ha is not none %}
   <div class="compara">Superficie declarada del proyecto: {{ num(agro.superficie_riego_ha) }} ha — {% if calc.superficie_segura_ha < agro.superficie_riego_ha %}<span class="alerta">supera la superficie segura — el caudal de la fuente no alcanza por sí solo (el acumulador puede compensar, ver más abajo).</span>{% else %}<span class="ok">dentro de lo que alcanza el caudal de la fuente.</span>{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% endif %}
 
 {% if calc.tiempo_riego_hr is not none %}
-<div class="paso">
+{% call paso('tiempo_riego') %}
   <div class="formula">Tiempo de riego = Db / Precipitación del sistema = {{ val(calc.db_mm) }} / {{ val(agro.precipitacion_sistema_mmhr) }} = <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong></div>
   <div class="explica">Tiempo diario de riego por sector, independiente del área total.</div>
   {% if agro.declarado and agro.declarado.tiempo_riego_hr is not none %}
   <div class="compara">Declarado: {{ num(agro.declarado.tiempo_riego_hr) }} hr — {% if calc.tiempo_riego_hr and (calc.tiempo_riego_hr - agro.declarado.tiempo_riego_hr) | abs / calc.tiempo_riego_hr * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% endif %}
 
 {% if calc.n_sectores is not none and not calc.postura_check and not calc.carrete_check %}
@@ -252,17 +312,17 @@
   <div class="formula">Q requerido = Precipitación × Superficie × 10.000/3.600 = <strong>{{ val(calc.q_requerido_total_ls, ' l/s') }}</strong>{% if calc.caudal_estanque_ls %} · Q estanque = Volumen×1000/(Tiempo riego×3.600) = <strong>{{ val(calc.caudal_estanque_ls, ' l/s') }}</strong>{% endif %}</div>
   <div class="explica">Caudal que exige regar TODA la superficie a la vez, al ritmo de la precipitación del sistema{% if calc.caudal_estanque_ls %}, y lo que aporta el acumulador durante el riego de un sector{% endif %}.</div>
 </div>
-<div class="paso">
+{% call paso('n_sectores') %}
   <div class="formula">N° de sectores = ⌈(Q requerido − Q estanque) / Caudal de la fuente⌉ = <strong>{{ calc.n_sectores }}</strong></div>
   <div class="explica">Si el caudal requerido supera lo que puede entregar la fuente (más el aporte del acumulador durante ese riego), hay que dividir en sectores regados por turnos.</div>
   {% if agro.declarado and agro.declarado.n_sectores is not none %}
   <div class="compara">Declarado por el consultor: {{ num(agro.declarado.n_sectores) }} — {% if calc.n_sectores != agro.declarado.n_sectores %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% endif %}
 
 {% if calc.caudal_operacion_ls is not none %}
-<div class="paso">
+{% call paso('caudal_operacion') %}
   <div class="formula">Caudal de operación de la red = Q requerido / N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} = <strong>{{ val(calc.caudal_operacion_ls, ' l/s') }}</strong></div>
   <div class="explica">Caudal que circula por la tubería mientras opera UN sector/postura — el que el consultor debería haber usado para dimensionar diámetros y pérdidas de carga (distinto del caudal de la fuente).</div>
   {% if agro.declarado and agro.declarado.caudal_diseno_ls is not none %}
@@ -271,23 +331,23 @@
   {% if calc.tiempo_total_dia_hr is not none %}
   <div class="compara">Tiempo total al día (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × tiempo de riego) = {{ num(calc.tiempo_total_dia_hr) }} hr{% if calc.cabe_en_horas_disponibles is defined %} — {% if calc.cabe_en_horas_disponibles %}<span class="ok">cabe en las horas disponibles declaradas ({{ num(agro.horas_disponibles_dia) }} hr).</span>{% else %}<span class="alerta">NO cabe en las horas disponibles declaradas ({{ num(agro.horas_disponibles_dia) }} hr) — el diseño no es ejecutable en un día.</span>{% endif %}{% endif %}</div>
   {% endif %}
-</div>
+{% endcall %}
 {% endif %}
 
 {% if calc.balance_diario_ok is defined %}
-<div class="paso">
+{% call paso('balance_diario') %}
   <div class="formula">Volumen requerido/día = Q requerido × Tiempo de riego × 3.600 = <strong>{{ val(calc.v_requerido_dia_l, ' L') }}</strong> · Volumen que repone la fuente/día = Caudal fuente × 86.400 = <strong>{{ val(calc.v_fuente_dia_l, ' L') }}</strong></div>
   <div class="explica">Balance diario de volumen — condición de fondo: si la fuente no repone en 24 horas el volumen que exige el diseño, NINGÚN acumulador lo resuelve (habría que reducir superficie o aumentar el derecho de agua).</div>
   <div class="compara">{% if calc.balance_diario_ok %}<span class="ok">OK — la fuente repone lo suficiente en 24 horas.</span>{% else %}<span class="alerta">La fuente NO repone el volumen diario que exige el diseño.</span>{% endif %}</div>
-</div>
+{% endcall %}
 {% endif %}
 
 {% if calc.volumen_minimo_estanque_l is not none %}
-<div class="paso">
+{% call paso('volumen_estanque') %}
   <div class="formula">Volumen mínimo del estanque = Volumen requerido/día − Caudal fuente × (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
   <div class="explica">Volumen mínimo que debe tener el acumulador para sostener el diseño, dado lo que la fuente ya aporta en el día.</div>
   <div class="compara">Volumen declarado: {{ val(agro.volumen_acumulador_m3, ' m³') }} — {% if calc.acumulador_ok %}<span class="ok">alcanza.</span>{% else %}<span class="alerta">NO alcanza el volumen mínimo requerido.</span>{% endif %}</div>
-</div>
+{% endcall %}
 {% if calc.delta_q_estanque_ls is not none %}
 <div class="paso">
   <div class="formula">ΔQ que aporta el estanque = Caudal de operación − Caudal de la fuente = <strong>{{ val(calc.delta_q_estanque_ls, ' l/s') }}</strong></div>
@@ -309,7 +369,10 @@
 {% set tramos_con_datos = tramos | selectattr('caudal_ls') | list %}
 {% if tramos_con_datos %}
 <div class="titulo-seccion">5. Diseño hidráulico — tramos de tubería</div>
-<p class="explica" style="margin-bottom:0.5rem;">Hazen-Williams: Hf = 10,67 × L × Q<sup>1,852</sup> / (C<sup>1,852</sup> × D<sup>4,87</sup>) — misma fórmula que usa el Diseñador de Riego. Rango de velocidad recomendado: 0,5–2,0 m/s.</p>
+{% call paso('hidraulico_general') %}
+  <div class="formula">Hazen-Williams: Hf = 10,67 × L × Q<sup>1,852</sup> / (C<sup>1,852</sup> × D<sup>4,87</sup>)</div>
+  <div class="explica">Pérdida de carga por fricción en cada tramo — misma fórmula que usa el Diseñador de Riego. Rango de velocidad recomendado: 0,5–2,0 m/s.</div>
+{% endcall %}
 <table class="tabla-tramos">
   <tr><th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th><th>Long. (m)</th><th>Material</th>
       <th>V calculada</th><th>Hf calculada</th><th>Declarado (V / Hf)</th></tr>
@@ -339,6 +402,7 @@
 <!-- ══════════ 6. EQUIPO DE BOMBEO ══════════ -->
 {% if amt_declarada_m is not none or caudal_bombeo_ls is not none %}
 <div class="titulo-seccion">6. Equipo de bombeo — datos declarados</div>
+{% call paso('amt_bombeo') %}
 <table class="tabla-datos">
   <tr><td class="label">Altura Manométrica Total (AMT/CDT) declarada</td><td class="valor">{{ val(amt_declarada_m, ' m') }}</td></tr>
   <tr><td class="label">Caudal de diseño del equipo de bombeo declarado</td><td class="valor">{{ val(caudal_bombeo_ls, ' l/s') }}</td></tr>
@@ -350,6 +414,7 @@
 El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s (normalmente el tramo de succión/impulsión, el más cercano a la bomba, transporta el caudal total de diseño) — {% if (q_max_tramo - caudal_bombeo_ls) | abs / q_max_tramo * 100 > 15 %}<span class="alerta">no coincide con el caudal de bombeo declarado; si no corresponden al mismo punto de la red, verificar que la diferencia tenga una explicación técnica (ej. sectores no simultáneos).</span>{% else %}<span class="ok">coincide.</span>{% endif %}
 {% endif %}
 </div>
+{% endcall %}
 {% endif %}
 {% endif %}
 

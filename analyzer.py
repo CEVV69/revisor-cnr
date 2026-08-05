@@ -3215,6 +3215,91 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
     return texto
 
 
+# ── Metodología del CONSULTOR — extracción para la "Memoria de cálculo explicada" ────────────
+# Distinto de `_extraer_datos_hidraulicos`/`_extraer_datos_agronomicos` (que sacan NÚMEROS a un
+# esquema fijo para alimentar las fórmulas de la app): esto lee el expediente buscando si el
+# consultor MUESTRA su propio cálculo (fórmula + valores, tal como los escribió) para cada
+# concepto — no solo el resultado final. Es una tarea de comprensión de texto libre (el
+# consultor puede llamar "Lámina Bruta a reponer" a lo que la app llama "Db", mostrar el cálculo
+# en cualquier orden, o no mostrarlo en absoluto) — más cercana a razonamiento que a extracción
+# de datos, por eso usa Sonnet 5 y no Haiku (misma regla de costo del proyecto). Bajo demanda
+# (botón en la Memoria de cálculo explicada, ver main.py) — nunca automática, para no sumar
+# costo a cada revisión.
+
+CONCEPTOS_METODOLOGIA = [
+    ("etc", "ETc — evapotranspiración del cultivo"),
+    ("ad", "AD — agua disponible del suelo (no aplica en Goteo, riego de alta frecuencia)"),
+    ("dn", "Dn — lámina neta (no aplica en Goteo)"),
+    ("fr", "Fr — frecuencia de riego (no aplica en Goteo)"),
+    ("db", "Db — demanda bruta (también puede llamarse \"Lámina Bruta a reponer\", LB, etc.)"),
+    ("demanda_ls_ha", "Demanda en l/s/ha o módulo de riego"),
+    ("superficie_segura", "Superficie de riego segura o factible según el caudal disponible"),
+    ("tiempo_riego", "Tiempo de riego por sector o postura"),
+    ("n_sectores", "N° de sectores o posturas de riego"),
+    ("caudal_operacion", "Caudal de diseño de la red / caudal de operación"),
+    ("balance_diario", "Balance entre lo que entrega la fuente y lo que exige el diseño"),
+    ("volumen_estanque", "Volumen requerido o declarado del acumulador/estanque"),
+    ("amt_bombeo", "Altura Manométrica Total y/o caudal de diseño del equipo de bombeo"),
+    ("hidraulico_general", "Método usado para calcular pérdida de carga y velocidad en tuberías"),
+]
+
+
+async def extraer_metodologia_consultor(docs_grupo: list, sistema_riego: str = None) -> dict:
+    """Para cada concepto de `CONCEPTOS_METODOLOGIA`, busca si el expediente MUESTRA la fórmula/
+    cálculo del consultor (no solo el resultado). Devuelve {"concepto_key": {"formula": str|null,
+    "resultado": str|null}, ...} — ambos null si el concepto no aparece o solo se declara el
+    resultado final sin mostrar cómo se obtuvo. NUNCA inventa ni reconstruye una fórmula que el
+    consultor no mostró explícitamente — si el expediente no la muestra, es tarea del revisor
+    observarlo (un proyecto que solo presenta resultados sin memoria de cálculo es, en sí mismo,
+    observable), no de esta función suplirla."""
+    texto = _texto_grupo_para_extraccion(docs_grupo, max_chars=MAX_CHARS_POR_ITEM.get("diseno_hidraulico", MAX_CHARS_EJE_TOTAL))
+    if not texto.strip():
+        return {}
+    client = _get_client()
+    lista_conceptos = "\n".join(f'- "{k}": {label}' for k, label in CONCEPTOS_METODOLOGIA)
+    prompt = f"""Estás auditando la memoria de cálculo de un proyecto de riego{f' (sistema: {sistema_riego})' if sistema_riego else ''}.
+
+Para CADA uno de estos conceptos, busca en el expediente si el consultor MUESTRA explícitamente
+la fórmula o el desarrollo del cálculo (no solo el número final) — cita el texto tal como aparece
+(fórmula + valores sustituidos) y el resultado con su unidad:
+
+{lista_conceptos}
+
+REGLA ESTRICTA: si el expediente solo declara el resultado final sin mostrar cómo se obtuvo, o el
+concepto no aparece en absoluto, responde null en "formula" (y en "resultado" si tampoco hay un
+valor declarado) — NO reconstruyas ni inventes una fórmula que el consultor no escribió. Si un
+concepto no aplica al sistema de riego (ej. AD/Dn/Fr en Goteo), también responde null.
+
+Responde SOLO este JSON, sin texto adicional:
+{{"conceptos": {{
+{", ".join(f'"{k}": {{"formula": string|null, "resultado": string|null}}' for k, _ in CONCEPTOS_METODOLOGIA)}
+}}}}
+
+EXPEDIENTE:
+{texto}"""
+
+    def _stream_final(max_tokens):
+        with client.messages.stream(
+            model=MODELO_SONNET, max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            return stream.get_final_message()
+    try:
+        response = await asyncio.to_thread(_stream_final, 6000)
+        content = _texto_respuesta(response)
+        if not content.strip() and response.stop_reason == "max_tokens":
+            print("⚠️ extraer_metodologia_consultor: respuesta vacía por max_tokens — reintentando con más cupo…")
+            response = await asyncio.to_thread(_stream_final, 14000)
+            content = _texto_respuesta(response)
+        _log_uso("metodología del consultor", response)
+        data = _extraer_json_tolerante(content)
+        conceptos = data.get("conceptos")
+        return conceptos if isinstance(conceptos, dict) else {}
+    except Exception as e:
+        print(f"⚠️ extraer_metodologia_consultor: {e}")
+        return {}
+
+
 # ── Evaluación IA de la respuesta del consultor a una observación (subsanación) ──────────────
 # Parte del PROCESO de revisión, que solo termina al aprobar/rechazar el proyecto: la IA ayuda al
 # revisor a juzgar si la respuesta del consultor RESUELVE la observación, cruzándola con TODOS los

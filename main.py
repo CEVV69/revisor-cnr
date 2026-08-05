@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, hash_password, verify_password
 from extractor import extract_text, extract_zip, parse_tabla_precios, truncar_texto_guardado
 from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
+                      extraer_metodologia_consultor, CONCEPTOS_METODOLOGIA,
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
@@ -1740,6 +1741,19 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         _rellenar_none(t, ("nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
                            "velocidad_declarada_ms", "hf_declarada_mca"))
 
+    # Metodología del consultor (ver "Comparar con la metodología del consultor", más abajo) —
+    # guardada aparte de `verificacion_calculos.agronomico`/`hidraulico` porque es un dato de otra
+    # naturaleza (texto libre citado del expediente, no un número recalculable) y porque se genera
+    # bajo demanda, no en cada revisión. `mc_sistema` es None si el revisor todavía no lo pidió.
+    mc_sistemas = (verif.get("metodologia_consultor") or {}).get("sistemas") or []
+    mc_guardado = mc_sistemas[idx] if idx < len(mc_sistemas) else None
+    mc = None
+    if mc_guardado and mc_guardado.get("conceptos"):
+        mc = dict(mc_guardado["conceptos"])
+        for k, _ in CONCEPTOS_METODOLOGIA:
+            c = mc.get(k) or {}
+            mc[k] = {"formula": c.get("formula"), "resultado": c.get("resultado")}
+
     return templates.TemplateResponse("informe_calculo.html", {
         "request": request, "proyecto": proyecto,
         "idx": idx, "n_sistemas": n_sistemas,
@@ -1749,7 +1763,46 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "amt_declarada_m": hid_sistema.get("amt_declarada_m"),
         "caudal_bombeo_ls": hid_sistema.get("caudal_bombeo_ls"),
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+        "mc": mc, "mc_fecha": (mc_guardado or {}).get("fecha"),
     })
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/informe/{idx}/metodologia-consultor")
+async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str, idx: int):
+    """Botón "Comparar con la metodología del consultor" de la Memoria de cálculo explicada —
+    a diferencia del resto del informe (Python puro, gratis), ESTA acción sí llama a la IA
+    (Sonnet 5, sin caché — es una acción puntual, no repetida 19 veces como el resto del
+    análisis) para leer el expediente y ver si el consultor MUESTRA su propio cálculo (fórmula,
+    no solo el resultado) para cada concepto. Por eso es un botón explícito, nunca automática, y
+    el resultado se GUARDA (no se vuelve a pagar en cada recarga de la página — el revisor puede
+    volver a pedirlo a mano si sube documentos nuevos)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    if idx < 0 or idx >= len(agro_norm["sistemas"]):
+        raise HTTPException(status_code=404, detail="Sistema no válido")
+    sistema_riego = agro_norm["sistemas"][idx].get("sistema_riego")
+
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
+    conceptos = await extraer_metodologia_consultor(docs_grupo, sistema_riego)
+
+    proyecto.setdefault("verificacion_calculos", {})
+    mc_bloque = proyecto["verificacion_calculos"].setdefault("metodologia_consultor", {})
+    sistemas_mc = list(mc_bloque.get("sistemas") or [])
+    while len(sistemas_mc) <= idx:
+        sistemas_mc.append(None)
+    sistemas_mc[idx] = {"conceptos": conceptos, "fecha": _ahora().isoformat()}
+    mc_bloque["sistemas"] = sistemas_mc
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe/{idx}", status_code=302)
 
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")
