@@ -364,12 +364,10 @@
       </div>
       <div style="margin-top:0.6rem;">
         <a href="/proyecto/{{ proyecto.id }}/calculos/informe/{{ sis.idx }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Ver memoria de cálculo explicada</a>
-        <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Los mismos datos <strong>guardados</strong> de este sistema (agronómico e hidráulico), paso a paso con fórmula y explicación — guarda primero si acabas de editar.</span>
       </div>
       {% if agro.sistema_riego in ['Goteo', 'Microaspersión', 'Aspersión', 'Carrete'] %}
       <div style="margin-top:0.5rem;">
         <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador/{{ sis.idx }}" class="btn btn-outline btn-sm">Exportar para el Diseñador de Riego (.json)</a>
-        <span class="text-muted" style="font-size:0.78rem; margin-left:0.4rem;">Descarga los datos <strong>guardados</strong> de este sistema en el formato del Diseñador — guarda primero si acabas de editar. Solo exporta lo que hay (no inventa); en el Diseñador completas el resto.</span>
       </div>
       {% endif %}
     </div>

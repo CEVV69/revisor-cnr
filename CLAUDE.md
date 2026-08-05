@@ -4013,3 +4013,13 @@ renombraron para no colisionar entre los dos formularios de la misma página).
    sol/luna del toggle de modo oscuro (`base.html`, sustituyen 🌙/☀️). Las alertas (`.alert-success`/
    `.alert-error`) y badges de estado ya se distinguen por color de fondo — no necesitan emoji
    encima. Aplica este criterio a cualquier UI nueva que se agregue de aquí en adelante.
+8. **Minimalismo — minimizar texto de acompañamiento, botones autoexplicativos (ago-2026):**
+   tender siempre a la menor cantidad de texto posible en la UI. Un botón con una etiqueta clara
+   (ej. "Ver memoria de cálculo explicada", "Exportar para el Diseñador de Riego") no necesita un
+   `<span class="text-muted">` al lado explicando qué hace o qué requiere — si hace falta una
+   aclaración indispensable (ej. un requisito real como "guarda primero"), va en el `title`
+   (tooltip) del botón, no como texto siempre visible. Ejemplo aplicado: los botones "Ver memoria
+   de cálculo explicada" y "Exportar para el Diseñador de Riego (.json)" en `calculos.html`
+   perdieron su texto explicativo adyacente. Aplica este criterio por defecto a cualquier UI
+   nueva — texto de ayuda solo cuando es genuinamente indispensable, nunca como descripción del
+   botón que ya se entiende por su propia etiqueta.
