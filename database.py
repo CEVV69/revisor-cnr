@@ -2,6 +2,7 @@
 import functools
 import json
 import os
+import threading
 from pathlib import Path
 from auth import hash_password
 
@@ -24,6 +25,25 @@ TEXTOS_DIR       = DATA_DIR / "textos"
 
 # ── Backend PostgreSQL ─────────────────────────────────────────────────────────
 _pg_conn = None
+
+# Toda la app compartía UNA sola conexión psycopg2 y, hasta ago-2026, todo el código que la usaba
+# corría en el mismo hilo (el event loop), así que no hacía falta sincronizar nada. Desde que
+# `_restaurar_archivos_necesarios` se llama vía `asyncio.to_thread` (main.py — restaura desde la
+# base los PDF perdidos en un redeploy, y bloqueaba el event loop entero mientras lo hacía), hay
+# un segundo hilo tocando la misma conexión.
+#
+# psycopg2 declara `threadsafety = 2` ("threads may share the module and connections"), y cada
+# función de acá abre su PROPIO cursor (`with conn.cursor()`), que es la condición que exige —
+# los cursores no se comparten. Lo que NO cubre esa garantía es el camino de reconexión de
+# `_reintenta_si_cae`: cierra y reemplaza la variable global `_pg_conn` mientras otro hilo podría
+# estar usando la conexión vieja. Este lock cierra esa ventana.
+#
+# Va en `_reintenta_si_cae` porque las 12 funciones que tocan Postgres pasan sin excepción por
+# ese decorador — un solo punto en vez de 12. Es RLock (re-entrante) por prudencia: si alguna vez
+# una función decorada llama a otra, un Lock simple se trabaría solo. No cuesta rendimiento: el
+# acceso a la base YA estaba serializado de hecho (un solo hilo); esto solo lo hace explícito y
+# seguro ahora que hay dos.
+_pg_lock = threading.RLock()
 
 def _crear_tablas(conn):
     with conn.cursor() as cur:
@@ -83,17 +103,18 @@ def _reintenta_si_cae(fn):
     def envoltorio(*args, **kwargs):
         global _pg_conn
         import psycopg2
-        try:
-            return fn(*args, **kwargs)
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-            print(f"⚠️ Conexión PostgreSQL caída en {fn.__name__} ({e}) — reconectando y reintentando…")
+        with _pg_lock:               # ver la nota de _pg_lock, arriba
             try:
-                if _pg_conn is not None and not _pg_conn.closed:
-                    _pg_conn.close()
-            except Exception:
-                pass
-            _pg_conn = None          # fuerza reconexión limpia en el _get_pg() de adentro
-            return fn(*args, **kwargs)
+                return fn(*args, **kwargs)
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                print(f"⚠️ Conexión PostgreSQL caída en {fn.__name__} ({e}) — reconectando y reintentando…")
+                try:
+                    if _pg_conn is not None and not _pg_conn.closed:
+                        _pg_conn.close()
+                except Exception:
+                    pass
+                _pg_conn = None      # fuerza reconexión limpia en el _get_pg() de adentro
+                return fn(*args, **kwargs)
     return envoltorio
 
 

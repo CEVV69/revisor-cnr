@@ -2529,6 +2529,18 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     # Verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
     # FV): solo en los ítems donde hay fórmula normativa aplicable. Si la extracción no
     # encuentra datos, el bloque queda vacío y no afecta el resto del análisis.
+    # La invalidación cruzada NO depende del bloque de verificación de más abajo (solo necesita
+    # `docs_grupo`), así que se lanza YA como tarea en vez de esperar su turno: corre en paralelo
+    # con las extracciones de Haiku Y con el análisis principal. Antes se lanzaba recién en el
+    # `gather` final, así que en `diseno_hidraulico` — el único ítem con DOS extracciones — se
+    # quedaba esperando a que ambas terminaran sin necesidad.
+    tarea_invalidacion = None
+    if observaciones_pendientes_otros:
+        texto_resumen = _texto_grupo_para_extraccion(docs_grupo, max_chars=8000)
+        tarea_invalidacion = asyncio.create_task(
+            revisar_invalidacion_cruzada(item["nombre"], texto_resumen,
+                                         observaciones_pendientes_otros))
+
     bloque_verificacion = ""
     try:
         if item_key == "diseno_hidraulico":
@@ -2536,13 +2548,25 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
             # un proyecto con 2 sistemas de riego tiene 2 diseños hidráulicos Y 2 cadenas
             # agronómicas, no puede ser 2 en uno y 1 en el otro).
             docs_hid = _documentos_para_verificacion("hidraulico", documentos)
-            datos_hid = datos_verificacion_hidraulica if datos_verificacion_hidraulica is not None \
-                else await _extraer_datos_hidraulicos(docs_hid, n_sistemas=n_sistemas)
-            bloque_verificacion += _bloque_verificacion_hidraulica(datos_hid)
-
             docs_agro = _documentos_para_verificacion("agronomico", documentos)
-            datos_agro = datos_verificacion_agronomica if datos_verificacion_agronomica is not None \
-                else await _extraer_datos_agronomicos(docs_agro, n_sistemas=n_sistemas)
+
+            # Las dos extracciones son INDEPENDIENTES entre sí (distinto conjunto de documentos,
+            # distinto prompt, sin estado compartido) — se corren en paralelo. Antes iban una
+            # después de la otra (`await` seguido de `await`), así que este ítem pagaba la suma
+            # de ambas llamadas a Haiku en vez del máximo. Es el único ítem con dos extracciones.
+            async def _datos_hidraulicos():
+                if datos_verificacion_hidraulica is not None:
+                    return datos_verificacion_hidraulica
+                return await _extraer_datos_hidraulicos(docs_hid, n_sistemas=n_sistemas)
+
+            async def _datos_agronomicos():
+                if datos_verificacion_agronomica is not None:
+                    return datos_verificacion_agronomica
+                return await _extraer_datos_agronomicos(docs_agro, n_sistemas=n_sistemas)
+
+            datos_hid, datos_agro = await asyncio.gather(
+                _datos_hidraulicos(), _datos_agronomicos())
+            bloque_verificacion += _bloque_verificacion_hidraulica(datos_hid)
             bloque_verificacion += _bloque_verificacion_agronomica(datos_agro)
         elif item_key == "diseno_fotovoltaico":
             docs_fv = _documentos_para_verificacion("energetico", documentos)
@@ -2569,14 +2593,11 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         max_tokens_total=MAX_TOKENS_POR_ITEM.get(item_key, MAX_TOKENS_SONNET),
         tipo_revision=tipo_revision, ruta_uploads=ruta_uploads)
 
-    # Invalidación cruzada: corre en PARALELO al análisis principal (asyncio.gather) — no agrega
-    # latencia — y solo si hay observaciones pendientes de otros ítems para revisar.
-    if observaciones_pendientes_otros:
-        texto_resumen = _texto_grupo_para_extraccion(docs_grupo, max_chars=8000)
-        resultado, invalidadas = await asyncio.gather(
-            analisis_task,
-            revisar_invalidacion_cruzada(item["nombre"], texto_resumen, observaciones_pendientes_otros)
-        )
+    # Invalidación cruzada: la tarea ya viene corriendo desde el inicio de la función (ver
+    # arriba), acá solo se recoge su resultado junto con el del análisis principal — sigue sin
+    # agregar latencia, y ahora tampoco espera a las extracciones para siquiera arrancar.
+    if tarea_invalidacion is not None:
+        resultado, invalidadas = await asyncio.gather(analisis_task, tarea_invalidacion)
     else:
         resultado = await analisis_task
         invalidadas = []

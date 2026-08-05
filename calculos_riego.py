@@ -49,15 +49,6 @@ def diametro_sugerido_mm(q_ls: float) -> float:
     return math.sqrt(849.6 * q_ls)
 
 
-def factor_christiansen(n_salidas: int) -> float:
-    """Factor de corrección de Christiansen para tuberías con salidas múltiples
-    equiespaciadas (típico en laterales/terciarias de goteo). m=1,852 (Hazen-Williams)."""
-    if not n_salidas or n_salidas <= 1:
-        return 1.0
-    m = 1.852
-    return 1 / (m + 1) + 1 / (2 * n_salidas) + math.sqrt(m + 1) / (6 * n_salidas ** 2)
-
-
 def evaluar_tramo(q_ls: float, d_mm: float, l_m: float = None, c: float = None) -> dict:
     """Evalúa un tramo de tubería: velocidad, diámetro sugerido, pérdida de carga (si hay
     longitud y material) y si la velocidad queda fuera del rango recomendado."""

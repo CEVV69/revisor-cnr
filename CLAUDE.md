@@ -3835,6 +3835,87 @@ antes de volverse adaptativo (ver más arriba), esta vez con el cupo de IMÁGENE
 
 ---
 
+## Auditoría general (ago-2026) — rendimiento, código muerto y costo de API
+
+Segunda revisión completa a pedido del usuario ("elimina código muerto, optimiza procesos, y
+busca cualquier tipo de mejora en velocidad o ahorro en llamadas a la API"). Lo aplicado:
+
+**1. Bug de bloqueo del event loop — `_restaurar_archivos_necesarios` congelaba la app entera.**
+Es una función SINCRÓNICA que puede hacer varias lecturas de `bytea` de varios MB desde Postgres
+más la escritura de esos PDF al disco, y se llamaba **directo** (sin `asyncio.to_thread`) desde
+`_analizar_item_fondo`, que es `async`. Mientras corría, el event loop quedaba bloqueado: ninguna
+página respondía para NINGÚN usuario, no solo el que analizaba. Es exactamente el mismo patrón de
+bug ya corregido dos veces en este proyecto (llamadas a Anthropic/PyMuPDF en la 1ª auditoría,
+`bcrypt` en `login()` en la 2ª) — este punto se había quedado afuera de ambas. Se nota sobre todo
+**tras un redeploy de Railway** (frecuentes acá), que es justo cuando esta restauración tiene
+trabajo real que hacer. Arreglado con `await asyncio.to_thread(...)`.
+
+**2. Consecuencia del anterior: `database.py` necesitaba ser thread-safe de verdad.** Hasta ahora
+TODO el código que tocaba la única conexión psycopg2 compartida corría en el mismo hilo, así que
+no hacía falta sincronizar nada — la 2ª auditoría ya había identificado esto como el requisito
+previo para cualquier `to_thread` sobre la base, y lo dejó pendiente. Con el fix anterior hay un
+segundo hilo, así que se cerró: `_pg_lock` (`threading.RLock`) dentro de `_reintenta_si_cae`.
+- **Por qué ahí y no en cada función:** las 12 funciones que tocan Postgres pasan SIN EXCEPCIÓN
+  por ese decorador (verificado con un barrido AST de `database.py`) — un solo punto, no 12.
+- **Qué cubre exactamente:** psycopg2 declara `threadsafety = 2` ("threads may share the module
+  and connections") y cada función de acá abre su PROPIO cursor (`with conn.cursor()`), que es la
+  condición que esa garantía exige. Lo que NO cubre es el camino de reconexión del decorador, que
+  cierra y reemplaza la global `_pg_conn` mientras otro hilo podría estar usando la vieja — esa
+  es la ventana que cierra el lock.
+- **`RLock` y no `Lock`** por prudencia: si alguna vez una función decorada llama a otra, un
+  `Lock` simple se trabaría solo. No cuesta rendimiento — el acceso a la base YA estaba
+  serializado de hecho (un solo hilo); esto solo lo hace explícito y seguro ahora que hay dos.
+
+**3. Latencia — dos extracciones de Haiku que corrían una después de la otra.** En
+`analizar_item()`, el ítem `diseno_hidraulico` (el ÚNICO con dos extracciones) hacía
+`await _extraer_datos_hidraulicos(...)` y recién después `await _extraer_datos_agronomicos(...)`,
+pese a ser completamente independientes (distinto conjunto de documentos, distinto prompt, sin
+estado compartido) — pagaba la SUMA de ambas llamadas en vez del máximo. Ahora van con
+`asyncio.gather`. Además, `revisar_invalidacion_cruzada` (que no depende del bloque de
+verificación, solo de `docs_grupo`) se lanza con `asyncio.create_task` al INICIO de la función en
+vez de recién en el `gather` final, así corre en paralelo también con las extracciones.
+- **No cambia ni una llamada a la API** — mismas llamadas, mismos prompts, mismo resultado; solo
+  cuándo arrancan. El costo es idéntico, baja la latencia.
+- Verificado con las funciones reales de `analyzer.py` (extracciones simuladas con
+  `asyncio.sleep`, sin mocks de HTTP): las 3 tareas arrancan en t≈0 y el total pasa de la suma
+  (0,5+0,5+0,4 = 1,4 s) al máximo (0,9 s). Más las 4 regresiones: datos ya validados por el
+  revisor siguen sin gastar ninguna llamada a Haiku, sin observaciones pendientes no se lanza la
+  invalidación, los demás ítems quedan igual, y una excepción en la extracción se sigue tragando
+  sin dejar la tarea de invalidación colgada (probado con `warnings.simplefilter("error")`).
+
+**4. Código muerto eliminado:** `calculos_riego.factor_christiansen()` (nunca se llamó desde
+Python — solo existe una fórmula homónima dentro del HTML del Diseñador de Riego, que es una app
+aparte) y el import sin uso de `hash_password` en `main.py`. Barrido AST de símbolos definidos vs.
+usados sobre los 8 módulos + los templates: no quedó nada más.
+
+**Evaluado y NO cambiado (con el motivo, para no volver a revisarlo desde cero):**
+- **El caché de prompt está bien montado, no había el bug que sospeché.** Se verificó contra la
+  referencia oficial de la API: el prompt caching es **GA** y el `ttl: "1h"` NO requiere ningún
+  header beta, así que el `anthropic-beta: prompt-caching-2024-07-31` que manda la app es un
+  vestigio inofensivo (se dejó: quitarlo no gana nada medible y un error ahí se pagaría en costo
+  real). El mínimo cacheable para Sonnet 5 es **1024 tokens** y el `SYSTEM_PROMPT` son ~14.300
+  (57.275 caracteres), así que los 3 breakpoints de `_analizar_grupo` sí pegan — el mínimo aplica
+  al prefijo ACUMULADO, no a cada bloque suelto.
+- **Cachear el bloque de reglas de `revisar_invalidacion_cruzada`: descartado por medición.** Se
+  midió su parte estática (las REGLAS ESTRICTAS + ejemplos negativos, idénticas en las ~18
+  llamadas por proyecto): **745 tokens**, bajo el mínimo de 1024 — un breakpoint ahí NO se
+  cachearía, y la API no avisa, simplemente `cache_creation_input_tokens: 0`. **Regla para el
+  futuro: medir el bloque antes de agregar un `cache_control`; bajo 1024 tokens no hace nada.**
+- **Reusar datos extraídos pero NO validados** (el revisor apretó "Extraer" en Chequeo de Cálculos
+  y después revisa el ítem sin marcar "Ya revisé estos datos" → se paga Haiku dos veces): se dejó
+  como está a propósito. Los documentos pueden haber cambiado entre una cosa y la otra; reusar
+  datos sin el VB humano cambiaría la semántica de "validado", que es justo la garantía que da esa
+  página.
+- **Envolver las ~127 llamadas `db.*` restantes en `to_thread`:** sigue descartado por el mismo
+  motivo de la 2ª auditoría (no acelera la latencia de la propia acción del revisor), pero con el
+  `_pg_lock` de arriba ya no está el impedimento técnico si alguna vez se quiere hacer.
+- **Migraciones de startup** (`migrar_proyectos`, `migrar_textos_documentos`,
+  `migrar_criterios_enfasis`): las 3 tienen guarda idempotente (marcador o blob vacío) y cuestan
+  una query trivial por arranque. Se dejan — quitarlas arriesgaría el entorno JSON local del Mac
+  si no hubiera arrancado desde jul-2026.
+
+---
+
 ## Auditoría general (jul-2026) — hallazgos y correcciones
 
 Revisión completa del código a pedido del usuario, buscando fallas, conflictos, código muerto y

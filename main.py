@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 from dotenv import load_dotenv
 
-from auth import create_token, verify_token, hash_password, verify_password
+from auth import create_token, verify_token, verify_password
 from extractor import extract_text, extract_zip, parse_tabla_precios, truncar_texto_guardado
 from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
                       extraer_metodologia_consultor, CONCEPTOS_METODOLOGIA,
@@ -999,7 +999,16 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
         ]
 
-        _restaurar_archivos_necesarios(proyecto_id, proyecto.get("documentos", []))
+        # En `to_thread` (no directo): esta función es SINCRÓNICA y puede hacer varias lecturas
+        # de `bytea` de varios MB desde Postgres MÁS la escritura de esos PDF al disco. Llamada
+        # directo desde este `async def` bloqueaba el event loop entero mientras tanto — es decir,
+        # congelaba TODAS las páginas para TODOS los usuarios, no solo este análisis. Mismo patrón
+        # de bug ya corregido antes para las llamadas a la API de Anthropic, PyMuPDF y bcrypt
+        # (ver "Auditoría de rendimiento" en CLAUDE.md); este punto se había quedado afuera.
+        # Se nota sobre todo tras un redeploy de Railway (frecuentes en este proyecto), que es
+        # justo cuando esta restauración tiene trabajo real que hacer.
+        await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
+                                proyecto.get("documentos", []))
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
         resultado = await analizar_item(
