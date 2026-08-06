@@ -494,7 +494,22 @@ capacidad mayor a la necesidad hídrica, exige declaración jurada del solicitan
 costos operacionales. En aducciones californianas, exige el detalle de sus componentes (red,
 válvulas, cámaras reguladoras, campanas) y los cálculos que lo fundamenten. En aspersión
 móvil/semimóvil no automatizada, verifica que el tiempo de riego diario considere la capacidad
-operativa para los cambios de postura.""",
+operativa para los cambios de postura.
+
+CRITERIO DE INGENIERO, NO SOLO CHECKLIST DE PRESENCIA: lo anterior es lo mínimo que debe ESTAR en
+la memoria — además de verificar que esté, evalúa si el diseño elegido (diámetros, sectorización,
+tipo de emisor/aspersor, presión de trabajo) es la solución técnica razonable para el caudal, la
+presión disponible y la escala del proyecto, no solo que los números cuadren entre sí. Una memoria
+que solo presenta resultados finales sin mostrar el desarrollo del cálculo (fórmulas, valores
+intermedios, criterio de selección) no permite verificar si el diseño es correcto, y eso es
+observable por sí mismo aunque los resultados finales parezcan razonables.
+En particular, el N° de sectores/bloques/posturas de riego debe estar JUSTIFICADO con su base de
+diseño (caudal disponible, capacidad del equipo de bombeo, horas de riego disponibles) — no basta
+con que aparezca declarado como una cifra. Si más abajo se te entrega un bloque de "VERIFICACIÓN
+DE DISEÑO BASE" que avisa que ese número no se pudo recalcular por falta de datos base en el
+expediente, revisa tú mismo si la memoria al menos explica de dónde sale esa cifra; si no lo
+explica, obsérvalo — es exactamente el tipo de número que "aparece sin respaldo" y que el
+consultor debe justificar, con o sin que la app haya podido verificarlo numéricamente.""",
     },
     "diseno_fotovoltaico": {
         "nombre": "Diseño Fotovoltaico",
@@ -1833,6 +1848,24 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                             f"La fuente sola ya alcanza el caudal de operación (ΔQ del estanque "
                             f"= 0) — tiempo de llenado desde vacío (solo con la fuente) = "
                             f"{diseno['tiempo_llenado_estanque_hr']} hr.")
+        elif declarado.get("n_sectores") is not None:
+            # El expediente SÍ declara un N° de sectores/posturas, pero el bloque no pudo
+            # recalcularlo por falta de algún dato base (caudal disponible, superficie, precipitación
+            # del sistema, horas disponibles, o — en Aspersión/Carrete — el marco/espaciamiento de
+            # emisores). ANTES esto quedaba en silencio total: `if "n_sectores" in diseno:` (arriba)
+            # simplemente no entraba y no se avisaba nada — bug real reportado por el usuario: un N°
+            # de sectores puede aparecer en la memoria "mágicamente, sin respaldo" justo PORQUE el
+            # expediente nunca declaró la base de cálculo, y sin este aviso la IA nunca se enteraba
+            # de que no pudo verificarlo — seguía con el checklist genérico sin comentar nada.
+            lineas_diseno.append(
+                f"El expediente declara N° de sectores/posturas = {declarado['n_sectores']}, pero "
+                f"no fue posible recalcularlo (falta en el expediente algún dato base: caudal "
+                f"disponible de la fuente, superficie de riego, precipitación del sistema u horas "
+                f"de riego disponibles, según el sistema). Revisa si la memoria al menos JUSTIFICA "
+                f"de dónde sale esa cifra (ej. a partir de la capacidad del equipo de bombeo "
+                f"elegido, o del caudal disponible) — un N° de sectores declarado sin ningún "
+                f"respaldo de cálculo es observable, aunque el número en sí no se pueda verificar "
+                f"automáticamente.")
         texto += ("\n\nVERIFICACIÓN DE DISEÑO BASE (relación demanda↔caudal↔tiempo↔sectores/"
                   "posturas↔volumen, cálculo determinístico — en Goteo/Microaspersión el N° de "
                   "sectores se calcula por caudal; en Aspersión/Carrete se usa el N° de POSTURAS "

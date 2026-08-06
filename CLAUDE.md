@@ -1681,6 +1681,48 @@ de selección de emisor. El prompt de verificación se lo advierte explícitamen
   riego, N° sectores) — campos existentes se angostaron (`.agro-grid` de 150px a 115px mínimo)
   para que quepan más por fila, a pedido del usuario.
 
+**Ítem "Diseño y cálculos hidráulicos" — de checklist de presencia a criterio de ingeniero, y
+aviso cuando el N° de sectores no se puede verificar (implementado, ago-2026):** el usuario
+notó, revisando proyectos reales, que las observaciones de este ítem eran casi siempre "simples"
+(superficies distintas entre documentos, un caudal faltante en una tabla) y nunca evaluaban si
+el diseño elegido —sectorización, diámetros, tipo de emisor— tenía lógica de ingeniería, ni si
+la memoria mostraba CÓMO se llegó a los resultados. Caso concreto que puso como ejemplo: un N°
+de sectores que "aparece mágicamente" en la memoria, sin que la IA lo advirtiera.
+- **Causa 1 — el checklist del ítem (`ITEMS_SEP["diseno_hidraulico"]["checklist"]`) era
+  puramente de PRESENCIA**, no de juicio: "verifica que la memoria incluya X, Y, Z" — nunca pedía
+  evaluar si el diseño resultante era razonable. Se agregó (SIN borrar nada del checklist
+  existente, a pedido explícito del usuario) un párrafo nuevo "CRITERIO DE INGENIERO, NO SOLO
+  CHECKLIST DE PRESENCIA" que pide explícitamente evaluar si el diseño es la solución técnica
+  razonable para el caudal/presión/escala, y que señala como observable por sí sola una memoria
+  que solo presenta resultados finales sin mostrar el desarrollo del cálculo — sin necesidad de
+  que ningún número esté "mal", la ausencia de desarrollo ya es un defecto.
+- **Causa 2 — el N° de sectores/posturas SÍ se recalcula de forma determinística** (ver
+  "Verificación de diseño base" más arriba: `calculos_riego.verificacion_diseno_riego()`), pero
+  esa fórmula necesita que el expediente declare la base del cálculo (superficie de riego +
+  precipitación del sistema, como mínimo) — si el consultor NUNCA declaró esa base (que es
+  justamente el caso "número mágico" que describió el usuario: no hay de dónde sacarlo), el
+  bloque `if "n_sectores" in diseno:` en `_bloque_verificacion_agronomica_sistema()` simplemente
+  no entraba, sin avisar nada — la IA no se enteraba de que la verificación no pudo correr y
+  seguía con el checklist genérico, produciendo justo las observaciones superficiales que
+  reportó el usuario. Arreglado con un `elif` nuevo: si el expediente SÍ declara un N° de
+  sectores pero la app no pudo recalcularlo (falta superficie, precipitación del sistema, caudal
+  disponible u horas disponibles según el sistema), se agrega una línea explícita al bloque de
+  verificación pidiéndole a la IA que revise si la memoria al menos JUSTIFICA de dónde sale esa
+  cifra (ej. a partir de la capacidad del equipo de bombeo elegido) — si no lo explica, es
+  observable, aunque el número en sí no se pudo verificar con la fórmula.
+- **Qué NO se tocó:** la bala "El N° de sectores de riego está JUSTIFICADO, no solo declarado"
+  del checklist de Coherencia Global (agregada en una sesión anterior) se dejó intacta — sigue
+  siendo la red de seguridad para el caso genuinamente transversal (el número contradice algo de
+  OTRO documento). Como Coherencia Global recibe la lista de observaciones ya registradas por
+  otros ítems y no repite lo que ya se marcó (ver "Observaciones repetidas entre ítems"), si
+  `diseno_hidraulico` ahora detecta el problema primero, Coherencia simplemente no lo vuelve a
+  generar — no hizo falta editar ni quitar nada de su checklist.
+- Verificado con `_bloque_verificacion_agronomica_sistema()` real (sin mocks de HTTP): con
+  `n_sectores` declarado y datos base insuficientes, aparece el aviso nuevo citando el número
+  declarado; sin ningún `n_sectores` declarado, no aparece (no hay nada que reclamar); con datos
+  suficientes, se recalcula normal y el aviso de "no pudo verificarse" no aparece — el flujo de
+  siempre (comparación numérica exacta) sigue intacto.
+
 **Bug resuelto — "Superficie de riego (ha)" no dejaba guardar valores chicos de invernaderos
 (jul-2026):** reportado por el usuario con un caso real: un invernadero de 60 m² (0,006 ha) — el
 campo tenía `step="0.01"` en el `<input type="number">`, y el HTML5 nativo del navegador exige
