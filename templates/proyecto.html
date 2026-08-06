@@ -721,7 +721,10 @@ function actualizarEtiqueta(input) {
     {% if lote or lote_pendientes %}
     <div class="item-lote-cell" style="display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; gap:0.4rem;">
       {% if lote %}
-      <div id="lote-estado" style="font-size:0.78rem; color:var(--text-2); text-align:right;">Revisando {{ lote.completados|length }}/{{ lote.total }}…</div>
+      {# El número muestra el ítem EN CURSO (completados + 1 si hay uno analizándose), no solo
+         los ya terminados — así llega a total/total mientras se analiza el último, en vez de
+         quedarse en (total-1)/total (bug reportado ago-2026: contaba "revisados", no "revisando"). #}
+      <div id="lote-estado" style="font-size:0.78rem; color:var(--text-2); text-align:right;">Revisando {{ [lote.completados|length + (1 if lote.actual else 0), lote.total]|min }}/{{ lote.total }}…</div>
       <form method="post" action="/proyecto/{{ proyecto.id }}/revisar-todos/detener">
         <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;"
                 title="El ítem en curso termina y se guarda; no se empieza ninguno más">Detener</button>
@@ -795,7 +798,10 @@ function actualizarEtiqueta(input) {
             if (!d.activo) { window.location.reload(); return; }
             var el = document.getElementById("lote-estado");
             if (el) {
-              el.textContent = "Revisando " + d.hechos + "/" + d.total
+              // Mostrar la posición del ítem EN CURSO (hechos+1), no solo los ya terminados —
+              // si no, nunca llega a "total/total" mientras se analiza el último ítem.
+              var numEnCurso = Math.min(d.hechos + (d.actual_key ? 1 : 0), d.total);
+              el.textContent = "Revisando " + numEnCurso + "/" + d.total
                              + (d.actual ? ": " + d.actual : "") + "…";
             }
             (d.completados_keys || []).forEach(function(key) {
