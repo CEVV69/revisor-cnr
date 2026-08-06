@@ -28,7 +28,51 @@ El usuario sigue usando la app con el concurso 202-2026 con proyectos reales. No
 abierto conocido a esta fecha — si retomas y el usuario reporta algo raro, lo más probable es
 que sea un caso nuevo, no una regresión de lo ya resuelto.
 
-**Lo último de esta sesión (ago-2026):** auditoría completa de la app (ver "Auditoría general
+**PENDIENTE para la próxima sesión — dos decisiones del usuario, no acciones nuestras:**
+1. El usuario va a revisar un proyecto nuevo casi idéntico a otros ya revisados, específicamente
+   para ver si el ítem "Diseño y cálculos hidráulicos" cambia de comportamiento con el fix de
+   ago-2026 (ver más abajo — criterio de ingeniero + aviso de N° de sectores sin respaldo). Si
+   reporta que sigue viendo observaciones "simples" pese al fix, profundizar desde ahí — no
+   asumir que el fix ya cerró el tema.
+2. El usuario va a revisar la comparación Sonnet 5 vs. Sonnet 4.6 (se le explicó en prosa, sin
+   tabla ancha, porque la vio desde el celular) y decidirá si migra a 4.6 como modelo por defecto
+   dejando Sonnet 5 solo para los ítems que van por visión (planos, ubicación, identificación de
+   riego, pruebas de bombeo). Datos clave que ya tiene para decidir: (a) hoy Sonnet 5 sale más
+   barato pese a tokenizar ~30% más, por el precio promocional vigente hasta el 31-08-2026 — si
+   migra a 4.6 solo para los ítems de texto, esa fecha deja de importar para esos ítems (siguen
+   yéndose a 4.6 sea antes o después del 31-08); (b) el código NUNCA fija `thinking`/`effort`
+   explícito en ninguna llamada a Sonnet, así que corre con el default de cada modelo — Sonnet 5
+   piensa (adaptativo) por defecto, Sonnet 4.6 NO piensa por defecto — es probablemente el mayor
+   factor de costo real, más que el precio por token, y explica parte de los reintentos por
+   `max_tokens` ya documentados; (c) Sonnet 5 tiene visión de mayor resolución (2576px vs 1568px),
+   por eso la idea del usuario de dejarlo solo para los ítems de planos/imagen tiene sentido
+   técnico, no es solo por costo.
+
+**Lo último de esta sesión (ago-2026) — calidad de análisis en "Diseño y cálculos hidráulicos":**
+el usuario reportó, con casos reales, que las observaciones de ese ítem eran "simples" (superficies
+distintas, un caudal faltante en una tabla) y nunca evaluaban la lógica de ingeniería del diseño
+— dio como ejemplo un N° de sectores que "aparece mágicamente" sin que la IA lo advirtiera. Se
+agregó (SIN borrar nada del checklist existente, a pedido explícito) un párrafo de "criterio de
+ingeniero" al checklist del ítem, y se corrigió un bug real: el bloque de verificación
+determinística del N° de sectores quedaba en silencio total cuando el expediente no declaraba la
+base del cálculo (superficie/precipitación/caudal disponible) — exactamente el caso "número
+mágico" — ahora avisa explícitamente y pide evaluar si la memoria al menos justifica la cifra. Ver
+la entrada dedicada "Ítem 'Diseño y cálculos hidráulicos' — de checklist de presencia a criterio
+de ingeniero" más abajo (dentro de "Verificación de diseño base"). **Principio de producto que
+dejó el usuario para las próximas sesiones: los ítems Diseño agronómico/hidráulico, Presupuesto y
+Planos son la BASE del proyecto de riego — su análisis debe tener el mayor criterio de ingeniería
+posible, más que el resto de los ítems** (ver punto 9 de "Instrucciones del usuario" al final).
+
+**Antes de eso, en la misma sesión:** tres ajustes puntuales — color/alineación del botón
+"Revisar todos" (pasó a `btn-outline`, alineado con `grid-column:-1` a la fila de Coherencia
+Global) y avance visual tarjeta por tarjeta durante la tanda (antes solo el contador de texto se
+actualizaba); y un **bug de precio real**: `PRECIOS_USD_POR_MTOK` tenía el precio de LISTA de
+Sonnet 5 (USD 3/15) en vez del promocional vigente hoy (USD 2/10, hasta el 31-08-2026) —
+sobreestimaba el costo real ~40 % desde que existe el contador. `_precio_sonnet5()` ahora calcula
+el precio según la fecha, sin necesidad de tocar código después del 31-08 (ver "Bug de precio
+real encontrado" más abajo, dentro de la sección del contador de costo).
+
+**Y antes de eso, en la misma sesión:** auditoría completa de la app (ver "Auditoría general
 (ago-2026)" más abajo — 7 puntos: bug de bloqueo del event loop, `database.py` thread-safe, dos
 extracciones de Haiku paralelizadas, reuso de la extracción del Chequeo sin exigir el tilde
 "validado", código muerto, `_log_uso` en las 8 llamadas de Haiku) y, a partir de un proyecto real
@@ -40,7 +84,7 @@ También se agregó el botón **"Revisar todos"** (tanda secuencial de ítems), 
 caracteres en "Características obras" del Resumen, y el mecanismo para que un ítem NO repita una
 observación ya hecha en otro (ver "Observaciones repetidas entre ítems").
 
-**Antes de eso, en la misma sesión:** a partir de dos Excel reales de un consultor que el
+**Y antes de eso, en la misma sesión:** a partir de dos Excel reales de un consultor que el
 usuario compartió (memoria de cálculo de Goteo/invernadero con SCALL + balance hídrico), se
 reforzó el checklist de Coherencia Global (consistencia de cultivo entre documentos, N° de
 sectores justificado, invernadero vs. aire libre identificado — ver "Checklist de Coherencia
@@ -4461,3 +4505,14 @@ renombraron para no colisionar entre los dos formularios de la misma página).
    no se ve en pantalla: que el marco de plantación no entra al recálculo salvo en Carrete, que
    vacío = sin acumulador, que la columna del medio es editable, que AMT/CDT no se recalcula, y
    qué NO cubre el chequeo FV. Neto: 40 líneas menos de plantilla.
+9. **Los ítems "base" del proyecto de riego merecen el mayor criterio de ingeniería (ago-2026):**
+   el usuario definió explícitamente que **Diseño agronómico/hidráulico, Presupuesto y Planos**
+   son la BASE de todo proyecto de riego — el análisis de esos cuatro ítems debe tener el mayor
+   criterio de ingeniería posible, más que el resto de los 19 ítems del SEP. Esto surgió del
+   reporte de que "Diseño y cálculos hidráulicos" generaba observaciones "simples" (ver la
+   entrada de esa fecha en "Estado al cierre de esta sesión" y en "Verificación de diseño base")
+   en vez de evaluar la lógica del diseño. Al tocar el checklist, el prompt, o cualquier
+   verificación determinística de estos cuatro ítems en el futuro, priorizar profundidad de
+   juicio de ingeniero (no solo presencia/consistencia de datos) por sobre el resto de los
+   ítems — y ante cualquier reporte futuro de observaciones "superficiales" en alguno de estos
+   cuatro, tratarlo con la misma prioridad que se le dio a este caso.
