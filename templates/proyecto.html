@@ -549,6 +549,11 @@ function actualizarEtiqueta(input) {
     {% else %}
     <span style="font-size:0.82rem; color:#2e7d32;"><span class="dot dot-green"></span>No hace falta resubir nada</span>
     {% endif %}
+    <span style="flex:1;"></span>
+    <form method="post" action="/proyecto/{{ proyecto.id }}/documentos/eliminar-todos"
+          onsubmit="return confirm('¿Eliminar los {{ proyecto.documentos|length }} documentos del expediente? No se puede deshacer.')">
+      <button type="submit" class="btn btn-danger btn-sm" title="Eliminar todos los documentos subidos a este proyecto">Eliminar todos</button>
+    </form>
   </div>
   <table style="min-width:600px; font-size:0.82rem;">
     <thead>

@@ -48,7 +48,41 @@ que sea un caso nuevo, no una regresión de lo ya resuelto.
    por eso la idea del usuario de dejarlo solo para los ítems de planos/imagen tiene sentido
    técnico, no es solo por costo.
 
-**Lo último de esta sesión (ago-2026) — calidad de análisis en "Diseño y cálculos hidráulicos":**
+**Lo último de esta sesión (ago-2026) — botón "Eliminar todos" en Documentos del expediente:**
+a pedido del usuario, tras subir por error los mismos ~40 archivos dos veces al mismo proyecto —
+borrar uno por uno con la confirmación individual de siempre es tedioso a esa escala. Botón nuevo
+`POST /proyecto/{id}/documentos/eliminar-todos` (`eliminar_todos_documentos()`, main.py),
+alineado a la derecha en la misma línea del título "Documentos del expediente"
+(`templates/proyecto.html`, mismo patrón `<span style="flex:1;"></span>` de separador ya usado en
+otras filas de la app) — visible solo cuando el proyecto tiene documentos (dentro del
+`{% if proyecto.documentos %}` que ya envuelve toda la tarjeta), con `confirm()` citando la
+cantidad real de documentos y clase `btn-danger` (mismo rojo del botón "Eliminar" individual de
+cada fila, por ser igual de destructivo).
+- **Mismo efecto neto que borrar cada documento uno por uno, pero en LOTE**, no un mecanismo
+  nuevo: borra la carpeta física del proyecto entera de una vez (`shutil.rmtree`, en vez de
+  archivo por archivo) y usa `db.eliminar_archivos_proyectos([proyecto_id])` +
+  `db.eliminar_textos_proyecto(proyecto_id)` — las mismas dos funciones EN LOTE que ya existían
+  para "liberar archivos" al cerrar un concurso (ver esa sección más abajo), reusadas acá para un
+  solo proyecto en vez de iterar `eliminar_archivo`/`eliminar_texto_documento` documento por
+  documento. `proyecto["documentos"]` queda `[]`.
+- **Mismo alcance que el borrado individual** (`eliminar_documento()`): filtra de
+  `proyecto["observaciones"]` solo las que tengan `doc_id` (formato legado, del método por
+  documento ya eliminado) — las observaciones de ítem (`item`/`item_nombre`, sin `doc_id`) NO se
+  tocan, ni tampoco `items_revisados`/`items_en_progreso`/`items_error` — el revisor puede volver
+  a subir los documentos y re-analizar los ítems normalmente, sin perder el historial de qué ya
+  se había revisado.
+- Si el proyecto ya no tiene documentos (`doc_ids` vacío), la ruta es no-op — no llama a la base
+  ni reescribe el proyecto (aunque en la práctica el botón nunca se muestra en ese caso, por el
+  `{% if proyecto.documentos %}` que envuelve la tarjeta completa).
+- Verificado con `eliminar_todos_documentos()` real (mocks de `db.get_proyecto`/`save_proyecto`/
+  `eliminar_archivos_proyectos`/`eliminar_textos_proyecto`, carpeta temporal real para confirmar
+  que `shutil.rmtree` borra el directorio físico): caso con documentos (carpeta borrada, las 2
+  llamadas en lote con los argumentos correctos, `documentos=[]`, observación de `doc_id` filtrada
+  y observación de ítem conservada), caso sin documentos (no-op, no toca la base) y caso sin
+  sesión (redirige a `/login`). Más el snippet HTML del botón renderizado de forma aislada,
+  confirmando alineación a la derecha, cantidad correcta en el `confirm()` y la URL de acción.
+
+**Antes de eso, en la misma sesión — calidad de análisis en "Diseño y cálculos hidráulicos":**
 el usuario reportó, con casos reales, que las observaciones de ese ítem eran "simples" (superficies
 distintas, un caudal faltante en una tabla) y nunca evaluaban la lógica de ingeniería del diseño
 — dio como ejemplo un N° de sectores que "aparece mágicamente" sin que la IA lo advirtiera. Se

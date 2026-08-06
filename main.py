@@ -7,6 +7,7 @@ import json
 import uuid
 import asyncio
 import unicodedata
+import shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -2406,6 +2407,37 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         db.eliminar_texto_documento(proyecto_id, doc_id)
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/documentos/eliminar-todos")
+async def eliminar_todos_documentos(request: Request, proyecto_id: str):
+    """Elimina TODOS los documentos del expediente de una sola vez — pensado para el caso de
+    subida duplicada por error (ej. los mismos 40 archivos subidos dos veces), donde borrar uno
+    por uno con la confirmación individual de `eliminar_documento()` es tedioso. Mismo efecto
+    neto que borrar cada documento uno por uno, pero en lote: borra la carpeta física del
+    proyecto entera de una vez (en vez de archivo por archivo) y usa las versiones EN LOTE de
+    `eliminar_archivos_proyectos()`/`eliminar_textos_proyecto()` en vez de iterar doc por doc.
+    NO toca `items_revisados` ni las observaciones de ítem (no están ligadas a un `doc_id`,
+    llevan `item`/`item_nombre`) — mismo alcance que el borrado individual, que tampoco las
+    toca; solo se limpian observaciones legacy del método por documento (`doc_id` real)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    doc_ids = {d["id"] for d in proyecto.get("documentos", [])}
+    if doc_ids:
+        carpeta = UPLOAD_DIR / proyecto_id
+        if carpeta.exists():
+            shutil.rmtree(carpeta)
+        db.eliminar_archivos_proyectos([proyecto_id])
+        db.eliminar_textos_proyecto(proyecto_id)
+        proyecto["documentos"] = []
+        proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") not in doc_ids]
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
