@@ -3897,9 +3897,18 @@ function importProject(sys) {
     reader.onload = function(ev) {
       try {
         var obj = JSON.parse(ev.target.result);
-        var data = obj.fields || obj; // soportar ambos formatos
-        restoreFieldData(sys, data);
-        showToast('✓ Proyecto importado: ' + (obj.__name || 'sin nombre'));
+        // Soportar array (exportación multi-sistema desde Revisor CNR)
+        if (Array.isArray(obj)) {
+          var count = 0;
+          obj.forEach(function(item) {
+            if (item.__sys) { restoreFieldData(item.__sys, item.fields || item); count++; }
+          });
+          showToast('✓ ' + count + ' sistema(s) importado(s) desde Revisor CNR');
+        } else {
+          var data = obj.fields || obj; // soportar ambos formatos
+          restoreFieldData(sys, data);
+          showToast('✓ Proyecto importado: ' + (obj.__name || 'sin nombre'));
+        }
       } catch(err) {
         showToast('⚠ Error al leer el archivo: ' + err.message);
       }

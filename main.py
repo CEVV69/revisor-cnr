@@ -2245,6 +2245,52 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe", status_code=302)
 
 
+@app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador")
+async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
+    """Descarga un .json con TODOS los sistemas del proyecto en formato Diseñador de Riego.
+    Si hay 1 sistema exportable → JSON simple; si hay 2 → array JSON. El Diseñador v114
+    soporta arrays: importa todos los sistemas de una sola vez."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
+    fv = verif.get("energetico", {})
+    resumen = dict(proyecto.get("resumen", {}))
+    for k in ("coord_n", "coord_e"):
+        num = _parse_coord_numero(resumen.get(k))
+        if num is not None:
+            resumen[k] = int(num) if float(num).is_integer() else num
+
+    fecha = _fecha_disenador()
+    exportados = []
+    for idx in range(n_sistemas):
+        sistema_agro = agro_norm["sistemas"][idx] if idx < len(agro_norm["sistemas"]) else {}
+        tramos_hid = (hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos", [])
+        nombre_sistema = (sistema_agro or {}).get("sistema_riego")
+        data = exportar_disenador.construir(
+            sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, fecha)
+        if data:
+            exportados.append(data)
+
+    if not exportados:
+        return RedirectResponse(
+            url=f"/proyecto/{proyecto_id}/calculos?export_sin_sistema=1", status_code=302)
+
+    contenido = json.dumps(exportados[0] if len(exportados) == 1 else exportados,
+                           ensure_ascii=False, indent=2)
+    codigo = (proyecto.get("codigo_sep", "") or "").replace("/", "-").replace(" ", "")
+    filename = f"DR_{codigo}.json"
+    return Response(content=contenido, media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")
 async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
     """Descarga un .json con el formato del Diseñador de Riego, armado con los datos GUARDADOS del

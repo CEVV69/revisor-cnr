@@ -211,8 +211,11 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
                 put(suf_c, c_val)
 
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
-    for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"):
-        put(f"fv-{suf}", fv.get(suf))
+    for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis",
+                "diasriego", "conexion"):
+        # dias_riego en Revisor → diasriego en el Diseñador (sin guión bajo)
+        fv_key = "dias_riego" if suf == "diasriego" else suf
+        put(f"fv-{suf}", fv.get(fv_key))
 
     # ── Tramos de impulsión (solo Aspersión/Carrete usan la lista genérica l/q) ──
     if sys_code in _SYS_CON_TRAMOS:

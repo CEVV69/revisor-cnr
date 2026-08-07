@@ -75,7 +75,11 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v114.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+      <a href="/static/disenador_riego_v114.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+      <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador" class="btn btn-outline btn-sm" title="Exporta agronómico, hidráulico y fotovoltaico de todos los sistemas">Exportar para el Diseñador (.json)</a>
+      <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Memoria de cálculo completa</a>
+    </div>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Aplica a los dos chequeos. Elígelo antes de extraer.
@@ -335,14 +339,6 @@
             <td class="col-calc" id="{{ p }}agro-tllenado-calc">—</td>
           </tr>
         </table>
-      </div>
-      <div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-        {% if loop.first %}
-        <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Ver memoria de cálculo completa</a>
-        {% endif %}
-        {% if agro.sistema_riego in ['Goteo', 'Microaspersión', 'Aspersión', 'Carrete'] %}
-        <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador/{{ sis.idx }}" class="btn btn-outline btn-sm">Exportar para el Diseñador de Riego (.json)</a>
-        {% endif %}
       </div>
     </div>
     {% endfor %}
