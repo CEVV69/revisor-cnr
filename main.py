@@ -24,7 +24,8 @@ from dotenv import load_dotenv
 from auth import create_token, verify_token, verify_password
 from extractor import extract_text, extract_zip, parse_tabla_precios, truncar_texto_guardado
 from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir_proyecto,
-                      extraer_metodologia_consultor, CONCEPTOS_METODOLOGIA,
+                      extraer_metodologia_consultor, extraer_metodologia_fv,
+                      CONCEPTOS_METODOLOGIA, CONCEPTOS_METODOLOGIA_FV,
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
@@ -2017,10 +2018,35 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
     fv = verif.get("energetico") or {}
     fv_calc = _fv_calculo(fv) or {}
 
+    # Metodología del consultor para el informe completo
+    mc_completo = (verif.get("metodologia_consultor") or {}).get("completo") or {}
+    mc_sistemas = mc_completo.get("sistemas") or []
+    mc_fv_raw   = mc_completo.get("fv") or {}
+    # Preparar mc por sistema (normalizado igual que en informe individual)
+    mc_por_sistema = []
+    for i in range(n_sistemas):
+        mc_raw = mc_sistemas[i] if i < len(mc_sistemas) else None
+        mc = None
+        if mc_raw and mc_raw.get("conceptos"):
+            mc = {k: {"formula": (mc_raw["conceptos"].get(k) or {}).get("formula"),
+                       "resultado": (mc_raw["conceptos"].get(k) or {}).get("resultado")}
+                  for k, _ in CONCEPTOS_METODOLOGIA}
+        mc_por_sistema.append(mc)
+    mc_fv = None
+    if mc_fv_raw.get("conceptos"):
+        mc_fv = {k: {"formula": (mc_fv_raw["conceptos"].get(k) or {}).get("formula"),
+                      "resultado": (mc_fv_raw["conceptos"].get(k) or {}).get("resultado")}
+                 for k, _ in CONCEPTOS_METODOLOGIA_FV}
+
     return templates.TemplateResponse("informe_calculo_completo.html", {
         "request": request, "proyecto": proyecto,
         "n_sistemas": n_sistemas, "sistemas": sistemas,
         "fv": fv, "fv_calc": fv_calc,
+        "mc_por_sistema": mc_por_sistema,
+        "mc_fv": mc_fv,
+        "mc_fecha": mc_completo.get("fecha", "")[:10] if mc_completo else None,
+        "CONCEPTOS_METODOLOGIA": CONCEPTOS_METODOLOGIA,
+        "CONCEPTOS_METODOLOGIA_FV": CONCEPTOS_METODOLOGIA_FV,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
     })
 
@@ -2173,6 +2199,49 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
     _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe/{idx}", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/calculos/informe/metodologia-completa")
+async def extraer_metodologia_completa_route(request: Request, proyecto_id: str):
+    """Extrae la metodología del consultor para TODOS los sistemas + FV en una sola operación,
+    para el informe completo. Guarda en metodologia_consultor.completo."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_hidraulicos = _documentos_para_verificacion("hidraulico", documentos_con_texto)
+    docs_fv = _documentos_para_verificacion("diseno_fotovoltaico", documentos_con_texto)
+
+    acc_costo = iniciar_costo()
+
+    # Extraer por sistema (agronómico + hidráulico) en paralelo + FV
+    import asyncio as _asyncio
+    tareas_sis = [
+        extraer_metodologia_consultor(
+            docs_hidraulicos,
+            agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
+        )
+        for i in range(n_sistemas)
+    ]
+    tarea_fv = extraer_metodologia_fv(docs_fv)
+    resultados = await _asyncio.gather(*tareas_sis, tarea_fv)
+
+    sistemas_mc = [{"conceptos": r, "fecha": _ahora().isoformat()} for r in resultados[:-1]]
+    fv_mc = {"conceptos": resultados[-1], "fecha": _ahora().isoformat()}
+
+    proyecto.setdefault("verificacion_calculos", {})
+    mc = proyecto["verificacion_calculos"].setdefault("metodologia_consultor", {})
+    mc["completo"] = {"sistemas": sistemas_mc, "fv": fv_mc, "fecha": _ahora().isoformat()}
+    _registrar_costo(proyecto, "chequeo", acc_costo)
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe", status_code=302)
 
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")

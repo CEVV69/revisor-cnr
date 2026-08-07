@@ -3467,6 +3467,17 @@ CONCEPTOS_METODOLOGIA = [
     ("hidraulico_general", "Método usado para calcular pérdida de carga y velocidad en tuberías"),
 ]
 
+CONCEPTOS_METODOLOGIA_FV = [
+    ("fv_energia_dia",    "Energía diaria requerida (E_día = P_bomba × horas de bombeo)"),
+    ("fv_hsp",            "HSP del sitio (Horas de Sol Pico, tomado del Explorador Solar CNR)"),
+    ("fv_wp_efectivo",    "Potencia efectiva del panel con corrección térmica (derating por temperatura)"),
+    ("fv_e_panel",        "Energía generada por panel al día (Wp_ef/1000 × HSP × PR)"),
+    ("fv_n_paneles",      "N° de paneles calculado (fórmula y resultado)"),
+    ("fv_configuracion",  "Configuración serie/paralelo de los paneles (Vmp, Vsis, Imp)"),
+    ("fv_kwp",            "kWp total instalado (potencia pico del sistema)"),
+    ("fv_cable_dc",       "Sección del cable DC calculada o justificada"),
+]
+
 
 async def extraer_metodologia_consultor(docs_grupo: list, sistema_riego: str = None) -> dict:
     """Para cada concepto de `CONCEPTOS_METODOLOGIA`, busca si el expediente MUESTRA la fórmula/
@@ -3521,6 +3532,55 @@ EXPEDIENTE:
         return conceptos if isinstance(conceptos, dict) else {}
     except Exception as e:
         print(f"⚠️ extraer_metodologia_consultor: {e}")
+        return {}
+
+
+async def extraer_metodologia_fv(docs_fv: list) -> dict:
+    """Extrae la metodología del consultor para el diseño fotovoltaico.
+    Igual que extraer_metodologia_consultor pero con CONCEPTOS_METODOLOGIA_FV."""
+    texto = _texto_grupo_para_extraccion(docs_fv, max_chars=MAX_CHARS_POR_ITEM.get("diseno_fotovoltaico", 80000))
+    if not texto.strip():
+        return {}
+    client = _get_client()
+    lista = "\n".join(f'- "{k}": {label}' for k, label in CONCEPTOS_METODOLOGIA_FV)
+    prompt = f"""Estás auditando la memoria de cálculo del SISTEMA FOTOVOLTAICO de un proyecto de riego.
+
+Para CADA uno de estos conceptos, busca si el consultor MUESTRA explícitamente la fórmula o
+el desarrollo del cálculo (no solo el número final). Cita el texto tal como aparece en el
+expediente — fórmula + valores sustituidos + resultado con unidad:
+
+{lista}
+
+REGLA ESTRICTA: si el expediente solo declara el resultado final sin mostrar cómo se obtuvo,
+o el concepto no aparece, responde null en "formula". NUNCA reconstruyas ni inventes una
+fórmula que el consultor no escribió explícitamente.
+
+Responde SOLO este JSON:
+{{"conceptos": {{
+{", ".join(f'"{k}": {{"formula": string|null, "resultado": string|null}}' for k, _ in CONCEPTOS_METODOLOGIA_FV)}
+}}}}
+
+EXPEDIENTE FV:
+{texto}"""
+
+    def _stream(max_tokens):
+        with client.messages.stream(
+            model=MODELO_SONNET, max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        ) as s:
+            return s.get_final_message()
+    try:
+        response = await asyncio.to_thread(_stream, 4000)
+        content  = _texto_respuesta(response)
+        if not content.strip() and response.stop_reason == "max_tokens":
+            response = await asyncio.to_thread(_stream, 8000)
+            content  = _texto_respuesta(response)
+        _log_uso("metodología FV del consultor", response)
+        data = _extraer_json_tolerante(content)
+        conceptos = data.get("conceptos")
+        return conceptos if isinstance(conceptos, dict) else {}
+    except Exception as e:
+        print(f"⚠️ extraer_metodologia_fv: {e}")
         return {}
 
 
