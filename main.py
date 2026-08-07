@@ -1953,6 +1953,78 @@ def _fecha_disenador() -> str:
     return f"{now.day:02d}-{now.month:02d}-{now.year}, {h12}:{now.minute:02d}:{now.second:02d} {ampm}"
 
 
+@app.get("/proyecto/{proyecto_id}/calculos/informe")
+async def informe_calculo_completo(request: Request, proyecto_id: str):
+    """Memoria de cálculo completa del proyecto: todos los sistemas de riego + FV en un solo informe."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    hid_norm  = _normalizar_verif_multisistema(verif.get("hidraulico"),  n_sistemas, "tramos")
+
+    sistemas = []
+    for i in range(n_sistemas):
+        agro = dict(agro_norm["sistemas"][i])
+        hid_s = hid_norm["sistemas"][i] if i < len(hid_norm["sistemas"]) else {}
+        tramos_raw = list((hid_s or {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
+
+        def _rellenar_none(d, claves):
+            for k in claves:
+                d.setdefault(k, None)
+            return d
+
+        _rellenar_none(agro, (
+            "cultivo","cc_pct","pmp_pct","da","prof_radicular_cm","factor_agotamiento_pct",
+            "kc","eto_dia_mm","eficiencia_pct","superficie_riego_ha","caudal_disponible_ls",
+            "precipitacion_sistema_mmhr","horas_disponibles_dia","volumen_acumulador_m3",
+            "vib_mmhr","caudal_canon_m3h","margen_sobredimensionamiento_pct","radio_alcance_m",
+            "velocidad_viento_ms","longitud_franja_m","velocidad_avance_mh",
+        ))
+        if isinstance(agro.get("declarado"), dict):
+            _rellenar_none(agro["declarado"], (
+                "dn_mm","fr_dias","db_mm","caudal_diseno_ls","tiempo_riego_hr",
+                "n_sectores","pluviometria_mmhr",
+            ))
+        calc  = _agronomico_calculo(agro) or {}
+        _rellenar_none(calc, (
+            "etc_mm_dia","ad_mm","dn_mm","fr_dias","fr_adj_dias","dn_adj_mm","db_mm",
+            "db_diario_mm","demanda_ls_ha","superficie_segura_ha","tiempo_riego_hr",
+            "n_sectores","tiempo_total_dia_hr","caudal_operacion_ls","v_requerido_dia_l",
+            "v_fuente_dia_l","volumen_minimo_estanque_l","acumulador_ok","delta_q_estanque_ls",
+            "autonomia_estanque_hr","tiempo_llenado_estanque_hr","caudal_estanque_ls",
+            "q_requerido_total_ls",
+        ))
+        if calc.get("postura_check"):
+            _rellenar_none(calc["postura_check"], ("tiempo_postura_hr","posturas_dia"))
+        tramos = _tramos_con_calculo(tramos_raw)
+        for t in tramos:
+            _rellenar_none(t, ("nombre","caudal_ls","diametro_mm","longitud_m","material",
+                               "velocidad_declarada_ms","hf_declarada_mca"))
+        sistemas.append({
+            "idx": i,
+            "sistema_riego": agro.get("sistema_riego"),
+            "agro": agro, "calc": calc, "tramos": tramos,
+            "amt_declarada_m": (hid_s or {}).get("amt_declarada_m"),
+            "caudal_bombeo_ls": (hid_s or {}).get("caudal_bombeo_ls"),
+        })
+
+    fv = verif.get("energetico") or {}
+    fv_calc = _fv_calculo(fv) or {}
+
+    return templates.TemplateResponse("informe_calculo_completo.html", {
+        "request": request, "proyecto": proyecto,
+        "n_sistemas": n_sistemas, "sistemas": sistemas,
+        "fv": fv, "fv_calc": fv_calc,
+        "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+    })
+
+
 @app.get("/proyecto/{proyecto_id}/calculos/informe/{idx}")
 async def informe_calculo(request: Request, proyecto_id: str, idx: int):
     """Memoria de cálculo explicada, paso a paso, del sistema de riego `idx` — página aparte

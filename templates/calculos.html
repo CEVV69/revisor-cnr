@@ -337,7 +337,9 @@
         </table>
       </div>
       <div style="margin-top:0.6rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <a href="/proyecto/{{ proyecto.id }}/calculos/informe/{{ sis.idx }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Ver memoria de cálculo explicada</a>
+        {% if loop.first %}
+        <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Ver memoria de cálculo completa</a>
+        {% endif %}
         {% if agro.sistema_riego in ['Goteo', 'Microaspersión', 'Aspersión', 'Carrete'] %}
         <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador/{{ sis.idx }}" class="btn btn-outline btn-sm">Exportar para el Diseñador de Riego (.json)</a>
         {% endif %}
