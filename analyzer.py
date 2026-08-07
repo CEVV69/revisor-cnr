@@ -3476,6 +3476,7 @@ CONCEPTOS_METODOLOGIA_FV = [
     ("fv_configuracion",  "Configuración serie/paralelo de los paneles (Vmp, Vsis, Imp)"),
     ("fv_kwp",            "kWp total instalado (potencia pico del sistema)"),
     ("fv_cable_dc",       "Sección del cable DC calculada o justificada"),
+    ("fv_balance_anual",  "Balance anual energético (generación FV vs. consumo de la bomba, §5.1 Manual CNR)"),
 ]
 
 

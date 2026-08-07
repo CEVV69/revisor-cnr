@@ -455,9 +455,10 @@ def seccion_cable_normalizada(seccion_calculada_mm2: float) -> float:
 
 def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: float,
                         vmp: float, imp: float, ct: float, temp: float, einv: float,
-                        vsis: float, l_cable_m: float = 50) -> dict:
+                        vsis: float, l_cable_m: float = 50,
+                        dias_riego: int = None, conexion: str = None) -> dict:
     """Recalcula el dimensionamiento fotovoltaico con la misma cadena que usa el Diseñador
-    de Riego:
+    de Riego (v114):
 
     E_día      = P_bomba[kW] × H_bombeo[hr]                       [kWh/día requeridos]
     PR         = Fp × η_inv                                        [performance ratio]
@@ -469,12 +470,21 @@ def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: floa
     kWp_total  = N_real × Wp / 1000
     Cable DC   = ρ_Cu × L × I_campo / (2% × V_campo)               [sección mm², normalizada]
 
+    Balance Anual Energético (Manual CNR-Ministerio de Energía §5.1):
+    Gen_día_real  = E_panel × N_real                               [kWh/día del campo completo]
+    Gen_anual     = Gen_día_real × 365                             [el parque genera 365 días/año]
+    Consumo_anual = P_bomba × H_bombeo × días_riego                [bomba solo consume días riego]
+    Balance       = Gen_anual / Consumo_anual × 100 %
+    balance_ok    = True si aislado (criterio no aplica); si on-grid, balance ≤ 100 %
+
     `pkw`: potencia de la bomba en kW. `hbom`: horas de bombeo/día. `hsp`: horas sol pico
     del sitio. `fp`: factor de pérdidas del sistema (0-1, típico 0,80). `wp`: potencia
     nominal del panel (Wp). `vmp`/`imp`: voltaje/corriente en el punto de máxima potencia
     del panel. `ct`: coeficiente de temperatura del panel (%/°C, típico negativo, ej. -0,35).
     `temp`: temperatura máxima del sitio (°C). `einv`: eficiencia del inversor (0-1, típico
     0,95). `vsis`: voltaje nominal del sistema/inversor (V).
+    `dias_riego`: días efectivos de operación del sistema de riego al año (para balance anual).
+    `conexion`: 'aislado' (default) o 'ongrid' — determina si aplica el criterio de 100%.
     """
     if not pkw or not hbom or not hsp or not wp or not vmp or not imp:
         return {}
@@ -492,7 +502,7 @@ def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: floa
     v_campo = pan_serie * vmp
     dv_max = v_campo * 0.02
     seccion_calc = (RHO_CU * l_cable_m * i_campo) / dv_max if dv_max else 0
-    return {
+    r = {
         "e_dia_kwh": round(e_dia, 3), "pr": round(pr, 3), "derating": round(derating, 4),
         "wp_efectivo": round(wp_efectivo, 1), "e_panel_kwh": round(e_panel, 4),
         "n_paneles_minimo": n_paneles, "paneles_serie": pan_serie,
@@ -501,3 +511,16 @@ def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: floa
         "v_campo_v": round(v_campo, 0),
         "seccion_cable_mm2": seccion_cable_normalizada(seccion_calc) if seccion_calc else None,
     }
+    # Balance Anual Energético — solo si se ingresa días de riego
+    if dias_riego:
+        gen_dia_real = e_panel * n_real
+        gen_anual = gen_dia_real * 365
+        consumo_anual = pkw * hbom * dias_riego
+        balance_anual = (gen_anual / consumo_anual * 100) if consumo_anual else 0
+        es_ongrid = (conexion or "aislado") == "ongrid"
+        r["gen_dia_real_kwh"] = round(gen_dia_real, 3)
+        r["gen_anual_kwh"] = round(gen_anual, 1)
+        r["consumo_anual_kwh"] = round(consumo_anual, 1)
+        r["balance_anual_pct"] = round(balance_anual, 1)
+        r["balance_ok"] = (balance_anual <= 100) if es_ongrid else None
+    return r

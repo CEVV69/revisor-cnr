@@ -272,6 +272,8 @@
       <td class="valor">{{ val(fv.wp, ' W') }} / {{ val(fv.vmp, ' V') }} / {{ val(fv.imp, ' A') }} / {{ val(fv.ct, ' %/°C') }}</td></tr>
   <tr><td class="label">Eficiencia inversor / Voltaje sistema</td>
       <td class="valor">{{ val(fv.einv) }} / {{ val(fv.vsis, ' V') }}</td></tr>
+  <tr><td class="label">Días de riego / Tipo conexión</td>
+      <td class="valor">{{ val(fv.dias_riego, ' días/año') }} / {{ fv.conexion or 'aislado' }}</td></tr>
 </table>
 </div>
 
@@ -313,6 +315,24 @@
 {% call paso_mc('fv_cable_dc', mc_fv) %}
 <div class="formula">Sección cable DC calculada: <strong>{{ val(fv_calc.seccion_cable_mm2, ' mm²') }}</strong></div>
 {% endcall %}
+
+{% if fv_calc.gen_anual_kwh is not none %}
+{% call paso_mc('fv_balance_anual', mc_fv) %}
+<div class="formula">Gen_día_real = E_panel × N_real = {{ val(fv_calc.e_panel_kwh) }} × {{ fv_calc.n_paneles_real }} = <strong>{{ val(fv_calc.gen_dia_real_kwh, ' kWh/día') }}</strong></div>
+<div class="formula">Gen_anual = Gen_día_real × 365 = <strong>{{ val(fv_calc.gen_anual_kwh, ' kWh/año') }}</strong></div>
+<div class="formula">Consumo_anual = P_bomba × H_bombeo × Días_riego = {{ val(fv.pkw) }} × {{ val(fv.hbom) }} × {{ fv.dias_riego }} = <strong>{{ val(fv_calc.consumo_anual_kwh, ' kWh/año') }}</strong></div>
+<div class="formula">Balance Anual = Gen_anual / Consumo_anual × 100 % = <strong>{{ val(fv_calc.balance_anual_pct, ' %') }}</strong></div>
+<div class="explica">
+  {% if fv.conexion == 'ongrid' %}
+    Sistema <strong>on-grid</strong> (conectado a la red) — el balance no debe superar el 100 % (Ley de Generación Distribuida).
+    {% if fv_calc.balance_ok %}<span class="ok">Balance ≤ 100 %: cumple.</span>{% else %}<span class="alerta">Balance > 100 %: parque sobredimensionado respecto al consumo de la bomba.</span>{% endif %}
+  {% else %}
+    Sistema <strong>aislado</strong> — el criterio de 100 % no aplica. Se recomienda verificar que la potencia instantánea del campo FV cubra la P1 de la bomba en las horas de riego.
+  {% endif %}
+</div>
+<div class="explica" style="margin-top:0.2rem;font-size:10.5px;color:#666;">Fuente: Manual de Inspección y Revisión de Sistemas Fotovoltaicos, CNR-Ministerio de Energía §5.1.</div>
+{% endcall %}
+{% endif %}
 
 {# Comparación con lo declarado por el consultor #}
 {% if fv.declarado %}

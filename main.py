@@ -1803,6 +1803,7 @@ def _fv_calculo(datos: dict):
             pkw=datos["pkw"], hbom=datos["hbom"], hsp=datos["hsp"], fp=datos.get("fp"),
             wp=datos["wp"], vmp=datos["vmp"], imp=datos["imp"], ct=datos.get("ct"),
             temp=datos.get("temp"), einv=datos.get("einv"), vsis=datos.get("vsis"),
+            dias_riego=datos.get("dias_riego"), conexion=datos.get("conexion"),
         ) or None
     return None
 
@@ -2394,8 +2395,9 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     form = await request.form()
-    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis"]
+    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis", "dias_riego"]
     datos = {c: _num_form(form, c) for c in campos}
+    datos["conexion"] = form.get("conexion") or "aislado"
     datos["declarado"] = {
         "n_paneles": _num_form(form, "decl_npaneles"),
         "kwp_total": _num_form(form, "decl_kwp"),

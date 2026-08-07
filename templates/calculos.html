@@ -75,7 +75,7 @@
       </label>
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
-    <a href="/static/disenador_riego_v112.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+    <a href="/static/disenador_riego_v114.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
   </div>
   <p class="text-muted" style="font-size:0.8rem; margin:0.5rem 0 0;">
     Aplica a los dos chequeos. Elígelo antes de extraer.
@@ -480,6 +480,21 @@
       <div><label>Voltaje sistema (V)</label><input type="number" step="1" id="vsis" name="vsis" value="{{ fv.vsis if fv.vsis is not none else '' }}"></div>
     </div>
 
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Balance anual energético</div>
+    <div class="agro-grid" style="margin-bottom:0.9rem;">
+      <div>
+        <label title="Días efectivos que opera la bomba al año (para balance anual CNR §5.1)">Días de riego al año</label>
+        <input type="number" step="1" id="dias_riego" name="dias_riego" value="{{ fv.dias_riego if fv.dias_riego is not none else '' }}" placeholder="150">
+      </div>
+      <div>
+        <label title="Aislado: sin red eléctrica. On-grid: conectado a la red (aplica criterio balance ≤ 100 %)">Tipo de conexión</label>
+        <select id="conexion" name="conexion">
+          <option value="aislado" {% if not fv.conexion or fv.conexion == 'aislado' %}selected{% endif %}>Aislado (sin red)</option>
+          <option value="ongrid" {% if fv.conexion == 'ongrid' %}selected{% endif %}>On-grid (conectado a la red)</option>
+        </select>
+      </div>
+    </div>
+
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
     <div class="agro-grid" style="margin-bottom:0.9rem;">
       <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
@@ -520,6 +535,14 @@
           <td class="col-calc">
             <span id="fv-seccion-calc">—</span>
             <span id="fv-seccion-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr id="fv-balance-row" style="display:none;">
+          <td class="col-concepto" title="Manual CNR-Ministerio de Energía §5.1">Balance anual energético</td>
+          <td class="text-muted">—</td>
+          <td class="col-calc">
+            <span id="fv-balance-calc">—</span>
+            <span id="fv-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
       </table>
@@ -1182,6 +1205,8 @@
     var pkw = numVal("pkw"), hbom = numVal("hbom"), hsp = numVal("hsp"), fp = numVal("fp"),
         wp = numVal("wp"), vmp = numVal("vmp"), imp = numVal("imp"), ct = numVal("ct"),
         temp = numVal("temp"), einv = numVal("einv"), vsis = numVal("vsis");
+    var diasRiego = numVal("dias_riego");
+    var conexion = (document.getElementById("conexion") || {}).value || "aislado";
     var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declSeccion = numVal("decl_seccion");
 
     setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0));
@@ -1189,8 +1214,9 @@
     setText("fv-seccion-decl", declSeccion === null ? "—" : fmt(declSeccion, 1) + " mm²");
 
     if (!pkw || !hbom || !hsp || !wp || !vmp || !imp) {
-      ["fv-edia", "fv-config", "fv-npaneles-calc", "fv-kwp-calc", "fv-seccion-calc"].forEach(function(id) { setText(id, "—"); });
-      ["fv-npaneles-nota", "fv-kwp-nota", "fv-seccion-nota"].forEach(function(id) { nota(id, ""); });
+      ["fv-edia", "fv-config", "fv-npaneles-calc", "fv-kwp-calc", "fv-seccion-calc", "fv-balance-calc"].forEach(function(id) { setText(id, "—"); });
+      ["fv-npaneles-nota", "fv-kwp-nota", "fv-seccion-nota", "fv-balance-nota"].forEach(function(id) { nota(id, ""); });
+      document.getElementById("fv-balance-row").style.display = "none";
       setText("fv-hint", "Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.");
       return;
     }
@@ -1221,6 +1247,25 @@
     nota("fv-npaneles-nota", (declN !== null && declN < nReal) ? "El recálculo indica que se necesitan al menos " + nReal + " paneles." : "");
     nota("fv-kwp-nota", diferenciaRelevante(kwpTotal, declKwp, 15) ? "No coincide con lo declarado (" + fmt(declKwp, 2) + " kWp)." : "");
     nota("fv-seccion-nota", (declSeccion !== null && seccionNorm !== null && declSeccion < seccionNorm) ? "El recálculo sugiere al menos " + fmt(seccionNorm, 1) + " mm² para no exceder la caída de tensión del 2%." : "");
+
+    // Balance Anual Energético (Manual CNR-Ministerio de Energía §5.1)
+    var balanceRow = document.getElementById("fv-balance-row");
+    if (diasRiego && diasRiego > 0) {
+      var genDia = ePanel * nReal;
+      var genAnual = genDia * 365;
+      var consumoAnual = pkw * hbom * diasRiego;
+      var balance = consumoAnual ? genAnual / consumoAnual * 100 : 0;
+      balanceRow.style.display = "";
+      var balanceTxt = fmt(balance, 1) + "% (gen. " + fmt(genAnual, 0) + " / cons. " + fmt(consumoAnual, 0) + " kWh/año)";
+      setText("fv-balance-calc", balanceTxt);
+      var notaBalance = "";
+      if (conexion === "ongrid" && balance > 100) {
+        notaBalance = "Sistema on-grid: balance > 100 %. El Manual CNR indica que no debe superar el 100 % — el parque está sobredimensionado.";
+      }
+      nota("fv-balance-nota", notaBalance);
+    } else {
+      balanceRow.style.display = "none";
+    }
   }
 
   var formAgro = document.getElementById("form-agro");
@@ -1228,7 +1273,11 @@
   var formHid = document.getElementById("form-hid");
   if (formHid) { formHid.addEventListener("input", recalcHidraulico); recalcHidraulico(); }
   var formFV = document.getElementById("form-fv");
-  if (formFV) { formFV.addEventListener("input", recalcFV); recalcFV(); }
+  if (formFV) {
+    formFV.addEventListener("input", recalcFV);
+    formFV.addEventListener("change", recalcFV);
+    recalcFV();
+  }
 })();
 </script>
 
