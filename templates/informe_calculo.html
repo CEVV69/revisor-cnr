@@ -415,5 +415,72 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
 {% endif %}
 {% endif %}
 
+<!-- ══════════ 7. SISTEMA FOTOVOLTAICO ══════════ -->
+{% if fv and (fv.pkw is not none or fv.hbom is not none or fv.hsp is not none) %}
+<div class="titulo-seccion">7. Sistema fotovoltaico — dimensionamiento</div>
+
+{% call paso('fv_inputs') %}
+<div class="nota-alcance">El sistema FV es único para el proyecto (aunque haya 2 sistemas de riego) — alimenta la bomba declarada en Potencia bomba (kW).</div>
+<table class="tabla-datos">
+  <tr><td class="label">Potencia bomba (kW)</td><td class="valor">{{ val(fv.pkw, ' kW') }}</td></tr>
+  <tr><td class="label">Horas de bombeo / día</td><td class="valor">{{ val(fv.hbom, ' hr/día') }}</td></tr>
+  <tr><td class="label">HSP del sitio</td><td class="valor">{{ val(fv.hsp, ' hr') }}</td></tr>
+  <tr><td class="label">Factor de pérdidas</td><td class="valor">{{ val(fv.fp) }}</td></tr>
+  <tr><td class="label">Temperatura máxima sitio</td><td class="valor">{{ val(fv.temp, ' °C') }}</td></tr>
+  <tr><td class="label">Panel — Wp / Vmp / Imp / Coef. temp.</td>
+      <td class="valor">{{ val(fv.wp, ' W') }} / {{ val(fv.vmp, ' V') }} / {{ val(fv.imp, ' A') }} / {{ val(fv.ct, ' %/°C') }}</td></tr>
+  <tr><td class="label">Eficiencia inversor / Voltaje sistema</td>
+      <td class="valor">{{ val(fv.einv) }} / {{ val(fv.vsis, ' V') }}</td></tr>
+</table>
+{% endcall %}
+
+{% if fv_calc %}
+{% call paso('fv_cadena') %}
+<table class="tabla-datos">
+  <tr><td class="label">Energía diaria requerida</td>
+      <td class="valor">{{ val(fv_calc.e_dia_kwh, ' kWh/día') }}</td></tr>
+  <tr><td class="label">Wp efectivo por panel (con derating térmico)</td>
+      <td class="valor">{{ val(fv_calc.wp_efectivo, ' W') }}</td></tr>
+  <tr><td class="label">Energía por panel / día</td>
+      <td class="valor">{{ val(fv_calc.e_panel_kwh, ' kWh') }}</td></tr>
+  <tr><td class="label">N° paneles mínimo calculado</td>
+      <td class="valor"><strong>{{ fv_calc.n_paneles_minimo }}</strong></td></tr>
+  <tr><td class="label">Configuración (serie × paralelo)</td>
+      <td class="valor">{{ fv_calc.paneles_serie }} serie × {{ fv_calc.strings_paralelo }} strings = <strong>{{ fv_calc.n_paneles_real }} paneles</strong></td></tr>
+  <tr><td class="label">kWp total instalado</td>
+      <td class="valor"><strong>{{ val(fv_calc.kwp_total, ' kWp') }}</strong></td></tr>
+  <tr><td class="label">Sección cable DC calculada</td>
+      <td class="valor"><strong>{{ val(fv_calc.seccion_cable_mm2, ' mm²') }}</strong></td></tr>
+</table>
+
+{% if fv.declarado %}
+{% set decl = fv.declarado %}
+<div class="compara" style="margin-top:0.5rem;">
+  <strong>Comparación con lo declarado por el consultor:</strong><br>
+  {% if decl.n_paneles is not none %}
+    N° paneles: declarado {{ decl.n_paneles }}, calculado {{ fv_calc.n_paneles_real }} —
+    {% if decl.n_paneles < fv_calc.n_paneles_minimo %}<span class="alerta">insuficiente (no cubre la demanda).</span>
+    {% elif (decl.n_paneles - fv_calc.n_paneles_real) | abs / fv_calc.n_paneles_real * 100 > 20 %}<span class="alerta">difiere más de un 20%; verificar supuestos (HSP, PR, Wp).</span>
+    {% else %}<span class="ok">coherente.</span>{% endif %}<br>
+  {% endif %}
+  {% if decl.kwp_total is not none %}
+    kWp total: declarado {{ decl.kwp_total }}, calculado {{ val(fv_calc.kwp_total) }} —
+    {% if (decl.kwp_total - fv_calc.kwp_total) | abs / fv_calc.kwp_total * 100 > 15 %}<span class="alerta">difiere más de un 15%.</span>
+    {% else %}<span class="ok">coherente.</span>{% endif %}<br>
+  {% endif %}
+  {% if decl.seccion_cable_mm2 is not none %}
+    Sección cable DC: declarada {{ decl.seccion_cable_mm2 }} mm², calculada {{ val(fv_calc.seccion_cable_mm2) }} mm² —
+    {% if decl.seccion_cable_mm2 < fv_calc.seccion_cable_mm2 %}<span class="alerta">sección declarada menor a la calculada; riesgo de caída de tensión.</span>
+    {% else %}<span class="ok">coherente.</span>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
+{% endcall %}
+
+{% else %}
+<p class="nota-alcance">Completa al menos Potencia bomba, Horas bombeo, HSP, Wp, Vmp e Imp en el Chequeo de Cálculos para ver el recálculo.</p>
+{% endif %}
+{% endif %}
+
 </body>
 </html>

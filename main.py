@@ -2046,6 +2046,9 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
             c = mc.get(k) or {}
             mc[k] = {"formula": c.get("formula"), "resultado": c.get("resultado")}
 
+    fv = verif.get("energetico") or {}
+    fv_calc = _fv_calculo(fv) or {}
+
     return templates.TemplateResponse("informe_calculo.html", {
         "request": request, "proyecto": proyecto,
         "idx": idx, "n_sistemas": n_sistemas,
@@ -2054,6 +2057,7 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "tramos": tramos,
         "amt_declarada_m": hid_sistema.get("amt_declarada_m"),
         "caudal_bombeo_ls": hid_sistema.get("caudal_bombeo_ls"),
+        "fv": fv, "fv_calc": fv_calc,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
         "mc": mc, "mc_fecha": (mc_guardado or {}).get("fecha"),
     })
