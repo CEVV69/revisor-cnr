@@ -6,6 +6,24 @@ Guía operativa para Claude. **Español siempre.** Archivos de referencia en `do
 
 ---
 
+## LÍMITE DE TAMAÑO — este archivo NO debe crecer
+
+Este archivo se leyó completo una vez y ocupó 390KB / 4.552 líneas, lo que saturó
+el contexto ("Autocompact is thrashing") antes de poder trabajar. Se redujo a esto.
+
+**Regla:** este archivo debe mantenerse bajo ~150 líneas / ~8KB. Antes de agregar
+cualquier contenido nuevo:
+1. Si es historial de sesión, decisión ya cerrada, o detalle de una función/ítem
+   específico → va a `docs/historial_sesiones.md` o `docs/items_sep.md`, NUNCA acá.
+2. Si es una decisión pendiente del usuario → reemplazar la sección "Estado actual"
+   existente, no acumular decisiones viejas ya resueltas.
+3. Si al terminar una edición este archivo supera ~150 líneas, mover el contenido
+   más antiguo/detallado a `docs/` en el mismo commit, antes de pushear.
+
+Este archivo es solo el índice + reglas fijas. Todo lo demás vive en `docs/`.
+
+---
+
 ## SINCRONIZACIÓN — OBLIGATORIO
 
 El usuario trabaja desde su Mac en casa Y desde `claude.ai/code` en la oficina.
