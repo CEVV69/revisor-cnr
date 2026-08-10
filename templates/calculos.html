@@ -463,11 +463,13 @@
     {% endif %}
   </div>
 
-  <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/extraer"
-        style="margin-bottom:0.9rem;"
-        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
-    <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
-  </form>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.9rem;">
+    <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/extraer"
+          onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
+      <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
+    </form>
+    <a href="https://solar.minenergia.cl/inicio" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Explorador Solar</a>
+  </div>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y sitio</div>
