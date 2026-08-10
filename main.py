@@ -2339,6 +2339,62 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
+@app.get("/proyecto/{proyecto_id}/calculos/exportar-revisor-fv")
+async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
+    """Descarga un .json en el formato del Revisor Fotovoltaico (fotovoltaico_riego_v9.html).
+    Exporta solo los datos que Revisor CNR ya tiene guardados en el Chequeo de Cálculos.
+    Campos exportados: potencia bomba, tipo conexión, Wp por panel, n° paneles y kWp calculados.
+    Horas de riego por mes NO se exportan (solo hay un valor diario, no desglose mensual)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    fv = verif.get("energetico") or {}
+    fv_calc = _fv_calculo(fv) or {}
+
+    # Tipo de generación: Revisor FV usa "ongrid"/"offgrid"/"offgridbat"; Revisor CNR usa
+    # "ongrid"/"aislado". "aislado" se mapea a "offgrid" (sin baterías declaradas).
+    conexion_cnr = (fv.get("conexion") or "aislado").lower()
+    tipo_gen = "ongrid" if conexion_cnr == "ongrid" else "offgrid"
+
+    doc = {"formato": "riego-cnr-proyecto", "version": 1, "app": "revision-fv-riego",
+           "generadoEn": _ahora().isoformat(), "bombeo": {}, "fotovoltaico": {}}
+
+    pkw = fv.get("pkw")
+    if pkw is not None:
+        doc["bombeo"]["potenciaKW"] = pkw
+
+    doc["fotovoltaico"]["tipoGeneracion"] = tipo_gen
+    doc["fotovoltaico"]["mesCritico"] = "auto"
+
+    wp = fv.get("wp")
+    if wp is not None:
+        doc["fotovoltaico"]["potenciaPanelWp"] = wp
+
+    n_real = fv_calc.get("n_paneles_real")
+    if n_real is not None:
+        doc["fotovoltaico"]["numPaneles"] = n_real
+
+    kwp_total = fv_calc.get("kwp_total")
+    if kwp_total is not None:
+        doc["fotovoltaico"]["potenciaPropuestaKWp"] = kwp_total
+
+    # Validación mínima: debe haber al menos potencia de bomba o kWp propuesto.
+    if not doc["bombeo"] and not doc["fotovoltaico"].get("potenciaPropuestaKWp"):
+        return RedirectResponse(
+            url=f"/proyecto/{proyecto_id}/calculos?revisor_fv_sin_datos=1", status_code=302)
+
+    contenido = json.dumps(doc, ensure_ascii=False, indent=2)
+    codigo = (proyecto.get("codigo_sep", "") or "").replace("/", "-").replace(" ", "")
+    filename = f"FV_{codigo}.json" if codigo else "FV_proyecto.json"
+    return Response(content=contenido, media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
 @app.post("/proyecto/{proyecto_id}/calculos/agronomico/extraer")
 async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     user = get_current_user(request)
