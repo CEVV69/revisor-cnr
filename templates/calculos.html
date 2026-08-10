@@ -1196,12 +1196,12 @@
       recalcHidraulicoSistema("s" + i + "_");
     }
   }
-  function eliminarTramo(btn) {
+  window.eliminarTramo = function(btn) {
     var row = btn.closest('tr');
     row.querySelectorAll('input').forEach(function(el) { el.value = ''; });
     row.querySelectorAll('select').forEach(function(el) { el.selectedIndex = 0; });
     row.style.display = 'none';
-  }
+  };
 
   // ── Fotovoltaico ────────────────────────────────────────────
   function seccionNormalizada(calc) {
