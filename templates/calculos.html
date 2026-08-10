@@ -425,6 +425,8 @@
           {% endfor %}
         </table>
       </div>
+      <button type="button" id="{{ sp }}btn-agregar" onclick="agregarTramo('{{ sp }}')"
+              class="btn btn-outline btn-sm" style="margin-top:0.5rem; font-size:0.79rem; display:none;">+ Agregar tramo</button>
       <div class="agro-grid" style="margin-top:0.7rem; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));">
         <div>
           <label>Altura manométrica total — AMT/CDT (m)</label>
@@ -1196,11 +1198,45 @@
       recalcHidraulicoSistema("s" + i + "_");
     }
   }
+  function actualizarBtnAgregar(sp) {
+    var btn = document.getElementById(sp + 'btn-agregar');
+    if (!btn) return;
+    for (var i = 0; i < N_TRAMOS; i++) {
+      var el = document.getElementById(sp + 't' + i + '_nombre');
+      if (el && el.closest('tr').style.display === 'none') { btn.style.display = ''; return; }
+    }
+    btn.style.display = 'none';
+  }
+  function initTramos(sp) {
+    for (var i = 0; i < N_TRAMOS; i++) {
+      var n = (document.getElementById(sp + 't' + i + '_nombre') || {}).value || '';
+      var q = (document.getElementById(sp + 't' + i + '_caudal') || {}).value || '';
+      var d = (document.getElementById(sp + 't' + i + '_diametro') || {}).value || '';
+      if (!n && !q && !d) {
+        var el = document.getElementById(sp + 't' + i + '_nombre');
+        if (el) el.closest('tr').style.display = 'none';
+      }
+    }
+    actualizarBtnAgregar(sp);
+  }
+  window.agregarTramo = function(sp) {
+    for (var i = 0; i < N_TRAMOS; i++) {
+      var el = document.getElementById(sp + 't' + i + '_nombre');
+      if (el && el.closest('tr').style.display === 'none') {
+        el.closest('tr').style.display = '';
+        el.focus();
+        actualizarBtnAgregar(sp);
+        return;
+      }
+    }
+  };
   window.eliminarTramo = function(btn) {
     var row = btn.closest('tr');
     row.querySelectorAll('input').forEach(function(el) { el.value = ''; });
     row.querySelectorAll('select').forEach(function(el) { el.selectedIndex = 0; });
     row.style.display = 'none';
+    var first = row.querySelector('input[name]');
+    if (first) { var m = first.name.match(/^(s\d+_)/); if (m) actualizarBtnAgregar(m[1]); }
   };
 
   // ── Fotovoltaico ────────────────────────────────────────────
@@ -1280,7 +1316,7 @@
   var formAgro = document.getElementById("form-agro");
   if (formAgro) { formAgro.addEventListener("input", recalcAgro); recalcAgro(); }
   var formHid = document.getElementById("form-hid");
-  if (formHid) { formHid.addEventListener("input", recalcHidraulico); recalcHidraulico(); }
+  if (formHid) { formHid.addEventListener("input", recalcHidraulico); recalcHidraulico(); for (var _i = 0; _i < N_SISTEMAS; _i++) { initTramos("s" + _i + "_"); } }
   var formFV = document.getElementById("form-fv");
   if (formFV) {
     formFV.addEventListener("input", recalcFV);
