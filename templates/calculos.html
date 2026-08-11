@@ -483,6 +483,14 @@
       <div><label>HSP del sitio (hr)</label><input type="number" step="0.01" id="hsp" name="hsp" value="{{ fv.hsp if fv.hsp is not none else '' }}"></div>
       <div><label>Factor pérdidas (0-1)</label><input type="number" step="0.01" id="fp" name="fp" value="{{ fv.fp if fv.fp is not none else '' }}" placeholder="0,80"></div>
       <div><label>Temp. máxima sitio (°C)</label><input type="number" step="0.1" id="temp" name="temp" value="{{ fv.temp if fv.temp is not none else '' }}"></div>
+      <div><label title="Fertirriego, controlador y pérdidas menores — 5% es un valor típico">Consumos adicionales (%)</label><input type="number" step="0.1" id="adic" name="adic" value="{{ fv.adic if fv.adic is not none else '' }}" placeholder="5"></div>
+    </div>
+
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— para el Revisor Fotovoltaico</span></div>
+    <div class="agro-grid" style="grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); margin-bottom:0.9rem;">
+      {% for mes in ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'] %}
+      <div><label>{{ mes }}</label><input type="number" step="0.1" id="hmes{{ loop.index0 }}" name="hmes{{ loop.index0 }}" value="{{ fv.horas_mensuales[loop.index0] if fv.horas_mensuales and fv.horas_mensuales[loop.index0] is not none else '' }}"></div>
+      {% endfor %}
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Panel, inversor y sistema</div>
@@ -505,6 +513,7 @@
         <label title="Aislado: sin red eléctrica. On-grid: conectado a la red (aplica criterio balance ≤ 100 %)">Tipo de conexión</label>
         <select id="conexion" name="conexion">
           <option value="aislado" {% if not fv.conexion or fv.conexion == 'aislado' %}selected{% endif %}>Aislado (sin red)</option>
+          <option value="aislado_bat" {% if fv.conexion == 'aislado_bat' %}selected{% endif %}>Aislado con baterías (sin red)</option>
           <option value="ongrid" {% if fv.conexion == 'ongrid' %}selected{% endif %}>On-grid (conectado a la red)</option>
         </select>
       </div>
@@ -515,6 +524,7 @@
       <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
       <div><label>kWp total declarado</label><input type="number" step="0.01" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
       <div><label>Sección cable DC declarada (mm²)</label><input type="number" step="0.5" id="decl_seccion" name="decl_seccion" value="{{ fv.declarado.seccion_cable_mm2 if fv.declarado and fv.declarado.seccion_cable_mm2 is not none else '' }}"></div>
+      <div><label title="Solo aplica si el sistema es aislado con baterías">Banco de baterías declarado (kWh)</label><input type="number" step="0.01" id="decl_banco" name="decl_banco" value="{{ fv.declarado.banco_baterias_kwh if fv.declarado and fv.declarado.banco_baterias_kwh is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
@@ -539,7 +549,11 @@
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">kWp total</td><td id="fv-kwp-decl">—</td>
+          <td class="col-concepto">kWp total</td>
+          <td>
+            <span id="fv-kwp-decl">—</span>
+            <span id="fv-kwp-decl-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
           <td class="col-calc">
             <span id="fv-kwp-calc">—</span>
             <span id="fv-kwp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -1267,6 +1281,17 @@
     setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0));
     setText("fv-kwp-decl", declKwp === null ? "—" : fmt(declKwp, 2) + " kWp");
     setText("fv-seccion-decl", declSeccion === null ? "—" : fmt(declSeccion, 1) + " mm²");
+
+    // Consistencia interna de lo declarado: N° paneles × Wp panel debería sumar el kWp declarado
+    // (misma verificación que hace el Revisor Fotovoltaico con sus propios datos declarados).
+    if (declN !== null && wp && declKwp !== null) {
+      var kwpDeclCalc = declN * wp / 1000;
+      nota("fv-kwp-decl-nota", diferenciaRelevante(kwpDeclCalc, declKwp, 5)
+        ? (declN + " paneles × " + fmt(wp, 0) + " Wp = " + fmt(kwpDeclCalc, 2) + " kWp — no coincide con el kWp declarado.")
+        : "");
+    } else {
+      nota("fv-kwp-decl-nota", "");
+    }
 
     if (!pkw || !hbom || !hsp || !wp || !vmp || !imp) {
       ["fv-edia", "fv-config", "fv-npaneles-calc", "fv-kwp-calc", "fv-seccion-calc", "fv-balance-calc"].forEach(function(id) { setText(id, "—"); });

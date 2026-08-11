@@ -2342,9 +2342,9 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-revisor-fv")
 async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     """Descarga un .json en el formato del Revisor Fotovoltaico (fotovoltaico_riego_v9.html).
-    Exporta solo los datos que Revisor CNR ya tiene guardados en el Chequeo de Cálculos.
-    Campos exportados: potencia bomba, tipo conexión, Wp por panel, n° paneles y kWp calculados.
-    Horas de riego por mes NO se exportan (solo hay un valor diario, no desglose mensual)."""
+    Exporta SOLO lo que declara el consultor en el expediente (extraído o ingresado a mano en
+    el Chequeo de Cálculos) — nunca los valores que recalcula la app, para no reemplazar el
+    dato del proyecto por el criterio de Revisor CNR."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -2354,12 +2354,12 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
 
     verif = proyecto.get("verificacion_calculos", {})
     fv = verif.get("energetico") or {}
-    fv_calc = _fv_calculo(fv) or {}
+    declarado = fv.get("declarado") or {}
 
     # Tipo de generación: Revisor FV usa "ongrid"/"offgrid"/"offgridbat"; Revisor CNR usa
-    # "ongrid"/"aislado". "aislado" se mapea a "offgrid" (sin baterías declaradas).
+    # "ongrid"/"aislado"/"aislado_bat".
     conexion_cnr = (fv.get("conexion") or "aislado").lower()
-    tipo_gen = "ongrid" if conexion_cnr == "ongrid" else "offgrid"
+    tipo_gen = {"ongrid": "ongrid", "aislado_bat": "offgridbat"}.get(conexion_cnr, "offgrid")
 
     doc = {"formato": "riego-cnr-proyecto", "version": 1, "app": "revision-fv-riego",
            "generadoEn": _ahora().isoformat(), "bombeo": {}, "fotovoltaico": {}}
@@ -2368,6 +2368,14 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     if pkw is not None:
         doc["bombeo"]["potenciaKW"] = pkw
 
+    adic = fv.get("adic")
+    if adic is not None:
+        doc["bombeo"]["consumosAdicionalesPct"] = adic
+
+    horas_mensuales = fv.get("horas_mensuales")
+    if horas_mensuales and any(h is not None for h in horas_mensuales):
+        doc["bombeo"]["horasRiegoDiarias"] = [h if h is not None else 0 for h in horas_mensuales]
+
     doc["fotovoltaico"]["tipoGeneracion"] = tipo_gen
     doc["fotovoltaico"]["mesCritico"] = "auto"
 
@@ -2375,16 +2383,20 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     if wp is not None:
         doc["fotovoltaico"]["potenciaPanelWp"] = wp
 
-    n_real = fv_calc.get("n_paneles_real")
-    if n_real is not None:
-        doc["fotovoltaico"]["numPaneles"] = n_real
+    n_paneles = declarado.get("n_paneles")
+    if n_paneles is not None:
+        doc["fotovoltaico"]["numPaneles"] = n_paneles
 
-    kwp_total = fv_calc.get("kwp_total")
+    kwp_total = declarado.get("kwp_total")
     if kwp_total is not None:
         doc["fotovoltaico"]["potenciaPropuestaKWp"] = kwp_total
 
-    # Validación mínima: debe haber al menos potencia de bomba o kWp propuesto.
-    if not doc["bombeo"] and not doc["fotovoltaico"].get("potenciaPropuestaKWp"):
+    banco_kwh = declarado.get("banco_baterias_kwh")
+    if banco_kwh is not None:
+        doc["fotovoltaico"]["bancoBateriasKWh"] = banco_kwh
+
+    # Validación mínima: debe haber al menos potencia de bomba o kWp propuesto declarado.
+    if not doc["bombeo"].get("potenciaKW") and not doc["fotovoltaico"].get("potenciaPropuestaKWp"):
         return RedirectResponse(
             url=f"/proyecto/{proyecto_id}/calculos?revisor_fv_sin_datos=1", status_code=302)
 
@@ -2497,13 +2509,17 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     form = await request.form()
-    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis", "dias_riego"]
+    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis",
+              "dias_riego", "adic"]
     datos = {c: _num_form(form, c) for c in campos}
     datos["conexion"] = form.get("conexion") or "aislado"
+    horas_mensuales = [_num_form(form, f"hmes{i}") for i in range(12)]
+    datos["horas_mensuales"] = horas_mensuales if any(h is not None for h in horas_mensuales) else None
     datos["declarado"] = {
         "n_paneles": _num_form(form, "decl_npaneles"),
         "kwp_total": _num_form(form, "decl_kwp"),
         "seccion_cable_mm2": _num_form(form, "decl_seccion"),
+        "banco_baterias_kwh": _num_form(form, "decl_banco"),
     }
     validado = form.get("validar") == "on"
     datos["validado"] = validado

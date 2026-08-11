@@ -1912,15 +1912,29 @@ el consultor. NO inventes ni calcules nada — si un dato no aparece explícitam
 Responde SOLO este JSON, sin texto adicional:
 {{"pkw": number|null, "hbom": number|null, "hsp": number|null, "fp": number|null,
 "wp": number|null, "vmp": number|null, "imp": number|null, "ct": number|null,
-"temp": number|null, "einv": number|null, "vsis": number|null,
-"declarado": {{"n_paneles": number|null, "kwp_total": number|null, "seccion_cable_mm2": number|null}}}}
+"temp": number|null, "einv": number|null, "vsis": number|null, "adic": number|null,
+"horas_mensuales": [number|null, number|null, number|null, number|null, number|null,
+number|null, number|null, number|null, number|null, number|null, number|null, number|null],
+"declarado": {{"n_paneles": number|null, "kwp_total": number|null, "seccion_cable_mm2": number|null,
+"banco_baterias_kwh": number|null}}}}
 
 Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
-hbom = horas de bombeo al día. hsp = horas sol pico del sitio (del Explorador Solar CNR).
-fp = factor de pérdidas del sistema (decimal 0-1, ej 0,80). wp/vmp/imp = ficha técnica del
-panel (potencia nominal, voltaje y corriente en punto de máxima potencia). ct = coeficiente
-de temperatura del panel (%/°C). temp = temperatura máxima del sitio. einv = eficiencia del
-inversor (decimal 0-1). vsis = voltaje nominal del sistema/inversor.
+hbom = horas de bombeo al día PROMEDIO (usa este solo si no hay desglose mensual). hsp = horas
+sol pico del sitio (del Explorador Solar CNR). fp = factor de pérdidas del sistema (decimal
+0-1, ej 0,80). wp/vmp/imp = ficha técnica del panel (potencia nominal, voltaje y corriente en
+punto de máxima potencia). ct = coeficiente de temperatura del panel (%/°C). temp = temperatura
+máxima del sitio. einv = eficiencia del inversor (decimal 0-1). vsis = voltaje nominal del
+sistema/inversor. adic = consumos adicionales declarados (%, fertirriego/controlador/pérdidas
+menores).
+
+horas_mensuales: BUSCA CON CUIDADO en tablas de cronograma de riego, calendario de riego,
+demanda mensual, balance hídrico o consumo energético mensual — es MUY COMÚN que estas tablas
+estén en un archivo Excel adjunto, con un mes por fila o columna y las horas de riego/bombeo
+promedio de ese mes. Es un array de 12 valores en orden Enero→Diciembre; usa null en los meses
+sin ese dato o sin riego. NO confundas esto con hbom (que es un solo promedio anual).
+
+declarado.banco_baterias_kwh = capacidad del banco de baterías que declara el proyecto, solo si
+el sistema es aislado con respaldo de baterías.
 
 EXPEDIENTE:
 {texto}"""
