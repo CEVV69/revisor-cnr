@@ -279,13 +279,7 @@
 </div>
 
 {% if fv_calc %}
-<div class="titulo-seccion" style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:0.5rem;">
-  <span>FV.2. Dimensionamiento calculado — paso a paso</span>
-  <a href="/proyecto/{{ proyecto.id }}/calculos/informe/kc-mensual" target="_blank" rel="noopener"
-     style="font-size:10.5px; font-weight:normal; text-transform:none; border:1px solid #1a365d; color:#1a365d; border-radius:4px; padding:2px 8px; text-decoration:none;">
-    Verificar horas de riego mensual (Kc)
-  </a>
-</div>
+<div class="titulo-seccion">FV.2. Dimensionamiento calculado — paso a paso</div>
 
 {% call paso_mc('fv_energia_dia', mc_fv) %}
 <div class="formula">E_día = P_bomba × horas_bombeo = {{ val(fv.pkw) }} kW × {{ val(fv.hbom) }} hr = <strong>{{ val(fv_calc.e_dia_kwh, ' kWh/día') }}</strong></div>
