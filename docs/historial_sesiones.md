@@ -1346,3 +1346,63 @@ schema — no era que la IA "no detectara" el dato en el Excel, es que no tenía
 
 ---
 
+## Fix comparación FV + intento fallido de "Horas de riego mensual (Kc)" (ago-2026)
+
+**1. Bug real: comparación FV con metodología del consultor siempre vacía.**
+El usuario reportó que en FV.2 de la Memoria de Cálculo Completa, el botón "Comparar con
+metodología del consultor" no mostraba las cajas de 2 columnas (App/Consultor) como en el resto
+de las secciones. Causa encontrada por inspección directa del código, no adivinada:
+`extraer_metodologia_completa_route()` (main.py) llamaba a
+`_documentos_para_verificacion("diseno_fotovoltaico", documentos_con_texto)` — pero
+`DOCS_VERIFICACION` (analyzer.py) solo tiene las claves `"hidraulico"`/`"agronomico"`/
+`"energetico"`, NO `"diseno_fotovoltaico"`. `.get(grupo_key, [])` devolvía silenciosamente una
+lista vacía, así que `extraer_metodologia_fv()` nunca recibía texto y siempre retornaba `{}` —
+`mc_fv` quedaba `None` y `paso_mc()` caía siempre en la rama de una sola columna. Corregido a
+`"energetico"` (la misma clave que usa el resto del chequeo FV, `calculos_extraer_fv`).
+Después de probar el fix, el usuario reportó 8 de 9 ítems sin información — evaluado como
+comportamiento esperado del prompt (deliberadamente estricto: "NUNCA reconstruyas ni inventes
+una fórmula que el consultor no escribió"), no un bug nuevo. Queda como decisión pendiente del
+usuario (ver Estado actual en CLAUDE.md): verificar contra el expediente real, o relajar el
+criterio.
+
+**2. "Horas de riego mensual (Kc)" — implementado, y luego revertido por completo.**
+El usuario pidió una página secundaria para corroborar "Horas de riego promedio/día por mes"
+(campo `fv.horas_mensuales` de la sesión anterior) reconstruyendo la demanda vía Kc mensual por
+cultivo, con instrucción explícita de NO pushear hasta su aprobación ("con mi VB despliega, no
+antes" — la única vez en el proyecto que se pidió retener el push; se hizo commit+push solo
+después de su confirmación explícita).
+- Se extrajo la tabla de Kc mensual (98 cultivos × 12 meses, MIDESO/CNR) del Excel que subió el
+  usuario, sin retipeo manual (script Python leyendo el .xlsx directo a dict).
+- **Primer diseño (incorrecto):** promediar el Kc de los cultivos ponderado por % de superficie y
+  correr una sola cadena `cadena_agronomica()` para la "mezcla". El usuario subió el HTML fuente
+  de otra app hermana, **Scall** (`scalldisenoV20.html` — una calculadora de captación de agua
+  lluvia, no de riego como se asumió inicialmente), pidiendo revisar su pestaña "Demanda" para
+  ver "formato y tipo de combinación" de cultivos — sin decir que había un error, solo pidiendo
+  comparar metodologías antes de decidir el push.
+- **Hallazgo al leer Scall:** su `calcDem()` NO promedia Kc entre cultivos — calcula la demanda de
+  CADA cultivo por separado (con su Kc propio) y **suma los volúmenes** resultantes, cada uno
+  multiplicado por SU PROPIA superficie (`S.dem[i] += bruta*c.sup`). Promediar Kc antes de
+  calcular distorsiona el resultado cuando los cultivos tienen curvas muy distintas. Se rediseñó
+  siguiendo ese criterio: demanda bruta diaria por cultivo (ETc/Ef, sin necesitar AD/Dn/Fr — el
+  promedio diario da igual con o sin frecuencia de riego) × superficie propia → volumen → suma →
+  horas, usando el CAUDAL DE BOMBEO declarado en Hidráulico (no el caudal de la fuente ni la
+  pluviometría del emisor) para convertir volumen a horas.
+- Verificado con render Jinja + `node --check` del JS extraído + un caso numérico realista
+  (Python, con la tabla Kc real) antes de pedir el visto bueno — todo dio resultados sanos.
+- **El usuario aprobó y se pusheó** ("Vamos con el Commit+push"). Inmediatamente después cayó en
+  la cuenta de que todo el pedido era para la app de **Revisión Fotovoltaico** (`fotovoltaico_
+  riego_v9.html`), no para Revisor CNR — el chequeo FV de esta app trabaja con un solo valor
+  diario promedio, no con un motor agronómico multi-cultivo; ese tipo de verificación no
+  corresponde acá. **Se revirtió por completo en el commit siguiente**: endpoint
+  `/calculos/informe/kc-mensual`, `templates/informe_kc_mensual.html`, el botón en FV.2, y la
+  tabla `KC_MENSUAL_MIDESO` de `calculos_riego.py` — sin dejar residuos (verificado con grep).
+  Se le entregaron al usuario las instrucciones (metodología + fórmulas + ubicación del botón)
+  para pedir la misma funcionalidad en el chat de la app de Revisión Fotovoltaico.
+- **Lección:** cuando un pedido de funcionalidad no encaja naturalmente con el chequeo existente
+  de la app (acá: pedir un motor agronómico completo dentro del chequeo FV, que normalmente solo
+  usa un valor diario), vale la pena confirmar el alcance/la app correcta ANTES de construir,
+  no solo después. La instrucción del usuario de retener el push en este caso fue justamente lo
+  que evitó que el error llegara a producción.
+
+---
+

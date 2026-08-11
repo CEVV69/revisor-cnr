@@ -36,14 +36,14 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-**Pendiente de verificar por el usuario (próxima sesión):**
+**Pendiente de decidir por el usuario (próxima sesión):**
 
-1. **Extracción FV corregida, falta confirmar en un proyecto real.** `_extraer_datos_fv()` usaba
-   la mitad del presupuesto de texto que la revisión del ítem (60K vs. 120K caracteres) — HSP,
-   voltaje de sistema, horas de bombeo y sección de cable quedaban truncados fuera del texto.
-   Corregido (ver `docs/historial_sesiones.md`, sección "Diseñador v114 + Fotovoltaico + Revisor
-   Fotovoltaico"). El usuario debe volver a apretar "Extraer de los documentos" en Chequeo de
-   Cálculos → Fotovoltaico de un proyecto con esos datos y confirmar si ahora los captura.
+1. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Se
+   corrigió un bug real (clave de documentos equivocada, ver `docs/historial_sesiones.md`), pero
+   el usuario probó y la mayoría de los ítems FV siguen saliendo vacíos. Es esperable si el
+   consultor no muestra el desarrollo del cálculo (el prompt es deliberadamente estricto: no
+   inventa fórmulas). Pendiente decidir: ¿verificar con el expediente real que efectivamente no
+   muestra el desarrollo, o relajar el criterio de estrictez del prompt?
 
 2. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
    hasta 31-08-2026). El usuario evalúa mover ítems de texto a Sonnet 4.6 y dejar Sonnet 5 solo
@@ -60,6 +60,13 @@ esta sesión porque esos cálculos dependen del perfil solar horario del predio,
 dentro del propio Revisor Fotovoltaico (`static/fotovoltaico_riego_v9.html`), importado desde el
 Explorador Solar. Revisar si hay forma de traer ese dato a Revisor CNR antes de intentarlo de
 nuevo.
+
+**Fuera de alcance de Revisor CNR (confirmado esta sesión):** cualquier verificación que necesite
+combinar cultivos vía Kc mensual (ej. corroborar "horas de riego por mes" reconstruyendo la
+demanda agronómica) pertenece al **Revisor Fotovoltaico**, no a esta app — su chequeo FV trabaja
+con un solo valor diario promedio, no con un motor agronómico multi-cultivo. Se armó, se implementó
+por error acá, y se revirtió por completo (ver `docs/historial_sesiones.md`). El usuario tiene las
+instrucciones para pedirlo en el chat de esa otra app.
 
 ---
 
