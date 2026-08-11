@@ -524,3 +524,45 @@ def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: floa
         r["balance_anual_pct"] = round(balance_anual, 1)
         r["balance_ok"] = (balance_anual <= 100) if es_ongrid else None
     return r
+
+
+MESES_3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+# Días por mes que usa el Revisor Fotovoltaico (fotovoltaico_riego_v9.html, const DIAS) —
+# incluye feb=29 fijo (no depende del año del proyecto).
+DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
+    """Demanda energética mensual de la bomba con la MISMA fórmula que usa el Revisor
+    Fotovoltaico (fotovoltaico_riego_v9.html, función calc()):
+
+    Dem_día[mes] = Horas_riego[mes] × P_bomba × (1 + Adicionales%/100)   [kWh/día]
+    Dem_mes[mes] = Dem_día[mes] × Días_del_mes                          [kWh/mes]
+    Dem_anual    = Σ Dem_mes[mes]                                       [kWh/año]
+
+    Es la única parte de la metodología del Revisor Fotovoltaico que Revisor CNR puede
+    recalcular de forma determinística: la generación, cobertura y potencia requerida
+    dependen del perfil solar horario del predio (Explorador Solar), que solo se importa
+    dentro del propio Revisor Fotovoltaico — no se replica acá.
+
+    `pkw`: potencia de la bomba (kW). `adic`: consumos adicionales declarados (%, ej. 5).
+    `horas_mensuales`: lista de 12 valores (horas de riego promedio/día por mes, Ene→Dic;
+    None o 0 en meses sin riego). Devuelve {} si falta la potencia de la bomba o no hay
+    ningún mes con horas declaradas."""
+    if not pkw or not horas_mensuales or not any(h for h in horas_mensuales if h):
+        return {}
+    adic_pct = adic if adic is not None else 0
+    meses = []
+    dem_anual = 0.0
+    horas_excedidas = []
+    for i in range(12):
+        h = horas_mensuales[i] if i < len(horas_mensuales) and horas_mensuales[i] is not None else 0
+        if h > 24:
+            horas_excedidas.append(MESES_3[i])
+        dem_dia = h * pkw * (1 + adic_pct / 100)
+        dem_mes = dem_dia * DIAS_MES_FV[i]
+        dem_anual += dem_mes
+        meses.append({"mes": MESES_3[i], "horas": h,
+                      "dem_dia_kwh": round(dem_dia, 3), "dem_mes_kwh": round(dem_mes, 1)})
+    return {"meses": meses, "dem_anual_kwh": round(dem_anual, 1),
+            "horas_excedidas": horas_excedidas}

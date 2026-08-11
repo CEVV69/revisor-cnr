@@ -273,7 +273,8 @@
   <tr><td class="label">Eficiencia inversor / Voltaje sistema</td>
       <td class="valor">{{ val(fv.einv) }} / {{ val(fv.vsis, ' V') }}</td></tr>
   <tr><td class="label">Días de riego / Tipo conexión</td>
-      <td class="valor">{{ val(fv.dias_riego, ' días/año') }} / {{ fv.conexion or 'aislado' }}</td></tr>
+      <td class="valor">{{ val(fv.dias_riego, ' días/año') }} / {{ {'aislado': 'Aislado (sin red)', 'aislado_bat': 'Aislado con baterías', 'ongrid': 'On-grid'}.get(fv.conexion, 'Aislado (sin red)') }}</td></tr>
+  <tr><td class="label">Consumos adicionales</td><td class="valor">{{ val(fv.adic, ' %') }}</td></tr>
 </table>
 </div>
 
@@ -362,9 +363,41 @@
         {% else %}<span class="ok">coherente.</span>{% endif %}
       </td></tr>
   {% endif %}
+  {% if fv_consistencia_paneles %}
+  <tr><td class="label">Consistencia interna: paneles × Wp</td>
+      <td class="valor">{{ decl.n_paneles }} × {{ val(fv.wp, ' W') }} = {{ fv_consistencia_paneles.kwp_por_paneles }} kWp / kWp declarado: {{ decl.kwp_total }} kWp —
+        {% if fv_consistencia_paneles.coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">los paneles declarados no suman el kWp declarado.</span>{% endif %}
+      </td></tr>
+  {% endif %}
+  {% if decl.banco_baterias_kwh is not none %}
+  <tr><td class="label">Banco de baterías declarado</td><td class="valor">{{ decl.banco_baterias_kwh }} kWh</td></tr>
+  {% endif %}
 </table>
 </div>
 {% endif %}
+{% endif %}
+
+{% if fv_demanda %}
+<div class="titulo-seccion">FV.4. Demanda energética mensual — Revisor Fotovoltaico</div>
+<div class="nota-alcance">
+  Misma fórmula que usa el Revisor Fotovoltaico para la demanda de la bomba:
+  Dem_día = Horas_riego × P_bomba × (1 + Adicionales%). La generación, cobertura anual y
+  potencia FV requerida dependen del perfil solar horario del predio (Explorador Solar), que
+  se importa dentro del propio Revisor Fotovoltaico — no se replica en este informe. Use el
+  botón "Revisor Fotovoltaico" del Chequeo de Cálculos para completar esa verificación.
+</div>
+<div class="paso">
+<table class="tabla-tramos">
+  <tr><th>Mes</th><th>Horas riego/día</th><th>Dem. día (kWh)</th><th>Dem. mes (kWh)</th></tr>
+  {% for m in fv_demanda.meses %}
+  <tr><td>{{ m.mes }}</td><td>{{ m.horas }}</td><td>{{ m.dem_dia_kwh }}</td><td>{{ m.dem_mes_kwh }}</td></tr>
+  {% endfor %}
+</table>
+<div class="formula" style="margin-top:0.3rem;">Demanda anual = Σ Dem_mes = <strong>{{ fv_demanda.dem_anual_kwh }} kWh/año</strong></div>
+{% if fv_demanda.horas_excedidas %}
+<div class="explica" style="margin-top:0.2rem;"><span class="alerta">Horas de riego imposibles (&gt;24 h/día) en: {{ fv_demanda.horas_excedidas | join(', ') }}.</span></div>
+{% endif %}
+</div>
 {% endif %}
 {% endif %}
 

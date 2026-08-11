@@ -2018,6 +2018,19 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
 
     fv = verif.get("energetico") or {}
     fv_calc = _fv_calculo(fv) or {}
+    fv_demanda = calculos_riego.demanda_fv_mensual(
+        fv.get("pkw"), fv.get("adic"), fv.get("horas_mensuales")) or {}
+
+    # Consistencia interna de lo declarado (N° paneles × Wp panel vs. kWp declarado) — mismo
+    # criterio que usa el propio Revisor Fotovoltaico con sus datos declarados.
+    fv_decl = fv.get("declarado") or {}
+    fv_consistencia_paneles = None
+    if fv_decl.get("n_paneles") is not None and fv.get("wp") and fv_decl.get("kwp_total"):
+        kwp_por_paneles = fv_decl["n_paneles"] * fv["wp"] / 1000
+        diff_pct = abs(kwp_por_paneles - fv_decl["kwp_total"]) / fv_decl["kwp_total"] * 100
+        fv_consistencia_paneles = {
+            "kwp_por_paneles": round(kwp_por_paneles, 2), "coincide": diff_pct <= 5,
+        }
 
     # Metodología del consultor para el informe completo
     mc_completo = (verif.get("metodologia_consultor") or {}).get("completo") or {}
@@ -2042,7 +2055,8 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
     return templates.TemplateResponse("informe_calculo_completo.html", {
         "request": request, "proyecto": proyecto,
         "n_sistemas": n_sistemas, "sistemas": sistemas,
-        "fv": fv, "fv_calc": fv_calc,
+        "fv": fv, "fv_calc": fv_calc, "fv_demanda": fv_demanda,
+        "fv_consistencia_paneles": fv_consistencia_paneles,
         "mc_por_sistema": mc_por_sistema,
         "mc_fv": mc_fv,
         "mc_fecha": mc_completo.get("fecha", "")[:10] if mc_completo else None,
