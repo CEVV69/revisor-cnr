@@ -2373,11 +2373,13 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     # Caudal de diseño de la bomba: ya se declara/extrae en el Chequeo Agronómico
     # (agro.declarado.caudal_diseno_ls, comparado ahí contra el caudal de operación calculado).
     # El Revisor FV v15 lo usa como un solo valor para todo el proyecto (una bomba) — con 2
-    # sistemas de riego se toma el del primero, no hay un criterio de combinación establecido.
+    # sistemas de riego se toma el MAYOR de los declarados: es el que más exige a la bomba.
     n_sistemas = _n_sistemas_proyecto(verif)
     agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
-    agro_0 = agro_norm["sistemas"][0] if agro_norm["sistemas"] else {}
-    caudal_diseno_ls = (agro_0.get("declarado") or {}).get("caudal_diseno_ls")
+    caudales_diseno = [(s.get("declarado") or {}).get("caudal_diseno_ls")
+                        for s in agro_norm["sistemas"]]
+    caudales_diseno = [c for c in caudales_diseno if c is not None]
+    caudal_diseno_ls = max(caudales_diseno) if caudales_diseno else None
 
     # Tipo de generación: Revisor FV usa "ongrid"/"offgrid"/"offgridbat"; Revisor CNR usa
     # "ongrid"/"aislado"/"aislado_bat".
