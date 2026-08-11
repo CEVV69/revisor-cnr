@@ -2066,6 +2066,63 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
     })
 
 
+@app.get("/proyecto/{proyecto_id}/calculos/informe/kc-mensual")
+async def informe_kc_mensual(request: Request, proyecto_id: str):
+    """Página secundaria para corroborar 'Horas de riego promedio/día por mes' (Chequeo FV).
+
+    Metodología: para cada cultivo, ETc_mes = ETo_mes × Kc_mes (tabla MIDESO/CNR) → demanda
+    bruta diaria (mm) = ETc/Eficiencia → volumen diario (m³) = demanda bruta × superficie propia
+    del cultivo. Con MÁS DE UN CULTIVO, los volúmenes diarios se SUMAN (no se promedia el Kc de
+    los cultivos entre sí) — mismo criterio que usa Scall en su pestaña "Demanda" (confirmado
+    leyendo su HTML fuente: `S.dem[i] += bruta*c.sup` por cada fila de cultivo). Promediar el Kc
+    antes de calcular distorsiona el resultado cuando los cultivos tienen curvas muy distintas.
+    El volumen diario total se convierte a horas con el CAUDAL DE BOMBEO declarado (Hidráulico)
+    — es el caudal al que realmente bombea mientras opera, a diferencia del caudal de la fuente
+    (agronómico) o la pluviometría del emisor (aplicación local, no bombeo).
+
+    No usa AD/Dn/Fr — esos solo importan para la FRECUENCIA de riego (días entre eventos), pero
+    el promedio diario de horas de bombeo es el mismo con o sin frecuencia (ETc/Ef es la demanda
+    diaria de todos modos; ver `db_diario_mm` en `cadena_agronomica`, matemáticamente idéntico a
+    Db_con_frecuencia/Fr_ajustado).
+
+    Cálculo 100% en el navegador (como el Diseñador de Riego / Revisor Fotovoltaico) — esta ruta
+    solo entrega los datos base ya declarados en el Chequeo de Cálculos y la tabla de Kc; no
+    guarda nada ni modifica el proyecto."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    verif = proyecto.get("verificacion_calculos", {})
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    hid_norm = _normalizar_verif_multisistema(verif.get("hidraulico"), n_sistemas, "tramos")
+
+    sistemas = []
+    for i in range(n_sistemas):
+        agro = agro_norm["sistemas"][i] if i < len(agro_norm["sistemas"]) else {}
+        hid_s = hid_norm["sistemas"][i] if i < len(hid_norm["sistemas"]) else {}
+        sistemas.append({
+            "idx": i, "sistema_riego": agro.get("sistema_riego"),
+            "cultivo": agro.get("cultivo"),
+            "eficiencia_pct": agro.get("eficiencia_pct"),
+            "superficie_riego_ha": agro.get("superficie_riego_ha"),
+            "caudal_bombeo_ls": (hid_s or {}).get("caudal_bombeo_ls"),
+        })
+
+    fv = verif.get("energetico") or {}
+
+    return templates.TemplateResponse("informe_kc_mensual.html", {
+        "request": request, "proyecto": proyecto,
+        "n_sistemas": n_sistemas, "sistemas": sistemas,
+        "horas_mensuales_declaradas": fv.get("horas_mensuales"),
+        "kc_mideso_json": json.dumps(calculos_riego.KC_MENSUAL_MIDESO, ensure_ascii=False),
+        "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+    })
+
+
 @app.get("/proyecto/{proyecto_id}/calculos/informe/{idx}")
 async def informe_calculo(request: Request, proyecto_id: str, idx: int):
     """Memoria de cálculo explicada, paso a paso, del sistema de riego `idx` — página aparte
@@ -2232,7 +2289,7 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
     agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_hidraulicos = _documentos_para_verificacion("hidraulico", documentos_con_texto)
-    docs_fv = _documentos_para_verificacion("diseno_fotovoltaico", documentos_con_texto)
+    docs_fv = _documentos_para_verificacion("energetico", documentos_con_texto)
 
     acc_costo = iniciar_costo()
 
