@@ -1902,8 +1902,15 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
 
 async def _extraer_datos_fv(docs_grupo: list) -> dict:
     """Extrae los datos de dimensionamiento fotovoltaico declarados (diseño FV, reporte
-    Explorador Solar, presupuesto eléctrico). Nunca inventa: usa null si no aparece."""
-    texto = _texto_grupo_para_extraccion(docs_grupo)
+    Explorador Solar, presupuesto eléctrico). Nunca inventa: usa null si no aparece.
+
+    Usa el mismo presupuesto de caracteres (120.000) que la revisión del ítem Diseño
+    Fotovoltaico (ver MAX_CHARS_POR_ITEM) — antes usaba el default de 60.000 de
+    `_texto_grupo_para_extraccion`, la mitad, y con un Excel + memoria de cálculo típicos
+    del ítem, datos de la mitad/final del expediente (HSP, voltaje de sistema, sección de
+    cable, horas de bombeo) quedaban truncados fuera del texto que ve la IA."""
+    texto = _texto_grupo_para_extraccion(
+        docs_grupo, max_chars=MAX_CHARS_POR_ITEM.get("diseno_fotovoltaico", 80000))
     if not texto.strip():
         return {}
     prompt = f"""Extrae del siguiente expediente los datos del dimensionamiento del sistema
@@ -1919,13 +1926,22 @@ number|null, number|null, number|null, number|null, number|null, number|null, nu
 "banco_baterias_kwh": number|null}}}}
 
 Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
-hbom = horas de bombeo al día PROMEDIO (usa este solo si no hay desglose mensual). hsp = horas
-sol pico del sitio (del Explorador Solar CNR). fp = factor de pérdidas del sistema (decimal
-0-1, ej 0,80). wp/vmp/imp = ficha técnica del panel (potencia nominal, voltaje y corriente en
-punto de máxima potencia). ct = coeficiente de temperatura del panel (%/°C). temp = temperatura
-máxima del sitio. einv = eficiencia del inversor (decimal 0-1). vsis = voltaje nominal del
-sistema/inversor. adic = consumos adicionales declarados (%, fertirriego/controlador/pérdidas
-menores).
+hbom = horas de bombeo al día PROMEDIO (usa este solo si no hay desglose mensual; puede llamarse
+"régimen horario de bombeo" u "horas de operación de la bomba"). hsp = horas sol pico del sitio;
+también puede venir como "recurso solar promedio (kWh/m²/día)" — es el mismo valor numérico
+(1 kWh/m²/día = 1 HSP), suele salir del Explorador Solar CNR o de un informe de radiación. fp =
+factor de pérdidas del sistema (decimal 0-1, ej 0,80). wp/vmp/imp = ficha técnica del panel
+(potencia nominal, voltaje y corriente en punto de máxima potencia). ct = coeficiente de
+temperatura del panel (%/°C). temp = temperatura máxima del sitio. einv = eficiencia del
+inversor (decimal 0-1). vsis = voltaje nominal del sistema/inversor — puede aparecer como
+"voltaje del bus DC", "voltaje del arreglo/string fotovoltaico" o "voltaje de entrada del
+inversor" (busca el valor nominal, no el rango mín-máx). adic = consumos adicionales declarados
+(%, fertirriego/controlador/pérdidas menores).
+
+declarado.seccion_cable_mm2 = sección del cable/conductor DC que declara el proyecto (mm²) —
+puede estar en la memoria de cálculo o en la lista de materiales del presupuesto eléctrico,
+como "calibre de cable", "sección del conductor" o "cable DC". Si viene en AWG, no la
+conviertas: repórtala como null (evita un dato con la unidad equivocada).
 
 horas_mensuales: BUSCA CON CUIDADO en tablas de cronograma de riego, calendario de riego,
 demanda mensual, balance hídrico o consumo energético mensual — es MUY COMÚN que estas tablas
