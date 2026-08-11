@@ -527,14 +527,14 @@ def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: floa
 
 
 MESES_3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-# Días por mes que usa el Revisor Fotovoltaico (fotovoltaico_riego_v9.html, const DIAS) —
+# Días por mes que usa el Revisor Fotovoltaico (fotovoltaico_riego_v15.html, const DIAS) —
 # incluye feb=29 fijo (no depende del año del proyecto).
 DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
 def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
     """Demanda energética mensual de la bomba con la MISMA fórmula que usa el Revisor
-    Fotovoltaico (fotovoltaico_riego_v9.html, función calc()):
+    Fotovoltaico (fotovoltaico_riego_v15.html, función calc()):
 
     Dem_día[mes] = Horas_riego[mes] × P_bomba × (1 + Adicionales%/100)   [kWh/día]
     Dem_mes[mes] = Dem_día[mes] × Días_del_mes                          [kWh/mes]

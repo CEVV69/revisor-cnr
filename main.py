@@ -2355,7 +2355,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-revisor-fv")
 async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
-    """Descarga un .json en el formato del Revisor Fotovoltaico (fotovoltaico_riego_v9.html).
+    """Descarga un .json en el formato del Revisor Fotovoltaico (fotovoltaico_riego_v15.html).
     Exporta SOLO lo que declara el consultor en el expediente (extraído o ingresado a mano en
     el Chequeo de Cálculos) — nunca los valores que recalcula la app, para no reemplazar el
     dato del proyecto por el criterio de Revisor CNR."""
@@ -2369,6 +2369,15 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     verif = proyecto.get("verificacion_calculos", {})
     fv = verif.get("energetico") or {}
     declarado = fv.get("declarado") or {}
+
+    # Caudal de diseño de la bomba: ya se declara/extrae en el Chequeo Agronómico
+    # (agro.declarado.caudal_diseno_ls, comparado ahí contra el caudal de operación calculado).
+    # El Revisor FV v15 lo usa como un solo valor para todo el proyecto (una bomba) — con 2
+    # sistemas de riego se toma el del primero, no hay un criterio de combinación establecido.
+    n_sistemas = _n_sistemas_proyecto(verif)
+    agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
+    agro_0 = agro_norm["sistemas"][0] if agro_norm["sistemas"] else {}
+    caudal_diseno_ls = (agro_0.get("declarado") or {}).get("caudal_diseno_ls")
 
     # Tipo de generación: Revisor FV usa "ongrid"/"offgrid"/"offgridbat"; Revisor CNR usa
     # "ongrid"/"aislado"/"aislado_bat".
@@ -2385,6 +2394,9 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     adic = fv.get("adic")
     if adic is not None:
         doc["bombeo"]["consumosAdicionalesPct"] = adic
+
+    if caudal_diseno_ls is not None:
+        doc["bombeo"]["caudalDisenoLs"] = caudal_diseno_ls
 
     horas_mensuales = fv.get("horas_mensuales")
     if horas_mensuales and any(h is not None for h in horas_mensuales):

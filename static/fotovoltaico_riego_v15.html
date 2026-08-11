@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Revisión de Diseño Fotovoltaico — Riego</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Nunito+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+:root{
+  --navy:#0a1628;--blue:#1a56db;--blue-mid:#2563eb;--blue-lt:#3b82f6;
+  --sky:#60a5fa;--ice:#bfdbfe;--frost:#e4f0fb;--white:#ffffff;
+  --ink:#0f172a;--slate:#475569;--mist:#94a3b8;--fog:#e2e8f0;--paper:#dce8f5;
+  --orange:#f97316;--ok:#16a34a;--warn:#d97706;--err:#dc2626;
+  --al-ok-bg:#f0fdf4;--al-ok-bd:#bbf7d0;--al-w-bg:#fffbeb;--al-w-bd:#fde68a;
+  --al-e-bg:#fef2f2;--al-e-bd:#fecaca;
+  --hm0:#eef5fd;--hm1:#1a56db;
+  --r:8px;--r2:12px;--r3:16px;
+  --sans:'Nunito','Nunito Sans','Segoe UI',sans-serif;--mono:'DM Mono',monospace;
+  --sh:0 1px 3px rgba(10,22,40,.1),0 4px 12px rgba(10,22,40,.07);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --navy:#060d1a;--blue:#3b82f6;--blue-mid:#60a5fa;--blue-lt:#7cb0fb;
+    --sky:#93c5fd;--ice:#1e3a63;--frost:#13234a;--white:#111c2f;
+    --ink:#e6edf7;--slate:#a9bcd4;--mist:#7488a3;--fog:#22304c;--paper:#070e1c;
+    --orange:#fb923c;--ok:#4ade80;--warn:#fbbf24;--err:#f87171;
+    --al-ok-bg:#0d2a18;--al-ok-bd:#1c5433;--al-w-bg:#2b2109;--al-w-bd:#5c471a;
+    --al-e-bg:#2c1113;--al-e-bd:#6b2529;
+    --hm0:#0e1a30;--hm1:#3b82f6;
+    --sh:0 1px 3px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;min-height:100vh}
+#topbar{background:var(--navy);height:58px;display:flex;align-items:center;padding:0 18px;gap:12px;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.tb-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.tb-logo img{width:44px;height:44px;object-fit:contain}
+.tb-name{font-size:.95rem;font-weight:700;color:#fff;letter-spacing:-.2px}
+.tb-name em{font-style:normal;color:var(--sky)}
+.sys-pill{display:flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:600;font-family:var(--mono);letter-spacing:.3px;background:rgba(249,115,22,.2);color:#fb923c}
+.tb-r{margin-left:auto;display:flex;gap:7px}
+.tb-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:6px 13px;border-radius:var(--r);font-family:var(--sans);font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.tb-btn:hover{background:rgba(255,255,255,.18)}
+
+.page{max-width:1240px;margin:0 auto;padding:20px;display:grid;grid-template-columns:352px minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:1080px){.page{grid-template-columns:1fr}}
+aside{position:sticky;top:74px;max-height:calc(100vh - 92px);overflow-y:auto}
+@media(max-width:1080px){aside{position:static;max-height:none}}
+
+.step{display:flex;align-items:center;gap:7px;font-size:.67rem;font-weight:700;color:var(--blue-mid);letter-spacing:1.1px;text-transform:uppercase;font-family:var(--mono);margin-bottom:4px}
+.stepn{width:19px;height:19px;border-radius:50%;background:var(--blue-mid);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;flex-shrink:0}
+.sdesc{font-size:.72rem;color:var(--mist);line-height:1.5;margin-bottom:11px}
+.sl{font-size:.67rem;font-weight:700;color:var(--blue-mid);letter-spacing:1.1px;text-transform:uppercase;font-family:var(--mono);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.sl::before{content:'';width:3px;height:12px;background:var(--blue-mid);border-radius:2px}
+.sl .r{margin-left:auto;font-size:.62rem;letter-spacing:.5px;color:var(--mist);font-weight:500;text-transform:none}
+.tdesc{font-size:.75rem;color:var(--slate);margin:0 0 8px 9px;line-height:1.5;max-width:92ch}
+
+.card{background:var(--white);border:1px solid var(--fog);border-radius:var(--r2);padding:15px;margin-bottom:11px;box-shadow:var(--sh)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fg1{grid-template-columns:1fr}.fg3{grid-template-columns:1fr 1fr 1fr}
+.f{display:flex;flex-direction:column;gap:4px}
+label{font-size:.63rem;font-weight:600;color:var(--slate);letter-spacing:.3px;text-transform:uppercase;font-family:var(--mono);line-height:1.3}
+input,select,textarea{background:var(--white);border:1.5px solid var(--fog);border-radius:var(--r);color:var(--ink);padding:7px 10px;font-family:var(--mono);font-size:.82rem;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--blue-lt);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+textarea{min-height:74px;font-size:.7rem;resize:vertical}
+.ig{display:flex;align-items:stretch;background:var(--white);border:1.5px solid var(--fog);border-radius:var(--r);overflow:hidden}
+.ig:focus-within{border-color:var(--blue-lt);box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+.ig input{border:none;border-radius:0;box-shadow:none;flex:1;text-align:right;min-width:0}
+.ig input:focus{box-shadow:none}
+.ig.bad{border-color:var(--err)}
+.isuf{padding:0 8px;color:var(--blue-mid);font-size:.65rem;font-family:var(--mono);white-space:nowrap;border-left:1.5px solid var(--fog);background:var(--frost);display:flex;align-items:center}
+.btn{padding:8px 15px;border-radius:var(--r);border:none;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:.78rem;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.bp{background:var(--blue-mid);color:#fff}.bp:hover{background:var(--blue)}
+.bs{background:var(--white);border:1.5px solid var(--fog);color:var(--slate)}.bs:hover{border-color:var(--blue-lt);color:var(--blue-mid)}
+.bc{background:var(--frost);border:1.5px solid var(--ice);color:var(--blue-mid);font-size:.75rem}.bc:hover{background:var(--ice)}
+.bn{display:flex;gap:7px;flex-wrap:wrap}
+.bn-eq{flex-wrap:nowrap}
+.bn-eq .btn{flex:1;min-width:0;padding-left:6px;padding-right:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.al{padding:9px 12px;border-radius:var(--r);font-size:.75rem;font-family:var(--mono);margin-bottom:10px;line-height:1.55}
+.al-ok{background:var(--al-ok-bg);border:1px solid var(--al-ok-bd);color:var(--ok)}
+.al-w{background:var(--al-w-bg);border:1px solid var(--al-w-bd);color:var(--warn)}
+.al-e{background:var(--al-e-bg);border:1px solid var(--al-e-bd);color:var(--err)}
+.al-i{background:var(--frost);border:1px solid var(--ice);color:var(--blue-mid)}
+.al b{display:block;font-weight:700;margin-bottom:2px}
+
+/* veredicto */
+.verd{border-radius:var(--r2);padding:16px 18px;margin-bottom:14px;border:2px solid;box-shadow:var(--sh)}
+.verd.ok{background:var(--al-ok-bg);border-color:var(--ok)}
+.verd.warn{background:var(--al-w-bg);border-color:var(--warn)}
+.verd.err{background:var(--al-e-bg);border-color:var(--err)}
+.verd h2{font-size:1.35rem;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:9px}
+.verd.ok h2{color:var(--ok)}.verd.warn h2{color:var(--warn)}.verd.err h2{color:var(--err)}
+.verd p{font-size:.8rem;color:var(--slate);margin-top:4px}
+.chks{list-style:none;margin-top:13px;display:grid;gap:5px}
+.chks li{display:flex;gap:9px;align-items:flex-start;background:var(--white);border:1px solid var(--fog);border-radius:var(--r);padding:8px 11px;font-size:.78rem;line-height:1.5}
+.chks .ico{font-family:var(--mono);font-weight:700;flex-shrink:0;width:15px;text-align:center}
+.chks .t{font-weight:600}
+.chks .d{color:var(--slate);font-size:.74rem;font-family:var(--mono)}
+.c-ok .ico{color:var(--ok)}.c-warn .ico{color:var(--warn)}.c-err .ico{color:var(--err)}
+.c-err{border-color:var(--al-e-bd)}.c-warn{border-color:var(--al-w-bd)}
+
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px;margin-bottom:16px}
+.met{background:var(--white);border:1px solid var(--fog);border-radius:var(--r2);padding:13px;position:relative;overflow:hidden;box-shadow:var(--sh)}
+.met::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--sky))}
+.met.warn::before{background:linear-gradient(90deg,var(--warn),#f59e0b)}
+.met.ok::before{background:linear-gradient(90deg,var(--ok),#4ade80)}
+.met.err::before{background:linear-gradient(90deg,var(--err),#f87171)}
+.met.sun::before{background:linear-gradient(90deg,var(--orange),#fbbf24)}
+.mlbl{font-size:.6rem;color:var(--mist);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:4px;min-height:26px;line-height:1.35}
+.mval{font-size:1.2rem;color:var(--ink);line-height:1;font-family:var(--mono)}
+.met.warn .mval{color:var(--warn)}.met.err .mval{color:var(--err)}.met.ok .mval{color:var(--ok)}.met.sun .mval{color:var(--orange)}
+.munit{font-size:.62rem;color:var(--mist);font-family:var(--mono);margin-top:3px}
+
+.scroll{overflow-x:auto;background:var(--white);border:1px solid var(--fog);border-radius:var(--r2);box-shadow:var(--sh);margin-bottom:16px}
+.rt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.76rem}
+.rt th{background:var(--frost);color:var(--blue-mid);font-weight:600;padding:8px 10px;text-align:right;font-size:.62rem;letter-spacing:.3px;border-bottom:2px solid var(--ice);white-space:nowrap}
+.rt th:first-child{text-align:left}
+.rt td{padding:6px 10px;border-bottom:1px solid var(--fog);text-align:right;white-space:nowrap}
+.rt td:first-child{text-align:left;color:var(--slate)}
+.rt tr:last-child td{border-bottom:none}
+.rt tr:hover td{background:var(--frost)}
+.rt tr.crit td{background:rgba(249,115,22,.1)}
+.rt tr.crit td:first-child{color:var(--orange);font-weight:600}
+.rt tfoot td{font-weight:700;border-top:2px solid var(--ice);background:var(--frost)}
+.dim{color:var(--mist)}.gok{color:var(--ok);font-weight:600}.gerr{color:var(--err);font-weight:600}
+
+.hm{border-collapse:separate;border-spacing:2px;font-family:var(--mono);font-size:.62rem}
+.hm th{color:var(--mist);font-weight:600;font-size:.58rem;padding:2px 4px;text-align:center}
+.hm th.m{text-align:left;color:var(--slate);font-size:.66rem;padding-right:8px}
+.hm .cell{display:block;min-width:34px;height:24px;line-height:24px;text-align:center;border-radius:3px}
+.hm .cell.ok{box-shadow:inset 0 0 0 1.5px var(--ok)}
+.hmleg{display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-top:1px solid var(--fog);font-size:.7rem;color:var(--slate);font-family:var(--mono)}
+.grad{width:90px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--hm0),var(--hm1));display:inline-block;vertical-align:-2px;border:1px solid var(--fog)}
+.swok{display:inline-block;width:13px;height:13px;border-radius:3px;box-shadow:inset 0 0 0 1.5px var(--ok);vertical-align:-2px;margin-right:4px}
+svg.chart{display:block;width:100%}
+.chleg{display:flex;gap:15px;flex-wrap:wrap;font-size:.68rem;color:var(--slate);font-family:var(--mono);margin-top:8px}
+.chleg i{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:5px;font-style:normal}
+.hint{font-size:.7rem;color:var(--mist);font-family:var(--mono);line-height:1.6}
+.vhDel{width:26px;height:26px;border-radius:6px;border:1px solid var(--fog);background:var(--white);color:var(--mist);cursor:pointer;font-size:.9rem;line-height:1}
+.vhDel:hover{color:var(--err);border-color:var(--err)}
+#vhCropsBody select,#vhCropsBody input{font-family:var(--mono);font-size:.78rem;padding:5px 7px;border:1.5px solid var(--fog);border-radius:6px;background:var(--white);color:var(--ink);width:100%}
+#vhCropsBody .vhSup{max-width:80px;text-align:right}
+.foot{max-width:1240px;margin:0 auto;padding:4px 20px 34px;font-size:.68rem;color:var(--mist);font-family:var(--mono);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ov{position:fixed;inset:0;background:rgba(10,22,40,.72);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.ov.v{display:flex}
+.ovbox{background:var(--white);border-radius:var(--r3);max-width:960px;width:100%;max-height:90vh;overflow:auto;padding:20px}
+.ovbox h3{font-size:1rem;margin-bottom:10px}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div id="topbar">
+  <a class="tb-logo" href="#"><img src="data:image/png;base64,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" alt=""><span class="tb-name">Revisión <em>Fotovoltaica</em></span></a>
+  <span class="sys-pill">☀ RIEGO</span>
+  <div class="tb-r">
+    <button class="tb-btn" id="btnHelp">? Cómo se usa</button>
+    <button class="tb-btn" id="btnCsv">Exportar CSV</button>
+  </div>
+</div>
+
+<div class="page">
+<aside><form id="form" autocomplete="off">
+
+  <div class="card">
+    <div class="step"><span class="stepn">1</span>Equipo de bombeo</div>
+    <div class="sdesc">Consumos adicionales: otros equipos que consumen energía, 5 % valor típico.</div>
+    <div class="fg">
+      <div class="f"><label>Potencia de la bomba</label><div class="ig" id="wPb"><input type="text" id="pBomba"><span class="isuf">kW</span></div></div>
+      <div class="f"><label>Consumos adicionales</label><div class="ig"><input type="text" id="adic"><span class="isuf">% adic</span></div></div>
+      <div class="f"><label>Caudal de diseño</label><div class="ig"><input type="text" id="qDiseno"><span class="isuf">l/s</span></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="stepn">2</span>Horas de riego por día</div>
+    <div class="fg fg3" id="horasGrid"></div>
+    <div class="bn" style="margin-top:4px"><button type="button" class="btn bc" id="btnH0">Poner todos en 0</button><button type="button" class="btn bc" id="btnHall">Repetir enero en todos</button></div>
+    <button type="button" class="btn bp" id="btnVhOpen" style="width:100%;margin-top:8px">🌱 Verificar con Kc de cultivos</button>
+    <p class="hint" style="margin-top:5px">Recálculo con ETo por estación y Kc de cultivo según mes.</p>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="stepn">3</span>Recurso solar del predio</div>
+    <div class="sdesc">Obligatorio. Generación por cada 1 kWp instalado, hora a hora, promediada por mes. Descargue la <b>Tabla resumen</b> (hoja «pv») del Explorador Solar: es el formato más simple.</div>
+    <div id="guState"></div>
+    <div class="bn" style="margin:8px 0">
+      <a class="btn bp" href="https://solar.minenergia.cl/exploracion" target="_blank" rel="noopener" style="text-decoration:none">↗ Abrir Explorador Solar</a>
+      <button type="button" class="btn bs" id="btnVerGU">Ver tabla</button>
+    </div>
+    <div class="fg fg1">
+      <div class="f"><label>Pegue aquí los datos copiados o cargue el archivo</label><textarea id="guPaste" placeholder="Pegue aquí la Tabla resumen (hoja «pv») o la serie horaria descargada del Explorador Solar…"></textarea></div>
+      <div class="f"><label>Potencia usada en el Explorador</label><div class="ig" id="wGuKwp"><input type="text" id="guKwp" placeholder="ej: 0,585"><span class="isuf">kWp</span></div></div>
+    </div>
+    <div class="bn">
+      <input type="file" id="guFile" accept=".csv,.txt,.tsv,.xlsx,.xls" style="display:none">
+      <button type="button" class="btn bc" id="btnGuFile">Cargar archivo…</button>
+      <button type="button" class="btn bp" id="btnGuImport">Procesar</button>
+      <button type="button" class="btn bs" id="btnGuReset">Quitar datos importados</button>
+    </div>
+    <p class="hint" id="guMsg" style="margin-top:8px"></p>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="stepn">4</span>Lo que propone el consultor</div>
+    <div class="sdesc">Contra esto se emite el veredicto.</div>
+    <div class="fg fg1">
+      <div class="f"><label>Tipo de generación</label><select id="modo">
+        <option value="ongrid">On Grid — conectado a la red</option>
+        <option value="offgrid">Off Grid — solo sol, sin baterías</option>
+        <option value="offgridbat">Off Grid con baterías</option></select></div>
+    </div>
+    <div class="fg">
+      <div class="f"><label>Potencia instalada propuesta</label><div class="ig" id="wPp"><input type="text" id="pProp"><span class="isuf">kWp</span></div></div>
+      <div class="f"><label>Mes crítico</label><select id="mesCrit"><option value="auto">Automático</option></select></div>
+      <div class="f"><label>N° de paneles</label><div class="ig"><input type="text" id="nPan"><span class="isuf">u</span></div></div>
+      <div class="f"><label>Potencia por panel</label><div class="ig"><input type="text" id="wPan"><span class="isuf">Wp</span></div></div>
+    </div>
+    <div class="fg fg1" id="fBanco">
+      <div class="f"><label>Banco de baterías propuesto</label><div class="ig"><input type="text" id="bancoProp"><span class="isuf">kWh</span></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step" style="margin-bottom:2px"><span class="stepn">↔</span>Intercambio con otras apps</div>
+    <div class="fg fg1" style="margin-bottom:9px">
+      <div class="f"><label>Código o nombre del proyecto</label><input type="text" id="codigoProyecto" placeholder="ej: 112510" style="text-align:left"></div>
+    </div>
+    <input type="file" id="jsonFile" accept=".json" style="display:none">
+    <div class="bn bn-eq">
+      <button type="button" class="btn bc" id="btnJsonImport">Importar JSON</button>
+      <button type="button" class="btn bc" id="btnJsonExport">Exportar JSON</button>
+    </div>
+    <p class="hint" id="jsonMsg" style="margin-top:8px"></p>
+  </div>
+
+  <div class="card"><div class="bn">
+    <button type="button" class="btn bs" id="btnVaciar">Vaciar todo</button>
+  </div></div>
+</form></aside>
+
+<div><div id="out"></div></div>
+</div>
+
+<div class="foot"><span>Balance de energía fotovoltaica para equipos de bombeo de riego.</span><span>Revisión Fotovoltaica · Cevv</span></div>
+
+<div class="ov" id="ovGU"><div class="ovbox"><h3 id="ovTit">Tabla de generación unitaria</h3><div id="ovBody"></div><div class="bn" style="margin-top:14px"><button type="button" class="btn bp" id="btnOvClose">Cerrar</button></div></div></div>
+<div class="ov" id="ovVh"><div class="ovbox" style="max-width:1080px">
+ <h3>Verificación de horas de riego por Kc</h3>
+ <p class="hint" style="margin:4px 0 10px">Recalcula la demanda con ETo × Kc mensual y la compara con las horas del paso 2.</p>
+
+ <div style="margin-bottom:12px">
+  <div class="card" style="display:flex;align-items:center;gap:12px;padding:10px 15px;border-radius:var(--r2) var(--r2) 0 0;border-bottom:0;margin:0">
+   <span class="ctitle" style="margin:0;white-space:nowrap">Estación meteorológica (ETo)</span>
+   <select id="vhEst" style="flex:1;max-width:320px"></select>
+  </div>
+  <div id="vhEtoRow" style="background:var(--frost);border:1px solid var(--ice);border-radius:0 0 var(--r2) var(--r2);padding:7px 12px;overflow-x:auto"></div>
+ </div>
+
+ <div class="card" style="margin-bottom:12px">
+  <div class="ctitle">Cultivos regados por este equipo</div>
+  <div class="scroll" style="margin-bottom:9px">
+   <table class="rt" style="min-width:640px">
+    <thead><tr><th style="text-align:left">Cultivo</th><th style="text-align:left">Trimestre productivo</th><th style="text-align:left">Método de riego</th><th>Superficie ha</th><th></th></tr></thead>
+    <tbody id="vhCropsBody"></tbody>
+   </table>
+  </div>
+  <button type="button" class="btn bc" id="btnVhAddCrop">+ Agregar cultivo</button>
+ </div>
+
+ <p class="hint" id="vhQmsg" style="margin-bottom:10px"></p>
+
+ <div class="scroll">
+  <table class="rt">
+   <thead><tr><th style="text-align:left">Mes</th><th>Horas calculadas</th><th>Horas declaradas</th><th>Diferencia</th><th>Estado</th></tr></thead>
+   <tbody id="vhResultBody"></tbody>
+  </table>
+ </div>
+ <div id="vhResumen"></div>
+
+ <div class="bn" style="margin-top:16px"><button type="button" class="btn bp" id="btnVhClose">Cerrar</button></div>
+</div></div>
+
+
+<script>
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MES3=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const DIAS=[31,29,31,30,31,30,31,31,30,31,30,31];
+const HORAS_DEF=[6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+let GU=null, HORAS=HORAS_DEF.slice(), GU_ORIGEN="none", GU_NOTA="";
+
+const VACIO={pBomba:0,adic:5,qDiseno:0,horas:[0,0,0,0,0,0,0,0,0,0,0,0],modo:"ongrid",pProp:0,nPan:0,wPan:0,bancoProp:0,mesCrit:"auto"};
+
+const $=id=>document.getElementById(id);
+const nf=(n,d)=>(!isFinite(n)?"—":n.toLocaleString("es-CL",{minimumFractionDigits:d,maximumFractionDigits:d}));
+// Detecta el separador decimal real de un texto numérico, sea "." o ",", mirando cuál
+// aparece más a la derecha cuando hay ambos (formato mixto de miles). Con un solo tipo de
+// separador se asume que es el decimal: aquí casi nunca se escriben miles a mano.
+function parseDecimalFlex(str){
+ let s=String(str).trim(); if(s==="") return NaN;
+ const hasC=s.includes(","), hasP=s.includes(".");
+ if(hasC&&hasP){ s = s.lastIndexOf(",")>s.lastIndexOf(".") ? s.replace(/\./g,"").replace(",",".") : s.replace(/,/g,""); }
+ else if(hasC){ s=s.replace(",","."); }
+ else if(hasP && (s.match(/\./g)||[]).length>1){ s=s.replace(/\./g,""); }
+ return parseFloat(s);
+}
+const pn=s=>{if(s===null||s===undefined)return 0;const v=parseDecimalFlex(s);return isFinite(v)?v:0;};
+const tf=n=>{const d=Math.abs(n%1)<1e-9?0:(Math.abs(n)<1?4:2);return nf(n,d).replace(/,(\d*?)0+$/,(m,a)=>a?","+a:"");};
+function nombreArchivo(base,ext){
+ const cod=($("codigoProyecto")?.value||"").trim();
+ const limpio=cod.replace(/[\\/:*?"<>|]/g,"").replace(/\s+/g," ").trim();
+ return "Fotovoltaico-"+(limpio||base)+"."+ext;
+}
+const esc=t=>String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function mix(c0,c1,t){const p=s=>{s=s.trim();if(s[0]==="#"){s=s.slice(1);if(s.length===3)s=s.split("").map(x=>x+x).join("");return[0,2,4].map(i=>parseInt(s.substr(i,2),16));}return s.match(/\d+/g).slice(0,3).map(Number);};
+ const a=p(c0),b=p(c1);t=Math.max(0,Math.min(1,t));return `rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(",")})`;}
+
+/* ═══════════ LECTURA ═══════════ */
+function read(){
+ const s={pBomba:pn($("pBomba").value),adic:pn($("adic").value),qDiseno:pn($("qDiseno").value),modo:$("modo").value,
+   pProp:pn($("pProp").value),nPan:pn($("nPan").value),wPan:pn($("wPan").value),
+   bancoProp:pn($("bancoProp").value),mesCrit:$("mesCrit").value,horas:[]};
+ for(let m=0;m<12;m++) s.horas.push(pn($("h"+m).value));
+ s.perdReg = s.modo==="offgridbat" ? 2 : 0;
+ return s;
+}
+
+/* ═══════════ CÁLCULO ═══════════ */
+function calc(s){
+ const r={...s, bat:s.modo==="offgridbat", off:s.modo!=="ongrid"};
+ const fp=(100-s.perdReg)/100;
+ const guOk = GU!==null;
+ const G = guOk ? GU : [...Array(12)].map(()=>new Array(HORAS_DEF.length).fill(0));
+ r.sinRecurso = !guOk;
+ r.demDia=s.horas.map(h=>h*s.pBomba*(1+s.adic/100));
+ r.demMes=r.demDia.map((d,m)=>d*DIAS[m]);
+ r.demAnual=r.demMes.reduce((a,b)=>a+b,0);
+ r.guDia=G.map(row=>row.reduce((a,b)=>a+b,0));              // kWh/día por kWp
+ r.guAnual=r.guDia.reduce((a,g,m)=>a+g*DIAS[m],0);          // kWh/año por kWp
+ r.guMedia=r.guDia.reduce((a,b)=>a+b,0)/12;
+ r.horasSol=G.map(row=>row.filter(g=>g>0).length);
+
+ // mes crítico: el que exige más kWp (demanda diaria / generación unitaria diaria)
+ let auto=0,peor=-1;
+ for(let m=0;m<12;m++){ const need=r.guDia[m]>0?r.demDia[m]/r.guDia[m]:0; if(need>peor){peor=need;auto=m;} }
+ r.mesCritAuto=auto;
+ r.crit = s.mesCrit==="auto" ? auto : +s.mesCrit;
+
+ // potencia requerida
+ r.pReqRed  = r.guAnual>0 ? r.demAnual/r.guAnual : 0;                          // On Grid
+ r.pReqDia  = r.guDia[r.crit]>0 ? r.demDia[r.crit]/(r.guDia[r.crit]*fp) : 0;   // Off Grid c/baterías
+ r.pReqSol  = potenciaMinimaDirecta(s);                                        // Off Grid directo
+ r.pReq = s.modo==="ongrid"?r.pReqRed : s.modo==="offgridbat"?r.pReqDia : r.pReqSol;
+
+ // generación con lo propuesto
+ r.gen=G.map(row=>row.map(g=>g*s.pProp*fp));
+ r.genDia=r.gen.map(row=>row.reduce((a,b)=>a+b,0));
+ r.genMes=r.genDia.map((g,m)=>g*DIAS[m]);
+ r.genAnual=r.genMes.reduce((a,b)=>a+b,0);
+ r.defDia=r.demDia.map((d,m)=>Math.max(d-r.genDia[m],0));
+ r.cobertura=r.demAnual>0?r.genAnual/r.demAnual*100:NaN;
+
+ // chequeo horario (¿alcanza la potencia instantánea para mover la bomba?)
+ r.umbral=s.pBomba;
+ r.sat=r.gen.map(row=>row.map(g=>g>r.umbral));
+ r.horasDisp=r.sat.map(row=>row.filter(Boolean).length);
+ r.horasDef=s.horas.map((h,m)=>h===0?null:Math.max(h-r.horasDisp[m],0));
+ r.defHoras=r.horasDef.reduce((a,b)=>a+(b||0),0);
+
+ // banco de baterías
+ r.bancoMes=r.horasDef.map(d=>d===null?null:(s.pBomba*Math.round(d))/0.85/0.40);
+ r.bancoReq=r.bancoMes[r.crit];
+ r.capUtil=(s.bancoProp||0)*0.85;
+ if(r.bat){
+   let acum=new Array(12).fill(0);
+   for(let p=0;p<2;p++) for(let m=0;m<12;m++) acum[m]=Math.max(r.defDia[m]*DIAS[m]+acum[(m+11)%12],0);
+   r.defAcum=acum;
+   r.usoBat=acum.map(a=>r.capUtil>0?a/r.capUtil*100:NaN);
+ }
+ r.pPan = s.nPan>0&&s.wPan>0 ? s.nPan*s.wPan/1000 : null;
+ r.checks=verificar(s,r);
+ r.veredicto = r.checks.some(c=>c.e==="err") ? "err" : (r.checks.some(c=>c.e==="warn") ? "warn" : "ok");
+ return r;
+}
+
+function potenciaMinimaDirecta(s){
+ if(!(s.pBomba>0)) return 0;
+ if(!s.horas.some(h=>h>0)) return 0;
+ if(GU===null) return NaN;
+ const fp=(100-s.perdReg)/100;
+ let lo=0.01,hi=0.01,it=0;
+ const def=P=>{let t=0;for(let m=0;m<12;m++){ if(s.horas[m]<=0) continue;
+   let d=0; for(let h=0;h<GU[m].length;h++) if(GU[m][h]*P*fp>s.pBomba) d++;
+   t+=Math.max(s.horas[m]-d,0);} return t;};
+ while(def(hi)>1e-9 && it++<40) hi*=2;
+ if(it>=40) return NaN;
+ for(let i=0;i<60;i++){ const mid=(lo+hi)/2; if(def(mid)>1e-9) lo=mid; else hi=mid; }
+ return hi;
+}
+
+/* ═══════════ VERIFICACIONES ═══════════ */
+function verificar(s,r){
+ const C=[], add=(e,t,d)=>C.push({e,t,d});
+ const mesesRiego=s.horas.filter(h=>h>0).length;
+
+ if(!(s.pBomba>0)) add("err","Falta la potencia de la bomba","Sin este dato no hay nada que dimensionar.");
+ else if(s.pBomba>250) add("warn","Potencia de bomba inusualmente alta",nf(s.pBomba,2)+" kW. Verifique que el dato esté en kW y no en W o HP.");
+ else add("ok","Potencia de la bomba declarada",nf(s.pBomba,2)+" kW + "+nf(s.adic,0)+" % de consumos adicionales.");
+
+ if(mesesRiego===0) add("err","No hay meses con riego","Cargue las horas de operación diaria de al menos un mes.");
+ else {
+   const mal=[]; for(let m=0;m<12;m++){ if(s.horas[m]>24) mal.push(MES3[m]); }
+   if(mal.length) add("err","Horas de riego imposibles","Superan las 24 h/día en: "+mal.join(", ")+".");
+   else {
+     const solt=[]; for(let m=0;m<12;m++){ if(s.horas[m]>r.horasSol[m]) solt.push(MES3[m]+" ("+nf(s.horas[m],1)+" h vs "+r.horasSol[m]+" h de sol)"); }
+     if(solt.length && r.off) add("err","Se riega más horas que las de sol disponibles",solt.join(" · ")+". Sin red ni baterías eso no es realizable.");
+     else if(solt.length) add("warn","Riego fuera del horario solar",solt.join(" · ")+". Aceptable solo porque la red respalda el consumo.");
+     else add("ok","Horas de riego coherentes",mesesRiego+" meses con riego, máximo "+nf(Math.max(...s.horas),1)+" h/día.");
+   }
+ }
+
+ if(r.sinRecurso) add("err","Falta el recurso solar del predio","Importe la generación fotovoltaica del predio desde el Explorador Solar, o cárguela desde un proyecto JSON, antes de emitir el informe.");
+ else if(r.guMedia<2||r.guMedia>9) add("warn","Recurso solar fuera de rango esperable",nf(r.guMedia,2)+" kWh/kWp/día de promedio anual. En Chile se espera entre 3 y 7. Revise la potencia declarada al importar.");
+ else add("ok","Recurso solar del predio importado",GU_NOTA+" · "+nf(r.guMedia,2)+" kWh/kWp/día de promedio anual.");
+
+ if(!(s.pProp>0)) add("err","Falta la potencia instalada propuesta","Ingrese los kWp que declara el proyecto.");
+ else {
+   const holg=(s.pProp/r.pReq-1)*100;
+   if(!isFinite(r.pReq)||r.pReq<=0) add("warn","No se pudo calcular la potencia requerida","Revise las horas de riego y el recurso solar.");
+   else if(s.pProp<r.pReq*0.999) add("err","La potencia propuesta no cubre la demanda","Propuesta "+nf(s.pProp,2)+" kWp frente a "+nf(r.pReq,2)+" kWp requeridos. Faltan "+nf(r.pReq-s.pProp,2)+" kWp.");
+   else if(holg>60) add("warn","Potencia muy por encima de lo requerido","Propuesta "+nf(s.pProp,2)+" kWp, "+nf(holg,0)+" % sobre los "+nf(r.pReq,2)+" kWp requeridos. Justifique el sobredimensionamiento.");
+   else add("ok","La potencia propuesta cubre la demanda","Propuesta "+nf(s.pProp,2)+" kWp frente a "+nf(r.pReq,2)+" kWp requeridos ("+nf(holg,0)+" % de holgura).");
+ }
+
+ if(r.pPan!==null){
+   const dif=Math.abs(r.pPan-s.pProp)/(s.pProp||1)*100;
+   if(dif>5) add("err","Los paneles no suman la potencia declarada",s.nPan+" × "+nf(s.wPan,0)+" Wp = "+nf(r.pPan,2)+" kWp, pero se declaran "+nf(s.pProp,2)+" kWp.");
+   else add("ok","El detalle de paneles cuadra",s.nPan+" × "+nf(s.wPan,0)+" Wp = "+nf(r.pPan,2)+" kWp.");
+ } else add("warn","Sin detalle de paneles","No se declaró número de paneles ni potencia unitaria; no se puede verificar la potencia instalada en terreno.");
+
+ if(s.pProp>0&&r.demAnual>0){
+   if(r.cobertura<100) add("err","La generación anual no alcanza la demanda anual",nf(r.genAnual,0)+" kWh generados frente a "+nf(r.demAnual,0)+" kWh consumidos ("+nf(r.cobertura,1)+" % de cobertura).");
+   else add("ok","Balance anual cubierto",nf(r.genAnual,0)+" kWh generados frente a "+nf(r.demAnual,0)+" kWh consumidos ("+nf(r.cobertura,1)+" %).");
+ }
+
+ if(r.off&&s.pProp>0){
+   if(r.defHoras>1e-6){
+     const ms=[]; for(let m=0;m<12;m++) if(r.horasDef[m]>1e-6) ms.push(MES3[m]+" "+nf(r.horasDef[m],1)+" h");
+     add(r.bat?"warn":"err","Faltan horas de sol útiles para regar","Con "+nf(s.pProp,2)+" kWp la generación no supera los "+nf(r.umbral,2)+" kW de la bomba durante todas las horas de riego: "+ms.join(", ")+(r.bat?". Esas horas deben cubrirse con el banco de baterías.":". Sin baterías el riego no se completa."));
+   } else add("ok","El sol alcanza a mover la bomba en todas las horas de riego","La generación supera los "+nf(r.umbral,2)+" kW requeridos durante toda la jornada de riego.");
+ }
+
+ if(r.bat){
+   if(!(s.bancoProp>0)) add("err","Falta el banco de baterías propuesto","El proyecto es Off Grid con baterías: declare su capacidad en kWh.");
+   else if(r.bancoReq==null) add("warn","No se pudo calcular el banco requerido","El mes crítico no tiene riego.");
+   else if(s.bancoProp<r.bancoReq*0.999) add("err","El banco de baterías es insuficiente","Propuesto "+nf(s.bancoProp,2)+" kWh frente a "+nf(r.bancoReq,2)+" kWh requeridos en "+MESES[r.crit]+".");
+   else add("ok","El banco de baterías es suficiente","Propuesto "+nf(s.bancoProp,2)+" kWh frente a "+nf(r.bancoReq,2)+" kWh requeridos en "+MESES[r.crit]+".");
+ } else if(s.bancoProp>0) add("warn","Se declaran baterías en un proyecto sin baterías","El tipo de generación elegido no las considera. Corrija el tipo o quite el dato.");
+
+ return C;
+}
+
+/* ═══════════ IMPORTADOR ═══════════ */
+function splitRows(txt){
+ return txt.replace(/\r/g,"").split("\n").map(l=>l.trim()).filter(Boolean)
+   .map(l=>{const sep = l.includes("\t")?"\t":(l.includes(";")?";":",");return l.split(sep).map(c=>c.trim());});
+}
+const numOf=c=>{const t=String(c).replace(/\s/g,"").replace(/\.(?=\d{3}\b)/g,"").replace(",",".");return /^-?\d*\.?\d+([eE][-+]?\d+)?$/.test(t)?parseFloat(t):NaN;};
+
+const MES_NOMBRES=[["enero","ene"],["febrero","feb"],["marzo","mar"],["abril","abr"],["mayo","may"],["junio","jun"],
+ ["julio","jul"],["agosto","ago"],["septiembre","setiembre","sep","set"],["octubre","oct"],["noviembre","nov"],["diciembre","dic"]];
+function mesIndexExacto(label){
+ const s=String(label||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ for(let i=0;i<12;i++) if(MES_NOMBRES[i].includes(s)) return i;
+ return -1;
+}
+// Si la fila trae una columna extra de resumen antes de las horas (p. ej. el promedio o el
+// total diario, como en la "Tabla resumen" del Explorador Solar), se detecta y se descarta:
+// coincide con el promedio o con la suma del resto de la fila.
+function limpiarColumnaExtra(v){
+ if(v.length===24||v.length===14) return v;
+ if(v.length===25||v.length===15){
+   const resto=v.slice(1), suma=resto.reduce((a,b)=>a+b,0), prom=suma/resto.length;
+   const tol=x=>Math.max(1e-6,Math.abs(x)*0.02);
+   if(Math.abs(v[0]-prom)<tol(prom) || Math.abs(v[0]-suma)<tol(suma)) return resto;
+ }
+ return v;
+}
+
+function importarGU(txt,kwp){
+ const rows=splitRows(txt);
+ if(!rows.length) return {err:"No hay datos que leer."};
+ if(!(kwp>0)) return {err:"Indique la potencia (kWp) que se usó en el Explorador Solar. Si la tabla ya viene por cada 1 kWp, escriba 1."};
+
+ // A0) filas identificadas por nombre de mes exacto (formato "Tabla resumen" del Explorador
+ // Solar): ignora cualquier fila que no sea uno de los 12 meses (p. ej. el promedio anual
+ // "Enero a Diciembre") y descarta la columna de resumen diario si la trae.
+ const porMes=new Array(12).fill(null);
+ for(const r of rows){
+   const idx=mesIndexExacto(r[0]);
+   if(idx<0) continue;
+   const ns=limpiarColumnaExtra(r.slice(1).map(numOf).filter(isFinite));
+   if(ns.length===14||ns.length===24) porMes[idx]=ns;
+ }
+ if(porMes.every(v=>v!==null)){
+   const L=porMes[0].length;
+   if(porMes.every(v=>v.length===L)){
+     const g=porMes.map(v=>v.map(x=>x/kwp));
+     const hs = L===14?HORAS_DEF.slice() : [...Array(24).keys()];
+     return {gu:g,horas:hs,nota:"Tabla resumen por mes ("+L+" horas, columna de resumen diario descartada)"};
+   }
+ }
+
+ // A) matriz de 12 filas genérica (sin nombres de mes reconocibles)
+ const mat=rows.map(r=>{const ns=r.map(numOf);
+   let i=0; while(i<ns.length&&!isFinite(ns[i])) i++;          // saltar etiqueta de mes
+   const v=limpiarColumnaExtra(ns.slice(i).filter(x=>isFinite(x))); return v;}).filter(v=>v.length>=10);
+ if(mat.length===12){
+   const L=mat[0].length;
+   if(mat.every(v=>v.length===L)&&(L===14||L===24||L>=10&&L<=24)){
+     const g=mat.map(v=>v.map(x=>x/kwp));
+     const hs = L===14?HORAS_DEF.slice() : (L===24?[...Array(24).keys()] : [...Array(L).keys()].map(i=>i+6));
+     return {gu:g,horas:hs,nota:"Matriz de 12 meses × "+L+" horas"};
+   }
+ }
+
+ // B) serie horaria — localizar la fila de encabezado real (ignora el título y los
+ // metadatos que anteponen los archivos del Explorador Solar) buscando la celda "pv"
+ // o un nombre de columna de generación explícito.
+ let headerIdx=-1, colV=-1;
+ const lim=Math.min(rows.length,250);
+ // 1) fila que empieza con "Fecha"/"Date" Y trae una columna de generación: es el
+ //    encabezado real de la tabla. Evita confundir la tabla de "VARIABLE, UNIDAD,
+ //    DESCRIPCION" (que también contiene una celda "pv") con el encabezado.
+ for(let i=0;i<lim;i++){
+   const r=rows[i]; if(r.length<4) continue;
+   if(!/^(fecha|date)/i.test(String(r[0]).trim())) continue;
+   const low=r.map(c=>String(c).toLowerCase().trim());
+   let idx=low.findIndex(c=>/^(pv|gen|generacion|generación|energia|energía|output)$/.test(c));
+   if(idx<0) idx=low.findIndex(c=>/gener|energ|salida|output|kwh/.test(c));
+   if(idx>=0){ headerIdx=i; colV=idx; break; }
+ }
+ // 2) fallback: cualquier fila de 4+ columnas con una celda exactamente "pv"/"gen"/…
+ if(headerIdx<0){
+   for(let i=0;i<lim;i++){
+     const r=rows[i]; if(r.length<4) continue;
+     const idx=r.findIndex(c=>/^(pv|gen|generacion|generación|energia|energía|output)$/i.test(String(c).trim()));
+     if(idx>=0){ headerIdx=i; colV=idx; break; }
+   }
+ }
+ // 3) fallback: fila con "fecha"/"date" en alguna celda y una columna de generación
+ if(headerIdx<0){
+   for(let i=0;i<lim;i++){
+     const low=rows[i].map(c=>String(c).toLowerCase());
+     if(low.some(c=>c.includes("fecha")||c.includes("date"))){
+       const idx=low.findIndex(c=>/gener|energ|salida|output|kwh/.test(c));
+       if(idx>=0){ headerIdx=i; colV=idx; break; }
+     }
+   }
+ }
+ let start = headerIdx>=0 ? headerIdx+1 : 0;
+ if(headerIdx<0){
+   // sin encabezado reconocible: exige que la primera fila con datos ya sea fecha+valor(es)
+   for(let i=0;i<lim;i++){ if(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/.test(rows[i][0]||"")){ start=i; break; } }
+ }
+
+ const acc={},cnt={};
+ for(let i=start;i<rows.length;i++){
+   const r=rows[i]; if(!r.length) continue;
+   let mes=null,hora=null;
+   for(const c of r){
+     const dm=String(c).match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})|(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+     if(dm&&mes===null){ mes = dm[2]?+dm[2]-1 : +dm[5]-1; }
+     const hm=String(c).match(/^(\d{1,2}):(\d{2})/);
+     if(hm&&hora===null) hora=+hm[1];
+     const dt=String(c).match(/[T ](\d{1,2}):(\d{2})/);
+     if(dt&&hora===null) hora=+dt[1];
+   }
+   if(mes===null||hora===null||mes<0||mes>11||hora<0||hora>23) continue;
+   let v=NaN;
+   if(colV>=0) v=numOf(r[colV]);
+   if(!isFinite(v)){ const ns=r.map(numOf).filter(isFinite); v=ns.length?ns[ns.length-1]:NaN; }
+   if(!isFinite(v)) continue;
+   const k=mes*24+hora; acc[k]=(acc[k]||0)+v; cnt[k]=(cnt[k]||0)+1;
+ }
+ const tot=Object.keys(acc).length;
+ if(tot<24) return {err:"No se reconoció el formato. Se esperaba una matriz de 12 meses × 14 o 24 horas, o una serie horaria con columnas de fecha, hora y generación."};
+ const g=[],hs=[...Array(24).keys()];
+ for(let m=0;m<12;m++){ const row=[];
+   for(let h=0;h<24;h++){ const k=m*24+h; row.push(cnt[k]?(acc[k]/cnt[k])/kwp:0); } g.push(row); }
+ return {gu:g,horas:hs,nota:(colV<0?"Serie horaria, columna de valor detectada por posición (":"Serie horaria promediada (")+tot+" combinaciones mes-hora)"};
+}
+
+/* ═══════════ RENDER ═══════════ */
+function render(){
+ const s=read(), r=calc(s); $("out")&&0;
+ $("fBanco").hidden = s.modo!=="offgridbat";
+ $("wPb").classList.toggle("bad",!(s.pBomba>0));
+ $("wPp").classList.toggle("bad",!(s.pProp>0));
+ $("guState").innerHTML = r.sinRecurso
+   ? `<div class="al al-e" style="margin:0"><b>Sin recurso solar cargado</b>Es obligatorio para calcular. Impórtelo desde el Explorador Solar o desde un proyecto JSON.</div>`
+   : `<div class="al al-ok" style="margin:0"><b>Recurso solar cargado</b>${esc(GU_NOTA)} · ${nf(r.guMedia,2)} kWh/kWp/día</div>`;
+ window.__r=r; window.__s=s;
+
+ const VT={ok:["✓ El diseño cumple","Todas las verificaciones pasaron."],
+   warn:["⚠ Cumple con observaciones","Revise los puntos marcados antes de aprobar."],
+   err:["✕ El diseño no cumple","Hay verificaciones que fallan."]}[r.veredicto];
+
+ let h=`<div class="verd ${r.veredicto}"><h2>${VT[0]}</h2><p>${VT[1]}</p>
+  <ul class="chks">${r.checks.map(c=>`<li class="c-${c.e}"><span class="ico">${c.e==="ok"?"✓":c.e==="warn"?"!":"✕"}</span><span><span class="t">${esc(c.t)}</span><br><span class="d">${esc(c.d)}</span></span></li>`).join("")}</ul></div>`;
+
+ if(r.sinRecurso){
+   $("out").innerHTML=h+`<div class="al al-i">Cargue el recurso solar del predio (paso 3) para ver el consumo, la generación y el veredicto completo.</div>`;
+   return;
+ }
+ const okP = s.pProp>0 && r.pReq>0 && s.pProp>=r.pReq*0.999;
+ h+=`<div class="mg">
+  ${met("Potencia requerida",nf(r.pReq,2),"kWp","sun")}
+  ${met("Potencia propuesta",nf(s.pProp,2),"kWp",okP?"ok":"err")}
+  ${met("Demanda anual",nf(r.demAnual,0),"kWh")}
+  ${met("Generación anual con lo propuesto",nf(r.genAnual,0),"kWh")}
+  ${met("Cobertura anual",nf(r.cobertura,1),"%",r.cobertura>=100?"ok":"err")}
+  ${met("Mes crítico",MES3[r.crit],s.mesCrit==="auto"?"detectado automáticamente":"elegido a mano")}
+  ${r.bat?met("Banco requerido",r.bancoReq==null?"—":nf(r.bancoReq,2),"kWh","sun"):""}
+  ${r.bat?met("Banco propuesto",nf(s.bancoProp,2),"kWh",(s.bancoProp>=(r.bancoReq||0))?"ok":"err"):""}
+ </div>`;
+
+ h+=sec("Consumo del equipo de bombeo",
+  "Cuánta energía pide el riego cada mes: horas de operación × potencia de la bomba × consumos adicionales.",
+  tblF(["Mes","Horas/día","Días","Consumo kWh/día","Consumo kWh/mes"],
+   MESES.map((M,m)=>[M,nf(s.horas[m],1),nf(DIAS[m],0),nf(r.demDia[m],2),nf(r.demMes[m],2)]),
+   ["Total anual","","","",nf(r.demAnual,0)],r.crit));
+
+ h+=sec("Generación con la potencia propuesta",
+  `Cuánta energía entregarían los ${nf(s.pProp,2)} kWp propuestos, según el recurso solar cargado. El déficit es lo que el sol no alcanza a cubrir.`,
+  tblF(["Mes","Gen. kWh/día","Consumo kWh/día","Déficit kWh/día","Gen. kWh/mes","Consumo kWh/mes"],
+   MESES.map((M,m)=>[M,nf(r.genDia[m],2),nf(r.demDia[m],2),
+     r.defDia[m]>0?`<span class="gerr">${nf(r.defDia[m],2)}</span>`:`<span class="gok">0,00</span>`,
+     nf(r.genMes[m],2),nf(r.demMes[m],2)]),
+   ["Total anual","","","",nf(r.genAnual,0),nf(r.demAnual,0)],r.crit)
+  +`<div style="padding:12px"><svg class="chart" id="barSvg" viewBox="0 0 760 240"></svg>
+    <div class="chleg"><span><i style="background:var(--blue-mid)"></i>Generación mensual</span><span><i style="background:var(--orange)"></i>Consumo mensual</span></div></div>`);
+
+ if(r.off&&s.pProp>0&&s.pBomba>0){
+   const maxG=Math.max(...r.gen.flat(),1e-9),c0=cssv("--hm0"),c1=cssv("--hm1");
+   let g=`<div style="padding:12px 14px 4px"><table class="hm"><thead><tr><th class="m"></th>${HORAS.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`;
+   for(let m=0;m<12;m++){ g+=`<tr><th class="m">${MES3[m]}</th>`;
+     for(let i=0;i<HORAS.length;i++){ const v=r.gen[m][i],ok=r.sat[m][i],t=Math.pow(v/maxG,.75);
+       g+=`<td><span class="cell${ok?" ok":""}" style="background:${mix(c0,c1,t)}${t>.62?";color:#fff":""}">${v>0?nf(v,2):""}</span></td>`; }
+     g+=`</tr>`; }
+   g+=`</tbody></table></div><div class="hmleg"><span><span class="grad"></span> 0 → ${nf(maxG,2)} kW</span>
+     <span><span class="swok"></span>Supera los ${nf(r.umbral,2)} kW que pide la bomba</span></div>`;
+   h+=sec("¿En qué horas el sol alcanza a mover la bomba?",
+     `Potencia entregada hora a hora, en kW. Solo las celdas marcadas superan los ${nf(r.umbral,2)} kW que necesita la bomba para partir: esas son las horas realmente utilizables.`,g);
+
+   h+=sec("Horas de riego frente a horas útiles de sol",
+     "Compara las horas que el proyecto declara regar contra las horas en que la generación supera el consumo de la bomba.",
+     tblF(["Mes","Horas de riego","Horas útiles de sol","Déficit de horas",r.bat?"Banco necesario kWh":"Estado"],
+      MESES.map((M,m)=>[M,nf(s.horas[m],1),nf(r.horasDisp[m],0),
+        r.horasDef[m]===null?`<span class="dim">sin riego</span>`:(r.horasDef[m]>1e-6?`<span class="gerr">${nf(r.horasDef[m],1)}</span>`:`<span class="gok">0,0</span>`),
+        r.bat?(r.bancoMes[m]==null?`<span class="dim">—</span>`:nf(r.bancoMes[m],2))
+             :(r.horasDef[m]===null?`<span class="dim">—</span>`:(r.horasDef[m]>1e-6?`<span class="gerr">no alcanza</span>`:`<span class="gok">alcanza</span>`))]),
+      null,r.crit));
+ }
+
+ if(r.bat&&s.pProp>0){
+   h+=sec("Banco de baterías",
+    "Energía que las baterías deben entregar para completar el riego cuando el sol no alcanza. El déficit acumulado parte de cero y se itera dos veces, porque en el Excel original es una referencia circular.",
+    tblF(["Mes","Déficit kWh/día","Déficit acumulado kWh","Uso del banco %"],
+     MESES.map((M,m)=>[M,nf(r.defDia[m],2),nf(r.defAcum[m],2),nf(r.usoBat[m],1)]),null,r.crit));
+ }
+
+ $("out").innerHTML=h;
+ barChart(r);
+}
+function met(k,v,u,cls){return `<div class="met ${cls||""}"><div class="mlbl">${k}</div><div class="mval">${v}</div><div class="munit">${u}</div></div>`;}
+function sec(t,d,body){return `<div class="sl">${t}</div><p class="tdesc">${d}</p><div class="scroll">${body}</div>`;}
+function tblF(head,rows,foot,crit){
+ let t=`<table class="rt"><thead><tr>${head.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`;
+ rows.forEach((row,i)=>{t+=`<tr${crit===i?' class="crit"':''}>`+row.map(c=>`<td>${c}</td>`).join("")+`</tr>`;});
+ t+=`</tbody>`;
+ if(foot) t+=`<tfoot><tr>`+foot.map(c=>`<td>${c}</td>`).join("")+`</tr></tfoot>`;
+ return t+`</table>`;
+}
+function barChart(r){
+ const el=$("barSvg"); if(!el) return;
+ const W=760,H=240,L=58,R=10,T=12,B=28,iw=W-L-R,ih=H-T-B;
+ const mx=Math.max(...r.genMes,...r.demMes,1)*1.05,bw=iw/12;
+ const cg=cssv("--blue-mid"),cd=cssv("--orange"),cl=cssv("--fog"),ct=cssv("--mist"),ax=cssv("--slate");
+ let s="";
+ for(let g=0;g<=4;g++){const y=T+ih-ih*g/4;
+  s+=`<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="${cl}"/><text x="${L-7}" y="${y+3.5}" font-size="10" fill="${ct}" font-family="DM Mono,monospace" text-anchor="end">${nf(mx*g/4,0)}</text>`;}
+ for(let m=0;m<12;m++){const x=L+m*bw,hg=r.genMes[m]/mx*ih,hd=r.demMes[m]/mx*ih;
+  s+=`<rect x="${x+bw*.14}" y="${T+ih-hg}" width="${bw*.34}" height="${hg}" fill="${cg}" rx="1"/>`;
+  s+=`<rect x="${x+bw*.52}" y="${T+ih-hd}" width="${bw*.34}" height="${hd}" fill="${cd}" rx="1"/>`;
+  s+=`<text x="${x+bw/2}" y="${H-9}" font-size="10" fill="${m===r.crit?cd:ct}" font-family="DM Mono,monospace" text-anchor="middle">${MES3[m]}</text>`;}
+ s+=`<line x1="${L}" y1="${T+ih}" x2="${W-R}" y2="${T+ih}" stroke="${ax}"/>`;
+ el.innerHTML=s;
+}
+
+/* ═══════════ ACCIONES ═══════════ */
+function aplicar(o){
+ $("pBomba").value=tf(o.pBomba); $("adic").value=tf(o.adic); $("qDiseno").value=o.qDiseno?tf(o.qDiseno):""; $("modo").value=o.modo;
+ $("pProp").value=tf(o.pProp); $("nPan").value=o.nPan?tf(o.nPan):""; $("wPan").value=o.wPan?tf(o.wPan):"";
+ $("bancoProp").value=tf(o.bancoProp); $("mesCrit").value=o.mesCrit;
+ o.horas.forEach((v,i)=>$("h"+i).value=tf(v));
+}
+$("btnVaciar").onclick=()=>{aplicar(VACIO);render();};
+$("btnH0").onclick=()=>{for(let i=0;i<12;i++)$("h"+i).value="0";render();};
+$("btnHall").onclick=()=>{const v=$("h0").value;for(let i=1;i<12;i++)$("h"+i).value=v;render();};
+$("btnGuFile").onclick=()=>$("guFile").click();
+$("guFile").onchange=e=>{
+ const f=e.target.files[0];if(!f)return;
+ const esXlsx=/\.xlsx?$/i.test(f.name);
+ const rd=new FileReader();
+ if(esXlsx){
+   rd.onload=()=>{
+     try{
+       if(typeof XLSX==="undefined") throw new Error("No se pudo cargar el lector de Excel (revise la conexión a internet). Abra el archivo en Excel, copie la hoja «pv» y péguela en el cuadro de texto.");
+       const wbk=XLSX.read(rd.result,{type:"array"});
+       const nombre=wbk.SheetNames.find(n=>/^pv$/i.test(n.trim())) || wbk.SheetNames.find(n=>/pv|fotovolt|gener/i.test(n)) || wbk.SheetNames[0];
+       const filas=XLSX.utils.sheet_to_csv(wbk.Sheets[nombre],{FS:";"});
+       $("guPaste").value=filas;
+       $("guMsg").textContent="Archivo «"+f.name+"» · hoja «"+nombre+"» cargada. Pulse Procesar.";
+     }catch(err){ $("guMsg").innerHTML=`<span style="color:var(--err)">No se pudo leer el archivo Excel: ${esc(String(err.message||err))}</span>`; }
+   };
+   rd.readAsArrayBuffer(f);
+ } else {
+   rd.onload=()=>{$("guPaste").value=rd.result;$("guMsg").textContent="Archivo «"+f.name+"» cargado. Pulse Procesar.";};
+   rd.readAsText(f,"utf-8");
+ }
+};
+$("btnGuImport").onclick=()=>{
+ const res=importarGU($("guPaste").value,pn($("guKwp").value));
+ if(res.err){$("guMsg").innerHTML=`<span style="color:var(--err)">${esc(res.err)}</span>`;return;}
+ GU=res.gu; HORAS=res.horas; GU_ORIGEN="import"; GU_NOTA=res.nota;
+ const med=GU.reduce((a,r)=>a+r.reduce((x,y)=>x+y,0),0)/12;
+ $("guMsg").innerHTML=`<span style="color:var(--ok)">Importado: ${esc(res.nota)} · promedio ${nf(med,2)} kWh/kWp/día.</span>`;
+ render();
+};
+$("btnGuReset").onclick=()=>{GU=null;HORAS=HORAS_DEF.slice();GU_ORIGEN="none";GU_NOTA="";$("guMsg").textContent="";render();};
+$("btnVerGU").onclick=()=>{
+ $("ovTit").textContent="Generación por cada 1 kWp instalado — "+GU_NOTA;
+ let t=`<p class="hint" style="margin-bottom:10px">Cada celda es la energía media (kWh) que entrega 1 kWp instalado durante esa hora, en ese mes. La última columna es el total del día.</p><div style="overflow:auto"><table class="rt"><thead><tr><th>Mes</th>${HORAS.map(x=>`<th>${x}</th>`).join("")}<th>kWh/día</th></tr></thead><tbody>`;
+ GU.forEach((row,m)=>{t+=`<tr><td>${MES3[m]}</td>`+row.map(v=>`<td>${nf(v,3)}</td>`).join("")+`<td><b>${nf(row.reduce((a,b)=>a+b,0),2)}</b></td></tr>`;});
+ $("ovBody").innerHTML=t+`</tbody></table></div>`;
+ $("ovGU").classList.add("v");
+};
+$("btnHelp").onclick=()=>{
+ $("ovTit").textContent="Cómo se usa esta app";
+ $("ovBody").innerHTML=`<ol style="padding-left:20px;line-height:1.85;font-size:.86rem">
+  <li><b>Potencia de la bomba (kW).</b> Sale de la memoria de cálculo del proyecto. Los consumos adicionales cubren fertirriego y controlador.</li>
+  <li><b>Horas de riego por día, mes a mes.</b> Promedio de horas diarias que opera la bomba en cada mes. Los meses sin riego van en 0.</li>
+  <li><b>Recurso solar.</b> Abra el Explorador Solar, ubique el predio, configure el arreglo y descargue la <b>Tabla resumen</b> (hoja «pv»): trae directamente el promedio de generación por hora y mes, es el formato más simple. Si solo tiene la serie horaria completa, también se puede cargar: la app la promedia sola. Cargue el archivo o péguelo, indique con qué potencia (kWp) se simuló, y pulse Procesar. Es obligatorio: sin este dato la app no calcula nada.</li>
+  <li><b>Propuesta del consultor.</b> Tipo de generación, kWp instalados, paneles y, si corresponde, el banco de baterías.</li>
+  <li><b>Lea el veredicto.</b> Cada verificación dice qué se revisó y, si falla, cuánto falta.</li>
+ </ol>
+ <p class="hint" style="margin-top:12px">La app recalcula sola con cada cambio: no hay botón de calcular.</p>`;
+ $("ovGU").classList.add("v");
+};
+$("btnOvClose").onclick=()=>$("ovGU").classList.remove("v");
+$("ovGU").onclick=e=>{if(e.target===$("ovGU"))$("ovGU").classList.remove("v");};
+
+/* ═══════════ INTERCAMBIO CON OTRAS APPS (JSON) ═══════════ */
+const JSON_FORMATO="riego-cnr-proyecto", JSON_VERSION=1;
+function construirProyectoJSON(){
+ const s=read(), r=window.__r;
+ const doc={
+  formato:JSON_FORMATO, version:JSON_VERSION, app:"revision-fv-riego",
+  generadoEn:new Date().toISOString(),
+  bombeo:{ potenciaKW:s.pBomba, consumosAdicionalesPct:s.adic, caudalDisenoLs:s.qDiseno||null, horasRiegoDiarias:s.horas },
+  fotovoltaico:{
+   tipoGeneracion:s.modo, potenciaPropuestaKWp:s.pProp,
+   numPaneles:s.nPan||null, potenciaPanelWp:s.wPan||null,
+   bancoBateriasKWh:s.bancoProp, mesCritico:s.mesCrit
+  }
+ };
+ doc.bombeo.verificacionKc={
+  estacion:vhEstacion,
+  cultivos:vhCrops.map(c=>({cultivo:c.cul, trimestre:c.tri, metodo:c.met, superficieHa:c.sup}))
+ };
+ if(GU!==null){
+  doc.fotovoltaico.recursoSolar={ kwp:1, horas:HORAS, matriz:GU, nota:GU_NOTA };
+ }
+ if(r && !r.sinRecurso){
+  doc.resultados={
+   potenciaRequeridaKWp:round4(r.pReq), demandaAnualKWh:round4(r.demAnual),
+   generacionAnualKWh:round4(r.genAnual), coberturaAnualPct:round4(r.cobertura),
+   mesCriticoDetectado:MESES[r.crit],
+   bancoRequeridoKWh:r.bat&&r.bancoReq!=null?round4(r.bancoReq):null,
+   veredicto:r.veredicto
+  };
+ }
+ return doc;
+}
+/* ═══════════ VERIFICACIÓN DE HORAS DE RIEGO POR Kc (panel secundario) ═══════════ */
+// Misma metodología y misma fuente de datos que el Diseñador de Riego (pestaña Demanda,
+// calcDem()): Kc mensual MIDESO/CNR (98 cultivos) y ETo mensual por estación (561
+// estaciones). Se reutiliza el objeto tal cual, sin reprocesarlo, para que ambas apps
+// nunca queden desincronizadas.
+const VH_DATA={"eto":{"Aguas Blancas":[217.0,184.8,182.9,159.0,145.7,129.0,133.3,142.6,153.0,182.9,195.0,213.9],"Algarrobal":[201.5,168.0,158.1,123.0,102.3,84.0,89.9,99.2,120.0,148.8,174.0,198.4],"Algarrobo (Coquimbo)":[198.4,165.2,151.9,117.0,89.9,75.0,74.4,86.8,108.0,142.6,168.0,195.3],"Algarrobo (Valparaíso)":[127.1,103.6,96.1,69.0,52.7,39.0,40.3,49.6,63.0,89.9,108.0,124.0],"Algorta":[192.2,165.2,164.3,135.0,124.0,108.0,108.5,120.9,135.0,161.2,174.0,192.2],"Altamira":[198.4,170.8,173.6,150.0,136.4,126.0,130.2,139.5,147.0,170.5,180.0,198.4],"Alto BíoBío":[136.4,114.8,99.2,81.0,49.6,36.0,37.2,46.5,60.0,89.9,111.0,133.3],"Alto De Jahuel":[186.0,151.2,133.3,93.0,68.2,48.0,49.6,62.0,84.0,120.9,153.0,182.9],"Alto del Carmen":[241.8,201.6,189.1,138.0,117.8,99.0,102.3,111.6,135.0,176.7,207.0,238.7],"Amazac":[170.5,148.4,151.9,138.0,133.3,120.0,133.3,133.3,138.0,155.0,159.0,170.5],"Ancud":[102.3,81.2,71.3,48.0,31.0,21.0,21.7,27.9,42.0,65.1,84.0,102.3],"Anda Colla":[186.0,154.0,142.6,108.0,83.7,69.0,71.3,80.6,102.0,136.4,159.0,182.9],"Angol":[158.1,128.8,111.6,75.0,49.6,33.0,34.1,43.4,66.0,99.2,126.0,155.0],"Angostura":[151.9,126.0,120.9,96.0,80.6,69.0,71.3,77.5,93.0,117.8,132.0,148.8],"Angosture":[151.9,128.8,124.0,105.0,89.9,84.0,83.7,89.9,99.0,117.8,132.0,151.9],"Antofagasta":[161.2,134.4,130.2,105.0,89.9,75.0,80.6,83.7,99.0,124.0,141.0,158.1],"Antuco":[155.0,128.8,111.6,81.0,55.8,39.0,40.3,49.6,66.0,99.2,126.0,151.9],"Aquada de la Pólvora":[201.5,173.6,173.6,156.0,148.8,132.0,139.5,142.6,153.0,173.6,183.0,201.5],"Arauco":[127.1,103.6,93.0,66.0,46.5,36.0,37.2,46.5,63.0,89.9,105.0,124.0],"Arica":[155.0,131.6,124.0,99.0,80.6,69.0,68.2,77.5,93.0,117.8,135.0,151.9],"Artificio":[161.2,131.6,117.8,84.0,62.0,45.0,46.5,55.8,78.0,108.5,132.0,158.1],"Aventura":[204.6,176.4,176.7,150.0,139.5,120.0,127.1,136.4,150.0,173.6,186.0,204.6],"Azapa Chico":[164.3,140.0,133.3,108.0,89.9,78.0,77.5,89.9,102.0,130.2,144.0,161.2],"Bahía Manza":[108.5,86.8,74.4,51.0,34.1,27.0,24.8,31.0,45.0,68.2,87.0,105.4],"Balmaceda":[148.8,117.6,102.3,72.0,49.6,36.0,34.1,43.4,63.0,93.0,117.0,142.6],"Baquedano":[204.6,173.6,176.7,150.0,133.3,117.0,124.0,133.3,144.0,167.4,183.0,201.5],"Batuco":[192.2,156.8,136.4,96.0,68.2,51.0,49.6,62.0,87.0,127.1,156.0,189.1],"Blanca Estela":[186.0,159.6,161.2,144.0,139.5,129.0,133.3,136.4,144.0,164.3,171.0,186.0],"Buchupureo":[130.2,106.4,96.1,69.0,49.6,36.0,37.2,46.5,63.0,89.9,111.0,130.2],"Buenaventura":[198.4,170.8,170.5,147.0,130.2,114.0,117.8,127.1,141.0,167.4,180.0,198.4],"Buill":[99.2,78.4,68.2,42.0,24.8,18.0,18.6,27.9,39.0,62.0,81.0,96.1],"Buin":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,58.9,84.0,117.8,147.0,176.7],"Buli":[189.1,151.2,130.2,87.0,58.9,42.0,40.3,52.7,75.0,114.7,147.0,179.8],"Bulnes":[189.1,151.2,130.2,87.0,58.9,42.0,40.3,49.6,75.0,111.6,147.0,179.8],"Cabildo":[167.4,137.2,124.0,90.0,68.2,51.0,49.6,62.0,81.0,111.6,138.0,161.2],"Cabrero":[182.9,145.6,127.1,84.0,58.9,39.0,37.2,49.6,72.0,108.5,144.0,173.6],"Cabrito":[220.1,184.8,170.5,132.0,111.6,96.0,96.1,105.4,126.0,164.3,189.0,217.0],"Calama":[201.5,173.6,176.7,156.0,139.5,123.0,142.6,139.5,150.0,170.5,183.0,198.4],"Calbuco":[105.0,86.0,74.0,51.0,34.0,24.0,24.0,34.0,45.0,68.0,87.0,105.0],"Caldera":[151.9,128.8,124.0,99.0,83.7,72.0,74.4,80.6,96.0,120.9,135.0,151.9],"Calle Larga":[195.3,159.6,142.6,102.0,74.4,57.0,55.8,68.2,90.0,130.2,159.0,189.1],"Camarones":[182.9,156.8,161.2,135.0,127.1,114.0,117.8,127.1,138.0,161.2,168.0,182.9],"Campamento Esmeralda":[195.3,168.0,170.5,138.0,127.1,114.0,114.7,127.1,138.0,164.3,177.0,195.3],"Canchas":[192.2,165.2,164.3,138.0,124.0,105.0,111.6,120.9,135.0,158.1,174.0,192.2],"Canela Baja":[158.1,131.6,120.9,90.0,71.3,57.0,58.9,68.2,84.0,114.7,135.0,155.0],"Canitas":[111.6,89.6,77.5,54.0,34.1,24.0,24.8,34.1,48.0,71.3,93.0,108.5],"Canteras":[158.1,126.0,108.5,72.0,49.6,36.0,37.2,46.5,66.0,99.2,126.0,151.9],"Cañete":[133.3,109.2,96.1,66.0,46.5,36.0,37.2,46.5,63.0,89.9,111.0,130.2],"Capitan Pastene":[142.6,114.8,99.2,69.0,43.4,30.0,31.0,40.3,60.0,93.0,117.0,139.5],"Carahue":[133.3,106.4,93.0,63.0,43.4,30.0,31.0,40.3,57.0,86.8,108.0,130.2],"Carampangue":[133.3,109.2,96.1,66.0,46.5,36.0,34.1,46.5,63.0,89.9,111.0,130.2],"Caren":[223.2,184.8,167.4,129.0,96.1,78.0,77.5,93.0,114.0,158.1,189.0,220.1],"Carrera Pinto":[204.6,173.6,170.5,150.0,130.2,114.0,120.9,127.1,141.0,167.4,183.0,201.5],"Carrizal Bajo":[151.9,126.0,117.8,90.0,74.4,60.0,62.0,71.3,87.0,111.6,132.0,148.8],"Carrizalillo":[145.7,120.4,111.6,84.0,68.2,54.0,55.8,62.0,78.0,105.4,123.0,142.6],"Cartagena":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,89.9,105.0,124.0],"Casablanca":[151.9,123.2,111.6,78.0,55.8,42.0,43.4,55.8,75.0,105.4,126.0,148.8],"Caserón":[170.5,142.8,133.3,105.0,86.8,69.0,71.3,83.7,102.0,130.2,150.0,170.5],"Casma":[117.8,98.0,83.7,57.0,37.2,30.0,27.9,37.2,51.0,77.5,96.0,117.8],"Castilla":[195.3,162.4,155.0,120.0,102.3,84.0,86.8,99.2,117.0,148.8,171.0,192.2],"Castro":[96.1,75.6,65.1,42.0,27.9,18.0,18.6,24.8,39.0,62.0,78.0,93.0],"Catalina":[201.5,173.6,173.6,153.0,148.8,138.0,139.5,142.6,153.0,173.6,183.0,198.4],"Catapilco":[139.5,114.8,105.4,75.0,55.8,45.0,43.4,52.7,72.0,99.2,117.0,136.4],"Catemu":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,62.0,84.0,117.8,147.0,176.7],"Cauquenes":[176.7,142.8,124.0,87.0,58.9,42.0,43.4,52.7,75.0,108.5,141.0,170.5],"Central":[210.8,182.0,182.9,156.0,142.6,126.0,136.4,139.5,153.0,176.7,192.0,210.8],"Cerillos":[167.4,137.2,127.1,93.0,71.3,57.0,58.9,68.2,87.0,117.8,141.0,164.3],"Cerrillos":[207.7,179.2,182.9,153.0,139.5,126.0,130.2,139.5,150.0,176.7,189.0,207.7],"Cerritos Bayos":[207.7,179.2,182.9,159.0,151.9,135.0,139.5,148.8,159.0,179.8,189.0,204.6],"Cerro Negro":[226.3,193.2,195.3,165.0,148.8,132.0,136.4,148.8,162.0,189.1,204.0,223.2],"Chaitén":[99.2,78.4,68.2,45.0,31.0,24.0,21.7,27.9,39.0,62.0,81.0,96.1],"Chanar":[189.1,156.8,145.7,108.0,89.9,72.0,74.4,83.7,102.0,136.4,159.0,186.0],"Chanco":[136.4,112.0,102.3,72.0,49.6,39.0,37.2,46.5,66.0,93.0,114.0,136.4],"Chanquiuque":[145.7,117.6,105.4,75.0,55.8,42.0,40.3,52.7,72.0,99.2,123.0,142.6],"Chañaral":[158.1,134.4,127.1,102.0,83.7,72.0,74.4,83.7,99.0,124.0,141.0,158.1],"Chépica":[192.2,156.8,136.4,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,182.9],"Cherquenco":[136.4,112.0,96.1,63.0,43.4,33.0,31.0,40.3,57.0,86.8,111.0,133.3],"Chiapa":[151.9,131.6,139.5,129.0,124.0,117.0,127.1,127.1,129.0,139.5,141.0,151.9],"Chigualoco":[139.5,114.8,105.4,81.0,62.0,51.0,49.6,58.9,75.0,99.2,120.0,136.4],"Chiguayante":[142.6,117.6,102.3,72.0,49.6,39.0,37.2,49.6,66.0,96.1,117.0,139.5],"Chile Chico":[158.1,123.2,108.5,75.0,49.6,33.0,31.0,43.4,63.0,96.1,123.0,151.9],"Chillán":[186.0,151.2,130.2,87.0,58.9,42.0,43.4,52.7,78.0,114.7,150.0,179.8],"Chimbarongo":[189.1,154.0,133.3,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,182.9],"China":[151.9,134.4,139.5,129.0,130.2,123.0,133.3,133.3,135.0,145.7,144.0,155.0],"Cholchol":[151.9,123.2,105.4,69.0,46.5,33.0,31.0,40.3,60.0,93.0,120.0,145.7],"Chollay":[226.3,190.4,179.8,138.0,114.7,99.0,102.3,111.6,132.0,173.6,198.0,223.2],"Chonchi":[96.0,75.0,65.0,45.0,27.0,21.0,18.0,27.0,39.0,58.0,78.0,93.0],"Choros Bajos":[133.3,109.2,102.3,75.0,58.9,45.0,46.5,55.8,72.0,96.1,114.0,130.2],"Chorrillos":[158.1,134.4,136.4,114.0,105.4,93.0,96.1,102.3,111.0,130.2,141.0,158.1],"Chuquicamata":[189.1,165.2,164.3,147.0,139.5,126.0,142.6,133.3,144.0,161.2,171.0,186.0],"Cifuncho":[161.2,137.2,130.2,105.0,89.9,75.0,77.5,83.7,99.0,124.0,141.0,161.2],"Cobquecura":[130.2,106.4,96.1,69.0,49.6,36.0,37.2,46.5,63.0,93.0,108.0,130.2],"Cochrane":[133.3,106.4,93.0,66.0,46.5,36.0,31.0,40.3,57.0,83.7,105.0,130.2],"Codegua":[189.1,151.2,133.3,96.0,68.2,51.0,49.6,62.0,84.0,120.9,153.0,182.9],"Coelemu":[151.9,123.2,108.5,75.0,52.7,39.0,40.3,49.6,69.0,102.3,126.0,148.8],"Coihueco":[176.7,142.8,124.0,84.0,55.8,42.0,40.3,52.7,75.0,111.6,141.0,170.5],"Coinco":[182.9,151.2,130.2,90.0,65.1,48.0,46.5,58.9,81.0,120.9,150.0,179.8],"Colbún":[179.8,145.6,127.1,87.0,58.9,45.0,43.4,55.8,78.0,114.7,147.0,176.7],"Colina":[195.3,159.6,139.5,99.0,71.3,51.0,49.6,62.0,87.0,127.1,159.0,189.1],"Collipulli":[158.1,128.8,108.5,75.0,49.6,33.0,34.1,43.4,63.0,96.1,126.0,151.9],"Coltauco":[182.9,148.4,130.2,93.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"Combarabala":[210.8,176.4,161.2,123.0,93.0,78.0,80.6,89.9,114.0,151.9,180.0,210.8],"Concepción":[136.4,112.0,99.2,69.0,49.6,39.0,37.2,46.5,66.0,93.0,114.0,133.3],"Concon":[133.3,109.2,99.2,72.0,52.7,42.0,40.3,49.6,66.0,93.0,111.0,130.2],"Condoriaco":[198.4,165.2,151.9,117.0,96.1,81.0,80.6,93.0,111.0,142.6,168.0,195.3],"Constitución":[136.4,112.0,102.3,72.0,52.7,42.0,40.3,49.6,69.0,96.1,114.0,133.3],"Contulmo":[133.3,109.2,93.0,63.0,43.4,30.0,31.0,40.3,57.0,86.8,108.0,130.2],"Copiapó":[195.3,162.4,158.1,123.0,105.4,87.0,89.9,102.3,120.0,151.9,171.0,192.2],"Coquimbo":[139.5,114.8,105.4,78.0,62.0,48.0,49.6,58.9,75.0,102.3,120.0,136.4],"Coronel":[133.3,109.2,96.1,69.0,46.5,36.0,37.2,46.5,63.0,89.9,111.0,130.2],"Coronel De Maule":[164.3,131.6,114.7,81.0,55.8,42.0,40.3,52.7,72.0,105.4,132.0,158.1],"Corral":[127.0,103.0,86.0,60.0,37.0,27.0,27.0,37.0,51.0,80.0,102.0,124.0],"Corral Muñoz":[167.4,140.0,130.2,102.0,83.7,75.0,74.4,80.6,93.0,124.0,141.0,164.3],"Corte Alto":[120.9,98.0,83.7,57.0,40.3,30.0,31.0,37.2,51.0,77.5,99.0,117.8],"Coyhaique":[136.4,112.0,99.2,69.0,49.6,36.0,34.1,43.4,63.0,89.9,114.0,133.3],"Cuevitas (Antofagasta)":[201.5,170.8,170.5,144.0,127.1,111.0,117.8,124.0,138.0,164.3,180.0,198.4],"Cuevitas (Atacama)":[170.5,142.8,133.3,105.0,93.0,84.0,83.7,89.9,102.0,127.1,144.0,167.4],"Cunco":[139.5,114.8,99.2,69.0,46.5,36.0,37.2,43.4,60.0,89.9,114.0,136.4],"Cuncumen":[220.1,179.2,164.3,123.0,96.1,78.0,77.5,89.9,114.0,155.0,183.0,210.8],"Curacautin":[139.5,114.8,96.1,69.0,46.5,36.0,34.1,43.4,60.0,89.9,114.0,136.4],"Curacaví":[173.6,142.8,127.1,87.0,62.0,45.0,46.5,58.9,81.0,114.7,144.0,170.5],"Curaco":[96.1,75.6,65.1,42.0,27.9,18.0,18.6,24.8,39.0,58.9,78.0,93.0],"Curanilahue":[139.5,114.8,102.3,69.0,49.6,36.0,37.2,46.5,63.0,93.0,114.0,136.4],"Curarrehue":[124.0,103.0,86.0,60.0,43.0,33.0,31.0,43.0,54.0,80.0,102.0,120.0],"Curepto":[155.0,126.0,111.6,78.0,55.8,39.0,40.3,52.7,72.0,105.4,129.0,151.9],"Curicó":[182.9,148.4,130.2,90.0,62.0,45.0,43.4,55.8,78.0,117.8,147.0,179.8],"Dalcahue":[96.1,75.6,65.1,42.0,27.9,18.0,18.6,24.8,39.0,62.0,78.0,93.0],"Diego de Almagro":[142.0,120.0,120.0,102.0,96.0,90.0,89.0,93.0,102.0,114.0,126.0,139.0],"Domeyko":[204.6,170.8,155.0,117.0,96.1,75.0,80.6,89.9,111.0,145.7,174.0,201.5],"Donihue":[179.8,148.4,130.2,90.0,65.1,51.0,49.6,58.9,81.0,117.8,147.0,176.7],"El Canelillo":[127.1,103.6,96.1,69.0,52.7,39.0,40.3,49.6,63.0,89.9,108.0,124.0],"El Canelo":[127.1,106.4,96.1,69.0,52.7,39.0,40.3,49.6,63.0,89.9,108.0,127.1],"El Carmen":[182.9,145.6,124.0,84.0,55.8,39.0,37.2,49.6,72.0,108.5,144.0,173.6],"El Chanar":[217.0,179.2,167.4,135.0,105.4,90.0,93.0,105.4,123.0,158.1,186.0,217.0],"El Cobre":[167.4,142.8,139.5,114.0,96.1,84.0,86.8,93.0,108.0,133.3,147.0,167.4],"El Corral":[213.9,182.0,170.5,138.0,114.7,93.0,96.1,105.4,126.0,161.2,186.0,210.8],"El Melon":[158.1,128.8,114.7,84.0,62.0,48.0,46.5,58.9,78.0,108.5,132.0,155.0],"El Monte":[176.7,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,144.0,173.6],"El Penon":[161.2,134.4,124.0,90.0,71.3,57.0,58.9,68.2,87.0,114.7,138.0,158.1],"El Quisco":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,124.0],"El Salvador":[198.4,170.8,167.4,150.0,136.4,123.0,127.1,133.3,144.0,167.4,180.0,198.4],"El Tabo":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,120.9],"El Tamba":[201.5,168.0,155.0,117.0,89.9,75.0,74.4,86.8,108.0,145.7,171.0,198.4],"El Ternerito":[173.6,145.6,136.4,111.0,96.1,90.0,89.9,89.9,105.0,133.3,150.0,170.5],"El Toro":[223.2,187.6,179.8,141.0,114.7,99.0,102.3,114.7,132.0,170.5,195.0,220.1],"El Transito":[238.7,196.0,189.1,147.0,117.8,102.0,102.3,114.7,138.0,176.7,207.0,235.6],"El Yeco":[127.1,106.4,96.1,69.0,52.7,39.0,40.3,49.6,66.0,89.9,108.0,127.1],"Empedrado":[170.5,140.0,124.0,84.0,58.9,45.0,43.4,55.8,75.0,111.6,138.0,167.4],"Ercilla":[151.9,123.2,105.4,72.0,46.5,33.0,31.0,43.4,63.0,93.0,120.0,148.8],"Espantajos":[142.6,120.4,111.6,87.0,68.2,57.0,58.9,68.2,81.0,105.4,123.0,139.5],"Esperanza":[158.1,128.8,111.6,72.0,49.6,33.0,34.1,43.4,63.0,96.1,126.0,155.0],"Esquina Borracha":[189.1,151.2,133.3,93.0,65.1,48.0,46.5,58.9,81.0,117.8,150.0,179.8],"Est. Villa Alegre":[195.3,156.8,136.4,93.0,65.1,45.0,43.4,55.8,78.0,117.8,153.0,186.0],"Estación Agua Verde":[201.5,173.6,173.6,147.0,136.4,123.0,127.1,133.3,147.0,170.5,183.0,201.5],"Ex Oficina Santa Luisa":[189.1,162.4,161.2,141.0,130.2,117.0,120.9,127.1,135.0,161.2,174.0,189.1],"Florida":[158.1,128.8,111.6,78.0,55.8,39.0,37.2,49.6,69.0,102.3,126.0,151.9],"Freire":[145.7,117.6,99.2,66.0,43.4,30.0,31.0,40.3,57.0,89.9,117.0,142.6],"Freirina":[155.0,128.8,120.9,90.0,71.3,57.0,58.9,68.2,84.0,111.6,132.0,151.9],"Fresia":[114.7,92.4,80.6,54.0,37.2,27.0,27.9,34.1,48.0,74.4,93.0,111.6],"Frutillar":[117.8,98.0,83.7,57.0,37.2,30.0,27.9,37.2,51.0,74.4,96.0,114.7],"Futaleufú":[111.0,89.0,77.0,51.0,34.0,27.0,21.0,31.0,45.0,68.0,90.0,108.0],"Futrono":[117.8,95.2,80.6,54.0,37.2,30.0,27.9,37.2,48.0,74.4,93.0,114.7],"Galvarino":[148.8,120.4,105.4,69.0,46.5,30.0,31.0,40.3,60.0,93.0,120.0,145.7],"Gorbea":[139.5,114.8,96.1,66.0,40.3,27.0,27.9,37.2,57.0,86.8,114.0,136.4],"Graneros":[182.9,148.4,130.2,93.0,65.1,51.0,49.6,58.9,81.0,117.8,147.0,176.7],"Gualpin":[124.0,100.8,86.8,60.0,40.3,30.0,31.0,37.2,54.0,80.6,102.0,120.9],"Guanta":[232.5,193.2,179.8,138.0,114.7,105.0,102.3,108.5,129.0,170.5,195.0,223.2],"Guaquen":[133.3,109.2,102.3,75.0,55.8,45.0,43.4,52.7,69.0,93.0,114.0,130.2],"Guatulame":[210.8,173.6,161.2,117.0,89.9,72.0,74.4,83.7,111.0,148.8,180.0,207.7],"Higuerita":[217.0,184.8,176.7,141.0,124.0,105.0,111.6,120.9,138.0,170.5,192.0,217.0],"Hijuelas":[176.7,142.8,127.1,90.0,65.1,48.0,46.5,58.9,81.0,114.7,144.0,170.5],"Hualañé":[176.7,142.8,127.1,87.0,62.0,45.0,43.4,55.8,78.0,114.7,144.0,173.6],"Hualpencillo":[133.3,109.2,99.2,69.0,49.6,36.0,37.2,46.5,66.0,93.0,111.0,133.3],"Hualqui":[148.8,120.4,105.4,72.0,49.6,36.0,37.2,46.5,66.0,99.2,123.0,145.7],"Huara":[195.3,165.2,170.5,141.0,127.1,114.0,114.7,130.2,141.0,167.4,177.0,195.3],"Huasco":[148.8,123.2,114.7,87.0,68.2,54.0,55.8,65.1,81.0,108.5,126.0,145.7],"Huentelauquen":[139.5,117.6,108.5,81.0,65.1,51.0,52.7,58.9,75.0,102.3,120.0,136.4],"Huepil":[164.3,134.4,114.7,78.0,52.7,39.0,37.2,46.5,66.0,102.3,132.0,158.1],"Huiscapi":[139.5,112.0,96.1,66.0,43.4,33.0,31.0,40.3,57.0,86.8,111.0,136.4],"Humberstone":[198.4,170.8,170.5,144.0,127.1,114.0,117.8,130.2,144.0,167.4,177.0,198.4],"Iglesia Colorado":[220.1,184.8,179.8,153.0,127.1,114.0,114.7,130.2,147.0,176.7,198.0,220.1],"Illapel":[179.8,148.4,136.4,105.0,77.5,66.0,65.1,74.4,96.0,130.2,153.0,176.7],"Iloca":[136.4,114.8,102.3,72.0,52.7,42.0,40.3,49.6,69.0,96.1,114.0,136.4],"Imilac":[161.2,140.0,139.5,120.0,114.7,102.0,105.4,108.5,120.0,136.4,147.0,161.2],"Inca De Oro":[207.7,176.4,179.8,153.0,139.5,123.0,127.1,136.4,150.0,176.7,189.0,207.7],"Incoguosi":[176.7,145.6,133.3,102.0,80.6,63.0,65.1,77.5,93.0,127.1,150.0,173.6],"Inés Chica":[179.8,156.8,158.1,135.0,127.1,114.0,117.8,120.9,132.0,151.9,162.0,179.8],"Iquique":[155.0,128.8,124.0,99.0,83.7,72.0,74.4,80.6,96.0,120.9,135.0,151.9],"Isla De Maipo":[182.9,148.4,130.2,93.0,65.1,48.0,46.5,58.9,84.0,117.8,150.0,176.7],"Isla de Pascua":[221.0,197.0,170.0,132.0,97.0,74.0,79.0,106.0,149.0,163.0,185.0,217.0],"Isla Negra":[124.0,103.6,96.1,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,124.0],"Jose Manuel Balmaceda":[189.1,165.2,167.4,147.0,142.6,132.0,133.3,136.4,147.0,167.4,174.0,189.1],"La Calera":[161.2,131.6,117.8,84.0,62.0,45.0,43.4,55.8,75.0,108.5,132.0,158.1],"La Campana":[223.2,187.6,173.6,138.0,111.6,93.0,96.1,105.4,129.0,167.4,195.0,220.1],"La Compania":[182.9,148.4,133.3,93.0,65.1,51.0,49.6,62.0,84.0,120.9,150.0,179.8],"La Estrella":[170.5,137.2,124.0,87.0,62.0,51.0,49.6,58.9,78.0,111.6,138.0,164.3],"La Guardia":[195.3,165.2,155.0,123.0,108.5,102.0,99.2,105.4,120.0,148.8,168.0,192.2],"La Higuera":[133.3,109.2,102.3,75.0,58.9,45.0,46.5,55.8,72.0,96.1,114.0,130.2],"La Ligua":[139.5,114.8,102.3,75.0,55.8,42.0,43.4,52.7,69.0,96.1,117.0,136.4],"La Negra":[182.9,154.0,151.9,123.0,111.6,96.0,96.1,108.5,123.0,145.7,159.0,179.8],"La Pintana":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"La Rioja":[192.2,165.2,164.3,141.0,127.1,111.0,117.8,124.0,135.0,161.2,174.0,192.2],"La Serena":[142.6,117.6,108.5,81.0,65.1,51.0,52.7,62.0,78.0,105.4,123.0,142.6],"La Union":[124.0,100.8,86.8,60.0,40.3,30.0,31.0,37.2,54.0,80.6,99.0,120.9],"Lacaile":[210.8,182.0,182.9,153.0,142.6,126.0,133.3,142.6,153.0,179.8,192.0,210.8],"Lago Rancho":[117.8,95.2,80.6,54.0,37.2,27.0,27.9,34.1,48.0,74.4,96.0,114.7],"Lago Verde":[133.3,109.2,96.1,66.0,46.5,36.0,34.1,43.4,60.0,86.8,108.0,130.2],"Laguna Blanca":[117.8,95.2,83.7,57.0,40.3,27.0,27.9,34.1,51.0,74.4,93.0,114.7],"Lagunas":[195.3,168.0,167.4,144.0,124.0,108.0,117.8,127.1,138.0,164.3,180.0,195.3],"Laja":[167.4,137.2,117.8,78.0,52.7,36.0,37.2,46.5,69.0,105.4,135.0,164.3],"Lampa":[189.1,151.2,133.3,93.0,65.1,48.0,46.5,58.9,84.0,124.0,153.0,182.9],"Lanco":[136.4,112.0,96.1,63.0,40.3,30.0,31.0,40.3,57.0,86.8,111.0,133.3],"Las Cabras":[173.6,140.0,124.0,90.0,65.1,51.0,49.6,62.0,81.0,114.7,141.0,167.4],"Las Cruces":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,120.9],"Las Hortencias":[139.5,114.8,96.1,66.0,43.4,33.0,31.0,40.3,57.0,86.8,114.0,136.4],"Las Minas Del Prado":[173.6,140.0,124.0,87.0,58.9,48.0,46.5,55.8,75.0,111.6,141.0,167.4],"Las Ramadas":[217.0,179.2,164.3,126.0,96.1,84.0,86.8,93.0,114.0,155.0,180.0,210.8],"Latorre":[198.4,170.8,170.5,144.0,130.2,114.0,114.7,127.1,141.0,164.3,177.0,198.4],"Lautaro":[145.7,117.6,102.3,69.0,43.4,33.0,34.1,43.4,60.0,93.0,117.0,142.6],"Lebu":[127.1,106.4,96.1,69.0,49.6,39.0,40.3,46.5,63.0,89.9,105.0,127.1],"Lican Ray":[127.1,103.6,89.9,60.0,40.3,33.0,31.0,37.2,54.0,80.6,105.0,124.0],"Licantén":[145.7,120.4,108.5,78.0,55.8,42.0,40.3,52.7,72.0,99.2,123.0,142.6],"Limache":[158.1,128.8,114.7,81.0,58.9,45.0,43.4,55.8,78.0,108.5,132.0,155.0],"Linares":[189.1,151.2,133.3,90.0,62.0,45.0,43.4,52.7,78.0,117.8,150.0,182.9],"Litueche":[161.2,131.6,117.8,84.0,62.0,48.0,46.5,55.8,75.0,105.4,132.0,155.0],"Llanos":[220.1,187.6,186.0,156.0,139.5,123.0,127.1,139.5,153.0,179.8,195.0,217.0],"Llanquihue":[117.8,95.2,83.7,57.0,37.2,27.0,27.9,37.2,48.0,74.4,96.0,114.7],"Llay-Llay":[186.0,151.2,133.3,93.0,65.1,48.0,46.5,58.9,81.0,117.8,150.0,179.8],"Loanco":[127.1,106.4,96.1,69.0,49.6,39.0,40.3,49.6,63.0,89.9,108.0,127.1],"Lolol":[173.6,140.0,124.0,84.0,58.9,45.0,43.4,55.8,78.0,111.6,141.0,167.4],"Loncoche":[136.4,112.0,93.0,63.0,37.2,27.0,24.8,34.1,54.0,83.7,111.0,133.3],"Loncopangue":[145.7,117.6,102.3,72.0,49.6,36.0,37.2,49.6,63.0,93.0,117.0,142.6],"Longaví":[189.1,154.0,133.3,90.0,62.0,45.0,43.4,55.8,78.0,117.8,150.0,182.9],"Longmilla":[173.6,145.6,136.4,102.0,83.7,66.0,68.2,80.6,99.0,130.2,150.0,173.6],"Lonquimay":[133.3,106.4,89.9,60.0,37.2,27.0,27.9,34.1,51.0,80.6,105.0,127.1],"Lontue":[192.2,154.0,133.3,93.0,65.1,45.0,43.4,55.8,81.0,117.8,153.0,182.9],"Los Álamos":[142.6,114.8,102.3,72.0,52.7,39.0,40.3,49.6,66.0,96.1,117.0,139.5],"Los Andes":[189.1,156.8,139.5,99.0,71.3,54.0,52.7,65.1,90.0,127.1,156.0,186.0],"Los Ángeles":[167.4,134.4,117.8,78.0,52.7,39.0,37.2,46.5,69.0,102.3,132.0,161.2],"Los Caserones":[167.4,140.0,133.3,108.0,93.0,87.0,86.8,89.9,102.0,127.1,144.0,164.3],"Los Chacayes":[201.5,168.0,161.2,132.0,117.8,114.0,111.6,114.7,126.0,158.1,174.0,198.4],"Los Cuartitos":[158.1,131.6,124.0,102.0,83.7,81.0,80.6,83.7,96.0,120.9,135.0,155.0],"Los Lagos":[133.3,109.2,93.0,60.0,40.3,30.0,27.9,37.2,54.0,83.7,105.0,127.1],"Los Laureles":[142.6,117.6,99.2,69.0,43.4,33.0,34.1,43.4,60.0,89.9,114.0,139.5],"Los Loros":[229.4,196.0,189.1,150.0,133.3,114.0,117.8,133.3,150.0,182.9,204.0,229.4],"Los Muermos":[108.5,89.6,77.5,54.0,37.2,27.0,27.9,34.1,48.0,71.3,90.0,108.5],"Los Niches":[186.0,154.0,136.4,93.0,68.2,51.0,49.6,62.0,84.0,120.9,153.0,182.9],"Los Pellines":[117.8,95.2,83.7,57.0,37.2,30.0,27.9,37.2,51.0,74.4,96.0,114.7],"Los Realitos":[139.5,117.6,111.6,90.0,80.6,72.0,74.4,77.5,87.0,105.4,120.0,136.4],"Los Sauces":[148.8,120.4,102.3,69.0,43.4,33.0,31.0,43.4,63.0,96.1,123.0,145.7],"Los Vientos":[204.6,176.4,182.9,153.0,142.6,126.0,133.3,139.5,153.0,173.6,186.0,201.5],"Los Vilos":[130.2,109.2,102.3,78.0,58.9,48.0,49.6,55.8,72.0,93.0,111.0,130.2],"Lota":[133.3,109.2,96.1,66.0,46.5,36.0,37.2,46.5,63.0,89.9,111.0,133.3],"Lumaco":[148.8,120.4,105.4,72.0,46.5,33.0,34.1,43.4,63.0,93.0,120.0,145.7],"Lynch":[201.5,173.6,173.6,147.0,133.3,120.0,120.9,130.2,144.0,170.5,183.0,201.5],"Machali":[182.9,151.2,133.3,93.0,68.2,51.0,52.7,62.0,84.0,120.9,150.0,179.8],"Mafil":[133.3,109.2,93.0,60.0,40.3,30.0,31.0,40.3,57.0,83.7,108.0,133.3],"Maipo":[179.8,148.4,130.2,90.0,65.1,48.0,46.5,58.9,84.0,117.8,150.0,176.7],"Maitencillo (Coquimbo)":[139.5,114.8,108.5,81.0,65.1,51.0,52.7,58.9,75.0,99.2,117.0,136.4],"Maitencillo (Valparaíso)":[130.2,106.4,99.2,72.0,55.8,42.0,43.4,52.7,66.0,93.0,111.0,127.1],"Malalcahuello":[133.3,109.2,96.1,69.0,46.5,39.0,37.2,46.5,60.0,86.8,108.0,130.2],"Malalhue":[133.3,106.4,89.9,60.0,37.2,27.0,27.9,37.2,54.0,83.7,108.0,130.2],"Malloa":[192.2,154.0,136.4,96.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,186.0],"Mamina":[179.8,156.8,161.2,144.0,142.6,132.0,139.5,139.5,147.0,164.3,168.0,179.8],"Marchihue":[173.6,140.0,127.1,90.0,65.1,51.0,49.6,58.9,81.0,114.7,144.0,167.4],"María Elena":[201.5,173.6,170.5,144.0,136.4,117.0,127.1,133.3,147.0,170.5,183.0,198.4],"María Pinto":[182.9,148.4,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"Mariquina":[133.3,106.4,93.0,63.0,40.3,30.0,27.9,37.2,54.0,83.7,108.0,130.2],"Matancilas":[204.6,168.0,155.0,120.0,93.0,84.0,80.6,93.0,111.0,148.8,174.0,201.5],"Matancillo":[176.7,148.4,139.5,117.0,99.2,90.0,86.8,96.1,108.0,136.4,153.0,176.7],"Maule":[198.4,159.6,139.5,96.0,65.1,48.0,46.5,58.9,81.0,120.9,156.0,189.1],"Maullín":[105.4,86.8,74.4,48.0,31.0,21.0,21.7,31.0,45.0,68.2,87.0,105.4],"Mejillones":[155.0,131.6,130.2,108.0,93.0,84.0,86.8,93.0,102.0,124.0,138.0,155.0],"Melipeuco":[136.4,109.2,96.1,66.0,46.5,36.0,34.1,46.5,57.0,86.8,111.0,130.2],"Melipilla":[170.5,140.0,124.0,87.0,65.1,48.0,46.5,58.9,81.0,114.7,141.0,167.4],"Milipueco":[133.3,112.0,96.1,69.0,46.5,39.0,37.2,46.5,57.0,86.8,108.0,130.2],"Minico":[161.2,131.6,111.6,75.0,49.6,36.0,34.1,43.4,66.0,99.2,129.0,155.0],"Mirasol":[127.1,103.6,96.1,69.0,52.7,39.0,40.3,49.6,66.0,89.9,108.0,124.0],"Molina":[192.2,154.0,136.4,93.0,65.1,45.0,43.4,55.8,81.0,120.9,153.0,186.0],"Monte Grande":[226.3,187.6,173.6,132.0,99.2,84.0,80.6,93.0,117.0,161.2,189.0,223.2],"Monte Patria":[207.7,170.8,155.0,117.0,86.8,72.0,71.3,83.7,108.0,145.7,177.0,204.6],"Monturaqui":[148.8,128.8,133.3,117.0,111.6,99.0,102.3,108.5,114.0,130.2,135.0,148.8],"Mulchen":[161.2,128.8,108.5,72.0,46.5,33.0,34.1,43.4,63.0,96.1,126.0,155.0],"Mulcolpue":[108.5,86.8,74.4,51.0,34.1,27.0,24.8,31.0,45.0,68.2,87.0,105.4],"Nacimiento":[167.4,134.4,114.7,78.0,49.6,36.0,34.1,46.5,69.0,102.3,132.0,161.2],"Nancagua":[189.1,154.0,133.3,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,182.9],"Negreiros":[192.2,165.2,164.3,138.0,120.9,105.0,111.6,120.9,135.0,161.2,174.0,189.1],"Negrete":[176.7,140.0,120.9,81.0,55.8,36.0,37.2,46.5,69.0,102.3,135.0,167.4],"Nehuentue":[124.0,100.8,89.9,63.0,46.5,36.0,37.2,43.4,57.0,83.7,102.0,120.9],"Neurara":[148.8,128.8,130.2,114.0,108.5,99.0,102.3,105.4,114.0,127.1,135.0,148.8],"Ninhue":[179.8,142.8,127.1,87.0,58.9,42.0,40.3,52.7,75.0,111.6,141.0,173.6],"Nogales":[158.1,128.8,114.7,84.0,62.0,45.0,46.5,55.8,75.0,108.5,132.0,155.0],"Nos":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"Nueva Imperial":[145.7,117.6,102.3,66.0,43.4,33.0,31.0,40.3,60.0,89.9,117.0,142.6],"Nuevo Juncal":[182.9,156.8,158.1,138.0,130.2,117.0,120.9,124.0,135.0,155.0,165.0,182.9],"Ñiquén":[182.9,145.6,127.1,87.0,58.9,45.0,43.4,55.8,75.0,114.7,144.0,176.7],"Oficina Alemania":[201.5,173.6,170.5,147.0,145.7,135.0,136.4,139.5,150.0,173.6,183.0,201.5],"Oficina Angela":[182.9,156.8,155.0,132.0,114.7,99.0,102.3,114.7,126.0,155.0,168.0,182.9],"Oficina Anita":[213.9,184.8,186.0,159.0,145.7,126.0,133.3,142.6,156.0,179.8,195.0,210.8],"Oficina Ballena":[201.5,173.6,173.6,153.0,151.9,141.0,142.6,145.7,156.0,176.7,186.0,201.5],"Oficina Chile":[198.4,173.6,170.5,153.0,151.9,141.0,142.6,142.6,153.0,176.7,183.0,201.5],"Oficina Perseverencia":[220.1,187.6,192.2,162.0,155.0,138.0,145.7,155.0,165.0,189.1,201.0,217.0],"Oficina Salinitas":[195.3,168.0,167.4,147.0,142.6,129.0,130.2,133.3,144.0,167.4,177.0,195.3],"Oficina San Martin":[217.0,184.8,182.9,159.0,145.7,129.0,136.4,145.7,156.0,179.8,195.0,213.9],"Ojeda":[182.9,156.8,155.0,129.0,117.8,102.0,108.5,114.7,129.0,151.9,165.0,179.8],"Olivar":[186.0,151.2,136.4,96.0,68.2,54.0,52.7,62.0,84.0,124.0,153.0,182.9],"Ollague":[139.5,123.2,127.1,114.0,108.5,102.0,105.4,105.4,111.0,124.0,129.0,139.5],"Olmué":[164.3,134.4,120.9,87.0,62.0,45.0,46.5,58.9,78.0,111.6,138.0,164.3],"Osorno":[124.0,100.8,86.8,57.0,37.2,27.0,27.9,37.2,51.0,80.6,102.0,120.9],"Ovalle":[189.1,156.8,142.6,105.0,83.7,66.0,65.1,77.5,99.0,133.3,159.0,186.0],"Pabellón":[217.0,182.0,179.8,141.0,127.1,108.0,111.6,127.1,141.0,170.5,192.0,217.0],"Pachingo":[148.8,123.2,114.7,84.0,68.2,54.0,55.8,62.0,78.0,105.4,126.0,145.7],"Padre Hurtado":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"Padre Las Casas":[142.6,114.8,99.2,66.0,43.4,33.0,34.1,40.3,60.0,89.9,114.0,139.5],"Paihuano":[213.9,176.4,164.3,126.0,99.2,87.0,86.8,99.2,117.0,155.0,183.0,210.8],"Pailahueque":[151.9,123.2,105.4,69.0,46.5,33.0,31.0,40.3,60.0,93.0,120.0,145.7],"Paillaco":[127.1,103.6,89.9,63.0,40.3,30.0,31.0,37.2,54.0,80.6,102.0,124.0],"Paine":[192.2,156.8,136.4,96.0,68.2,51.0,49.6,49.6,84.0,124.0,153.0,186.0],"Paipote":[204.6,173.6,167.4,132.0,111.6,93.0,96.1,111.6,129.0,161.2,180.0,204.6],"Palca":[111.6,98.0,102.3,93.0,93.0,84.0,93.0,89.9,93.0,102.3,105.0,111.6],"Palena":[124.0,98.0,80.6,54.0,31.0,21.0,21.7,27.9,48.0,74.4,96.0,120.9],"Palestina":[220.1,187.6,186.0,159.0,142.6,123.0,130.2,139.5,153.0,182.9,195.0,217.0],"Palmilla":[186.0,148.4,130.2,93.0,65.1,51.0,49.6,58.9,84.0,120.9,150.0,176.7],"Pama":[207.7,170.8,158.1,123.0,93.0,78.0,80.6,89.9,114.0,148.8,180.0,207.7],"Pampa":[164.3,140.0,136.4,111.0,96.1,87.0,86.8,93.0,108.0,130.2,147.0,164.3],"Pampa Anita":[195.3,168.0,173.6,150.0,142.6,129.0,133.3,136.4,147.0,170.5,180.0,195.3],"Pampa Ossa":[151.9,131.6,133.3,114.0,111.6,99.0,105.4,108.5,117.0,133.3,138.0,151.9],"Pan de Azúcar":[161.2,134.4,130.2,102.0,86.8,78.0,77.5,83.7,99.0,124.0,141.0,158.1],"Panguecillo":[210.8,176.4,161.2,123.0,93.0,78.0,80.6,86.8,111.0,148.8,180.0,207.7],"Panguipuilli":[130.2,106.4,89.9,60.0,40.3,27.0,27.9,37.2,51.0,80.6,105.0,127.1],"Panimavida":[186.0,148.4,130.2,87.0,62.0,45.0,43.4,55.8,78.0,114.7,147.0,179.8],"Panquehue":[186.0,151.2,136.4,96.0,68.2,51.0,52.7,62.0,87.0,124.0,153.0,179.8],"Papudo":[130.2,109.2,99.2,72.0,55.8,42.0,43.4,52.7,69.0,93.0,108.0,127.1],"Paradero Barazarte":[204.6,173.6,173.6,144.0,130.2,114.0,117.8,127.1,141.0,164.3,180.0,201.5],"Paradero El Desierto":[217.0,184.8,182.9,156.0,139.5,120.0,127.1,136.4,150.0,176.7,192.0,213.9],"Paredones":[142.6,117.6,105.4,75.0,52.7,39.0,37.2,49.6,69.0,99.2,120.0,142.6],"Parga":[111.6,89.6,77.5,51.0,34.1,24.0,24.8,34.1,48.0,71.3,93.0,108.5],"Parral":[192.2,154.0,133.3,93.0,62.0,45.0,43.4,55.8,78.0,117.8,150.0,182.9],"Patrerillo":[173.6,145.6,136.4,108.0,93.0,84.0,83.7,89.9,102.0,130.2,150.0,170.5],"Pedegua":[167.4,137.2,127.1,90.0,68.2,54.0,52.7,65.1,84.0,114.7,141.0,164.3],"Pedernales":[158.1,137.2,133.3,114.0,105.4,96.0,99.2,99.2,111.0,130.2,141.0,158.1],"Pedro de Valdivia":[198.4,173.6,173.6,147.0,133.3,120.0,124.0,133.3,147.0,170.5,183.0,198.4],"Pehuen":[136.4,112.0,99.2,69.0,52.7,39.0,40.3,49.6,66.0,93.0,111.0,133.3],"Peine":[192.2,165.2,167.4,144.0,139.5,126.0,130.2,136.4,150.0,167.4,177.0,189.1],"Pelarco":[192.2,154.0,136.4,93.0,65.1,45.0,43.4,55.8,81.0,120.9,153.0,186.0],"Pelequen":[195.3,156.8,139.5,96.0,68.2,51.0,49.6,58.9,84.0,120.9,156.0,186.0],"Pelluhue":[139.0,114.0,102.0,72.0,52.0,39.0,37.0,46.0,66.0,96.0,117.0,136.0],"Pemuco":[179.8,142.8,124.0,84.0,55.8,39.0,37.2,49.6,72.0,108.5,141.0,170.5],"Pencahue":[186.0,151.2,133.3,93.0,65.1,48.0,46.5,58.9,81.0,120.9,150.0,179.8],"Penco":[133.3,109.2,99.2,72.0,52.7,39.0,40.3,49.6,66.0,93.0,114.0,133.3],"Peñaflor":[179.8,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,173.6],"Peralillo":[179.8,145.6,130.2,90.0,65.1,51.0,49.6,62.0,81.0,117.8,147.0,173.6],"Perquenco":[145.7,117.6,102.3,69.0,46.5,36.0,34.1,43.4,60.0,93.0,117.0,142.6],"Petorca":[189.1,156.8,142.6,105.0,80.6,66.0,65.1,74.4,96.0,133.3,156.0,186.0],"Petrohue":[105.4,86.8,74.4,51.0,34.1,27.0,27.9,34.1,45.0,68.2,87.0,102.3],"Peulla":[111.6,92.4,77.5,54.0,37.2,27.0,24.8,34.1,45.0,71.3,90.0,108.5],"Peumo":[186.0,151.2,133.3,93.0,68.2,51.0,49.6,62.0,84.0,120.9,150.0,179.8],"Pica":[223.2,193.2,195.3,171.0,158.1,141.0,151.9,158.1,168.0,192.2,207.0,220.1],"Pichidegua":[179.8,148.4,130.2,93.0,68.2,51.0,49.6,62.0,84.0,117.8,147.0,176.7],"Pichilemu":[130.2,109.2,99.2,72.0,52.7,39.0,40.3,49.6,66.0,93.0,111.0,130.2],"Pillanlelbun":[145.7,117.6,102.3,69.0,43.4,33.0,34.1,43.4,60.0,89.9,117.0,139.5],"Pintacura":[179.8,148.4,139.5,102.0,80.6,66.0,68.2,77.5,99.0,130.2,153.0,176.7],"Pintados":[201.5,173.6,176.7,150.0,133.3,117.0,124.0,133.3,147.0,173.6,186.0,198.4],"Pinto":[179.8,145.6,124.0,84.0,58.9,42.0,40.3,52.7,75.0,111.6,141.0,173.6],"Pirehueico":[105.4,86.8,74.4,51.0,37.2,30.0,31.0,37.2,48.0,71.3,87.0,102.3],"Pirque":[189.1,154.0,136.4,93.0,68.2,48.0,49.6,62.0,84.0,124.0,153.0,182.9],"Pisagua":[170.5,145.6,139.5,114.0,102.3,90.0,89.9,96.1,111.0,136.4,150.0,167.4],"Pitrufquen":[145.7,117.6,99.2,69.0,43.4,30.0,31.0,40.3,57.0,89.9,117.0,139.5],"Piuquenes":[136.4,112.0,105.4,84.0,68.2,63.0,62.0,68.2,78.0,99.2,114.0,133.3],"Placilla":[139.5,114.8,105.4,75.0,55.8,42.0,43.4,52.7,69.0,96.1,117.0,139.5],"Placilla de Caracoles":[189.1,162.4,167.4,147.0,139.5,126.0,133.3,136.4,144.0,164.3,171.0,186.0],"Planta Aconcahua":[217.0,187.6,192.2,165.0,155.0,138.0,148.8,151.9,165.0,189.1,201.0,217.0],"Pocillas":[192.2,151.2,133.3,93.0,62.0,45.0,43.4,55.8,78.0,114.7,150.0,179.8],"Polcura":[155.0,128.8,108.5,78.0,52.7,39.0,40.3,49.6,66.0,99.2,126.0,151.9],"Pomaire":[173.6,142.8,127.1,90.0,65.1,51.0,49.6,62.0,81.0,117.8,144.0,170.5],"Poposo":[170.5,142.8,136.4,108.0,93.0,81.0,80.6,89.9,105.0,133.3,150.0,167.4],"Port De Cantarito":[130.2,109.2,105.4,87.0,77.5,69.0,71.3,74.4,84.0,99.2,114.0,127.1],"Portezuelo":[176.7,145.6,124.0,84.0,58.9,42.0,40.3,49.6,72.0,111.6,141.0,170.5],"Porvenir":[108.5,89.6,77.5,51.0,34.1,24.0,21.7,31.0,45.0,68.2,90.0,108.5],"Potrerillos":[179.8,154.0,155.0,129.0,120.9,105.0,111.6,117.8,129.0,148.8,162.0,176.7],"Pozo Almonte":[195.3,168.0,170.5,144.0,127.1,111.0,117.8,130.2,141.0,167.4,177.0,195.3],"Primavera":[120.9,98.0,86.8,60.0,40.3,27.0,24.8,34.1,48.0,74.4,99.0,120.9],"Pua":[148.8,120.4,102.3,69.0,46.5,36.0,34.1,43.4,63.0,93.0,120.0,142.6],"Puauiro de Nunez":[220.1,187.6,192.2,168.0,151.9,135.0,145.7,151.9,162.0,189.1,201.0,217.0],"Puchuncaví":[133.3,109.2,99.2,72.0,55.8,42.0,40.3,52.7,69.0,93.0,114.0,130.2],"Pucon":[130.2,109.2,96.1,75.0,52.7,45.0,43.4,52.7,60.0,86.8,108.0,130.2],"Pueblo Hundido":[204.6,176.4,173.6,147.0,133.3,117.0,120.9,133.3,147.0,173.6,186.0,204.6],"Puente Alto":[186.0,151.2,133.3,93.0,65.1,48.0,46.5,58.9,84.0,120.9,153.0,182.9],"Puerto Aisén":[114.7,95.2,83.7,60.0,43.4,36.0,31.0,40.3,54.0,77.5,96.0,111.6],"Puerto Aldea":[136.4,114.8,105.4,78.0,62.0,48.0,49.6,58.9,72.0,99.2,117.0,136.4],"Puerto Chacabuco":[117.8,98.0,86.8,60.0,43.4,33.0,31.0,40.3,54.0,80.6,99.0,114.7],"Puerto Cisnes":[117.8,95.2,83.7,60.0,43.4,36.0,34.1,43.4,54.0,77.5,96.0,114.7],"Puerto Flamenco":[158.1,134.4,127.1,102.0,83.7,72.0,74.4,80.6,99.0,124.0,141.0,158.1],"Puerto Ingeniero Ibáñez":[145.7,117.6,102.3,72.0,49.6,36.0,34.1,43.4,63.0,93.0,117.0,142.6],"Puerto Montt":[117.8,95.2,80.6,57.0,37.2,27.0,27.9,34.1,48.0,74.4,93.0,114.7],"Puerto Natales":[114.7,92.4,83.7,60.0,43.4,27.0,24.8,37.2,51.0,74.4,93.0,111.6],"Puerto Octay":[117.8,95.2,83.7,57.0,40.3,30.0,27.9,37.2,51.0,74.4,96.0,114.7],"Puerto Puyuguapi":[120.9,100.8,86.8,63.0,43.4,36.0,34.1,43.4,57.0,80.6,99.0,117.8],"Puerto Rio Tranquilo":[130.2,103.6,93.0,66.0,46.5,36.0,34.1,43.4,57.0,83.7,105.0,127.1],"Puerto Saavedra":[124.0,100.8,89.9,63.0,43.4,33.0,34.1,43.4,57.0,83.7,102.0,124.0],"Puerto Varas":[117.8,95.2,83.7,54.0,37.2,27.0,27.9,34.1,48.0,74.4,96.0,114.7],"Puerto Williams":[86.8,70.0,68.2,51.0,40.3,33.0,31.0,37.2,45.0,62.0,72.0,83.7],"Pumanque":[164.3,134.4,117.8,84.0,58.9,42.0,40.3,52.7,75.0,108.5,135.0,161.2],"Punitaqui":[186.0,154.0,139.5,102.0,77.5,63.0,65.1,74.4,96.0,130.2,156.0,182.9],"Punta Arenas":[111.6,89.6,80.6,54.0,1.2,27.0,0.8,1.1,48.0,71.3,90.0,108.5],"Punta De Díaz":[198.4,165.2,155.0,117.0,99.2,84.0,86.8,96.1,117.0,148.8,171.0,195.3],"Puntillas":[192.2,165.2,164.3,144.0,130.2,117.0,124.0,130.2,141.0,164.3,174.0,189.1],"Puquios":[229.4,193.2,195.3,162.0,148.8,135.0,139.5,151.9,162.0,189.1,207.0,226.3],"Puren":[139.5,114.8,99.2,66.0,43.4,30.0,31.0,40.3,60.0,89.9,114.0,136.4],"Purranque":[120.9,98.0,83.7,60.0,40.3,30.0,31.0,37.2,51.0,77.5,99.0,117.8],"Putaendo":[198.4,162.4,148.8,108.0,80.6,69.0,65.1,74.4,96.0,136.4,162.0,192.2],"Putre":[124.0,109.2,114.7,105.0,102.3,96.0,105.4,102.3,105.0,114.7,117.0,124.0],"Putu":[142.6,117.6,105.4,75.0,52.7,42.0,40.3,52.7,69.0,99.2,120.0,142.6],"Puyehue":[114.7,92.4,77.5,51.0,34.1,27.0,24.8,34.1,48.0,71.3,93.0,111.6],"Quebrada De Cordova":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,124.0],"Quebrada Honda":[155.0,128.8,117.8,87.0,68.2,54.0,55.8,65.1,84.0,111.6,132.0,155.0],"Quebrada Seca":[155.0,131.6,124.0,96.0,80.6,66.0,71.3,77.5,93.0,117.8,135.0,155.0],"Quebraditas":[192.2,159.6,148.8,120.0,89.9,78.0,77.5,86.8,105.0,139.5,162.0,189.1],"Queilen":[93.0,75.6,65.1,42.0,27.9,21.0,18.6,24.8,39.0,58.9,75.0,89.9],"Queilén":[93.0,72.0,65.0,42.0,24.0,18.0,18.0,24.0,39.0,58.0,75.0,89.0],"Quellon":[99.2,78.4,68.2,45.0,27.9,21.0,18.6,27.9,39.0,62.0,81.0,96.1],"Quellón":[99.0,81.0,68.0,45.0,27.0,21.0,18.0,27.0,39.0,62.0,81.0,96.0],"Quemchi":[105.0,84.0,71.0,48.0,31.0,21.0,21.0,27.0,42.0,65.0,84.0,102.0],"Quilaco":[148.8,120.4,105.4,72.0,46.5,36.0,34.1,43.4,63.0,93.0,120.0,145.7],"Quilicura":[189.1,154.0,136.4,93.0,65.1,48.0,46.5,58.9,84.0,124.0,156.0,186.0],"Quilitapia":[204.6,170.8,155.0,117.0,96.1,78.0,80.6,89.9,114.0,148.8,177.0,201.5],"Quillagua":[207.7,179.2,182.9,162.0,155.0,141.0,145.7,158.1,165.0,186.0,192.0,207.7],"Quillaicillo":[142.6,117.6,108.5,81.0,65.1,51.0,52.7,62.0,75.0,102.3,120.0,139.5],"Quilleco":[151.9,123.2,105.4,72.0,46.5,36.0,37.2,43.4,63.0,96.1,123.0,148.8],"Quillen":[145.7,117.6,102.3,69.0,46.5,33.0,34.1,43.4,60.0,89.9,117.0,142.6],"Quillon":[176.7,140.0,124.0,84.0,55.8,39.0,37.2,49.6,72.0,108.5,138.0,170.5],"Quillota":[151.9,126.0,111.6,81.0,58.9,45.0,43.4,55.8,75.0,105.4,126.0,148.8],"Quilpue":[148.8,120.4,108.5,78.0,55.8,42.0,43.4,55.8,72.0,102.3,126.0,145.7],"Quinchao":[96.0,75.0,65.0,42.0,27.0,18.0,18.0,24.0,39.0,58.0,78.0,93.0],"Quino":[155.0,126.0,105.4,72.0,46.5,33.0,34.1,43.4,63.0,96.1,123.0,148.8],"Quinta De Tilcoco":[186.0,154.0,133.3,93.0,65.1,51.0,49.6,58.9,84.0,120.9,153.0,182.9],"Quintay":[127.1,106.4,96.1,69.0,52.7,39.0,40.3,49.6,66.0,89.9,108.0,127.1],"Quintero":[127.1,106.4,96.1,72.0,52.7,42.0,40.3,49.6,66.0,89.9,108.0,124.0],"Quirihue":[161.2,131.6,114.7,81.0,55.8,42.0,40.3,52.7,72.0,105.4,132.0,158.1],"Racalhue":[145.7,117.6,102.3,69.0,46.5,33.0,34.1,43.4,60.0,93.0,117.0,142.6],"Radal":[145.7,117.6,99.2,69.0,43.4,36.0,34.1,43.4,60.0,89.9,117.0,139.5],"Rafael":[148.8,123.2,108.5,75.0,52.7,39.0,40.3,49.6,69.0,99.2,123.0,148.8],"Ramadilla":[204.6,173.6,167.4,132.0,114.7,102.0,102.3,114.7,132.0,161.2,180.0,204.6],"Rancagua":[182.9,151.2,133.3,93.0,68.2,51.0,49.6,62.0,84.0,120.9,150.0,179.8],"Ranquil":[164.3,131.6,114.7,78.0,52.7,39.0,37.2,49.6,69.0,105.4,132.0,158.1],"Rapel":[220.1,182.0,167.4,129.0,99.2,84.0,83.7,93.0,117.0,158.1,189.0,217.0],"Rapelco":[167.4,134.4,117.8,78.0,52.7,36.0,34.1,46.5,66.0,102.3,132.0,161.2],"Rauco":[179.8,145.6,127.1,87.0,62.0,45.0,43.4,55.8,78.0,114.7,147.0,176.7],"Refresco":[204.6,176.4,176.7,156.0,148.8,138.0,142.6,145.7,156.0,176.7,186.0,204.6],"Renaico":[170.5,137.2,117.8,78.0,55.8,36.0,37.2,46.5,66.0,102.3,132.0,161.2],"Rengo":[189.1,154.0,133.3,93.0,65.1,48.0,46.5,58.9,84.0,120.9,153.0,182.9],"Reñaca":[133.3,109.2,99.2,72.0,52.7,42.0,40.3,49.6,69.0,93.0,114.0,130.2],"Requinoa":[186.0,151.2,133.3,93.0,68.2,51.0,49.6,62.0,84.0,120.9,153.0,182.9],"Rere":[161.2,131.6,114.7,78.0,52.7,39.0,37.2,46.5,69.0,102.3,129.0,155.0],"Resguardo De Copiapó":[232.5,196.0,189.1,147.0,124.0,102.0,105.4,120.9,141.0,176.7,207.0,229.4],"Retiro":[192.2,154.0,133.3,93.0,62.0,45.0,43.4,55.8,78.0,117.8,150.0,182.9],"Reumen":[130.2,106.4,89.9,60.0,40.3,30.0,31.0,37.2,54.0,80.6,105.0,127.1],"Riachuelo":[124.0,100.8,86.8,57.0,37.2,27.0,27.9,37.2,51.0,80.6,102.0,120.9],"Rinconada":[198.4,159.6,142.6,99.0,71.3,54.0,52.7,65.1,90.0,130.2,159.0,192.2],"Rio Bueno":[120.9,98.0,83.7,57.0,40.3,30.0,31.0,37.2,51.0,77.5,99.0,117.8],"Río Claro":[192.2,156.8,136.4,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,186.0],"Rio Frio (Antofagasta)":[148.8,126.0,127.1,108.0,99.2,90.0,93.0,96.1,105.0,120.9,132.0,145.7],"Rio Frio (Los Lagos)":[111.6,89.6,77.5,54.0,34.1,27.0,24.8,34.1,48.0,71.3,93.0,108.5],"Río Hurtado":[207.7,170.8,158.1,117.0,93.0,78.0,77.5,89.9,114.0,148.8,177.0,204.6],"Río Ibañez":[142.6,114.8,99.2,69.0,49.6,36.0,31.0,43.4,60.0,89.9,114.0,139.5],"Rio Negro":[120.9,98.0,86.8,57.0,37.2,30.0,27.9,37.2,51.0,77.5,99.0,120.9],"Rocas De Santo Domin":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,86.8,105.0,124.0],"Romeral":[192.2,154.0,133.3,93.0,62.0,45.0,43.4,55.8,81.0,120.9,153.0,186.0],"Rosario":[186.0,151.2,133.3,93.0,65.1,51.0,49.6,58.9,84.0,120.9,150.0,182.9],"Rosario del Llano":[201.5,170.8,167.4,141.0,124.0,105.0,108.5,120.9,138.0,164.3,180.0,201.5],"Rucapequen":[189.1,151.2,130.2,87.0,58.9,42.0,40.3,52.7,75.0,114.7,147.0,179.8],"Sagrada Familia":[186.0,148.4,130.2,90.0,62.0,45.0,46.5,55.8,81.0,117.8,150.0,179.8],"Salamanca":[192.2,159.6,145.7,111.0,83.7,72.0,68.2,80.6,102.0,139.5,165.0,189.1],"Samo Alto":[213.9,176.4,164.3,126.0,105.4,84.0,86.8,96.1,120.0,155.0,183.0,210.8],"San Antonio":[127.1,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,89.9,105.0,124.0],"San Carlos":[189.1,151.2,130.2,87.0,58.9,42.0,40.3,52.7,75.0,114.7,150.0,182.9],"San Clemente":[192.2,156.8,136.4,93.0,65.1,45.0,43.4,55.8,78.0,117.8,153.0,186.0],"San Esteban":[195.3,159.6,142.6,102.0,77.5,60.0,58.9,71.3,93.0,130.2,162.0,189.1],"San Fabian De Alico":[173.6,142.8,124.0,90.0,62.0,48.0,46.5,58.9,75.0,111.6,141.0,167.4],"San Felipe":[189.1,154.0,136.4,99.0,71.3,54.0,52.7,65.1,90.0,127.1,156.0,182.9],"San Félix":[213.9,176.4,164.3,126.0,102.3,87.0,86.8,99.2,123.0,158.1,186.0,213.9],"San Fernando":[189.1,154.0,136.4,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,182.9],"San Francisco De Lim":[155.0,126.0,114.7,81.0,58.9,45.0,43.4,55.8,75.0,105.4,129.0,151.9],"San Francisco De Mostazal":[192.2,154.0,136.4,96.0,68.2,51.0,49.6,62.0,84.0,120.9,153.0,182.9],"San Gregorio":[189.1,154.0,133.3,90.0,62.0,45.0,43.4,52.7,78.0,114.7,150.0,182.9],"San Ignacio":[189.1,151.2,130.2,87.0,58.9,42.0,40.3,49.6,72.0,111.6,147.0,179.8],"San Javier":[195.3,156.8,136.4,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,186.0],"San José De Maipo":[195.3,156.8,142.6,102.0,74.4,57.0,55.8,68.2,90.0,130.2,159.0,186.0],"San Juan":[201.5,173.6,173.6,147.0,136.4,123.0,127.1,133.3,147.0,170.5,183.0,201.5],"San Juan de la Costa":[120.9,98.0,83.7,54.0,34.1,24.0,24.8,34.1,48.0,77.5,99.0,117.8],"San Luis":[182.9,148.4,130.2,93.0,65.1,48.0,46.5,58.9,84.0,117.8,150.0,176.7],"San Nicolas":[192.2,154.0,133.3,90.0,58.9,42.0,40.3,52.7,75.0,114.7,150.0,182.9],"San Pablo":[120.9,98.0,83.7,57.0,40.3,30.0,31.0,37.2,51.0,77.5,99.0,117.8],"San Patricio":[139.5,112.0,96.1,66.0,43.4,33.0,31.0,40.3,57.0,86.8,111.0,136.4],"San Pedro":[151.9,123.2,108.5,75.0,52.7,39.0,40.3,49.6,72.0,102.3,126.0,148.8],"San Pedro De Alcanta":[161.2,128.8,114.7,81.0,55.8,42.0,40.3,52.7,72.0,105.4,132.0,158.1],"San Pedro de Atacama":[195.3,168.0,170.5,153.0,142.6,129.0,139.5,139.5,153.0,173.6,180.0,195.3],"San Rafael":[195.3,156.8,139.5,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,186.0],"San Rosendo":[164.3,134.4,114.7,78.0,52.7,36.0,37.2,46.5,69.0,102.3,132.0,161.2],"San Sebastian":[124.0,103.6,93.0,69.0,52.7,39.0,40.3,49.6,63.0,89.9,105.0,124.0],"San Vicente De Tagua Tagua":[186.0,151.2,133.3,90.0,65.1,48.0,46.5,58.9,81.0,120.9,150.0,182.9],"Santa Bárbara":[148.8,120.4,105.4,72.0,46.5,36.0,34.1,43.4,63.0,93.0,120.0,145.7],"Santa Cruz":[186.0,151.2,133.3,93.0,65.1,51.0,46.5,58.9,81.0,120.9,150.0,179.8],"Santa Juana":[145.7,120.4,105.4,69.0,46.5,33.0,34.1,46.5,66.0,96.1,120.0,145.7],"Santa María":[192.2,156.8,139.5,99.0,71.3,57.0,55.8,68.2,90.0,127.1,156.0,186.0],"Santiago":[186.0,151.2,133.3,93.0,65.1,48.0,46.5,58.9,84.0,120.9,153.0,182.9],"Sauzal":[186.0,151.2,133.3,90.0,65.1,48.0,46.5,58.9,81.0,117.8,150.0,179.8],"Selva Oscura":[142.6,114.8,99.2,66.0,43.4,33.0,34.1,43.4,60.0,89.9,117.0,139.5],"Sewell":[179.8,151.2,139.5,105.0,83.7,69.0,68.2,80.6,93.0,124.0,147.0,173.6],"Sierra Gorda":[217.0,187.6,189.1,159.0,151.9,132.0,139.5,145.7,159.0,186.0,195.0,213.9],"Socompa":[127.1,112.0,114.7,102.0,99.2,90.0,96.1,96.1,102.0,111.6,117.0,127.1],"Talagante":[176.7,145.6,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,173.6],"Talca":[189.1,154.0,133.3,93.0,65.1,48.0,46.5,58.9,81.0,120.9,153.0,182.9],"Talcahuano":[133.3,109.2,99.2,69.0,49.6,39.0,37.2,46.5,66.0,93.0,111.0,130.2],"Talcamavida":[148.8,120.4,105.4,72.0,49.6,36.0,37.2,46.5,66.0,96.1,123.0,145.7],"Taltal":[167.4,140.0,133.3,105.0,86.8,75.0,74.4,83.7,99.0,127.1,144.0,164.3],"Tarapaca":[204.6,176.4,182.9,162.0,151.9,135.0,148.8,155.0,162.0,182.9,192.0,204.6],"Temuco":[145.7,117.6,102.3,66.0,43.4,30.0,31.0,40.3,60.0,89.9,117.0,142.6],"Teno":[189.1,154.0,133.3,93.0,65.1,48.0,46.5,55.8,81.0,117.8,153.0,182.9],"Teodoro Schmidt":[130.2,106.4,93.0,60.0,40.3,30.0,31.0,37.2,57.0,83.7,105.0,127.1],"Tierra Amarilla":[210.8,176.4,170.5,132.0,114.7,96.0,99.2,114.7,129.0,164.3,183.0,207.7],"Tigeral":[170.5,137.2,117.8,78.0,55.8,36.0,37.2,46.5,66.0,102.3,132.0,161.2],"Til Til":[192.2,156.8,136.4,96.0,65.1,51.0,49.6,62.0,84.0,124.0,156.0,186.0],"Toco":[204.6,176.4,176.7,153.0,142.6,126.0,133.3,139.5,153.0,176.7,186.0,204.6],"Toconao":[189.1,162.4,167.4,147.0,139.5,126.0,133.3,139.5,150.0,167.4,174.0,186.0],"Tocopilla":[145.7,123.2,117.8,96.0,80.6,69.0,71.3,77.5,90.0,114.7,129.0,145.7],"Toltén":[120.9,98.0,86.8,57.0,37.2,27.0,27.9,34.1,51.0,77.5,99.0,120.9],"Tome":[136.4,112.0,99.2,72.0,49.6,39.0,40.3,49.6,66.0,93.0,114.0,133.3],"Tongoy":[139.5,114.8,105.4,81.0,62.0,51.0,49.6,58.9,75.0,99.2,120.0,136.4],"Totoral":[161.2,134.4,127.1,99.0,83.7,69.0,71.3,80.6,96.0,124.0,141.0,158.1],"Totoralillo":[136.4,114.8,105.4,78.0,62.0,48.0,49.6,58.9,75.0,99.2,117.0,136.4],"Traiguen":[155.0,126.0,108.5,72.0,46.5,33.0,31.0,40.3,63.0,96.1,123.0,148.8],"Treguaco":[158.0,128.0,111.0,78.0,52.0,39.0,40.0,49.0,72.0,105.0,129.0,155.0],"Tres Cruces":[179.8,148.4,139.5,102.0,83.7,66.0,68.2,77.5,96.0,130.2,153.0,176.7],"Tubul":[124.0,103.6,93.0,66.0,49.6,36.0,37.2,46.5,63.0,89.9,105.0,124.0],"Tucapel":[161.2,131.6,111.6,78.0,52.7,36.0,37.2,46.5,66.0,99.2,129.0,155.0],"Turiza":[186.0,159.6,164.3,144.0,133.3,120.0,127.1,136.4,144.0,167.4,174.0,186.0],"Umagata":[176.7,154.0,155.0,138.0,130.2,111.0,130.2,130.2,138.0,155.0,165.0,176.7],"Uribe":[182.9,154.0,151.9,126.0,111.6,96.0,99.2,108.5,123.0,148.8,162.0,179.8],"Valdivia (Coquimbo)":[220.1,179.2,167.4,129.0,96.1,84.0,80.6,93.0,117.0,155.0,186.0,213.9],"Valdivia (Los Ríos)":[127.1,103.6,89.9,57.0,37.2,27.0,27.9,34.1,51.0,80.6,102.0,124.0],"Vallenar":[186.0,154.0,145.7,111.0,89.9,72.0,74.4,86.8,108.0,139.5,162.0,182.9],"Valparaíso":[133.3,109.2,99.2,72.0,52.7,39.0,40.3,49.6,66.0,93.0,114.0,133.3],"Vichuquen":[151.9,123.2,108.5,75.0,52.7,39.0,40.3,49.6,72.0,102.3,126.0,148.8],"Victoria":[148.8,120.4,105.4,69.0,46.5,33.0,34.1,43.4,60.0,93.0,120.0,145.7],"Vicuña":[204.6,170.8,155.0,117.0,89.9,72.0,71.3,86.8,108.0,145.7,174.0,201.5],"Vilcún":[142.6,114.8,99.2,66.0,43.4,33.0,34.1,43.4,57.0,89.9,114.0,136.4],"Villa Alegre":[195.3,156.8,139.5,93.0,65.1,48.0,46.5,55.8,81.0,120.9,153.0,186.0],"Villa Alhue":[182.9,148.4,130.2,90.0,65.1,48.0,46.5,58.9,81.0,117.8,147.0,176.7],"Villa Industrial":[102.3,89.6,93.0,84.0,83.7,75.0,80.6,80.6,84.0,93.0,96.0,102.3],"Villa Mercedes":[158.1,126.0,108.5,72.0,49.6,36.0,34.1,46.5,66.0,96.1,126.0,151.9],"Villarrica":[136.4,112.0,96.1,66.0,46.5,36.0,37.2,46.5,57.0,86.8,111.0,133.3],"Vina Del Mar":[136.4,112.0,102.3,72.0,52.7,42.0,40.3,49.6,69.0,96.1,114.0,133.3],"Vizcachitas":[207.7,176.4,161.2,123.0,102.3,84.0,86.8,99.2,117.0,151.9,180.0,207.7],"Yerba Buena":[220.1,187.6,179.8,141.0,130.2,111.0,114.7,127.1,144.0,176.7,195.0,220.1],"Yerbas Buenas":[189.1,154.0,133.3,90.0,62.0,45.0,43.4,52.7,78.0,117.8,150.0,182.9],"Yumbel":[176.7,140.0,124.0,84.0,55.8,39.0,37.2,49.6,72.0,108.5,138.0,167.4],"Yungay":[170.5,137.2,117.8,78.0,52.7,39.0,37.2,46.5,69.0,105.4,135.0,164.3],"Zapallar (Coquimbo)":[217.0,179.2,164.3,126.0,93.0,78.0,77.5,86.8,111.0,151.9,180.0,210.8],"Zapallar (Valparaíso)":[130.2,109.2,99.2,72.0,55.8,42.0,43.4,52.7,69.0,93.0,111.0,130.2],"Zapiga":[186.0,156.8,155.0,129.0,111.6,96.0,102.3,111.6,126.0,155.0,168.0,182.9]},"kc":{"Acelga":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.7,0.8,0.85,1.0,0.95],"Ají":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.78,1.05,1.0,0.9],"Ajo":[0.2,0.2,0.2,0.2,0.7,0.8,0.85,0.95,1.0,1.0,0.85,0.75],"Alcachofa":[0.95,0.9,0.2,0.45,0.65,0.75,0.8,0.8,0.9,0.95,0.95,0.95],"Alfalfa":[1.1,1.1,0.95,0.4,0.4,0.4,0.4,0.4,0.9,0.9,1.1,1.1],"Almendro":[0.9,0.8,0.75,0.65,0.4,0.4,0.4,0.4,0.55,0.65,0.75,0.9],"Apio":[1.0,0.96,0.7,0.2,0.2,0.2,0.2,0.79,0.93,1.0,1.01,1.01],"Arándano":[0.49,0.49,0.36,0.2,0.2,0.2,0.2,0.2,0.2,0.21,0.35,0.5],"Arroz":[1.2,1.2,1.2,0.75,0.2,0.2,0.2,0.2,0.2,1.05,1.1,1.15],"Arveja":[0.2,0.2,0.2,0.2,0.5,0.83,1.15,1.1,0.5,0.2,0.2,0.2],"Avellano Europeo":[1.1,0.87,0.65,0.2,0.2,0.2,0.2,0.5,0.7,0.9,1.1,1.1],"Avena":[0.2,0.2,0.2,0.2,0.4,0.8,1.0,1.15,1.15,1.15,0.75,0.33],"Berenjena":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.73,0.95,0.95,0.2],"Betarraga":[0.2,0.2,0.2,0.2,0.25,0.75,1.15,0.95,0.8,0.2,0.2,0.2],"Brócoli":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.7,1.05,0.8,0.2],"Camote":[0.8,0.5,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.42,1.0,1.1],"Caqui":[1.1,1.1,1.1,0.87,0.65,0.4,0.4,0.4,0.5,0.5,0.7,0.9],"Castaño Europeo":[1.1,1.1,0.87,0.65,0.4,0.4,0.4,0.4,0.5,0.7,0.9,1.1],"Cebada":[0.2,0.2,0.2,0.2,0.2,0.25,0.55,0.75,0.95,1.15,0.8,0.25],"Cebolla guarda":[0.2,0.75,0.33,0.2,0.2,0.4,0.55,0.75,0.95,1.15,1.1,1.0],"Cebolla temprana":[1.0,1.0,1.0,0.2,0.2,0.7,0.7,0.85,0.85,0.95,1.0,1.0],"Centeno":[0.33,0.2,0.2,0.2,0.2,0.4,0.82,1.0,1.15,1.15,1.15,0.75],"Cerezo":[0.75,0.5,0.5,0.4,0.4,0.4,0.4,0.82,0.99,1.15,1.15,1.15],"Chirimoyo":[0.7,0.7,0.85,0.85,0.95,1.0,1.0,1.0,1.0,0.75,0.2,0.2],"Choclo":[1.15,0.8,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.45,0.8,1.15],"Ciruelo europeo":[0.7,0.65,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.6,0.85,0.9],"Ciruelo japonés":[0.7,0.65,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.6,0.85,0.9],"Clementina":[0.75,0.75,0.8,0.8,0.8,0.85,0.85,0.85,0.85,0.85,0.8,0.8],"Coliflor":[0.9,1.05,0.95,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.3,0.7],"Damasco":[0.9,0.8,0.75,0.65,0.4,0.4,0.4,0.4,0.55,0.65,0.75,0.9],"Duraznero fresco":[1.06,1.01,0.55,0.15,0.2,0.2,0.2,0.53,0.53,0.62,0.98,1.07],"Duraznero conservero":[1.06,1.01,0.55,0.15,0.2,0.2,0.2,0.53,0.53,0.62,0.98,1.07],"Espárrago":[0.69,0.75,0.61,0.36,0.2,0.2,0.2,0.2,0.2,0.45,0.51,0.55],"Espinaca":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.25,0.85,0.9,0.85,0.5],"Frambuesa":[0.8,0.82,0.7,0.36,0.2,0.2,0.2,0.2,0.2,0.4,0.48,0.5],"Frutilla":[0.6,0.6,0.4,0.4,0.4,0.4,0.4,0.63,0.85,0.85,0.8,0.75],"Garbanzo":[0.2,0.2,0.2,0.2,0.2,0.8,0.8,1.05,1.05,0.2,0.2,0.2],"Guindo agrio":[1.03,0.78,0.6,0.4,0.4,0.4,0.4,0.4,0.5,0.66,0.84,1.03],"Haba":[0.2,0.7,0.79,0.93,1.0,1.0,0.96,0.2,0.2,0.2,0.3,0.3],"Huerta casera":[0.9,0.8,0.75,0.65,0.4,0.4,0.4,0.4,0.55,0.65,0.75,0.9],"Kiwi":[1.05,1.05,1.05,0.2,0.2,0.2,0.2,0.2,0.2,0.73,1.05,1.05],"Lechuga":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.8,0.9,0.9,0.9],"Lenteja":[0.2,0.2,0.2,0.2,0.4,0.8,0.8,0.8,1.05,1.05,0.3,0.2],"Lima":[0.75,0.75,0.8,0.8,0.8,0.85,0.85,0.85,0.85,0.85,0.8,0.8],"Limón sutil":[0.75,0.75,0.8,0.8,0.8,0.85,0.85,0.85,0.85,0.85,0.8,0.8],"Limonero":[0.75,0.75,0.8,0.8,0.8,0.85,0.85,0.85,0.85,0.85,0.8,0.8],"Lúcuma":[0.6,0.6,0.65,0.75,0.85,0.85,0.85,0.82,0.78,0.75,0.75,0.6],"Maiz":[0.84,0.48,0.2,0.2,0.2,0.2,0.2,0.2,0.45,0.83,1.2,1.2],"Mandarina":[0.6,0.6,0.62,0.64,0.65,0.65,0.65,0.65,0.65,0.64,0.64,0.62],"Manzano rojo":[1.16,1.13,0.98,0.54,0.54,0.54,0.54,0.54,0.54,0.65,0.98,1.16],"Manzano verde":[1.16,1.13,0.98,0.54,0.54,0.54,0.54,0.54,0.54,0.65,0.98,1.16],"Maravilla":[1.0,0.75,0.25,0.2,0.2,0.2,0.2,0.2,0.2,0.25,0.75,1.15],"Melón":[0.75,0.75,0.2,0.2,0.2,0.2,0.2,0.4,0.6,0.8,1.0,1.0],"Membrillo":[1.08,1.08,0.96,0.83,0.4,0.4,0.4,0.4,0.5,0.6,0.68,0.88],"Moras":[0.78,0.5,0.4,0.4,0.4,0.4,0.4,0.4,0.55,0.8,1.05,1.05],"Naranjo":[0.72,0.7,0.68,0.7,0.66,0.65,0.64,0.66,0.68,0.7,0.71,0.72],"Nectarino":[0.9,0.8,0.75,0.65,0.4,0.4,0.4,0.4,0.55,0.65,0.75,0.9],"Níspero":[0.7,0.5,0.4,0.4,0.4,0.4,0.4,0.58,0.72,0.86,0.98,0.98],"Nogal":[1.07,1.06,0.99,0.8,0.2,0.2,0.2,0.53,0.53,0.58,0.91,1.07],"Olivo":[0.65,0.65,0.65,0.65,0.6,0.5,0.5,0.5,0.6,0.6,0.65,0.65],"Orégano":[0.5,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.55,0.9,1.05,0.8],"Palto":[0.75,0.75,0.75,0.75,0.75,0.65,0.65,0.65,0.65,0.65,0.75,0.75],"Papa":[0.77,0.74,0.59,0.2,0.2,0.2,0.2,0.2,0.2,0.25,0.41,0.7],"Pepino ensalada":[1.0,0.85,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.6,0.8],"Pepino dulce":[1.0,0.85,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.6,0.8],"Peral asiatico":[1.16,1.13,0.98,0.54,0.54,0.54,0.54,0.54,0.54,0.65,0.98,1.16],"Peral europeo":[1.16,1.13,0.98,0.54,0.54,0.54,0.54,0.54,0.54,0.65,1.05,1.16],"Perejil":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.25,0.85,0.9,0.85],"Pimiento":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.9,1.0,0.9],"Pistacho":[1.19,1.12,0.87,0.5,0.4,0.4,0.4,0.4,0.4,0.33,0.93,1.17],"Pomelo":[0.75,0.75,0.8,0.8,0.8,0.85,0.85,0.85,0.85,0.85,0.8,0.8],"Poroto interno":[0.9,0.8,0.2,0.2,0.2,0.2,0.5,0.7,0.86,1.0,0.9,0.85],"Poroto granado":[0.5,0.2,0.2,0.2,0.2,0.2,0.5,0.2,0.5,0.9,0.9,0.7],"Poroto verde":[0.4,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5,0.9,0.9,0.7],"Rábano":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.8,0.85,0.85,0.85,0.75],"Raps":[0.8,0.7,0.1,0.1,0.1,0.1,0.1,0.1,0.5,0.7,0.8,1.0],"Remolacha":[0.85,0.85,0.8,0.7,0.5,0.1,0.1,0.1,0.5,0.7,0.8,0.85],"Repollito bruselas":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.7,0.75,1.05,1.05,1.05],"Repollo":[0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.3,0.8,0.9,0.9,0.9],"Sandía":[0.5,0.2,0.2,0.2,0.2,0.2,0.45,0.6,0.75,1.0,1.0,0.75],"Soya":[0.3,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.3,0.5,1.1,0.85],"Tabaco":[0.45,0.45,0.3,0.2,0.2,0.2,0.2,0.2,0.2,0.35,0.35,0.4],"Tomate interno":[1.0,0.8,0.5,0.2,0.2,0.2,0.2,0.68,0.92,1.15,1.15,1.0],"Tomate industrial":[1.0,0.8,0.5,0.2,0.2,0.2,0.2,0.68,0.92,1.15,1.15,1.0],"Trebol alejandrino":[0.8,0.7,0.55,0.4,0.4,0.4,0.4,0.4,0.5,0.55,0.7,0.75],"Trebol blanco":[1.15,1.15,0.4,0.4,0.4,0.4,0.4,0.55,0.55,1.05,1.05,1.05],"Trebol ladino":[1.15,1.15,1.15,0.4,0.4,0.4,0.4,0.4,0.55,0.55,1.05,1.05],"Trebol rosado":[0.8,0.7,0.55,0.4,0.4,0.4,0.4,0.4,0.4,0.55,0.7,0.75],"Trigo blanco":[0.2,0.2,0.2,0.2,0.5,0.7,0.85,1.06,1.1,1.1,1.0,0.7],"Trigo candeal":[0.2,0.2,0.2,0.2,0.5,0.7,0.85,1.06,1.1,1.1,1.0,0.7],"Tuna":[0.55,0.55,0.55,0.55,0.5,0.4,0.4,0.5,0.5,0.5,0.55,0.55],"Uva de mesa":[0.85,0.7,0.6,0.5,0.4,0.4,0.4,0.4,0.4,0.6,0.7,0.85],"Viñas blancos":[1.0,0.7,0.6,0.5,0.4,0.4,0.4,0.4,0.4,0.6,0.8,1.0],"Viñas tintos":[1.0,0.7,0.6,0.5,0.4,0.4,0.4,0.4,0.45,0.6,0.8,1.0],"Viñas psiqueros":[1.0,0.7,0.6,0.5,0.4,0.4,0.4,0.4,0.4,0.6,0.8,1.0],"Zanahoria":[0.2,0.2,0.2,0.2,0.75,0.8,1.0,1.0,0.7,0.4,0.2,0.2],"Zapallo italiano":[0.75,0.2,0.2,0.2,0.2,0.2,0.2,0.45,0.6,0.75,1.0,0.75],"Zapallo":[0.75,0.75,0.2,0.2,0.2,0.2,0.2,0.2,0.25,0.6,0.75,1.0]}};
+const VH_METODOS=[['Tendido',0.30],['Surco',0.45],['Bordes',0.60],['Aspersión',0.75],['Cinta',0.90],['Goteo',0.90]];
+const VH_TRIMESTRES=[
+  ['anual','Anual (12 meses)'],['q1','Trim. 1 · Ene-Mar'],['q2','Trim. 2 · Abr-Jun'],
+  ['q3','Trim. 3 · Jul-Sep'],['q4','Trim. 4 · Oct-Dic'],['q1q2','Trim. 1-2 · Ene-Jun'],
+  ['q2q3','Trim. 2-3 · Abr-Sep'],['q3q4','Trim. 3-4 · Jul-Dic'],['q4q1','Trim. 4-1 · Oct-Mar'],
+];
+const VH_MESES_TRIM={q1:[0,1,2],q2:[3,4,5],q3:[6,7,8],q4:[9,10,11],
+  q1q2:[0,1,2,3,4,5],q2q3:[3,4,5,6,7,8],q3q4:[6,7,8,9,10,11],q4q1:[9,10,11,0,1,2]};
+const VH_CULTIVOS=Object.keys(VH_DATA.kc).sort((a,b)=>a.localeCompare(b,'es'));
+const VH_ESTACIONES=Object.keys(VH_DATA.eto).sort((a,b)=>a.localeCompare(b,'es'));
+
+function vhQuartil(arr,p){
+ const a=arr.slice().sort((x,y)=>x-y);
+ const idx=p*(a.length-1),lo=Math.floor(idx),hi=Math.ceil(idx);
+ return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(idx-lo);
+}
+// Kc mensual: anual usa la curva calendario real; con uno o dos trimestres se usa
+// [mínimo, mediana, cuartil3, máximo] de la curva anual del cultivo, igual que Scall.
+function vhKcPorTrimestre(kcAnual,tri){
+ if(tri==='anual') return kcAnual.slice();
+ const out=Array(12).fill(0);
+ const min=vhQuartil(kcAnual,0),q2=vhQuartil(kcAnual,.5),q3=vhQuartil(kcAnual,.75),max=vhQuartil(kcAnual,1);
+ const meses=VH_MESES_TRIM[tri];
+ const seq=meses.length===3?[min,max,q3]:[min,q2,q3,max,max,q3];
+ meses.forEach((m,i)=>out[m]=seq[i]);
+ return out;
+}
+
+let vhCropSeq=0;
+let vhCrops=[{id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:1}];
+let vhEstacion=VH_ESTACIONES.includes('Santiago')?'Santiago':VH_ESTACIONES[0];
+
+function vhCalcular(){
+ const eto=VH_DATA.eto[vhEstacion]||Array(12).fill(0);
+ const volDia=Array(12).fill(0); // m3/día, sumado entre todos los cultivos
+ vhCrops.forEach(c=>{
+   const kcAnual=VH_DATA.kc[c.cul]||Array(12).fill(0);
+   const kcMes=vhKcPorTrimestre(kcAnual,c.tri);
+   const ef=VH_METODOS[c.met][1];
+   for(let i=0;i<12;i++){
+     const etcMes=eto[i]*kcMes[i];                  // mm/mes (la tabla de ETo ya es un total mensual)
+     const etcDia=DIAS[i]>0?etcMes/DIAS[i]:0;       // mm/día
+     const neta=etcDia*10;                          // m3/ha/día
+     const bruta=ef>0?neta/ef:0;                    // m3/ha/día
+     volDia[i]+=bruta*c.sup;                        // m3/día de este cultivo
+   }
+ });
+ const qLs=pn($("qDiseno").value);
+ const horasCalc=volDia.map(v=>qLs>0?v/(qLs*3.6):null);
+ return {volDia,horasCalc,qLs};
+}
+
+// Criterio de alerta: se exige a la vez una diferencia relativa mayor al 20% y una
+// diferencia absoluta mayor a 0,3 h/día (18 min). El piso absoluto evita marcar meses de
+// riego marginal (p. ej. 0,10 vs 0,15 h/día) donde el 20% relativo no tiene peso práctico.
+const VH_TOL_REL=20, VH_TOL_ABS=0.3;
+function vhEstado(decl,calc){
+ if(calc===null) return {e:'na',dif:null,pct:null};
+ const dif=Math.abs(decl-calc);
+ const base=Math.max(decl,calc,1e-9);
+ const pct=dif/base*100;
+ const alerta = pct>VH_TOL_REL && dif>VH_TOL_ABS;
+ return {e:alerta?'warn':'ok',dif,pct};
+}
+
+function vhRenderEto(){
+ const eto=VH_DATA.eto[vhEstacion]||Array(12).fill(0);
+ const max=Math.max(...eto,1);
+ $("vhEtoRow").innerHTML=`<table style="border-collapse:collapse;font-family:var(--mono);font-size:.65rem;width:100%"><tr>`
+  +MES3.map((m,i)=>`<td style="text-align:center;padding:2px 4px;white-space:nowrap"><span style="display:block;color:var(--mist);letter-spacing:.3px">${m}</span><span style="display:block;font-weight:600;color:var(--blue-mid)">${nf(eto[i],0)}</span><span style="display:block;height:3px;border-radius:2px;background:var(--blue-mid);opacity:.25;margin-top:2px;width:${Math.round(eto[i]/max*100)}%"></span></td>`).join("")
+  +`</tr></table>`;
+}
+function vhRender(){
+ $("vhCropsBody").innerHTML=vhCrops.map(c=>`
+   <tr data-row="${c.id}">
+     <td><select class="vhCul" data-id="${c.id}"></select></td>
+     <td><select class="vhTri" data-id="${c.id}"></select></td>
+     <td><select class="vhMet" data-id="${c.id}"></select></td>
+     <td><input type="text" inputmode="decimal" class="vhSup" data-id="${c.id}" value="${tf(c.sup)}"></td>
+     <td><button type="button" class="vhDel" data-id="${c.id}" title="Eliminar">×</button></td>
+   </tr>`).join('');
+ vhCrops.forEach(c=>{
+   const row=document.querySelector('#vhCropsBody [data-row="'+c.id+'"]');
+   row.querySelector('.vhCul').innerHTML=VH_CULTIVOS.map(k=>`<option value="${k}" ${k===c.cul?'selected':''}>${k}</option>`).join('');
+   row.querySelector('.vhTri').innerHTML=VH_TRIMESTRES.map(t=>`<option value="${t[0]}" ${t[0]===c.tri?'selected':''}>${t[1]}</option>`).join('');
+   row.querySelector('.vhMet').innerHTML=VH_METODOS.map((m,i)=>`<option value="${i}" ${i===c.met?'selected':''}>${m[0]} (${Math.round(m[1]*100)} %)</option>`).join('');
+ });
+
+ const qLs=pn($("qDiseno").value);
+ $("vhQmsg").innerHTML = qLs>0
+   ? `Caudal de diseño usado: <b>${nf(qLs,2)} l/s</b> (definido en el paso 1).`
+   : `<span style="color:var(--err)">Falta el caudal de diseño. Ingréselo en el paso 1 (Equipo de bombeo) para calcular horas.</span>`;
+
+ const {horasCalc}=vhCalcular();
+ const horasDecl=[...Array(12)].map((_,i)=>pn($("h"+i).value));
+ let nAlert=0;
+ const filas=MESES.map((M,i)=>{
+   const hc=horasCalc[i];
+   const st=vhEstado(horasDecl[i], hc===null?0:hc);
+   if(qLs>0 && st.e==='warn') nAlert++;
+   const claseFila = qLs>0 && st.e==='warn' ? ' style="background:var(--al-w-bg)"' : '';
+   return `<tr${claseFila}>
+     <td>${M}</td>
+     <td>${hc===null?'—':nf(hc,2)}</td>
+     <td>${nf(horasDecl[i],2)}</td>
+     <td>${hc===null?'—':(st.pct===null?'—':nf(st.pct,0)+' %')}</td>
+     <td>${qLs<=0?'<span class="dim">—</span>':(st.e==='warn'?'<span style="color:var(--warn);font-weight:600">Revisar</span>':'<span class="gok">OK</span>')}</td>
+   </tr>`;
+ }).join('');
+ $("vhResultBody").innerHTML=filas;
+ $("vhResumen").innerHTML = qLs<=0 ? ''
+   : (nAlert>0
+      ? `<div class="al al-w" style="margin:12px 0 0"><b>${nAlert} de 12 meses difieren en más de ${VH_TOL_REL}%</b>Compare el desarrollo del consultor contra los cultivos y la estación cargados aquí.</div>`
+      : `<div class="al al-ok" style="margin:12px 0 0"><b>Las horas declaradas son consistentes con el cálculo por Kc</b>Ningún mes supera la tolerancia (${VH_TOL_REL}% y 0,3 h/día a la vez).</div>`);
+
+ vhRenderEto();
+}
+
+function vhAddRow(){ vhCrops.push({id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:0}); vhRender(); }
+
+$("btnVhOpen").onclick=()=>{
+ $("vhEst").innerHTML=VH_ESTACIONES.map(e=>`<option value="${e}" ${e===vhEstacion?'selected':''}>${e}</option>`).join('');
+ vhRender();
+ $("ovVh").classList.add("v");
+};
+$("btnVhClose").onclick=()=>$("ovVh").classList.remove("v");
+$("ovVh").onclick=e=>{ if(e.target===$("ovVh")) $("ovVh").classList.remove("v"); };
+$("vhEst").addEventListener("change",e=>{ vhEstacion=e.target.value; vhRender(); });
+$("btnVhAddCrop").onclick=vhAddRow;
+$("vhCropsBody").addEventListener("input",e=>{
+ const id=+e.target.dataset.id; const c=vhCrops.find(x=>x.id===id); if(!c) return;
+ if(e.target.classList.contains("vhSup")) c.sup=pn(e.target.value);
+});
+$("vhCropsBody").addEventListener("change",e=>{
+ const id=+e.target.dataset.id; const c=vhCrops.find(x=>x.id===id); if(!c) return;
+ if(e.target.classList.contains("vhCul")) c.cul=e.target.value;
+ if(e.target.classList.contains("vhTri")) c.tri=e.target.value;
+ if(e.target.classList.contains("vhMet")) c.met=+e.target.value;
+ vhRender();
+});
+$("vhCropsBody").addEventListener("click",e=>{
+ const b=e.target.closest(".vhDel"); if(!b) return;
+ if(vhCrops.length<=1) return;
+ vhCrops=vhCrops.filter(c=>c.id!==+b.dataset.id); vhRender();
+});
+
+const round4=n=>isFinite(n)?Math.round(n*10000)/10000:null;
+
+// Lee un número desde JSON aceptando tanto el literal numérico estándar (7.8, válido en
+// JSON) como texto con formato chileno ("7,8") o mixto ("1.234,56" / "1,234.56"). Un JSON
+// number nunca lleva coma —es una regla del formato—, pero si la otra app lo escribe como
+// texto, aquí se detecta el separador decimal real mirando cuál aparece más a la derecha.
+function numAuto(v){
+ if(typeof v==="number") return isFinite(v)?v:null;
+ if(v===null||v===undefined) return null;
+ const s=String(v).trim(); if(s==="") return null;
+ const n=parseDecimalFlex(s);
+ return isFinite(n)?n:null;
+}
+
+function aplicarProyectoJSON(doc){
+ if(!doc||typeof doc!=="object") return {err:"El archivo no contiene un objeto JSON válido."};
+ const b=doc.bombeo||{}, f=doc.fotovoltaico||{};
+ if(numAuto(b.potenciaKW)===null && numAuto(f.potenciaPropuestaKWp)===null && !Array.isArray(b.horasRiegoDiarias))
+   return {err:"El JSON no trae los campos esperados (bombeo.potenciaKW, bombeo.horasRiegoDiarias, fotovoltaico…). Revise el formato."};
+ const cargados=[];
+ const pkw=numAuto(b.potenciaKW); if(pkw!==null){ $("pBomba").value=tf(pkw); cargados.push("potencia de la bomba"); }
+ const adc=numAuto(b.consumosAdicionalesPct); if(adc!==null){ $("adic").value=tf(adc); }
+ const qd=numAuto(b.caudalDisenoLs); if(qd!==null){ $("qDiseno").value=tf(qd); cargados.push("caudal de diseño"); }
+ if(b.verificacionKc && Array.isArray(b.verificacionKc.cultivos) && b.verificacionKc.cultivos.length){
+   const vk=b.verificacionKc;
+   if(vk.estacion && VH_ESTACIONES.includes(vk.estacion)) vhEstacion=vk.estacion;
+   const nuevos=vk.cultivos.map(c=>({id:vhCropSeq++,
+     cul:VH_CULTIVOS.includes(c.cultivo)?c.cultivo:VH_CULTIVOS[0],
+     tri:c.trimestre||"anual", met:isFinite(c.metodo)?c.metodo:5,
+     sup:numAuto(c.superficieHa)||0}));
+   if(nuevos.length){ vhCrops=nuevos; cargados.push("verificación por Kc (cultivos y estación)"); }
+ }
+ if(Array.isArray(b.horasRiegoDiarias)&&b.horasRiegoDiarias.length===12){
+  b.horasRiegoDiarias.forEach((v,i)=>{const n=numAuto(v);$("h"+i).value=tf(n!==null?n:0);}); cargados.push("horas de riego (12 meses)");
+ }
+ if(f.tipoGeneracion&&["ongrid","offgrid","offgridbat"].includes(f.tipoGeneracion)){ $("modo").value=f.tipoGeneracion; cargados.push("tipo de generación"); }
+ const pp=numAuto(f.potenciaPropuestaKWp); if(pp!==null){ $("pProp").value=tf(pp); cargados.push("potencia propuesta"); }
+ const np=numAuto(f.numPaneles); if(np!==null){ $("nPan").value=tf(np); }
+ const wp=numAuto(f.potenciaPanelWp); if(wp!==null){ $("wPan").value=tf(wp); }
+ const bp=numAuto(f.bancoBateriasKWh); if(bp!==null){ $("bancoProp").value=tf(bp); }
+ if(f.mesCritico!==undefined&&f.mesCritico!==null){
+   const mc=String(f.mesCritico).trim().toLowerCase();
+   $("mesCrit").value = mc==="auto" ? "auto" : (isFinite(numAuto(mc))?String(Math.round(numAuto(mc))):"auto");
+ }
+ if(f.recursoSolar&&Array.isArray(f.recursoSolar.matriz)&&f.recursoSolar.matriz.length===12){
+  const kwpRaw=numAuto(f.recursoSolar.kwp); const kwp=(kwpRaw!==null&&kwpRaw>0)?kwpRaw:1;
+  GU=f.recursoSolar.matriz.map(row=>row.map(v=>{const n=numAuto(v);return(n!==null?n:0)/kwp;}));
+  HORAS=Array.isArray(f.recursoSolar.horas)&&f.recursoSolar.horas.length===GU[0].length
+    ? f.recursoSolar.horas.map(h=>{const n=numAuto(h);return n!==null?n:0;}) : HORAS_DEF.slice();
+  GU_ORIGEN="import"; GU_NOTA=f.recursoSolar.nota||"Recurso solar incluido en el proyecto importado";
+  cargados.push("recurso solar del predio");
+ }
+ return {ok:true,cargados};
+}
+
+$("btnJsonImport").onclick=()=>$("jsonFile").click();
+$("jsonFile").onchange=e=>{
+ const file=e.target.files[0]; if(!file) return;
+ const rd=new FileReader();
+ rd.onload=()=>{
+  let doc; try{ doc=JSON.parse(rd.result); }catch(err){ $("jsonMsg").innerHTML=`<span style="color:var(--err)">El archivo no es un JSON válido.</span>`; return; }
+  const res=aplicarProyectoJSON(doc);
+  if(res.err){ $("jsonMsg").innerHTML=`<span style="color:var(--err)">${esc(res.err)}</span>`; return; }
+  $("jsonMsg").innerHTML=`<span style="color:var(--ok)">Importado de «${esc(file.name)}»: ${res.cargados.join(", ")}.</span>`;
+  render();
+ };
+ rd.readAsText(file,"utf-8");
+ e.target.value="";
+};
+$("btnJsonExport").onclick=()=>{
+ const doc=construirProyectoJSON();
+ const blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json;charset=utf-8"});
+ const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+ a.download=nombreArchivo("proyecto","json"); a.click(); URL.revokeObjectURL(a.href);
+ $("jsonMsg").innerHTML=`<span style="color:var(--ok)">Exportado. Formato «${JSON_FORMATO}» v${JSON_VERSION}.</span>`;
+};
+
+$("btnCsv").onclick=()=>{
+ const r=window.__r,s=window.__s; if(!r)return;
+ const q=v=>`"${String(v).replace(/"/g,'""')}"`,L=[];
+ const push=(t,head,rows)=>{L.push(q(t));if(head)L.push(head.map(q).join(";"));rows.forEach(x=>L.push(x.map(q).join(";")));L.push("");};
+ push("Veredicto: "+({ok:"CUMPLE",warn:"CUMPLE CON OBSERVACIONES",err:"NO CUMPLE"}[r.veredicto]),["Estado","Verificación","Detalle"],
+  r.checks.map(c=>[{ok:"OK",warn:"OBSERVACION",err:"FALLA"}[c.e],c.t,c.d]));
+ push("Resumen",["Indicador","Valor","Unidad"],[
+  ["Tipo de generación",$("modo").selectedOptions[0].text,""],["Potencia de la bomba",nf(s.pBomba,2),"kW"],["Caudal de diseño",nf(s.qDiseno,2),"l/s"],
+  ["Consumos adicionales",nf(s.adic,0),"%"],["Recurso solar",GU_NOTA,""],
+  ["Promedio recurso solar",nf(r.guMedia,2),"kWh/kWp/día"],["Mes crítico",MESES[r.crit],""],
+  ["Potencia requerida",nf(r.pReq,2),"kWp"],["Potencia propuesta",nf(s.pProp,2),"kWp"],
+  ["Demanda anual",nf(r.demAnual,2),"kWh"],["Generación anual",nf(r.genAnual,2),"kWh"],
+  ["Cobertura anual",nf(r.cobertura,1),"%"]].concat(r.bat?[["Banco requerido",nf(r.bancoReq,2),"kWh"],["Banco propuesto",nf(s.bancoProp,2),"kWh"]]:[]));
+ push("Consumo y generación mensual",["Mes","Horas/día","Días","Consumo kWh/día","Consumo kWh/mes","Gen kWh/día","Gen kWh/mes","Déficit kWh/día","Horas riego","Horas útiles sol","Déficit horas"],
+  MESES.map((M,m)=>[M,nf(s.horas[m],2),DIAS[m],nf(r.demDia[m],3),nf(r.demMes[m],2),nf(r.genDia[m],3),nf(r.genMes[m],2),nf(r.defDia[m],3),nf(s.horas[m],2),r.horasDisp[m],r.horasDef[m]===null?"sin riego":nf(r.horasDef[m],2)]));
+ push("Generación por cada 1 kWp (kWh)",["Mes",...HORAS.map(x=>x+":00"),"kWh/día"],
+  GU.map((row,m)=>[MESES[m],...row.map(v=>nf(v,5)),nf(row.reduce((a,b)=>a+b,0),3)]));
+ const b=new Blob(["\uFEFF"+L.join("\n")],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nombreArchivo("revision","csv");a.click();URL.revokeObjectURL(a.href);
+};
+
+/* ═══════════ INIT ═══════════ */
+(function(){
+ $("horasGrid").innerHTML=MES3.map((M,i)=>`<div class="f"><label>${M}</label><input type="text" inputmode="decimal" id="h${i}" aria-label="Horas de riego ${MESES[i]}"></div>`).join("");
+ $("mesCrit").innerHTML=`<option value="auto">Automático</option>`+MESES.map((M,i)=>`<option value="${i}">${M}</option>`).join("");
+ aplicar(VACIO);
+ const f=$("form"); f.addEventListener("input",render); f.addEventListener("change",render);
+ if(window.matchMedia) try{window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change",render);}catch(e){}
+ render();
+})();
+</script>
+</body>
+</html>

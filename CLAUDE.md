@@ -57,7 +57,7 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — no se pudo
 esta sesión porque esos cálculos dependen del perfil solar horario del predio, que solo vive
-dentro del propio Revisor Fotovoltaico (`static/fotovoltaico_riego_v9.html`), importado desde el
+dentro del propio Revisor Fotovoltaico (`static/fotovoltaico_riego_v15.html`), importado desde el
 Explorador Solar. Revisar si hay forma de traer ese dato a Revisor CNR antes de intentarlo de
 nuevo.
 
@@ -96,7 +96,7 @@ extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
 templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
 static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v114.html
-                 (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v9.html
+                 (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v15.html
                  (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
 ```
 
