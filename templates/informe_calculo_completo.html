@@ -334,13 +334,17 @@
 <div class="explica" style="margin-top:0.2rem;font-size:10.5px;color:#666;">Fuente: Manual de Inspección y Revisión de Sistemas Fotovoltaicos, CNR-Ministerio de Energía §5.1.</div>
 {% endcall %}
 {% endif %}
+{% endif %}{# fin fv_calc — FV.3 sigue independiente: no requiere el recálculo completo #}
 
-{# Comparación con lo declarado por el consultor #}
+{# Comparación con lo declarado por el consultor — solo necesita fv.declarado. Las 3 filas que
+   comparan contra fv_calc (App) se muestran solo si el recálculo se pudo hacer; la consistencia
+   interna y el banco de baterías son datos declarados por sí solos y no dependen de fv_calc. #}
 {% if fv.declarado %}
 {% set decl = fv.declarado %}
 <div class="titulo-seccion">FV.3. Verificación — declarado vs. calculado</div>
 <div class="paso">
 <table class="tabla-datos">
+  {% if fv_calc %}
   {% if decl.n_paneles is not none %}
   <tr><td class="label">N° paneles</td>
       <td class="valor">Declarado: {{ decl.n_paneles }} / Calculado mínimo: {{ fv_calc.n_paneles_minimo }} / Real: {{ fv_calc.n_paneles_real }} —
@@ -363,6 +367,9 @@
         {% else %}<span class="ok">coherente.</span>{% endif %}
       </td></tr>
   {% endif %}
+  {% else %}
+  <tr><td colspan="2" class="valor" style="color:#999;font-style:italic;">Faltan datos base (potencia bomba, horas bombeo, HSP, Wp, Vmp o Imp) para el recálculo completo — solo se muestra lo declarado.</td></tr>
+  {% endif %}
   {% if fv_consistencia_paneles %}
   <tr><td class="label">Consistencia interna: paneles × Wp</td>
       <td class="valor">{{ decl.n_paneles }} × {{ val(fv.wp, ' W') }} = {{ fv_consistencia_paneles.kwp_por_paneles }} kWp / kWp declarado: {{ decl.kwp_total }} kWp —
@@ -374,7 +381,6 @@
   {% endif %}
 </table>
 </div>
-{% endif %}
 {% endif %}
 
 {% if fv_demanda %}
