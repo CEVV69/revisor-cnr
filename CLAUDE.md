@@ -36,16 +36,30 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-Sin bugs conocidos. **Dos decisiones pendientes del usuario:**
+**Pendiente de verificar por el usuario (próxima sesión):**
 
-1. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
+1. **Extracción FV corregida, falta confirmar en un proyecto real.** `_extraer_datos_fv()` usaba
+   la mitad del presupuesto de texto que la revisión del ítem (60K vs. 120K caracteres) — HSP,
+   voltaje de sistema, horas de bombeo y sección de cable quedaban truncados fuera del texto.
+   Corregido (ver `docs/historial_sesiones.md`, sección "Diseñador v114 + Fotovoltaico + Revisor
+   Fotovoltaico"). El usuario debe volver a apretar "Extraer de los documentos" en Chequeo de
+   Cálculos → Fotovoltaico de un proyecto con esos datos y confirmar si ahora los captura.
+
+2. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
    hasta 31-08-2026). El usuario evalúa mover ítems de texto a Sonnet 4.6 y dejar Sonnet 5 solo
    para ítems con visión (planos). Datos: Sonnet 5 piensa por defecto (adaptativo), Sonnet 4.6 no
    piensa; Sonnet 5 tiene mayor resolución de visión (2576px vs 1568px). Esperando decisión.
 
-2. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
+3. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
    sectores sin respaldo). El usuario lo va a verificar con un proyecto nuevo para confirmar si el
    comportamiento mejoró.
+
+**Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
+anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — no se pudo
+esta sesión porque esos cálculos dependen del perfil solar horario del predio, que solo vive
+dentro del propio Revisor Fotovoltaico (`static/fotovoltaico_riego_v9.html`), importado desde el
+Explorador Solar. Revisar si hay forma de traer ese dato a Revisor CNR antes de intentarlo de
+nuevo.
 
 ---
 
@@ -74,6 +88,9 @@ database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLo
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
 templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
+static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v114.html
+                 (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v9.html
+                 (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
 ```
 
 ### Modelo de datos

@@ -1246,3 +1246,103 @@ renombraron para no colisionar entre los dos formularios de la misma página).
 
 ---
 
+## Diseñador de Riego v114 + Fotovoltaico + Revisor Fotovoltaico (implementado, ago-2026)
+
+Sesión larga en torno a fotovoltaico, con tres apps involucradas: **Diseñador de Riego** (la app
+hermana donde el consultor diseña, `static/disenador_riego_v114.html`), **Revisor Fotovoltaico**
+(app hermana nueva para chequear el dimensionamiento FV con otra metodología,
+`static/fotovoltaico_riego_v9.html`) y Revisor CNR (esta app).
+
+**1. Diseñador v112→v114 + Balance Anual FV (Manual CNR-Ministerio de Energía §5.1):**
+- `calculos_riego.dimensionamiento_fv()` ganó `dias_riego`/`conexion`: Gen_anual = E_panel ×
+  N_real × 365, Consumo_anual = P_bomba × H_bombeo × días_riego, Balance = Gen/Consumo × 100 %.
+  `balance_ok` solo aplica si `conexion == "ongrid"` (Ley de Generación Distribuida); aislado no
+  tiene el criterio de ≤100 %.
+- `disenador_riego_v114.html`: `importProject()` ahora acepta también un ARRAY JSON (antes solo
+  un objeto) — necesario para importar los 1-2 sistemas de un proyecto de una sola vez.
+- Nuevo endpoint `GET /calculos/exportar-disenador` (sin `idx`) que exporta TODOS los sistemas
+  del proyecto en un solo archivo (objeto si hay 1, array si hay 2) — reemplazó los botones de
+  exportación individuales por sistema en `calculos.html` (ahora un solo botón arriba, junto a
+  "Abrir Diseñador de Riego" y "Memoria de cálculo completa", los tres en la misma línea).
+
+**2. Editor de tramos hidráulicos — agregar/eliminar filas:**
+El usuario reportó que la IA a veces clasifica mal los tramos (mezcla goteo/aspersión). Se agregó
+un botón "× eliminar" bajo el nombre de cada tramo con datos (vacía los inputs + oculta la fila,
+`window.eliminarTramo` — **debe colgar de `window`**, el HTML usa `onclick` inline y el resto del
+JS de la página vive en un IIFE `(function(){"use strict";...})()`, así que una función declarada
+ahí NO es visible al scope global que `onclick` resuelve) y un botón "+ Agregar tramo" que revela
+el siguiente slot oculto (máx. `N_TRAMOS_HIDRAULICOS = 6`, main.py). `initTramos(sp)` oculta al
+cargar las filas sin nombre/Q/Ø — el backend (`calculos_guardar_hidraulico`) ya ignoraba esas
+filas vacías desde antes, el cambio fue solo de UI.
+- De paso, ajustes visuales pedidos: columna "Tramo" 200→180px, "V/Hf declarada" abreviadas a "V
+  Dec."/"Hf Dec." con la unidad en una 2ª línea del header (55→72px, hasta 3 decimales), columna
+  "Longitud" con "m" en 2ª línea. Los headers de `.calc-tbl` heredaban `text-transform:uppercase`
+  del CSS global (`base.html th`) — se anuló con `text-transform:none` en `.calc-tbl th`, que
+  también se puso en negrita y centrado.
+
+**3. Revisor Fotovoltaico (`fotovoltaico_riego_v9.html`) — integración:**
+App hermana independiente con OTRA metodología: usa el perfil solar HORARIO del predio
+(importado desde el Explorador Solar CNR, `solar.minenergia.cl`) para calcular potencia
+requerida, generación, cobertura anual y banco de baterías — cálculos que Revisor CNR NO puede
+replicar porque esa matriz horaria vive solo dentro del Revisor Fotovoltaico. Se agregaron 3
+botones en la sección FV de `calculos.html` (misma línea que "Extraer de los documentos"):
+"Revisor Fotovoltaico" (abre la app), "Exportar al Revisor FV (.json)", "Explorador Solar".
+- Formato de export: `{"formato": "riego-cnr-proyecto", "version": 1, "bombeo": {...},
+  "fotovoltaico": {...}}` — mapeo de campos confirmado leyendo `construirProyectoJSON()` /
+  `aplicarProyectoJSON()` del HTML fuente del Revisor FV, NO adivinado.
+- **Bug corregido antes de pushear a producción:** el primer intento exportaba
+  `fv_calc.n_paneles_real`/`kwp_total` — los valores CALCULADOS por Revisor CNR — sobrescribiendo
+  el criterio del consultor. El usuario lo pescó de inmediato ("son los datos que ha declarado el
+  consultor, no los que calcula la app"). Corregido: exporta `fv.declarado.n_paneles`/
+  `kwp_total`/`banco_baterias_kwh` (los mismos campos que ya se usan para la comparación
+  "declarado vs. calculado" del propio Chequeo de Cálculos).
+- Campos nuevos capturados para alimentar el export, ninguno existía antes: **horas de riego
+  mensuales** (12 inputs Ene-Dic en `calculos.html`, `fv.horas_mensuales`), **consumos
+  adicionales %** (`fv.adic`), **banco de baterías declarado**
+  (`fv.declarado.banco_baterias_kwh`), y tercera opción de conexión "Aislado con baterías"
+  (`conexion == "aislado_bat"`, mapea a `offgridbat` del Revisor FV; el criterio de balance
+  ≤100 % del punto 1 sigue aplicando solo a `ongrid`).
+- Nuevo chequeo liviano en `calculos.html`/informe: consistencia interna de lo declarado (N°
+  paneles × Wp panel vs. kWp total declarado) — mismo chequeo que hace el propio Revisor
+  Fotovoltaico con sus datos, sin pedir ningún dato nuevo (reutiliza `decl_npaneles`/`wp`/
+  `decl_kwp`, ya existentes).
+
+**4. Memoria de Cálculo Completa — sección FV.4 (demanda mensual):**
+`calculos_riego.demanda_fv_mensual(pkw, adic, horas_mensuales)` replica la fórmula de demanda del
+Revisor Fotovoltaico: `Dem_día[mes] = Horas[mes] × P_bomba × (1+Adic%)`, `Dem_mes = Dem_día ×
+Días_mes` (`DIAS_MES_FV`, constante copiada tal cual del Revisor FV, incluye feb=29 fijo),
+`Dem_anual = Σ Dem_mes`. **Es la única parte de la metodología del Revisor FV que se puede
+recalcular acá** — generación/cobertura/potencia requerida necesitan el perfil solar horario, que
+no existe en Revisor CNR; el informe lo deja explícito y remite al botón "Revisor Fotovoltaico".
+- **Bug encontrado por el usuario tras el primer despliegue:** la nueva sección FV.3 (declarado
+  vs. calculado) había quedado anidada dentro del `{% if fv_calc %}` de FV.2, que exige los 6
+  campos base del dimensionamiento completos (potencia bomba, horas bombeo, HSP, Wp, Vmp, Imp).
+  Si faltaba uno, `fv_calc` quedaba vacío y FV.3 entera desaparecía — incluida la consistencia
+  interna y el banco de baterías, que NO necesitan ese recálculo. El usuario preguntó si tenía que
+  ver con el botón "Comparar con metodología del consultor" (no tenía relación — ese alimenta
+  `mc_fv`, las cajas de comparación 2 columnas de FV.2). Corregido: FV.3 ahora es independiente de
+  `fv_calc` (se mueve el `{% endif %}` de FV.2 antes de FV.3); las 3 filas que sí comparan contra
+  el cálculo de la app quedan en un `{% if fv_calc %}` interno con una nota si falta, en vez de
+  hacer desaparecer toda la sección.
+- Verificado con render Jinja standalone (no solo `ast.parse`) en ambos escenarios — datos
+  completos y datos declarados sin los 6 campos base — antes de pushear.
+
+**5. Bug de extracción encontrado por el usuario — presupuesto de texto a medias:**
+El usuario reportó que HSP, voltaje de sistema, horas de bombeo y sección de cable no se
+extraían pese a estar en los documentos del ítem Diseño Fotovoltaico. Causa real, no adivinada:
+`_extraer_datos_fv()` (el botón "Extraer de los documentos" del Chequeo de Cálculos) llamaba a
+`_texto_grupo_para_extraccion()` **sin** `max_chars`, cayendo al default de 60.000 caracteres —
+mientras que la revisión del ítem "Diseño Fotovoltaico" (mismo grupo de documentos) usa 120.000
+vía `MAX_CHARS_POR_ITEM`. Con un Excel + memoria de cálculo típicos del ítem, el texto supera 60K
+fácil y se trunca (75% inicio + 25% final) — datos de mitad de documento quedaban fuera. Corregido
+para usar el mismo presupuesto de 120K. De paso se agregaron sinónimos al prompt para `vsis`
+("voltaje bus DC" / "arreglo FV" / "entrada inversor") y sección de cable declarada ("calibre",
+"conductor DC", puede estar en la lista de materiales del presupuesto eléctrico en vez de la
+memoria de cálculo). **Pendiente de confirmar por el usuario en un proyecto real** (ver Estado
+actual en CLAUDE.md).
+
+También se agregó `horas_mensuales` al prompt de extracción (antes ni existía el campo en el
+schema — no era que la IA "no detectara" el dato en el Excel, es que no tenía dónde reportarlo).
+
+---
+
