@@ -19,7 +19,12 @@ formatos según el sistema, confirmados leyendo el HTML fuente del Diseñador v1
   Revisor es cada nivel por el campo `nombre` (texto libre, editable por el revisor) — nunca por
   posición ni por diámetro. Si el nombre no calza con ningún alias, o si calzan dos o más tramos
   con el MISMO nivel (ambiguo), ese nivel simplemente no se exporta — el revisor corrige el
-  campo `nombre` si quiere que se reconozca, o completa el dato a mano en el Diseñador."""
+  campo `nombre` si quiere que se reconozca, o completa el dato a mano en el Diseñador.
+
+El Desglose de Humedad Aprovechable por capas de suelo (checkbox "reemplaza CC/PMP/Da/Prof.",
+solo Aspersión/Carrete) se exporta como `__capasA`/`__capasC` — mismo formato que usa el propio
+Diseñador para guardar/exportar sus proyectos, confirmado contra un archivo real exportado desde
+el Diseñador v119 (no adivinado)."""
 import unicodedata
 
 import calculos_riego
@@ -192,6 +197,28 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("vv", sistema_agro.get("velocidad_viento_ms"))
         put("lf", sistema_agro.get("longitud_franja_m"))
         put("va", sistema_agro.get("velocidad_avance_mh"))
+
+    # ── Desglose de Humedad Aprovechable por capas de suelo (solo Aspersión/Carrete — mismo
+    # checkbox "reemplaza CC/PMP/Da/Prof." del Chequeo Agronómico). Mismas claves de textura
+    # (franco_arenoso/franco/franco_limoso/franco_arcilloso/arcilloso) en ambas apps — confirmado
+    # contra el HTML del Diseñador v119, no adivinado.
+    if sys_code in ("asp", "car"):
+        capas_suelo = sistema_agro.get("capas_suelo") or []
+        if capas_suelo:
+            fields["__capas" + ("A" if sys_code == "asp" else "C")] = {
+                "on": True,
+                "capas": [
+                    {
+                        "desde": _s(c.get("desde_cm")) or "",
+                        "hasta": _s(c.get("hasta_cm")) or "",
+                        "tex": c.get("textura") or "",
+                        "cc": _s(c.get("cc_pct")) or "",
+                        "pmp": _s(c.get("pmp_pct")) or "",
+                        "da": _s(c.get("da")) or "",
+                    }
+                    for c in capas_suelo
+                ],
+            }
 
     # ── Red hidráulica jerárquica Matriz/Terciaria/Lateral (solo Goteo/Microaspersión) ──
     # Ver `_clasificar_tramos_jerarquico` — cada nivel se exporta solo si se identificó sin
