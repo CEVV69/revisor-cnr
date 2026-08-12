@@ -763,12 +763,12 @@
         '<input type="number" step="1" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
         '<input type="number" step="1" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
         '<select style="width:165px; flex-shrink:0;" name="' + p + 'capa' + i + '_tex" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'tex\',this.value)">' + texOpts + '</select>' +
-        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0;">CC</span>' +
-        '<input type="number" step="0.1" placeholder="%" value="' + c.cc + '" style="width:69px; flex-shrink:0;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
-        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0;">PMP</span>' +
-        '<input type="number" step="0.1" placeholder="%" value="' + c.pmp + '" style="width:69px; flex-shrink:0;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
-        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0;">Da</span>' +
-        '<input type="number" step="0.01" placeholder="g/cc" value="' + c.da + '" style="width:72px; flex-shrink:0;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
+        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">CC</span>' +
+        '<input type="number" step="0.1" placeholder="%" value="' + c.cc + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
+        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">PMP</span>' +
+        '<input type="number" step="0.1" placeholder="%" value="' + c.pmp + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
+        '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">Da</span>' +
+        '<input type="number" step="0.01" placeholder="g/cc" value="' + c.da + '" style="width:83px; flex-shrink:0;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
         '<button type="button" class="btn-elim-tramo" style="display:inline; margin:0 0 0 auto; flex-shrink:0; font-size:1.05rem; line-height:1;" onclick="eliminarCapa(\'' + p + '\',' + i + ')">×</button>' +
       '</div>';
     }).join("");
@@ -787,7 +787,7 @@
       var altura = (hasta - desde) * 10;
       var haCapa = (cc - pmp) / 100 * da * altura;
       adTotal += haCapa; profTotal += (hasta - desde); huboValida = true;
-      detalle.push("Capa " + (detalle.length + 1) + ": Altura=" + fmt(altura, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
+      detalle.push("C" + (detalle.length + 1) + ": Altura=" + fmt(altura, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
     });
     if (total) {
       total.textContent = huboValida
