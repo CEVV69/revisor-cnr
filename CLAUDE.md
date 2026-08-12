@@ -141,7 +141,8 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
 1. **Paso a paso** — nunca asumir, guiar con pasos numerados.
 2. **Usa Safari** — solo lectura en computer-use.
 3. **Nunca Write sobre archivos existentes sin leer primero** — usar Edit.
-4. **Español siempre**, incluso en textos técnicos.
+4. **Español siempre**, incluso en textos técnicos. **Español de Chile — nunca voseo argentino**
+   ("tú"/"tienes", no "vos"/"tenés").
 5. Sin archivos sueltos de apoyo — entregar scripts/SQL en el chat.
 6. Usuario es técnico en riego/CNR — entiende la terminología.
 7. **Sin emojis decorativos** — la app debe verse formal. Si aporta señal, usar CSS/SVG,
