@@ -31,6 +31,11 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 1. **AL EMPEZAR:** `git pull` antes de leer o editar nada.
 2. **AL TERMINAR cada cambio:** `git add` + `git commit` + `git push`. Nunca dejar sin pushear.
+3. **SIEMPRE directo a `main`, nunca en otra rama.** Si la sesión de `claude.ai/code` asigna
+   automáticamente una rama de trabajo distinta a `main` (ej. `claude/algo-xyz`), ignorar esa
+   asignación: trabajar igual sobre `main` (`git checkout main && git pull`) y pushear ahí. Railway
+   solo despliega desde `main` — pushear a otra rama no actualiza la app y el usuario no tiene
+   forma de notarlo (no corre git).
 
 ---
 
