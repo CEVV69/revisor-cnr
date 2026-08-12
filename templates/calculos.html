@@ -166,7 +166,7 @@
           <span class="text-muted" style="font-weight:400; font-size:0.78rem;">reemplaza CC/PMP/Da/Prof. de arriba si se activa</span>
         </label>
         <div id="{{ p }}capas_box" style="display:{{ 'block' if agro.capas_suelo else 'none' }}; margin-top:0.6rem;">
-          <div id="{{ p }}capas_list"></div>
+          <div id="{{ p }}capas_list" style="overflow-x:auto;"></div>
           <button type="button" class="btn btn-outline btn-sm" onclick="agregarCapa('{{ p }}')">+ Agregar capa</button>
           <div id="{{ p }}capas_total" class="text-muted" style="font-size:0.8rem; margin-top:0.5rem;"></div>
         </div>
@@ -758,15 +758,15 @@
           return '<option value="' + k + '"' + (c.tex === k ? ' selected' : '') + '>' + label + '</option>';
         })
       ).join("");
-      return '<div style="display:flex; gap:0.35rem; align-items:center; margin-bottom:0.3rem; flex-wrap:wrap;">' +
-        '<span style="font-weight:700; font-size:0.8rem; width:1.2rem;">' + (i + 1) + '</span>' +
-        '<input type="number" step="1" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
-        '<input type="number" step="1" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
-        '<select style="width:150px;" name="' + p + 'capa' + i + '_tex" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'tex\',this.value)">' + texOpts + '</select>' +
-        '<input type="number" step="0.1" placeholder="CC (%)" value="' + c.cc + '" style="width:75px;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
-        '<input type="number" step="0.1" placeholder="PMP (%)" value="' + c.pmp + '" style="width:75px;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
-        '<input type="number" step="0.01" placeholder="Da (g/cc)" value="' + c.da + '" style="width:80px;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
-        '<button type="button" class="btn-elim-tramo" style="display:inline; margin:0;" onclick="eliminarCapa(\'' + p + '\',' + i + ')">× eliminar</button>' +
+      return '<div style="display:flex; gap:0.35rem; align-items:center; margin-bottom:0.3rem; flex-wrap:nowrap;">' +
+        '<span style="font-weight:700; font-size:0.8rem; width:1.2rem; flex-shrink:0;">' + (i + 1) + '</span>' +
+        '<input type="number" step="1" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
+        '<input type="number" step="1" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
+        '<select style="width:165px; flex-shrink:0;" name="' + p + 'capa' + i + '_tex" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'tex\',this.value)">' + texOpts + '</select>' +
+        '<input type="number" step="0.1" placeholder="CC %" value="' + c.cc + '" style="width:50px; flex-shrink:0;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
+        '<input type="number" step="0.1" placeholder="PMP %" value="' + c.pmp + '" style="width:50px; flex-shrink:0;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
+        '<input type="number" step="0.01" placeholder="Da" value="' + c.da + '" style="width:53px; flex-shrink:0;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
+        '<button type="button" class="btn-elim-tramo" style="display:inline; margin:0; flex-shrink:0;" onclick="eliminarCapa(\'' + p + '\',' + i + ')">×</button>' +
       '</div>';
     }).join("");
     recalcAgroSistema(p);
