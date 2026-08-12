@@ -49,12 +49,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    números de prueba (`ad_por_capas()` en calculos_riego.py) pero no en la app real — confirmar
    que el checkbox, el autocompletado por textura y el recálculo en vivo se comporten bien.
 
-2. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Se
-   corrigió un bug real (clave de documentos equivocada, ver `docs/historial_sesiones.md`), pero
-   el usuario probó y la mayoría de los ítems FV siguen saliendo vacíos. Es esperable si el
-   consultor no muestra el desarrollo del cálculo (el prompt es deliberadamente estricto: no
-   inventa fórmulas). Pendiente decidir: ¿verificar con el expediente real que efectivamente no
-   muestra el desarrollo, o relajar el criterio de estrictez del prompt?
+2. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Detalle
+   y bug ya corregido en `docs/historial_sesiones.md`. Pendiente decidir: ¿verificar con el
+   expediente real que el consultor no muestra el desarrollo, o relajar el criterio de estrictez?
 
 3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
    hasta 31-08-2026). El usuario evalúa mover ítems de texto a Sonnet 4.6 y dejar Sonnet 5 solo
@@ -64,6 +61,11 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
    sectores sin respaldo). El usuario lo va a verificar con un proyecto nuevo para confirmar si el
    comportamiento mejoró.
+
+5. **Export→Import Revisor CNR → Diseñador v119, recién corregido — falta probar en la app real.**
+   `importProject()` no sabía leer el ARRAY que exporta Revisor cuando el proyecto declara más de
+   un sistema (ej. Goteo+Aspersión) — no cargaba ningún dato. Detalle en `docs/historial_sesiones.md`.
+   Confirmar que ahora sí importa, combinado y sistema único (Carrete).
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado

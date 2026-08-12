@@ -1,3 +1,34 @@
+## Sesión ago-2026 — fix import Diseñador de Riego v119 (array multi-sistema)
+
+Bug reportado: exportar un proyecto de Revisor CNR con más de un sistema declarado (ej. Goteo +
+Aspersión, mismo predio) y abrirlo en el Diseñador no cargaba ningún dato — "no aparece ninguno".
+
+Causa: `/proyecto/{id}/calculos/exportar-disenador` (main.py) arma un ARRAY de objetos cuando hay
+2+ sistemas exportables (uno por sistema, mismo formato `{__sys, __name, __date, fields}` que un
+archivo de un solo sistema). Pero `importProject()` en `static/disenador_riego_v119.html` hacía
+`var data = obj.fields || obj;` — con un array, `obj.fields` es `undefined`, así que `data` quedaba
+siendo el array completo, y `restoreFieldData` nunca encontraba las claves de campo esperadas
+(itera `data[id]` buscando strings, no encuentra nada en un array de objetos). No lanzaba error:
+el `try/catch` no detectaba nada raro, por eso el fallo era silencioso — coincide con el reporte.
+
+Fix (`static/disenador_riego_v119.html`, función `importProject`): normaliza siempre a una lista
+(`Array.isArray(obj) ? obj : [obj]`) y restaura cada entrada con `restoreFieldData(entry.__sys ||
+sys, data)` — usa el `__sys` propio de la entrada, NO el de la pestaña donde se hizo clic en
+"Abrir". Esto tiene un beneficio extra: como los campos de los 4 sistemas (got/mic/asp/car)
+conviven en la misma página HTML (confirmado: `openProjectsMgr('asp'|'car'|'got'|'mic')` está
+hardcodeado por sección, no hay show/hide de un "sys activo" que oculte el resto del DOM), un
+archivo con varios sistemas los carga TODOS de una vez sin importar en qué pestaña se abrió el
+diálogo, y de paso un archivo de un solo sistema ya no depende de que el usuario esté en la
+pestaña "correcta" — antes, si el `__sys` del archivo no coincidía con la pestaña abierta, también
+fallaba en silencio (mismo síntoma, causa distinta).
+
+Verificado: nombres de campo (`g-*`/`a-*`/`c-*`) de `exportar_disenador.py` contra 3 archivos
+reales exportados DESDE el Diseñador v119 que el usuario adjuntó (Goteo, Aspersión y Carrete de
+proyectos reales/en curso) — coinciden. Pendiente: el usuario probar la exportación real desde
+Revisor CNR → import en el Diseñador, con el proyecto Goteo+Aspersión que motivó el reporte.
+
+---
+
 ## Estado al cierre de esta sesión (ago-2026) — leer antes de seguir
 
 El usuario sigue usando la app con el concurso 202-2026 con proyectos reales. No hay ningún bug
