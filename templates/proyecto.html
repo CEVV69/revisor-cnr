@@ -537,10 +537,13 @@ function actualizarEtiqueta(input) {
     </form>
   </div>
   <table style="min-width:600px; font-size:0.82rem;">
+    <colgroup>
+      <col><col style="width:85px;"><col style="width:280px;"><col style="width:90px;"><col style="width:90px;">
+    </colgroup>
     <thead>
       <tr>
         <th>Archivo</th>
-        <th style="white-space:nowrap;">¿Hay que resubir?</th>
+        <th style="white-space:nowrap;">Resubir?</th>
         <th>Anexo / Tipo</th>
         <th style="white-space:nowrap;">Fecha</th>
         <th>Acciones</th>
@@ -563,7 +566,7 @@ function actualizarEtiqueta(input) {
             <span class="text-muted" title="Ya tiene texto guardado: no hace falta resubirlo"><span class="dot dot-gray"></span>No hace falta</span>
           {% endif %}
         </td>
-        <td style="max-width:200px;">
+        <td style="max-width:280px;">
             <select onchange="cambiarTipo('{{ proyecto.id }}','{{ doc.id }}',this)"
                     style="width:100%;font-size:0.76rem;padding:0.25rem 0.4rem;border-radius:6px;border:1px solid rgba(0,0,0,0.14);background:var(--surface);color:var(--text);font-family:inherit;">
               <optgroup label="Tecnificación — Anexos SEP">

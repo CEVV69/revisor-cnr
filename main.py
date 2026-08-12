@@ -618,10 +618,11 @@ async def dashboard(request: Request):
     # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
     proyectos = db.get_proyectos_ligero(
         ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "revisor",
-         "resumen"],
+         "resumen", "costo_api"],
         username=user["username"])
     for p in proyectos:
         p["consultor"] = ((p.get("resumen") or {}).get("consultor") or "").strip()
+        p["costo_usd"] = (p.get("costo_api") or {}).get("total_usd")
     # Numeración por antigüedad (el más antiguo = 1) — la tabla sigue mostrando los más
     # recientes primero (orden de siempre, sin cambios), solo se le agrega este número como
     # referencia estable de cuándo se creó cada proyecto relativo a los demás.

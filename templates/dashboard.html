@@ -9,7 +9,7 @@
 
 {% if proyectos %}
 <div class="card" style="overflow-x:auto;">
-  <table style="min-width:850px;">
+  <table style="min-width:930px; font-size:0.78rem;">
     <thead>
       <tr>
         <th style="white-space:nowrap;">N°</th>
@@ -19,6 +19,7 @@
         <th>Consultor</th>
         <th>Estado</th>
         <th style="white-space:nowrap;">Fecha</th>
+        <th style="white-space:nowrap;">Costo API</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -32,6 +33,7 @@
         <td class="text-muted" style="max-width:150px; word-break:break-word;">{{ p.consultor or "—" }}</td>
         <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado }}</span></td>
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
+        <td class="text-muted" style="white-space:nowrap;">{% if p.costo_usd %}US$ {{ p.costo_usd | usd }}{% else %}—{% endif %}</td>
         <td style="white-space:nowrap;">
           <a href="/proyecto/{{ p.id }}" class="btn btn-outline btn-sm">Abrir</a>
           <form method="post" action="/proyecto/{{ p.id }}/eliminar" style="display:inline; margin-left:1.5rem;"
