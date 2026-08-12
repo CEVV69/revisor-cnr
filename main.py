@@ -1567,6 +1567,7 @@ async def chat_item(request: Request, proyecto_id: str, item_key: str,
 # carrete y microaspersión quedan pendientes para una siguiente iteración.
 
 N_TRAMOS_HIDRAULICOS = 6
+N_CAPAS_SUELO = 6   # desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete)
 
 
 def _num_form(form, campo: str):
@@ -1690,14 +1691,22 @@ def _es_goteo(datos: dict) -> bool:
 
 def _agronomico_calculo(datos: dict):
     alta_frec = _es_goteo(datos)
+    # Desglose de Humedad Aprovechable por capas de suelo (Diseñador v119) — solo Aspersión y
+    # Carrete. Si hay capas válidas, reemplazan el cálculo de AD de capa única (CC/PMP/Da/Prof
+    # dejan de ser obligatorios) — igual que el checkbox del Diseñador.
+    capas_calc = None
+    if datos and datos.get("sistema_riego") in ("Aspersión", "Carrete") and datos.get("capas_suelo"):
+        capas_calc = calculos_riego.ad_por_capas(datos["capas_suelo"]) or None
+    usa_capas = capas_calc is not None
     # En goteo (alta frecuencia) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof. radicular
     # NO entran en esa cuenta, solo se usan para el dato informativo AD (que en goteo ni
     # siquiera se muestra). Exigirlos ahí bloqueaba el cálculo sin necesidad — el revisor tenía
     # que rellenarlos con un valor cualquiera (ej. "1") solo para que el resto se calculara.
     campos = ["kc", "eto_dia_mm", "eficiencia_pct"]
     if not alta_frec:
-        campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-                  "factor_agotamiento_pct", "eficiencia_pct"]
+        campos = ["kc", "eto_dia_mm", "factor_agotamiento_pct", "eficiencia_pct"]
+        if not usa_capas:
+            campos += ["cc_pct", "pmp_pct", "da", "prof_radicular_cm"]
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
     # Eficiencia declarada vs. valores oficiales — independiente del resto de la cadena.
@@ -1750,11 +1759,15 @@ def _agronomico_calculo(datos: dict):
         return r or None
     # cc_pct/pmp_pct/da/prof_radicular_cm van con .get() (no datos[...]): en goteo ya no están
     # garantizados por `campos` — cadena_agronomica los admite en None (AD queda None, dato
-    # puramente informativo que en goteo ni se usa ni se muestra).
+    # puramente informativo que en goteo ni se usa ni se muestra). Con capas de suelo activas
+    # tampoco están garantizados — el override de AD los hace innecesarios.
     r = calculos_riego.cadena_agronomica(
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
-        datos["eficiencia_pct"], alta_frecuencia=alta_frec)
+        datos["eficiencia_pct"], alta_frecuencia=alta_frec,
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
+    if capas_calc:
+        r["capas_suelo_calc"] = capas_calc
     # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
     # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
     # verificacion_diseno_riego).
@@ -2262,7 +2275,7 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador")
 async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
     """Descarga un .json con TODOS los sistemas del proyecto en formato Diseñador de Riego.
-    Si hay 1 sistema exportable → JSON simple; si hay 2 → array JSON. El Diseñador v114
+    Si hay 1 sistema exportable → JSON simple; si hay 2 → array JSON. El Diseñador v119
     soporta arrays: importa todos los sistemas de una sola vez."""
     user = get_current_user(request)
     if not user:
@@ -2484,6 +2497,22 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
         datos = {c: _num_form(form, p + c) for c in campos}
         datos["cultivo"] = (form.get(p + "cultivo") or "").strip() or None
         datos["sistema_riego"] = (form.get(p + "sistema_riego") or "").strip() or None
+        capas = []
+        for j in range(N_CAPAS_SUELO):
+            cp = f"{p}capa{j}_"
+            desde = _num_form(form, cp + "desde")
+            hasta = _num_form(form, cp + "hasta")
+            cc = _num_form(form, cp + "cc")
+            pmp = _num_form(form, cp + "pmp")
+            da = _num_form(form, cp + "da")
+            if desde is None and hasta is None and cc is None and pmp is None and da is None:
+                continue
+            capas.append({
+                "desde_cm": desde, "hasta_cm": hasta,
+                "textura": (form.get(cp + "tex") or "").strip() or None,
+                "cc_pct": cc, "pmp_pct": pmp, "da": da,
+            })
+        datos["capas_suelo"] = capas
         datos["declarado"] = {
             "dn_mm": _num_form(form, p + "decl_dn"),
             "fr_dias": _num_form(form, p + "decl_fr"),

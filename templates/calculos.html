@@ -79,7 +79,7 @@
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-      <a href="/static/disenador_riego_v114.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+      <a href="/static/disenador_riego_v119.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador" class="btn btn-outline btn-sm" title="Exporta agronómico, hidráulico y fotovoltaico de todos los sistemas">Exportar para el Diseñador (.json)</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Memoria de cálculo completa</a>
     </div>
@@ -158,6 +158,20 @@
         <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="1" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Referencia para contrastar contra el plano y el presupuesto: no entra al recálculo. Los datos del cañón (Carrete) sí — alimentan el modelo INIA-Carillanca.</p>
+
+      <div class="campo-capas-suelo" style="margin:0 0 0.9rem; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:0.7rem 0.9rem;">
+        <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:0.85rem; cursor:pointer;">
+          <input type="checkbox" id="{{ p }}capas_chk" onchange="toggleCapas('{{ p }}')" {% if agro.capas_suelo %}checked{% endif %}>
+          Desglose de Humedad Aprovechable por capas de suelo
+          <span class="text-muted" style="font-weight:400; font-size:0.78rem;">reemplaza CC/PMP/Da/Prof. de arriba si se activa</span>
+        </label>
+        <div id="{{ p }}capas_box" style="display:{{ 'block' if agro.capas_suelo else 'none' }}; margin-top:0.6rem;">
+          <div id="{{ p }}capas_list"></div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="agregarCapa('{{ p }}')">+ Agregar capa</button>
+          <div id="{{ p }}capas_total" class="text-muted" style="font-size:0.8rem; margin-top:0.5rem;"></div>
+        </div>
+      </div>
+      <script>window["{{ p }}capasIniciales"] = {{ (agro.capas_suelo or []) | tojson }};</script>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
       <div class="agro-grid">
@@ -693,6 +707,92 @@
     if (!calculado || declarado === null) return false;
     return Math.abs(calculado - declarado) / calculado * 100 > tolPct;
   }
+
+  // ── Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete) ──
+  // Duplica SUELO_DEFAULT_POR_TEXTURA de calculos_riego.py — si se corrige allá, replicar acá.
+  var SUELO_DEFAULT_POR_TEXTURA = {
+    franco_arenoso:   { cc: 14, pmp: 6,  da: 1.50 },
+    franco:           { cc: 22, pmp: 10, da: 1.40 },
+    franco_limoso:    { cc: 20, pmp: 10, da: 1.30 },
+    franco_arcilloso: { cc: 27, pmp: 13, da: 1.35 },
+    arcilloso:        { cc: 35, pmp: 17, da: 1.25 },
+  };
+  var estadoCapas = {};
+  window.toggleCapas = function(p) {
+    var chk = document.getElementById(p + "capas_chk");
+    var box = document.getElementById(p + "capas_box");
+    box.style.display = chk.checked ? "block" : "none";
+    if (chk.checked && (!estadoCapas[p] || !estadoCapas[p].length)) {
+      window.agregarCapa(p);
+    } else {
+      recalcAgroSistema(p);
+    }
+  };
+  window.agregarCapa = function(p) {
+    if (!estadoCapas[p]) estadoCapas[p] = [];
+    estadoCapas[p].push({ desde: "", hasta: "", tex: "", cc: "", pmp: "", da: "" });
+    renderCapas(p);
+  };
+  window.eliminarCapa = function(p, i) {
+    estadoCapas[p].splice(i, 1);
+    renderCapas(p);
+  };
+  window.actualizarCapa = function(p, i, campo, valor) {
+    var capa = estadoCapas[p][i];
+    capa[campo] = valor;
+    if (campo === "tex" && SUELO_DEFAULT_POR_TEXTURA[valor]) {
+      var d = SUELO_DEFAULT_POR_TEXTURA[valor];
+      capa.cc = d.cc; capa.pmp = d.pmp; capa.da = d.da;
+    }
+    renderCapas(p);
+  };
+  function renderCapas(p) {
+    var cont = document.getElementById(p + "capas_list");
+    if (!cont) return;
+    var capas = estadoCapas[p] || [];
+    cont.innerHTML = capas.map(function(c, i) {
+      var texOpts = ['<option value="">Textura —</option>'].concat(
+        Object.keys(SUELO_DEFAULT_POR_TEXTURA).map(function(k) {
+          var label = { franco_arenoso: "Franco-Arenoso", franco: "Franco", franco_limoso: "Franco-Limoso",
+                        franco_arcilloso: "Franco-Arcilloso", arcilloso: "Arcilloso" }[k];
+          return '<option value="' + k + '"' + (c.tex === k ? ' selected' : '') + '>' + label + '</option>';
+        })
+      ).join("");
+      return '<div style="display:flex; gap:0.35rem; align-items:center; margin-bottom:0.3rem; flex-wrap:wrap;">' +
+        '<span style="font-weight:700; font-size:0.8rem; width:1.2rem;">' + (i + 1) + '</span>' +
+        '<input type="number" step="1" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
+        '<input type="number" step="1" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
+        '<select style="width:150px;" name="' + p + 'capa' + i + '_tex" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'tex\',this.value)">' + texOpts + '</select>' +
+        '<input type="number" step="0.1" placeholder="CC (%)" value="' + c.cc + '" style="width:75px;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
+        '<input type="number" step="0.1" placeholder="PMP (%)" value="' + c.pmp + '" style="width:75px;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
+        '<input type="number" step="0.01" placeholder="Da (g/cc)" value="' + c.da + '" style="width:80px;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
+        '<button type="button" class="btn-elim-tramo" style="display:inline; margin:0;" onclick="eliminarCapa(\'' + p + '\',' + i + ')">× eliminar</button>' +
+      '</div>';
+    }).join("");
+    recalcAgroSistema(p);
+  }
+  function calcAdCapas(p) {
+    if (!(document.getElementById(p + "capas_chk") || {}).checked) return null;
+    var capas = estadoCapas[p] || [];
+    var total = document.getElementById(p + "capas_total");
+    var adTotal = 0, profTotal = 0, huboValida = false, detalle = [];
+    capas.forEach(function(c) {
+      var desde = parseFloat(c.desde), hasta = parseFloat(c.hasta),
+          cc = parseFloat(c.cc), pmp = parseFloat(c.pmp), da = parseFloat(c.da);
+      if (!isFinite(desde) || !isFinite(hasta) || !isFinite(cc) || !isFinite(pmp) || !isFinite(da)) return;
+      if (hasta <= desde || cc <= pmp) return;
+      var altura = (hasta - desde) * 10;
+      var haCapa = (cc - pmp) / 100 * da * altura;
+      adTotal += haCapa; profTotal += (hasta - desde); huboValida = true;
+      detalle.push("Capa " + (detalle.length + 1) + ": Altura=" + fmt(altura, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
+    });
+    if (total) {
+      total.textContent = huboValida
+        ? "AD total = " + fmt(adTotal, 2) + " mm (" + fmt(profTotal, 0) + " cm) — " + detalle.join(" · ")
+        : "Complete al menos una capa (Desde < Hasta, CC > PMP) para calcular.";
+    }
+    return huboValida ? adTotal : null;
+  }
   // Espaciamiento entre franjas del carrete según viento — tabla INIA-Carillanca (Cuadro 1),
   // mismo criterio del Diseñador de Riego. Duplica `_pct_espaciamiento_viento` de calculos_riego.py.
   function pctEspaciamientoViento(vv) {
@@ -767,6 +867,10 @@
     // (agrupados en el HTML, se ven/ocultan juntos) para que la tarjeta no quede con campos que
     // no aplican ni pueden bloquear el cálculo (modelo calcGA del Diseñador).
     wrap.querySelectorAll(".campo-suelo").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
+    // Desglose de Humedad Aprovechable por capas de suelo — solo Aspersión y Carrete (v119 del
+    // Diseñador de Riego no lo ofrece en Goteo ni Microaspersión).
+    var esAspersionOCarrete = sistema === "Aspersión" || sistema === "Carrete";
+    wrap.querySelectorAll(".campo-capas-suelo").forEach(function(el) { el.style.display = esAspersionOCarrete ? "" : "none"; });
     // Filas AD/Dn — solo tienen sentido en el modelo con agotamiento (Aspersión/Microaspersión/
     // Carrete). En Goteo (alta frecuencia) nunca se calculan (Db sale directo de la ETc, sin
     // pasar por AD→Dn) — mantenerlas visibles mostrando "—" confundía más que ayudaba. Mismo
@@ -955,10 +1059,20 @@
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
 
+    // Desglose por capas de suelo activo y con al menos una capa válida: reemplaza AD de capa
+    // única — CC/PMP/Da/Prof. radicular dejan de ser obligatorios (igual que en Goteo).
+    var adCapas = esAspersionOCarrete ? calcAdCapas(p) : null;
+    var usaCapas = adCapas !== null;
+
     // En goteo (alta frecuencia) Db sale directo de ETc/Ef — CC/PMP/Da/Prof. radicular NO
     // entran en esa cuenta, solo alimentan AD (dato informativo que en goteo ni se usa ni se
-    // muestra), así que no deben bloquear el cálculo si faltan.
-    var base = esGoteo ? [kc, eto, ef] : [cc, pmp, da, prof, kc, eto, fa, ef];
+    // muestra), así que no deben bloquear el cálculo si faltan. Con capas de suelo activas
+    // tampoco son obligatorios (el override de AD los hace innecesarios), pero sí se sigue
+    // necesitando el Criterio de Riego (fa) para Dn = AD × fa.
+    var base;
+    if (esGoteo) base = [kc, eto, ef];
+    else if (usaCapas) base = [kc, eto, fa, ef];
+    else base = [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-fr-calc", "agro-db-calc",
        "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
@@ -968,13 +1082,16 @@
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
       setText(p + "agro-hint", esGoteo
         ? "Completa Kc, ETo y Eficiencia para ver el recálculo."
+        : esAspersionOCarrete && (document.getElementById(p + "capas_chk") || {}).checked
+        ? "Completa al menos una capa de suelo válida (o Kc/ETo/Criterio de Riego/Eficiencia) para ver el recálculo."
         : "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Criterio de Riego, Eficiencia) para ver el recálculo.");
       return;
     }
     setText(p + "agro-hint", "");
 
     var etc = eto * kc;
-    var ad = (cc !== null && pmp !== null && da !== null && prof !== null)
+    var ad = usaCapas ? adCapas
+      : (cc !== null && pmp !== null && da !== null && prof !== null)
       ? (cc - pmp) / 100 * da * (prof / 100) * 1000 : null;
     var dn, fr, frAdj, dnAdj, db;
     if (esGoteo) {
@@ -1349,7 +1466,20 @@
   }
 
   var formAgro = document.getElementById("form-agro");
-  if (formAgro) { formAgro.addEventListener("input", recalcAgro); recalcAgro(); }
+  if (formAgro) {
+    for (var _ic = 0; _ic < N_SISTEMAS; _ic++) {
+      var _pc = "s" + _ic + "_";
+      var _iniciales = window[_pc + "capasIniciales"];
+      if (_iniciales && _iniciales.length) {
+        estadoCapas[_pc] = _iniciales.map(function(c) {
+          return { desde: c.desde_cm, hasta: c.hasta_cm, tex: c.textura || "",
+                   cc: c.cc_pct, pmp: c.pmp_pct, da: c.da };
+        });
+        renderCapas(_pc);
+      }
+    }
+    formAgro.addEventListener("input", recalcAgro); recalcAgro();
+  }
   var formHid = document.getElementById("form-hid");
   if (formHid) { formHid.addEventListener("input", recalcHidraulico); recalcHidraulico(); for (var _i = 0; _i < N_SISTEMAS; _i++) { initTramos("s" + _i + "_"); } }
   var formFV = document.getElementById("form-fv");

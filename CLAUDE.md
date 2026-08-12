@@ -95,7 +95,7 @@ database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLo
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
 templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
-static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v114.html
+static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v119.html
                  (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v15.html
                  (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
 ```

@@ -70,9 +70,55 @@ def evaluar_tramo(q_ls: float, d_mm: float, l_m: float = None, c: float = None) 
 
 # ── Agronómico: cadena ETo → ETc → AD → Dn → Fr → Db ────────────────────────
 
+# Suelo por defecto (CC/PMP/Da) según textura — mismo criterio del Diseñador de Riego (v119,
+# desglose de Humedad Aprovechable por capas): valores referenciales para autocompletar una
+# capa al elegir su textura. El revisor puede sobrescribirlos si el expediente trae análisis
+# de suelo propio.
+SUELO_DEFAULT_POR_TEXTURA = {
+    "franco_arenoso":   {"cc": 14, "pmp": 6,  "da": 1.50},
+    "franco":           {"cc": 22, "pmp": 10, "da": 1.40},
+    "franco_limoso":    {"cc": 20, "pmp": 10, "da": 1.30},
+    "franco_arcilloso": {"cc": 27, "pmp": 13, "da": 1.35},
+    "arcilloso":        {"cc": 35, "pmp": 17, "da": 1.25},
+}
+
+
+def ad_por_capas(capas: list) -> dict:
+    """Agua Disponible (AD) total del suelo a partir de un desglose por capas — mismo criterio
+    que el Diseñador de Riego (v119, checkbox "Desglose de Humedad Aprovechable por capas de
+    suelo", disponible en Aspersión y Carrete). Reemplaza el cálculo de capa única (CC/PMP/Da/
+    Prof. radicular uniforme) cuando el consultor declara horizontes de suelo distintos.
+
+    Por capa: Altura[mm] = (Hasta − Desde)[cm] × 10
+              Ha_capa[mm] = (CC − PMP)/100 × Da × Altura
+    AD total = Σ Ha_capa
+
+    `capas`: lista de {"desde_cm", "hasta_cm", "cc_pct", "pmp_pct", "da"}. Una capa con datos
+    incompletos, Hasta≤Desde o CC≤PMP se descarta silenciosamente (mismo criterio de validación
+    que el Diseñador — nunca calcula con una capa a medio llenar). Devuelve {} si no queda
+    ninguna capa válida."""
+    validas = []
+    ad_total = 0.0
+    prof_total = 0.0
+    for c in (capas or []):
+        desde, hasta = c.get("desde_cm"), c.get("hasta_cm")
+        cc, pmp, da = c.get("cc_pct"), c.get("pmp_pct"), c.get("da")
+        if None in (desde, hasta, cc, pmp, da) or hasta <= desde or cc <= pmp:
+            continue
+        altura = (hasta - desde) * 10
+        ha_capa = (cc - pmp) / 100 * da * altura
+        validas.append({**c, "altura_mm": round(altura, 1), "ha_capa_mm": round(ha_capa, 2)})
+        ad_total += ha_capa
+        prof_total += (hasta - desde)
+    if not validas:
+        return {}
+    return {"capas": validas, "ad_total_mm": round(ad_total, 2), "prof_total_cm": round(prof_total, 1)}
+
+
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
                       kc: float, eto_dia_mm: float, factor_agotamiento_pct: float,
-                      eficiencia_pct: float, alta_frecuencia: bool = False) -> dict:
+                      eficiencia_pct: float, alta_frecuencia: bool = False,
+                      ad_mm_override: float = None) -> dict:
     """Recalcula la demanda agronómica con la misma cadena que usa el Diseñador de Riego.
 
     ETc = ETo × Kc, siempre. Después hay DOS modelos según el sistema de riego:
@@ -92,9 +138,15 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
 
     `factor_agotamiento_pct` se ignora cuando `alta_frecuencia=True` (puede venir None). AD se
     calcula igual (dato informativo) si están CC/PMP/Da/Prof; si falta alguno, queda None.
+
+    `ad_mm_override`: si se pasa (típicamente el `ad_total_mm` de `ad_por_capas()`), reemplaza
+    el cálculo de AD de capa única — Aspersión/Carrete con desglose de suelo por capas (v119
+    del Diseñador). CC/PMP/Da/Prof dejan de ser necesarios en ese caso.
     """
     etc = eto_dia_mm * kc
-    if None not in (cc_pct, pmp_pct, da, prof_cm):
+    if ad_mm_override is not None:
+        ad = ad_mm_override
+    elif None not in (cc_pct, pmp_pct, da, prof_cm):
         ad = (cc_pct - pmp_pct) / 100 * da * (prof_cm / 100) * 1000
     else:
         ad = None

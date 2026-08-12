@@ -272,13 +272,7 @@
   <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.85rem;">
     <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
     <span style="width:1px; height:18px; background:var(--border); margin:0 0.2rem;"></span>
-    {% if proyecto.tipo_revision == 'tecnica' %}
-      <span class="badge badge-tecnica">Tipo revisión: Técnica</span>
-    {% else %}
-      <span class="badge badge-legal">Tipo revisión: Legal</span>
-    {% endif %}
-    <!-- Badge estado con color dinámico -->
-    <span class="badge {{ proyecto.estado | estado_badge }}">{{ proyecto.estado }}</span>
+    <span class="text-muted">Costo API:</span>
     {% include "_costo_api.html" %}
     <span style="flex:1;"></span>
     <a href="/proyecto/{{ proyecto.id }}/consultar" class="btn btn-outline btn-sm">Consultas</a>
@@ -340,19 +334,6 @@
   <a href="/admin/concursos/{{ concurso_id }}{% if not concurso %}?crear=1{% endif %}"
      style="margin-left:auto; font-size:0.82rem; color:#c05621; text-decoration:underline; white-space:nowrap;">
     Configurar bases →
-  </a>
-  {% endif %}
-</div>
-{% else %}
-<div style="background:#f0fff4; border:1px solid #68d391; border-radius:6px; padding:0.5rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-  <span style="font-size:0.85rem; color:#276749;">
-    Concurso <strong>{{ concurso_id }}</strong> — bases cargadas
-    ({{ concurso.bases_texto | length }} caracteres)
-  </span>
-  {% if user.rol == 'admin' %}
-  <a href="/admin/concursos/{{ concurso_id }}"
-     style="margin-left:auto; font-size:0.82rem; color:#276749; text-decoration:underline; white-space:nowrap;">
-    Editar bases →
   </a>
   {% endif %}
 </div>
