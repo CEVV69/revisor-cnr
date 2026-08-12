@@ -1,3 +1,56 @@
+## Sesión ago-2026 — auditoría export→import Diseñador v119: 2 bugs más + 1 pendiente
+
+Tras el fix del array (ver sección de abajo), el usuario reportó 3 problemas más al probar la
+importación real y pidió auditoría completa. Resultado:
+
+**(a) Capas de suelo: CC/PMP/Da llegaban con los valores por defecto de la textura, no los reales.**
+Causa en `restoreFieldData()` (`static/disenador_riego_v119.html`): al restaurar cada capa,
+`addCapaA`/`addCapaC` ya dejaban CC/PMP/Da correctos (los del archivo importado), pero el código
+además hacía `sel.value = cp.tex` seguido de `sel.dispatchEvent(new Event('change'))` sobre el
+`<select>` de textura — y el `onchange` de ese `<select>` (definido en `_capaRowHTML`, línea
+~2404) autocompleta CC/PMP/Da con una tabla `SDB_` fija por textura, pisando los valores reales
+que se acababan de restaurar. Fix: fijar `sel.value` sin disparar `change`.
+
+**(b) Datos de Chequeo Fotovoltaico no aparecían al abrir el archivo.** Causa: los campos
+`<pfx>-fv-*` (pkw, hbom, hsp, fp, wp, vmp, imp, ct, temp, einv, vsis) NO existen en el DOM hasta
+que el usuario responde "Sí, incluir FV" para ese sistema — es una compuerta por sistema
+(`dr_fv_include_<sys>` en localStorage) que por defecto es `null` en cualquier sesión/navegador
+nuevo del Diseñador. Si la compuerta no está en `true`, `renderFVUI()` muestra la pregunta en vez
+del formulario, así que esos elementos simplemente no existen y `restoreFieldData` los descarta en
+silencio (mismo patrón que (a): sin error, sin aviso). Fix: si el archivo trae algún dato `-fv-*`,
+forzar la compuerta a `true` y llamar `renderFVUI(sys)` ANTES del loop de restauración — y además
+llamar `saveFVData(sys)` después, porque `renderFVUI` reconstruye el formulario desde un caché
+propio (`dr_fv_<sys>`, formato de claves cortas: pkw/hbom/diasriego/hsp/... — DISTINTO del
+autoguardado general) cada vez que se revisita el paso 6 del asistente; sin este segundo paso, los
+valores importados se perderían la próxima vez que el usuario abra esa pestaña.
+
+Nota al margen (NO se tocó, no confirmado como causa del reporte): existen campos `-fv-cdt` y
+`-fv-qm3` en el formulario FV del Diseñador (calculadora auxiliar de potencia de bomba) que ni
+siquiera están en `FIELD_IDS`, así que nunca se restauran vía import — pero como Revisor ya manda
+`fv-pkw` directo (el dato definitivo), esto es a lo sumo un dato de conveniencia perdido, no la
+causa de "no aparecen los datos FV". Los datos equivalentes existen en Revisor bajo `hidraulico`
+(`amt_declarada_m`, `caudal_bombeo_ls`) pero `exportar_disenador.construir()` ni siquiera los
+recibe hoy (main.py solo le pasa la lista de tramos, no el dict completo). Pendiente de decidir si
+vale la pena, no es prioritario.
+
+**(c) Matriz/Terciaria/Lateral (Goteo/Microaspersión) NO exporta — pendiente, no resuelto.**
+`_clasificar_tramos_jerarquico()` en `exportar_disenador.py` exige que el campo `nombre` de cada
+tramo hidráulico de Revisor contenga un alias reconocido (matriz/principal, terciaria/secundaria/
+submatriz, lateral/portagotero/portaemisor/regante) Y que sea el ÚNICO tramo que calce con ese
+nivel — si hay cero o dos-o-más tramos con el mismo nivel, ese nivel no se exporta (deliberado:
+"mejor no exportar que adivinar mal", ver docstring del módulo). Dos causas posibles, sin poder
+confirmar cuál aplica sin ver el proyecto real del usuario:
+  1. El campo `nombre` de sus tramos de Goteo no usa ninguno de esos alias (ej. quedó con el
+     default "Tramo 1"/"Tramo 2"/"Tramo 3" que pone main.py cuando no se completa).
+  2. Tiene más de un tramo por nivel (ej. varios tramos "Lateral" — uno por sector — en vez de un
+     valor representativo único), lo que dispara la regla de ambigüedad.
+  Ninguna de las dos se corrige adivinando (violaría la regla "NUNCA se inventan valores" del
+  módulo) — queda pendiente preguntarle al usuario cuál es su caso antes de decidir el fix: ¿ampliar
+  los alias, o pedirle un criterio de desempate cuando hay varios tramos por nivel (¿el primero?
+  ¿el de mayor diámetro? ¿sumar longitudes?).
+
+---
+
 ## Sesión ago-2026 — fix import Diseñador de Riego v119 (array multi-sistema)
 
 Bug reportado: exportar un proyecto de Revisor CNR con más de un sistema declarado (ej. Goteo +

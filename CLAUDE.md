@@ -43,30 +43,32 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 **Pendiente de verificar/decidir por el usuario (próxima sesión):**
 
-1. **Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete) — recién
-   implementado, falta probar con un proyecto real.** Sigue la actualización del Diseñador de
-   Riego v119 (checkbox "reemplaza CC/PMP/Da/Prof." en el Chequeo Agronómico). Verificado con
-   números de prueba (`ad_por_capas()` en calculos_riego.py) pero no en la app real — confirmar
-   que el checkbox, el autocompletado por textura y el recálculo en vivo se comporten bien.
+1. **Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete):** falta confirmar en
+   un proyecto real que el checkbox, autocompletado por textura y recálculo en vivo funcionen bien
+   (verificado solo con números de prueba, `ad_por_capas()` en calculos_riego.py).
 
 2. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Detalle
    y bug ya corregido en `docs/historial_sesiones.md`. Pendiente decidir: ¿verificar con el
    expediente real que el consultor no muestra el desarrollo, o relajar el criterio de estrictez?
 
-3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
-   hasta 31-08-2026). El usuario evalúa mover ítems de texto a Sonnet 4.6 y dejar Sonnet 5 solo
-   para ítems con visión (planos). Datos: Sonnet 5 piensa por defecto (adaptativo), Sonnet 4.6 no
-   piensa; Sonnet 5 tiene mayor resolución de visión (2576px vs 1568px). Esperando decisión.
+3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promo hasta 31-08-2026). Evalúa
+   mover ítems de texto a 4.6 y dejar Sonnet 5 solo para visión (mayor resolución: 2576px vs
+   1568px). Esperando decisión del usuario.
 
 4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
    sectores sin respaldo). El usuario lo va a verificar con un proyecto nuevo para confirmar si el
    comportamiento mejoró.
 
-5. **Export→Import Revisor CNR → Diseñador v119, recién corregido — falta probar en la app real.**
-   `importProject()` no sabía leer el ARRAY que exporta Revisor cuando el proyecto declara más de
-   un sistema (ej. Goteo+Aspersión) — no cargaba ningún dato. Ahora también exporta las capas de
-   suelo (`__capasA`/`__capasC`), que antes no viajaban. Detalle en `docs/historial_sesiones.md`.
-   Confirmar que ahora sí importa todo (incluidas las capas), combinado y sistema único (Carrete).
+5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
+   (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
+   `<select>` de textura disparaba 'change' al restaurar y pisaba CC/PMP/Da reales con los default
+   de la textura; (c) datos FV se descartaban en silencio si la compuerta "¿Incluye FV?" del
+   Diseñador no estaba en "Sí". Detalle en `docs/historial_sesiones.md`. Confirmar los 3 en la app.
+   **Pendiente sin resolver:** Matriz/Terciaria/Lateral de Goteo/Microaspersión no exportan si el
+   campo `nombre` del tramo en Revisor no calza con los alias (`matriz`/`principal`, etc.) o si hay
+   2+ tramos con el mismo nivel (ambiguo, ver `_clasificar_tramos_jerarquico` en
+   `exportar_disenador.py`) — falta confirmar con el usuario cuál de los dos casos aplica a su
+   proyecto real antes de decidir el fix (no se debe adivinar por posición).
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
