@@ -447,7 +447,9 @@
       <p class="text-muted" style="font-size:0.78rem; margin-top:0.5rem;">
         Para exportar al Diseñador de Riego: el tramo cuyo nombre contenga "Matriz"/"Principal",
         "Terciaria"/"Secundaria"/"Submatriz" o "Lateral"/"Portagotero"/"Portaemisor"/"Regante" se
-        reconoce automáticamente como ese nivel — un solo tramo por nivel, sin ambigüedad.
+        reconoce automáticamente como ese nivel. Matriz y Terciaria deben ser un único tramo (dos
+        o más con el mismo nombre no se exporta, es ambiguo); Lateral admite varios — se exporta
+        el más largo (Longitud), el lateral crítico.
       </p>
       {% endif %}
       <button type="button" id="{{ sp }}btn-agregar" onclick="agregarTramo('{{ sp }}')"
