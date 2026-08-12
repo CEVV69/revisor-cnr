@@ -1406,3 +1406,70 @@ después de su confirmación explícita).
 
 ---
 
+## Revisor Fotovoltaico v15 + Diseñador v119 + capas de suelo + limpieza UI (ago-2026)
+
+**1. Revisor Fotovoltaico actualizado a v15 (`fotovoltaico_riego_v9.html` se mantiene sin
+borrar).** El usuario subió el JSON real que había exportado con la v9 vieja y notó que la v15
+agrega dos campos nuevos al formato de intercambio: `bombeo.caudalDisenoLs` y
+`bombeo.verificacionKc`.
+- `caudalDisenoLs`: confirmado por lectura directa del HTML fuente (`aplicarProyectoJSON`/
+  `construirProyectoJSON`) que corresponde 1:1 a `agro.declarado.caudal_diseno_ls` — un campo que
+  YA existe en el Chequeo Agronómico (comparado ahí contra el caudal de operación calculado, no
+  es nuevo). Se agregó a `exportar_para_revisor_fv()` en main.py. **Con 2 sistemas de riego se
+  exporta el caudal MAYOR entre ambos** (pedido explícito del usuario en el mismo hilo: "usar
+  siempre el Caudal mayor, porque es el que más exige" — la bomba única del proyecto debe cubrir
+  el caso más exigente).
+- `verificacionKc` (estación DGA + cultivos con trimestre/método/superficie): es el panel de
+  verificación de horas de riego por Kc mensual que el Revisor FV agregó siguiendo las
+  instrucciones que se le dieron la sesión anterior (ver sección de arriba, "Fix comparación FV +
+  intento fallido...") — es estado propio de ESA app (el revisor lo tipea directo ahí), no un
+  dato que Revisor CNR extraiga de documentos. Confirmado que NO corresponde exportarlo desde
+  acá — coherente con la decisión de la sesión anterior de que ese tipo de verificación
+  multi-cultivo es dominio del Revisor Fotovoltaico.
+
+**2. Diseñador de Riego actualizado a v112→v119** (`disenador_riego_v114.html` se mantiene sin
+borrar, mismo patrón). Referencias de versión actualizadas en `calculos.html`,
+`exportar_disenador.py`, `main.py` (comentarios/docstrings).
+
+**3. Desglose de Humedad Aprovechable por capas de suelo — Aspersión y Carrete.** El usuario pidió
+"ver si se puede implementar" una funcionalidad nueva del Diseñador v119: en vez de un CC/PMP/Da/
+Prof. radicular uniforme para todo el perfil de suelo, permite declarar varias capas (horizontes)
+con su propia textura/CC/PMP/Da, y el AD total sale de sumar el aporte de cada capa. Confirmado
+por diff línea a línea entre v114 y v119 que el feature es EXCLUSIVO de Aspersión y Carrete (no
+Goteo, que ya no usa AD en absoluto desde antes; no Microaspersión, que no lo recibió).
+- `calculos_riego.py`: `SUELO_DEFAULT_POR_TEXTURA` (5 texturas → CC/PMP/Da referenciales, mismos
+  valores que la tabla `SDB` del Diseñador) y `ad_por_capas(capas)` — por capa, Altura[mm] =
+  (Hasta−Desde)×10, Ha_capa = (CC−PMP)/100×Da×Altura; AD total = Σ Ha_capa. Capas con datos
+  incompletos, Hasta≤Desde o CC≤PMP se descartan silenciosamente (mismo criterio del Diseñador:
+  nunca calcula con una capa a medio llenar).
+- `cadena_agronomica()` gana `ad_mm_override` — si se pasa, reemplaza el cálculo de AD de capa
+  única sin tocar el resto de la cadena (Dn=AD×fa, Fr=Dn/ETc, etc., todas iguales).
+- `main.py`: `_agronomico_calculo()` detecta `capas_suelo` válidas (solo si `sistema_riego` es
+  Aspersión o Carrete) y relaja el requisito de CC/PMP/Da/Prof. radicular — mismo patrón que ya
+  existía para Goteo (alta frecuencia). `calculos_guardar_agronomico()` persiste hasta
+  `N_CAPAS_SUELO = 6` capas por sistema (mismo tope que `N_TRAMOS_HIDRAULICOS`).
+- `calculos.html`: checkbox "Desglose de Humedad Aprovechable por capas de suelo" (mismo texto
+  que el Diseñador) que revela filas agregar/eliminar por capa (Desde/Hasta/Textura/CC/PMP/Da),
+  con la textura autocompletando CC/PMP/Da — mismo patrón de UI que los tramos hidráulicos
+  (`agregarCapa`/`eliminarCapa`/`renderCapas`, con `name` attrs en los inputs generados por JS
+  para que viajen con el submit normal del form, sin campos ocultos duplicados). El recálculo en
+  vivo (`recalcAgroSistema`) usa `calcAdCapas(p)` para obtener el AD desde las capas cuando el
+  checkbox está activo, y solo entonces relaja el `base` (lista de campos obligatorios) para no
+  exigir CC/PMP/Da/Prof. Verificado con `node --check` sobre el bloque `<script>` completo y un
+  render Jinja end-to-end (checkbox `checked`, caja `display:block`, JSON de hidratación) antes
+  de pushear.
+- **Nota para revisar en próxima sesión:** implementado y verificado con datos de prueba
+  (aritmética + render), pero aún no probado por el usuario con un proyecto real.
+
+**4. Limpieza de UI en `proyecto.html`** (pedido explícito, "son redundantes y no aportan"):
+- Los badges "Tipo revisión: Técnica/Legal" y el badge de estado (`{{ proyecto.estado }}`) que
+  aparecían antes del widget de costo se eliminaron — el badge de estado duplicaba al botón de
+  estado (`● En revisión ▾`) que ya está más a la derecha en la misma fila y además permite
+  cambiarlo, así que no se perdió información. Reemplazados por un texto simple "Costo API:".
+- La franja verde "Concurso xxx — bases cargadas (N caracteres)" se eliminó (esa info ya está en
+  la pestaña de Concurso). Se mantuvo la franja naranja de advertencia cuando el concurso NO
+  tiene bases cargadas — esa sí es información accionable (los análisis no podrán verificar
+  cumplimiento de bases), no redundante.
+
+---
+

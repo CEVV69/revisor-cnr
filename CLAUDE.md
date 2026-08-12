@@ -36,37 +36,39 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-**Pendiente de decidir por el usuario (próxima sesión):**
+**Pendiente de verificar/decidir por el usuario (próxima sesión):**
 
-1. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Se
+1. **Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete) — recién
+   implementado, falta probar con un proyecto real.** Sigue la actualización del Diseñador de
+   Riego v119 (checkbox "reemplaza CC/PMP/Da/Prof." en el Chequeo Agronómico). Verificado con
+   números de prueba (`ad_por_capas()` en calculos_riego.py) pero no en la app real — confirmar
+   que el checkbox, el autocompletado por textura y el recálculo en vivo se comporten bien.
+
+2. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Se
    corrigió un bug real (clave de documentos equivocada, ver `docs/historial_sesiones.md`), pero
    el usuario probó y la mayoría de los ítems FV siguen saliendo vacíos. Es esperable si el
    consultor no muestra el desarrollo del cálculo (el prompt es deliberadamente estricto: no
    inventa fórmulas). Pendiente decidir: ¿verificar con el expediente real que efectivamente no
    muestra el desarrollo, o relajar el criterio de estrictez del prompt?
 
-2. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
+3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promocional USD 2/10 por MTok
    hasta 31-08-2026). El usuario evalúa mover ítems de texto a Sonnet 4.6 y dejar Sonnet 5 solo
    para ítems con visión (planos). Datos: Sonnet 5 piensa por defecto (adaptativo), Sonnet 4.6 no
    piensa; Sonnet 5 tiene mayor resolución de visión (2576px vs 1568px). Esperando decisión.
 
-3. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
+4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
    sectores sin respaldo). El usuario lo va a verificar con un proyecto nuevo para confirmar si el
    comportamiento mejoró.
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
-anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — no se pudo
-esta sesión porque esos cálculos dependen del perfil solar horario del predio, que solo vive
-dentro del propio Revisor Fotovoltaico (`static/fotovoltaico_riego_v15.html`), importado desde el
-Explorador Solar. Revisar si hay forma de traer ese dato a Revisor CNR antes de intentarlo de
-nuevo.
+anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
+porque esos cálculos dependen del perfil solar horario del predio, que solo vive dentro del propio
+Revisor Fotovoltaico (`static/fotovoltaico_riego_v15.html`), importado desde el Explorador Solar.
 
-**Fuera de alcance de Revisor CNR (confirmado esta sesión):** cualquier verificación que necesite
-combinar cultivos vía Kc mensual (ej. corroborar "horas de riego por mes" reconstruyendo la
-demanda agronómica) pertenece al **Revisor Fotovoltaico**, no a esta app — su chequeo FV trabaja
-con un solo valor diario promedio, no con un motor agronómico multi-cultivo. Se armó, se implementó
-por error acá, y se revirtió por completo (ver `docs/historial_sesiones.md`). El usuario tiene las
-instrucciones para pedirlo en el chat de esa otra app.
+**Fuera de alcance de Revisor CNR:** cualquier verificación que combine cultivos vía Kc mensual (ej.
+"horas de riego por mes" reconstruyendo la demanda agronómica) pertenece al **Revisor
+Fotovoltaico**, no a esta app — su chequeo FV trabaja con un solo valor diario promedio, no con un
+motor agronómico multi-cultivo (ver `docs/historial_sesiones.md`).
 
 ---
 
