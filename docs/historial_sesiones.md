@@ -1471,5 +1471,12 @@ Goteo, que ya no usa AD en absoluto desde antes; no Microaspersión, que no lo r
   tiene bases cargadas — esa sí es información accionable (los análisis no podrán verificar
   cumplimiento de bases), no redundante.
 
+**5. Ajuste visual de la fila de capas de suelo (mismo día, follow-up):** el usuario pidió que
+cada capa quede en una sola línea sin comprimirse (`flex-wrap:nowrap` + `flex-shrink:0` en cada
+campo, `overflow-x:auto` de respaldo en el contenedor), el botón de eliminar solo con el símbolo
+"×" (antes "× eliminar"), el `<select>` de textura al ancho de su opción más larga ("Franco-
+Arcilloso", 150→165px) y los campos CC/PMP/Da un 33% más angostos (75→50px, 75→50px, 80→53px,
+con placeholders acortados a "CC %"/"PMP %"/"Da" para que no se corten).
+
 ---
 
