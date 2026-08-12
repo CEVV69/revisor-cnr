@@ -24,8 +24,18 @@ fallaba en silencio (mismo síntoma, causa distinta).
 
 Verificado: nombres de campo (`g-*`/`a-*`/`c-*`) de `exportar_disenador.py` contra 3 archivos
 reales exportados DESDE el Diseñador v119 que el usuario adjuntó (Goteo, Aspersión y Carrete de
-proyectos reales/en curso) — coinciden. Pendiente: el usuario probar la exportación real desde
-Revisor CNR → import en el Diseñador, con el proyecto Goteo+Aspersión que motivó el reporte.
+proyectos reales/en curso) — coinciden.
+
+De paso, al revisar esos 3 archivos se notó que `exportar_disenador.py` NUNCA exportaba el
+Desglose de Humedad Aprovechable por capas de suelo (`capas_suelo` en Revisor → `__capasA`/
+`__capasC` en el Diseñador, mismo formato `{on, capas:[{desde,hasta,tex,cc,pmp,da}]}` confirmado
+contra el archivo de Aspersión adjuntado, que sí traía capas reales). Se agregó en `construir()`
+(solo Aspersión/Carrete, mismas claves de textura en ambas apps). Probado con
+`python3 -c "import exportar_disenador..."` (sin la app corriendo) — arma el dict esperado.
+
+Pendiente: el usuario probar la exportación real desde Revisor CNR → import en el Diseñador, con
+el proyecto Goteo+Aspersión que motivó el reporte, y confirmar que las capas de suelo también
+llegan cuando el sistema (Aspersión/Carrete) las tiene cargadas.
 
 ---
 

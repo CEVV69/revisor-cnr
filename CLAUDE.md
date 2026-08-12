@@ -64,8 +64,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 5. **Export→Import Revisor CNR → Diseñador v119, recién corregido — falta probar en la app real.**
    `importProject()` no sabía leer el ARRAY que exporta Revisor cuando el proyecto declara más de
-   un sistema (ej. Goteo+Aspersión) — no cargaba ningún dato. Detalle en `docs/historial_sesiones.md`.
-   Confirmar que ahora sí importa, combinado y sistema único (Carrete).
+   un sistema (ej. Goteo+Aspersión) — no cargaba ningún dato. Ahora también exporta las capas de
+   suelo (`__capasA`/`__capasC`), que antes no viajaban. Detalle en `docs/historial_sesiones.md`.
+   Confirmar que ahora sí importa todo (incluidas las capas), combinado y sistema único (Carrete).
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
