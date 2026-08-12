@@ -66,8 +66,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    Diseñador no estaba en "Sí". Detalle en `docs/historial_sesiones.md`. Confirmar los 3 en la app.
    Además: Matriz/Terciaria/Lateral de Goteo no exportaban porque el usuario dejó los tramos con
    nombre genérico ("Tramo 1"...) — no es bug, se agregó un aviso en el Chequeo Hidráulico
-   explicando la convención de nombres. El usuario debe renombrar sus tramos reales para que
-   funcione (Matriz/Terciaria/Lateral, o sus alias — ver `_ALIAS_TRAMO_JERARQUICO`).
+   explicando la convención de nombres (el usuario va a renombrar sus tramos reales). De paso se
+   agregó soporte para varios tramos "Lateral" (uno por sector, normal en Goteo): se exporta el
+   más largo (lateral crítico) en vez de descartar el nivel por ambigüedad.
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado

@@ -1,3 +1,23 @@
+## Sesión ago-2026 — Goteo: lateral crítico cuando hay varios tramos "Lateral"
+
+Seguimiento del punto (c) de la sesión anterior (Matriz/Terciaria/Lateral de Goteo sin exportar).
+El usuario confirmó que sus tramos quedaron con nombre genérico ("Tramo 1"...) — no era un bug de
+matching, así que el aviso agregado en `templates/calculos.html` (visible solo para Goteo/
+Microaspersión, junto a la tabla de tramos hidráulicos) es la solución: el usuario va a renombrar
+sus tramos reales usando las palabras clave.
+
+De paso, el usuario aclaró una regla de negocio nueva: puede haber VARIOS tramos "Lateral" (uno
+por sector/hilera — normal en Goteo, a diferencia de Matriz/Terciaria que son troncales únicos),
+y pidió exportar el "lateral crítico" = el más largo, para simplificar. Se implementó en
+`_clasificar_tramos_jerarquico()` (`exportar_disenador.py`): Matriz/Terciaria siguen exigiendo un
+único candidato (ambiguo con 2+ → no se exporta, sin cambios); Lateral con 2+ candidatos ahora
+exporta el de mayor `longitud_m`; si ninguno de los múltiples candidatos tiene longitud declarada,
+sigue sin poder determinar cuál es el crítico y no se exporta (mismo criterio de "nunca adivinar").
+Probado con 4 casos (`python3 -c "..."`, ver commit `fa3dec0`): 1 lateral, varios laterales con
+longitud, matriz ambigua, varios laterales sin longitud — los 4 se comportan como se espera.
+
+---
+
 ## Sesión ago-2026 — auditoría export→import Diseñador v119: 2 bugs más + 1 pendiente
 
 Tras el fix del array (ver sección de abajo), el usuario reportó 3 problemas más al probar la
