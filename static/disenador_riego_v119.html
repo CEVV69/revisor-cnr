@@ -3810,12 +3810,28 @@ function collectFieldData(sys) {
 // Restaura todos los campos desde un objeto de datos
 function restoreFieldData(sys, data) {
   if (!data) return;
+  // Los campos "-fv-*" solo existen en el DOM si ya se respondió "Sí, incluir FV" para este
+  // sistema (compuerta dr_fv_include_<sys>) — renderFVUI() recién los crea ahí. Si el archivo
+  // trae datos FV, forzamos la compuerta y renderizamos el formulario ANTES del loop de abajo;
+  // si no, esos campos "no existen" todavía y el loop los salta en silencio (se pierde el dato
+  // sin ningún aviso, igual que pasaba con las capas de suelo antes del fix de más abajo).
+  var fvIds = (FIELD_IDS[sys] || []).filter(function(id){ return id.indexOf('-fv-') !== -1; });
+  var trajoFV = fvIds.some(function(id){ return data[id] !== undefined; });
+  if (trajoFV) {
+    lsSet('dr_fv_include_' + sys, true);
+    renderFVUI(sys);
+  }
   (FIELD_IDS[sys] || []).forEach(function(id) {
     var el = document.getElementById(id);
     if (!el || data[id] === undefined) return;
     el.value = data[id];
     el.dispatchEvent(new Event('change'));
   });
+  // renderFVUI() reconstruye el formulario FV desde su propio caché (dr_fv_<sys>, distinto del
+  // autoguardado general) cada vez que se revisita el paso 6 del asistente — si no actualizamos
+  // ese caché también, la próxima vez que se abra ese paso se pierden los valores recién
+  // importados y vuelve a mostrar lo que hubiera guardado antes (o nada).
+  if (trajoFV && typeof saveFVData === 'function') saveFVData(sys);
   if (data.__tramos && data.__tramos.length > 0) {
     restoreTramos(sys === 'asp' ? 'a' : 'c', data.__tramos);
   }
@@ -3830,7 +3846,13 @@ function restoreFieldData(sys, data) {
       addFn(cp.desde, cp.hasta, cp.cc, cp.pmp, cp.da);
       var last = document.querySelectorAll('#'+pfx+'-capas-list > .capa-wrap');
       var lastCard = last[last.length - 1];
-      if (lastCard && lastCard.querySelector('.'+cls+'Tex')) lastCard.querySelector('.'+cls+'Tex').value = cp.tex || ''; if(lastCard) { var sel=lastCard.querySelector('.'+cls+'Tex'); if(sel && sel.tagName==='SELECT') sel.dispatchEvent(new Event('change')); }
+      // Solo se fija el valor mostrado del <select> de textura — SIN disparar 'change': ese
+      // evento dispara el autocompletado que sobrescribe CC/PMP/Da con los valores por defecto
+      // de la textura, pisando los valores reales que acabamos de restaurar desde addFn().
+      if (lastCard) {
+        var sel = lastCard.querySelector('.'+cls+'Tex');
+        if (sel) sel.value = cp.tex || '';
+      }
     });
     var chk = document.getElementById(pfx+'-capas-chk');
     if (chk) { chk.checked = !!data[key].on; (pfx==='a'?toggleCapasA:toggleCapasC)(); }
