@@ -64,11 +64,10 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    `<select>` de textura disparaba 'change' al restaurar y pisaba CC/PMP/Da reales con los default
    de la textura; (c) datos FV se descartaban en silencio si la compuerta "¿Incluye FV?" del
    Diseñador no estaba en "Sí". Detalle en `docs/historial_sesiones.md`. Confirmar los 3 en la app.
-   **Pendiente sin resolver:** Matriz/Terciaria/Lateral de Goteo/Microaspersión no exportan si el
-   campo `nombre` del tramo en Revisor no calza con los alias (`matriz`/`principal`, etc.) o si hay
-   2+ tramos con el mismo nivel (ambiguo, ver `_clasificar_tramos_jerarquico` en
-   `exportar_disenador.py`) — falta confirmar con el usuario cuál de los dos casos aplica a su
-   proyecto real antes de decidir el fix (no se debe adivinar por posición).
+   Además: Matriz/Terciaria/Lateral de Goteo no exportaban porque el usuario dejó los tramos con
+   nombre genérico ("Tramo 1"...) — no es bug, se agregó un aviso en el Chequeo Hidráulico
+   explicando la convención de nombres. El usuario debe renombrar sus tramos reales para que
+   funcione (Matriz/Terciaria/Lateral, o sus alias — ver `_ALIAS_TRAMO_JERARQUICO`).
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
