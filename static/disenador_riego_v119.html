@@ -4055,9 +4055,19 @@ function importProject(sys) {
     reader.onload = function(ev) {
       try {
         var obj = JSON.parse(ev.target.result);
-        var data = obj.fields || obj; // soportar ambos formatos
-        restoreFieldData(sys, data);
-        showToast('✓ Proyecto importado: ' + (obj.__name || 'sin nombre'));
+        // Un archivo puede traer UN sistema (objeto) o VARIOS (array, ej. Revisor CNR
+        // exportando un proyecto con Goteo + Aspersión en el mismo .json). Cada entrada se
+        // restaura con su propio __sys (no el de la pestaña abierta): los campos de los 4
+        // sistemas conviven en la misma página, así que un archivo con varios sistemas los
+        // carga todos de una vez sin importar en qué pestaña se hizo clic en "Abrir".
+        var entries = Array.isArray(obj) ? obj : [obj];
+        var nombres = [];
+        entries.forEach(function(entry) {
+          var data = entry.fields || entry; // soportar también el formato plano viejo
+          restoreFieldData(entry.__sys || sys, data);
+          nombres.push(entry.__name || 'sin nombre');
+        });
+        showToast('✓ Proyecto importado: ' + nombres.join(', '));
       } catch(err) {
         showToast('⚠ Error al leer el archivo: ' + err.message);
       }
