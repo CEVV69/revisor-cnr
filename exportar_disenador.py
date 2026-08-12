@@ -17,9 +17,11 @@ formatos según el sistema, confirmados leyendo el HTML fuente del Diseñador v1
   Longitud [m] + Diámetro interior [mm] + Material (C de Hazen-Williams) — ver
   `_ALIAS_TRAMO_JERARQUICO`/`_clasificar_tramos_jerarquico`. Se identifica CUÁL de los tramos de
   Revisor es cada nivel por el campo `nombre` (texto libre, editable por el revisor) — nunca por
-  posición ni por diámetro. Si el nombre no calza con ningún alias, o si calzan dos o más tramos
-  con el MISMO nivel (ambiguo), ese nivel simplemente no se exporta — el revisor corrige el
-  campo `nombre` si quiere que se reconozca, o completa el dato a mano en el Diseñador.
+  posición ni por diámetro. Si el nombre no calza con ningún alias, ese nivel simplemente no se
+  exporta — el revisor corrige el campo `nombre` si quiere que se reconozca, o completa el dato a
+  mano en el Diseñador. Matriz/Terciaria además exigen que el alias calce con un ÚNICO tramo (dos
+  o más es ambiguo → no se exporta); Lateral es la excepción porque es normal declarar varios
+  (uno por sector) — con 2+ laterales se exporta el "lateral crítico" (mayor `longitud_m`).
 
 El Desglose de Humedad Aprovechable por capas de suelo (checkbox "reemplaza CC/PMP/Da/Prof.",
 solo Aspersión/Carrete) se exporta como `__capasA`/`__capasC` — mismo formato que usa el propio
@@ -80,10 +82,17 @@ def _normalizar_nombre_tramo(nombre: str) -> str:
 
 def _clasificar_tramos_jerarquico(tramos: list) -> dict:
     """Devuelve {"matriz": tramo|None, "terciaria": tramo|None, "lateral": tramo|None} según el
-    campo `nombre` de cada tramo de `tramos` (la tabla de tramos hidráulicos de Revisor). Un
-    nivel queda en None (no se exporta) si NINGÚN tramo calza con sus alias, o si calzan DOS O
-    MÁS tramos con el mismo nivel — la clasificación nunca adivina, solo reconoce coincidencias
-    inequívocas."""
+    campo `nombre` de cada tramo de `tramos` (la tabla de tramos hidráulicos de Revisor).
+
+    Matriz y Terciaria: un nivel queda en None (no se exporta) si NINGÚN tramo calza con sus
+    alias, o si calzan DOS O MÁS — la clasificación nunca adivina entre varios candidatos.
+
+    Lateral: es el único nivel donde es normal y esperable declarar VARIOS tramos (uno por
+    sector/hilera), a diferencia de Matriz/Terciaria que son troncales únicos. Con 2+ candidatos
+    a "lateral" se exporta el "lateral crítico" — el de mayor `longitud_m` (criterio del usuario:
+    a mayor longitud, mayor pérdida de carga, así que es el más exigente para el dimensionamiento
+    del Diseñador). Si ninguno de los candidatos múltiples tiene longitud declarada, no se puede
+    determinar cuál es el crítico y el nivel queda en None (mismo criterio de no adivinar)."""
     candidatos = {"matriz": [], "terciaria": [], "lateral": []}
     for t in (tramos or []):
         nombre_norm = _normalizar_nombre_tramo(t.get("nombre"))
@@ -93,7 +102,20 @@ def _clasificar_tramos_jerarquico(tramos: list) -> dict:
             if any(a in nombre_norm for a in alias):
                 candidatos[nivel].append(t)
                 break   # un tramo se clasifica en un solo nivel (el primero que calce)
-    return {nivel: (lista[0] if len(lista) == 1 else None) for nivel, lista in candidatos.items()}
+
+    resultado = {
+        nivel: (lista[0] if len(lista) == 1 else None)
+        for nivel, lista in candidatos.items() if nivel != "lateral"
+    }
+    laterales = candidatos["lateral"]
+    if len(laterales) == 1:
+        resultado["lateral"] = laterales[0]
+    elif len(laterales) > 1:
+        con_longitud = [t for t in laterales if t.get("longitud_m") is not None]
+        resultado["lateral"] = max(con_longitud, key=lambda t: t["longitud_m"]) if con_longitud else None
+    else:
+        resultado["lateral"] = None
+    return resultado
 
 
 def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
