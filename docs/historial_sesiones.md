@@ -1,3 +1,18 @@
+## Sesión ago-2026 — nuevo campo: Presión Operación del Emisor (mca)
+
+Pedido del usuario: agregar "Presión Operación del Emisor" al Chequeo Agronómico, para TODOS los
+sistemas (no específico de Goteo/Aspersión/Carrete, a diferencia de VIB o el marco de plantación).
+Implementado como `presion_emisor_mca` en `templates/calculos.html` (junto a Eficiencia sistema),
+`main.py` (guardado + Memoria de Cálculo, siguiendo la regla nueva de CLAUDE.md #10), extracción
+por IA (`_extraer_datos_agronomicos`, con instrucción de convertir bar/kg·cm² a mca si el
+expediente usa otra unidad), y `exportar_disenador.py` — mapea a `a-pres`/`c-pres` (Aspersión/
+Carrete) o `g-pem`/`m-pem` (Goteo/Microaspersión) en el Diseñador de Riego, confirmado en su HTML
+fuente (mismo dato, mismas unidades mca, en los 4 sistemas). No se agregó ninguna verificación/
+comparación automática (no hay un rango oficial CNR conocido para contrastar, a diferencia de Kc o
+Eficiencia) — por ahora es solo un dato de referencia declarado.
+
+---
+
 ## Sesión ago-2026 — fix: selector de catálogo no recordaba la elección al guardar
 
 El usuario probó en la app real y reportó que, al elegir un producto en "Tubería (catálogo)" y
