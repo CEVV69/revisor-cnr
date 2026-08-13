@@ -43,9 +43,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 **Pendiente de verificar/decidir por el usuario (próxima sesión):**
 
-1. **Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete):** falta confirmar en
-   un proyecto real que el checkbox, autocompletado por textura y recálculo en vivo funcionen bien
-   (verificado solo con números de prueba, `ad_por_capas()` en calculos_riego.py).
+1. **Humedad Aprovechable por capas de suelo (Aspersión/Carrete):** falta confirmar en un proyecto
+   real (checkbox, autocompletado por textura, recálculo en vivo) — solo probado con números de
+   prueba (`ad_por_capas()`).
 
 2. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido
    (`docs/historial_sesiones.md`). Pendiente: ¿verificar que el consultor no muestra el desarrollo,
@@ -64,15 +64,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    32/40/50mm PN6/PN10 agregados (dato real Tigre Chile, NCh 399/2011). Iteración de varias
    vueltas de feedback de UI — detalle en `docs/historial_sesiones.md`. Falta probar en la app.
 
-5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
-   (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
-   `<select>` de textura disparaba 'change' al restaurar y pisaba CC/PMP/Da reales con los default
-   de la textura; (c) datos FV se descartaban en silencio si la compuerta "¿Incluye FV?" del
-   Diseñador no estaba en "Sí". Detalle en `docs/historial_sesiones.md`. Confirmar los 3 en la app.
-   Además: Matriz/Terciaria/Lateral de Goteo no exportaban porque el usuario dejó los tramos con
-   nombre genérico ("Tramo 1"...) — no es bug, se agregó un aviso en el Chequeo Hidráulico
-   explicando la convención de nombres (el usuario va a renombrar sus tramos reales). Soporte para
-   varios tramos "Lateral" (uno por sector): se exporta el más largo (lateral crítico).
+5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos + aviso de nombres de tramos
+   + soporte varios "Lateral"** (lateral crítico = el más largo). Falta confirmar en la app real.
+   Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
@@ -157,3 +151,7 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
    Presupuesto y Planos son la BASE del proyecto. Su análisis prioriza profundidad de
    juicio por sobre presencia/consistencia de datos. Ante observaciones "superficiales"
    en estos cuatro, tratarlo con prioridad alta.
+10. **Todo cambio de cálculo/dato validado por el usuario debe reflejarse también en la Memoria
+    de Cálculo** (`informe_calculo.html`/`informe_calculo_completo.html`) — no alcanza con que
+    viva solo en el Chequeo de Cálculos interactivo. Antes de dar por cerrado un cambio en
+    calculos.html/calculos_riego.py, revisar si la Memoria necesita el mismo dato/fila.
