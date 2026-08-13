@@ -247,6 +247,8 @@
 <table class="tabla-datos">
   <tr><td class="label">AMT/CDT declarada</td><td class="valor">{{ val(sis.amt_declarada_m, ' m') }}</td></tr>
   <tr><td class="label">Caudal de diseño del equipo</td><td class="valor">{{ val(sis.caudal_bombeo_ls, ' l/s') }}</td></tr>
+  <tr><td class="label">Desnivel del área de riego</td><td class="valor">{{ val(sis.desnivel_m, ' m') }}</td></tr>
+  <tr><td class="label">Pérdidas de carga en el cabezal de control</td><td class="valor">{{ val(sis.perdida_cabezal_m, ' m') }}</td></tr>
   <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal)</td><td class="valor">{{ val(sis.amt_calculada_m, ' m') }}{% if sis.amt_calculada_m is not none and sis.amt_declarada_m is not none and (sis.amt_calculada_m - sis.amt_declarada_m) | abs / sis.amt_calculada_m * 100 > 15 %}<br><span class="alerta">no coincide con la declarada</span>{% endif %}</td></tr>
 </table>
 <div class="nota-alcance" style="margin-top:0.3rem;">La app no recalcula CDT/potencia completa (succión aparte y margen de seguridad no se extraen).</div>

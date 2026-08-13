@@ -2035,6 +2035,8 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
             "agro": agro, "calc": calc, "tramos": tramos,
             "amt_declarada_m": (hid_s or {}).get("amt_declarada_m"),
             "caudal_bombeo_ls": (hid_s or {}).get("caudal_bombeo_ls"),
+            "desnivel_m": (hid_s or {}).get("desnivel_m"),
+            "perdida_cabezal_m": (hid_s or {}).get("perdida_cabezal_m"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
                 tramos_raw, (hid_s or {}).get("desnivel_m"), (hid_s or {}).get("perdida_cabezal_m")),
         })
@@ -2193,6 +2195,8 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "tramos": tramos,
         "amt_declarada_m": (hid_sistema or {}).get("amt_declarada_m"),
         "caudal_bombeo_ls": (hid_sistema or {}).get("caudal_bombeo_ls"),
+        "desnivel_m": (hid_sistema or {}).get("desnivel_m"),
+        "perdida_cabezal_m": (hid_sistema or {}).get("perdida_cabezal_m"),
         "amt_calculada_m": calculos_riego.amt_calculada_m(
             tramos_raw, (hid_sistema or {}).get("desnivel_m"), (hid_sistema or {}).get("perdida_cabezal_m")),
         "fv": fv, "fv_calc": fv_calc,
