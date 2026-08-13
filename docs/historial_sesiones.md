@@ -27,21 +27,36 @@ declarada (>15%, sin explicación técnica evidente).
 sola línea flex con los 5 campos (AMT, Q diseño, Desnivel, Pérdida cabezal, AMT calc.), labels
 abreviados a sigla+unidad, inputs de 68px.
 
-**Pendiente, decisión de ingeniería sin resolver — diámetro interior vs. exterior:** el usuario
-reportó que el recálculo de pérdida de carga usa el diámetro tal como se declara en la tabla de
-tramos, que en la práctica suele ser el diámetro COMERCIAL/exterior (ej. "PVC Ø110mm" en la
-memoria), no el diámetro interior real (con el espesor de pared ya descontado) que exige
-Hazen-Williams. Pidió que la app reste el espesor "que corresponda" según el material. Investigué
-el Diseñador de Riego (`static/disenador_riego_v119.html`, catálogo `TUBOS` ~línea 1691): SÍ tiene
-esta distinción resuelta — un catálogo de productos comerciales reales (PVC/PE/Aluminio, por
-diámetro nominal Y clase de presión PN, cada uno con `dext`/`dint`/`C` propios, ej. "PVC 110mm PN6"
-dint=103.6mm vs. "PVC 110mm PN10" dint=99.4mm — el espesor NO es un único valor por diámetro+
-material, depende también de la clase de presión) y el revisor ahí ELIGE el producto exacto de una
-lista; nunca asume una clase por defecto. Portar ese mismo catálogo a Revisor CNR (mismo criterio,
-mismos datos, no inventados) es la opción más precisa pero cambia la UI de "Ø libre en mm" a un
-selector de producto — no implementado todavía, pendiente decidir con el usuario si prefiere eso o
-una alternativa más liviana (ej. campo opcional "Ø interior (mm)" que se usa si está declarado o si
-el revisor lo escribe a mano, sin que la app asuma ninguna clase de presión por su cuenta).
+**Diámetro interior vs. exterior — resuelto, catálogo portado del Diseñador.** El usuario reportó
+que el recálculo de pérdida de carga usa el diámetro tal como se declara en la tabla de tramos,
+que en la práctica suele ser el diámetro COMERCIAL/exterior (ej. "PVC Ø110mm" en la memoria), no
+el interior real que exige Hazen-Williams, y pidió que la app reste el espesor "que corresponda"
+según el material. El Diseñador de Riego (`static/disenador_riego_v119.html`, array `TUBOS`
+~línea 1691) ya tenía esto resuelto con un catálogo de productos comerciales reales (PVC/PE/
+Aluminio, por diámetro nominal Y clase de presión PN — el espesor NO es un único valor por
+diámetro+material, depende también de la clase; ej. "PVC 110mm PN6" dint=103.6mm vs. "PVC 110mm
+PN10" dint=99.4mm). El usuario eligió portar ese mismo catálogo (para no perder automatización).
+
+Implementado: `calculos_riego.TUBOS_CATALOGO` — copia literal de los 19 productos del array
+`TUBOS` del Diseñador (mismos nombres/dext/dint/C, no inventados). En cada tramo del Chequeo
+Hidráulico se agregó un `<select>` "Tubería (catálogo)" (`templates/calculos.html`): al elegir un
+producto, JS (`aplicarTuboCatalogo`) completa el `Ø int. (mm)` con el `dint` del catálogo y el
+`Material` correspondiente, y dispara `recalcHidraulico()`. Deliberadamente NO reemplaza los
+campos Ø/Material existentes — solo los autocompleta — así que un tramo con un producto fuera del
+catálogo sigue editable a mano exactamente como antes (misma columna, mismo dato, mismo flujo de
+guardado en `main.py` y de export a `exportar_disenador.py`: ninguno de los dos necesitó cambios,
+porque el catálogo resuelve HACIA los mismos campos `diametro_mm`/`material` de siempre). El
+campo Ø se relabeló a "Ø int. (mm)" y se agregó un `title` + texto de ayuda aclarando que debe ser
+el interior real. La extracción por IA (`_extraer_datos_hidraulicos`) se instruyó para preferir el
+interior si el expediente lo distingue explícitamente del comercial, aunque en la práctica seguirá
+extrayendo lo que declare el documento (probablemente el comercial) — el catálogo es la
+herramienta para que el revisor lo corrija en un clic si conoce el producto exacto.
+
+Limitación conocida (no resuelta, de alcance menor): si el usuario agregó tuberías personalizadas
+en el Diseñador (localStorage `dr_tubos`, botón "+ Agregar tubería" del propio Diseñador), esas
+NO aparecen en el catálogo de Revisor CNR — son datos de sesión/navegador del Diseñador, no
+sincronizados con la base de datos de Revisor. Si hace falta, se puede agregar una gestión de
+catálogo propia en Revisor más adelante; no se implementó por no haber sido pedida.
 
 ---
 

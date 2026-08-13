@@ -60,8 +60,11 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    comportamiento mejoró. Además (ago-2026, Chequeo de Cálculos): se corrigió un error de
    validación HTML5 al guardar tramos con valores extraídos de más decimales que el `step` del
    input ("Ingrese un valor válido..." — bloqueaba el submit completo); se agregaron Desnivel y
-   Pérdida de carga en cabezal + un campo "AMT calc." que suma Σ Hf tramos + esos dos. Falta
-   probar en la app real.
+   Pérdida de carga en cabezal + un campo "AMT calc." que suma Σ Hf tramos + esos dos. Se agregó
+   además un selector "Tubería (catálogo)" por tramo — mismo catálogo de productos comerciales
+   (PVC/PE/Aluminio × diámetro × clase PN) que usa el Diseñador de Riego, para completar el Ø
+   INTERIOR real en vez del comercial/exterior que se venía usando. Falta probar todo esto en la
+   app real con un proyecto nuevo.
 
 5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
    (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
