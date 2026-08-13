@@ -24,6 +24,35 @@ C_HAZEN_WILLIAMS = {
 VELOCIDAD_MIN_RECOMENDADA = 0.5   # m/s — bajo esto, riesgo de sedimentación
 VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdidas excesivas
 
+# Catálogo de tuberías comerciales — MISMOS datos que usa el Diseñador de Riego (array `TUBOS`
+# por defecto en static/disenador_riego_v119.html), portado tal cual para que el Chequeo
+# Hidráulico use el diámetro INTERIOR real en Hazen-Williams en vez del diámetro comercial/
+# exterior que suele venir en la memoria. El espesor de pared NO es un único valor por
+# diámetro+material — depende también de la clase de presión (PN/SDR), por eso esto es un
+# catálogo de productos (el revisor elige el que corresponda), no una resta genérica que
+# asumiera una clase por defecto.
+TUBOS_CATALOGO = [
+    {"nombre": 'Aluminio 2"',  "dext": 50,    "dint": 48,    "c": 140, "material": "aluminio"},
+    {"nombre": 'Aluminio 3"',  "dext": 76.2,  "dint": 74.2,  "c": 140, "material": "aluminio"},
+    {"nombre": 'Aluminio 4"',  "dext": 101.6, "dint": 99.6,  "c": 140, "material": "aluminio"},
+    {"nombre": 'Aluminio 6"',  "dext": 152.4, "dint": 150.4, "c": 140, "material": "aluminio"},
+    {"nombre": "PVC 63mm PN6",   "dext": 63,  "dint": 59.2,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 63mm PN10",  "dext": 63,  "dint": 57,    "c": 150, "material": "pvc"},
+    {"nombre": "PVC 90mm PN6",   "dext": 90,  "dint": 84.6,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 90mm PN10",  "dext": 90,  "dint": 81.4,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 110mm PN6",  "dext": 110, "dint": 103.6, "c": 150, "material": "pvc"},
+    {"nombre": "PVC 110mm PN10", "dext": 110, "dint": 99.4,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 160mm PN6",  "dext": 160, "dint": 150.6, "c": 150, "material": "pvc"},
+    {"nombre": "PVC 160mm PN10", "dext": 160, "dint": 144.6, "c": 150, "material": "pvc"},
+    {"nombre": "PE 32mm SDR13.6 PN10",         "dext": 32, "dint": 27.2, "c": 120, "material": "pe"},
+    {"nombre": "PE 40mm SDR13.6 PN10 (Ø36.4)", "dext": 40, "dint": 36.4, "c": 120, "material": "pe"},
+    {"nombre": "PE 50mm SDR13.6 PN10 (Ø46.4)", "dext": 50, "dint": 46.4, "c": 120, "material": "pe"},
+    {"nombre": "PE 63mm SDR13.6 PN10 (Ø57)",   "dext": 63, "dint": 57,   "c": 120, "material": "pe"},
+    {"nombre": "PE 63mm SDR7.4 PN16 (Ø52.4)",  "dext": 63, "dint": 52.4, "c": 120, "material": "pe"},
+    {"nombre": "PE 90mm SDR13.6 PN10 (Ø81.4)", "dext": 90, "dint": 81.4, "c": 120, "material": "pe"},
+    {"nombre": "Polietileno 16mm lat.", "dext": 16, "dint": 14, "c": 120, "material": "pe"},
+]
+
 
 def hazen_williams(q_ls: float, d_mm: float, l_m: float, c: float) -> float:
     """Pérdida de carga (Hf, en mca) por tramo de tubería. Q en l/s, D en mm, L en m."""

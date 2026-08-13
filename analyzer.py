@@ -1084,6 +1084,12 @@ async def _extraer_datos_hidraulicos(docs_grupo: list, n_sistemas: int = 1) -> d
 (matriz, terciaria, lateral, succión, etc.) con sus datos numéricos declarados.
 {instr_sistemas}
 
+Para "diametro_mm": si el expediente distingue diámetro INTERIOR de diámetro comercial/exterior
+(ej. tabla de especificaciones del fabricante, o el propio cálculo Hazen-Williams del consultor
+usa un diámetro distinto al nominal), extrae el INTERIOR — es el que exige la fórmula. Si el
+expediente solo da un diámetro sin aclarar cuál es, extrae ese (el revisor lo corrige después con
+el catálogo de tuberías comerciales de la app si corresponde a uno distinto al interior real).
+
 También extrae, si el expediente los declara, la PÉRDIDA DE CARGA que el propio consultor
 calculó para cada tramo, y — una vez por sistema, no por tramo — la ALTURA MANOMÉTRICA TOTAL
 (AMT/CDT), el CAUDAL DE DISEÑO que usó para dimensionar el equipo de bombeo (puede ser distinto

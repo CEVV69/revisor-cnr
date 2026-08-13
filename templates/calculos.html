@@ -377,7 +377,11 @@
     {% endif %}
   </div>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.7rem;">
-    Hazen-Williams. Rango recomendado de velocidad: 0,5–2,0 m/s.
+    Hazen-Williams. Rango recomendado de velocidad: 0,5–2,0 m/s. El Ø debe ser el diámetro
+    INTERIOR real, no el comercial/exterior que suele venir en la memoria — usa "Tubería
+    (catálogo)" para completarlo automáticamente según el material y la clase de presión (PN)
+    reales; si el producto no está en la lista, complétalo a mano con la ficha técnica del
+    fabricante.
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/extraer"
@@ -396,12 +400,12 @@
       <div style="overflow-x:auto;">
         <table class="calc-tbl">
           <colgroup>
-            <col style="width:180px;"><col style="width:75px;"><col style="width:75px;">
-            <col style="width:64px;"><col style="width:170px;"><col style="width:72px;">
-            <col style="width:72px;"><col>
+            <col style="width:170px;"><col style="width:70px;"><col style="width:200px;"><col style="width:80px;">
+            <col style="width:64px;"><col style="width:150px;"><col style="width:68px;">
+            <col style="width:68px;"><col>
           </colgroup>
           <tr>
-            <th>Tramo</th><th>Q (l/s)</th><th>Ø (mm)</th>
+            <th>Tramo</th><th>Q (l/s)</th><th>Tubería (catálogo)</th><th>Ø int. (mm)</th>
             <th>Longitud<br><span style="font-weight:400; font-size:0.85em;">m</span></th>
             <th>Material</th>
             <th>V Dec.<br><span style="font-weight:400; font-size:0.85em;">m/s</span></th>
@@ -417,7 +421,15 @@
               {% endif %}
             </td>
             <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_caudal" name="{{ sp }}t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
-            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
+            <td>
+              <select onchange="aplicarTuboCatalogo(this,'{{ sp }}t{{ loop.index0 }}_diametro','{{ sp }}t{{ loop.index0 }}_material')" style="font-size:0.76rem; padding:0.3rem 0.4rem;" title="Completa Ø int. y Material automáticamente con el diámetro interior real del producto elegido">
+                <option value="">— elegir producto —</option>
+                {% for tb in tubos_catalogo %}
+                <option value="{{ tb.dint }}|{{ tb.material }}">{{ tb.nombre }} (Ø int. {{ tb.dint }}mm)</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}" title="Diámetro INTERIOR real (el que exige Hazen-Williams) — no el comercial/exterior"></td>
             <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
             <td>
               <select id="{{ sp }}t{{ loop.index0 }}_material" name="{{ sp }}t{{ loop.index0 }}_material">
@@ -1407,6 +1419,17 @@
     row.style.display = 'none';
     var first = row.querySelector('input[name]');
     if (first) { var m = first.name.match(/^(s\d+_)/); if (m) actualizarBtnAgregar(m[1]); }
+  };
+  // Catálogo de tuberías (calculos_riego.TUBOS_CATALOGO, mismos datos que el Diseñador de
+  // Riego): completa Ø interior real + Material del producto elegido — el revisor no tiene que
+  // saber de memoria el espesor de pared de cada diámetro/clase de presión.
+  window.aplicarTuboCatalogo = function(sel, diamId, matId) {
+    if (!sel.value) return;
+    var partes = sel.value.split("|");
+    var dEl = document.getElementById(diamId), mEl = document.getElementById(matId);
+    if (dEl) dEl.value = partes[0];
+    if (mEl) mEl.value = partes[1];
+    recalcHidraulico();
   };
 
   // ── Fotovoltaico ────────────────────────────────────────────

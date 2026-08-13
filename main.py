@@ -1868,6 +1868,7 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         "hid_sistemas": hid_sistemas,
         "hid_validado": hid_norm.get("validado"), "hid_fecha": hid_norm.get("fecha_validado"),
         "hid_por": hid_norm.get("validado_por"),
+        "tubos_catalogo": calculos_riego.TUBOS_CATALOGO,
         "agro_sistemas": agro_sistemas,
         "agro_validado": agro_norm.get("validado"), "agro_fecha": agro_norm.get("fecha_validado"),
         "agro_por": agro_norm.get("validado_por"),
