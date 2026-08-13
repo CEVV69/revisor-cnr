@@ -31,11 +31,22 @@ VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdi
 # diámetro+material — depende también de la clase de presión (PN/SDR), por eso esto es un
 # catálogo de productos (el revisor elige el que corresponda), no una resta genérica que
 # asumiera una clase por defecto.
+#
+# PVC 32/40/50mm (ago-2026, pedido por el usuario — no estaban ni en este catálogo ni en el del
+# Diseñador): dint = dext − 2×e_mín, con e_mín de la Ficha Técnica "Tubería Hidráulica de PVC"
+# de Tigre Chile (Tabla 2, norma NCh 399/2011) — 32mm: PN6 e=1,5mm, PN10 e=1,9mm; 40mm: PN6
+# e=1,5mm, PN10 e=1,9mm; 50mm: PN6 e=1,6mm, PN10 e=2,4mm. No inventado: dato de fabricante real.
 TUBOS_CATALOGO = [
     {"nombre": 'Aluminio 2"',  "dext": 50,    "dint": 48,    "c": 140, "material": "aluminio"},
     {"nombre": 'Aluminio 3"',  "dext": 76.2,  "dint": 74.2,  "c": 140, "material": "aluminio"},
     {"nombre": 'Aluminio 4"',  "dext": 101.6, "dint": 99.6,  "c": 140, "material": "aluminio"},
     {"nombre": 'Aluminio 6"',  "dext": 152.4, "dint": 150.4, "c": 140, "material": "aluminio"},
+    {"nombre": "PVC 32mm PN6",   "dext": 32,  "dint": 29.0,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 32mm PN10",  "dext": 32,  "dint": 28.2,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 40mm PN6",   "dext": 40,  "dint": 37.0,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 40mm PN10",  "dext": 40,  "dint": 36.2,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 50mm PN6",   "dext": 50,  "dint": 46.8,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 50mm PN10",  "dext": 50,  "dint": 45.2,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 63mm PN6",   "dext": 63,  "dint": 59.2,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 63mm PN10",  "dext": 63,  "dint": 57,    "c": 150, "material": "pvc"},
     {"nombre": "PVC 90mm PN6",   "dext": 90,  "dint": 84.6,  "c": 150, "material": "pvc"},
