@@ -1,3 +1,50 @@
+## Sesión ago-2026 — Chequeo Hidráulico: fix validación, Desnivel/Pérdida cabezal, AMT calculada
+
+**Bug reportado:** al intentar guardar datos corregidos en el Chequeo Hidráulico, el navegador
+mostraba "Ingrese un valor válido. Los dos valores válidos más aproximados son X y Y" y no
+guardaba nada. Causa: los inputs de Q/Ø/Longitud/V declarada/Hf declarada de cada tramo, y de AMT/
+Q diseño, tenían `step` restrictivo (0.01/0.1/0.001) — la validación HTML5 nativa del navegador
+revisa TODOS los number inputs del formulario al hacer submit, no solo el que se está editando; un
+valor extraído por la IA con más decimales que el `step` permitido (ej. diámetro convertido desde
+pulgadas, o un caudal repartido entre tramos) bloqueaba el envío del formulario COMPLETO, aunque el
+revisor solo quisiera corregir otro campo. Fix: `step="any"` en los 7 campos de
+`templates/calculos.html` dentro del formulario hidráulico (`form-hid`).
+
+**Nuevos campos:** Desnivel del área de riego (m) y Pérdidas de carga en cabezal (m), junto a AMT/
+Q diseño — extraíbles por la IA (`_extraer_datos_hidraulicos` en analyzer.py) o a mano. Se agregó
+`calculos_riego.amt_calculada_m(tramos, desnivel_m, perdida_cabezal_m)`: suma Σ Hf de los tramos
+(Hazen-Williams, mismo criterio de `evaluar_tramo`) + desnivel + pérdida de cabezal → "AMT
+calculada", mostrada en un campo de solo lectura junto a los demás, con recálculo en vivo en JS
+(espejo exacto de la función Python, mismo patrón que el resto del Chequeo). Explícitamente NO es
+la cadena CDT completa — le falta succión aparte (si el consultor no la declaró como un tramo más
+de la tabla) y margen de seguridad — así que se contrasta contra la AMT declarada en vez de
+reemplazarla (mismo criterio ya usado para Hf/velocidad por tramo). También se sumó al bloque de
+contexto que recibe la IA al analizar el ítem SEP "Diseño y cálculos hidráulicos"
+(`_bloque_verificacion_hidraulica_sistema`), con alerta si AMT calculada no coincide con la
+declarada (>15%, sin explicación técnica evidente).
+
+**Compactación:** la fila de AMT/Q diseño (antes 2 campos en `agro-grid`, generosos) ahora es una
+sola línea flex con los 5 campos (AMT, Q diseño, Desnivel, Pérdida cabezal, AMT calc.), labels
+abreviados a sigla+unidad, inputs de 68px.
+
+**Pendiente, decisión de ingeniería sin resolver — diámetro interior vs. exterior:** el usuario
+reportó que el recálculo de pérdida de carga usa el diámetro tal como se declara en la tabla de
+tramos, que en la práctica suele ser el diámetro COMERCIAL/exterior (ej. "PVC Ø110mm" en la
+memoria), no el diámetro interior real (con el espesor de pared ya descontado) que exige
+Hazen-Williams. Pidió que la app reste el espesor "que corresponda" según el material. Investigué
+el Diseñador de Riego (`static/disenador_riego_v119.html`, catálogo `TUBOS` ~línea 1691): SÍ tiene
+esta distinción resuelta — un catálogo de productos comerciales reales (PVC/PE/Aluminio, por
+diámetro nominal Y clase de presión PN, cada uno con `dext`/`dint`/`C` propios, ej. "PVC 110mm PN6"
+dint=103.6mm vs. "PVC 110mm PN10" dint=99.4mm — el espesor NO es un único valor por diámetro+
+material, depende también de la clase de presión) y el revisor ahí ELIGE el producto exacto de una
+lista; nunca asume una clase por defecto. Portar ese mismo catálogo a Revisor CNR (mismo criterio,
+mismos datos, no inventados) es la opción más precisa pero cambia la UI de "Ø libre en mm" a un
+selector de producto — no implementado todavía, pendiente decidir con el usuario si prefiere eso o
+una alternativa más liviana (ej. campo opcional "Ø interior (mm)" que se usa si está declarado o si
+el revisor lo escribe a mano, sin que la app asuma ninguna clase de presión por su cuenta).
+
+---
+
 ## Sesión ago-2026 — Goteo: lateral crítico cuando hay varios tramos "Lateral"
 
 Seguimiento del punto (c) de la sesión anterior (Matriz/Terciaria/Lateral de Goteo sin exportar).
