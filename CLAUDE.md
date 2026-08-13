@@ -56,15 +56,11 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    1568px). Esperando decisión del usuario.
 
 4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
-   sectores sin respaldo). El usuario lo va a verificar con un proyecto nuevo para confirmar si el
-   comportamiento mejoró. Además (ago-2026, Chequeo de Cálculos): se corrigió un error de
-   validación HTML5 al guardar tramos con valores extraídos de más decimales que el `step` del
-   input ("Ingrese un valor válido..." — bloqueaba el submit completo); se agregaron Desnivel y
-   Pérdida de carga en cabezal + un campo "AMT calc." que suma Σ Hf tramos + esos dos. Se agregó
-   además un selector "Tubería (catálogo)" por tramo — mismo catálogo de productos comerciales
-   (PVC/PE/Aluminio × diámetro × clase PN) que usa el Diseñador de Riego, para completar el Ø
-   INTERIOR real en vez del comercial/exterior que se venía usando. Falta probar todo esto en la
-   app real con un proyecto nuevo.
+   sectores sin respaldo). Además (ago-2026, Chequeo de Cálculos): fix de validación HTML5 al
+   guardar (`step="any"`); nuevos campos Desnivel + Pérdida cabezal + "AMT calc." (Σ Hf tramos);
+   selector "Tubería (catálogo)" por tramo — mismo catálogo del Diseñador de Riego (PVC/PE/
+   Aluminio × diámetro × clase PN) para usar el Ø INTERIOR real, no el comercial. Detalle en
+   `docs/historial_sesiones.md`. Falta probar todo esto en la app real con un proyecto nuevo.
 
 5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
    (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
@@ -73,9 +69,8 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    Diseñador no estaba en "Sí". Detalle en `docs/historial_sesiones.md`. Confirmar los 3 en la app.
    Además: Matriz/Terciaria/Lateral de Goteo no exportaban porque el usuario dejó los tramos con
    nombre genérico ("Tramo 1"...) — no es bug, se agregó un aviso en el Chequeo Hidráulico
-   explicando la convención de nombres (el usuario va a renombrar sus tramos reales). De paso se
-   agregó soporte para varios tramos "Lateral" (uno por sector, normal en Goteo): se exporta el
-   más largo (lateral crítico) en vez de descartar el nivel por ambigüedad.
+   explicando la convención de nombres (el usuario va a renombrar sus tramos reales). Soporte para
+   varios tramos "Lateral" (uno por sector): se exporta el más largo (lateral crítico).
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
