@@ -416,9 +416,9 @@
               <button type="button" class="btn-elim-tramo" onclick="eliminarTramo(this)" title="Vacía este tramo y lo oculta. Guarda para confirmar.">× eliminar</button>
               {% endif %}
             </td>
-            <td><input type="number" step="0.01" id="{{ sp }}t{{ loop.index0 }}_caudal" name="{{ sp }}t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
-            <td><input type="number" step="0.1" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
-            <td><input type="number" step="0.1" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_caudal" name="{{ sp }}t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
             <td>
               <select id="{{ sp }}t{{ loop.index0 }}_material" name="{{ sp }}t{{ loop.index0 }}_material">
                 <option value="" {% if not t.material %}selected{% endif %}>—</option>
@@ -427,8 +427,8 @@
                 <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
               </select>
             </td>
-            <td><input type="number" step="0.001" id="{{ sp }}t{{ loop.index0 }}_vel_declarada" name="{{ sp }}t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
-            <td><input type="number" step="0.001" id="{{ sp }}t{{ loop.index0 }}_hf_declarada" name="{{ sp }}t{{ loop.index0 }}_hf_declarada" value="{{ t.hf_declarada_mca if t.hf_declarada_mca is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_vel_declarada" name="{{ sp }}t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_hf_declarada" name="{{ sp }}t{{ loop.index0 }}_hf_declarada" value="{{ t.hf_declarada_mca if t.hf_declarada_mca is not none else '' }}"></td>
             <td class="calc-resultado" id="{{ sp }}t{{ loop.index0 }}_resultado">
               {% if t.calculo %}
                 V=<b>{{ t.calculo.velocidad_ms }}</b> m/s
@@ -454,18 +454,26 @@
       {% endif %}
       <button type="button" id="{{ sp }}btn-agregar" onclick="agregarTramo('{{ sp }}')"
               class="btn btn-outline btn-sm" style="margin-top:0.5rem; font-size:0.79rem; display:none;">+ Agregar tramo</button>
-      <div class="agro-grid" style="margin-top:0.7rem; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));">
-        <div>
-          <label>Altura manométrica total — AMT/CDT (m)</label>
-          <input type="number" step="0.01" id="{{ sp }}amt_declarada" name="{{ sp }}amt_declarada" value="{{ hsis.amt_declarada_m if hsis.amt_declarada_m is not none else '' }}">
-        </div>
-        <div>
-          <label>Caudal de diseño del equipo de bombeo (l/s)</label>
-          <input type="number" step="0.01" id="{{ sp }}caudal_bombeo" name="{{ sp }}caudal_bombeo" value="{{ hsis.caudal_bombeo_ls if hsis.caudal_bombeo_ls is not none else '' }}">
-        </div>
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.6rem; margin-top:0.7rem; font-size:0.8rem;">
+        <span style="display:flex; align-items:center; gap:0.3rem;">AMT (m)
+          <input type="number" step="any" id="{{ sp }}amt_declarada" name="{{ sp }}amt_declarada" value="{{ hsis.amt_declarada_m if hsis.amt_declarada_m is not none else '' }}" style="width:68px;">
+        </span>
+        <span style="display:flex; align-items:center; gap:0.3rem;">Q diseño (l/s)
+          <input type="number" step="any" id="{{ sp }}caudal_bombeo" name="{{ sp }}caudal_bombeo" value="{{ hsis.caudal_bombeo_ls if hsis.caudal_bombeo_ls is not none else '' }}" style="width:68px;">
+        </span>
+        <span style="display:flex; align-items:center; gap:0.3rem;">Desnivel (m)
+          <input type="number" step="any" id="{{ sp }}desnivel" name="{{ sp }}desnivel" value="{{ hsis.desnivel_m if hsis.desnivel_m is not none else '' }}" style="width:68px;">
+        </span>
+        <span style="display:flex; align-items:center; gap:0.3rem;">Pérd. cabezal (m)
+          <input type="number" step="any" id="{{ sp }}perdida_cabezal" name="{{ sp }}perdida_cabezal" value="{{ hsis.perdida_cabezal_m if hsis.perdida_cabezal_m is not none else '' }}" style="width:68px;">
+        </span>
+        <span style="display:flex; align-items:center; gap:0.4rem; font-weight:600; padding-left:0.5rem; border-left:1px solid var(--border);">
+          AMT calc. (m) <span id="{{ sp }}amt_calculada" class="text-muted" style="font-weight:400;">{{ hsis.amt_calculada_m if hsis.amt_calculada_m is not none else '—' }}</span>
+        </span>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin-top:0.3rem;">
-        Solo declarados: la app no recalcula la cadena de CDT/potencia de bomba.
+        AMT calc. = Σ Hf de los tramos + Desnivel + Pérdida en cabezal — no incluye succión aparte
+        (si no está declarada como un tramo más) ni margen de seguridad.
       </p>
     </div>
     {% endfor %}
@@ -1310,6 +1318,7 @@
   // `sp` es el prefijo de ids/names de este sistema de riego (ej. "s0_", "s1_") — mismo N°
   // de sistemas GLOBAL del proyecto que usa Agronómico (ver N_SISTEMAS).
   function recalcHidraulicoSistema(sp) {
+    var hfTotal = 0, hfHuboDato = false;
     for (var i = 0; i < N_TRAMOS; i++) {
       var q = numVal(sp + "t" + i + "_caudal");
       var d = numVal(sp + "t" + i + "_diametro");
@@ -1328,6 +1337,7 @@
       if (l && c) {
         var qM3s = q / 1000, dM = d / 1000;
         hf = 10.67 * l * Math.pow(qM3s, 1.852) / (Math.pow(c, 1.852) * Math.pow(dM, 4.87));
+        hfTotal += hf; hfHuboDato = true;
       }
       var alerta = "";
       if (vel > 2.0) alerta = "velocidad " + fmt(vel, 2) + " m/s supera el máximo recomendado (2,0 m/s)";
@@ -1344,6 +1354,13 @@
       if (alerta) html += '<br><span class="calc-alerta">' + alerta + "</span>";
       setHtml(cellId, html);
     }
+    // AMT calculada = Σ Hf de los tramos + Desnivel + Pérdida de carga en cabezal.
+    var desnivel = numVal(sp + "desnivel");
+    var perdCabezal = numVal(sp + "perdida_cabezal");
+    var amtTotal = hfTotal, amtHuboDato = hfHuboDato;
+    if (desnivel !== null) { amtTotal += desnivel; amtHuboDato = true; }
+    if (perdCabezal !== null) { amtTotal += perdCabezal; amtHuboDato = true; }
+    setHtml(sp + "amt_calculada", amtHuboDato ? fmt(amtTotal, 2) : "—");
   }
 
   function recalcHidraulico() {

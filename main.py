@@ -1854,6 +1854,10 @@ async def pagina_calculos(request: Request, proyecto_id: str):
             "idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego,
             "amt_declarada_m": (s or {}).get("amt_declarada_m"),
             "caudal_bombeo_ls": (s or {}).get("caudal_bombeo_ls"),
+            "desnivel_m": (s or {}).get("desnivel_m"),
+            "perdida_cabezal_m": (s or {}).get("perdida_cabezal_m"),
+            "amt_calculada_m": calculos_riego.amt_calculada_m(
+                tramos, (s or {}).get("desnivel_m"), (s or {}).get("perdida_cabezal_m")),
         })
     fv = verif.get("energetico", {})
 
@@ -1948,6 +1952,8 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
             "tramos": tramos,
             "amt_declarada_m": _num_form(form, f"{sp}amt_declarada"),
             "caudal_bombeo_ls": _num_form(form, f"{sp}caudal_bombeo"),
+            "desnivel_m": _num_form(form, f"{sp}desnivel"),
+            "perdida_cabezal_m": _num_form(form, f"{sp}perdida_cabezal"),
         })
 
     validado = form.get("validar") == "on"

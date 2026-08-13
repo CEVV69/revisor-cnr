@@ -68,6 +68,32 @@ def evaluar_tramo(q_ls: float, d_mm: float, l_m: float = None, c: float = None) 
     }
 
 
+def amt_calculada_m(tramos: list, desnivel_m: float = None, perdida_cabezal_m: float = None) -> float:
+    """AMT/CDT calculada = Σ Hf de los tramos declarados (Hazen-Williams, mismo criterio de
+    `evaluar_tramo`) + desnivel del área de riego + pérdidas de carga en el cabezal de control.
+
+    NO es la cadena CDT completa (le falta succión y margen de seguridad si el consultor no los
+    incluyó como un tramo más de la tabla) — es la suma de lo que Revisor efectivamente puede
+    calcular o el revisor declaró a mano. None si no hay NINGÚN dato para sumar (ni un Hf de
+    tramo, ni desnivel, ni pérdida de cabezal) — evita mostrar "0" como si fuera un resultado
+    real cuando en verdad no hay nada calculado."""
+    total = 0.0
+    hubo_dato = False
+    for t in (tramos or []):
+        c = C_HAZEN_WILLIAMS.get((t.get("material") or "").strip().lower())
+        hf = hazen_williams(t.get("caudal_ls"), t.get("diametro_mm"), t.get("longitud_m"), c)
+        if hf:
+            total += hf
+            hubo_dato = True
+    if desnivel_m is not None:
+        total += desnivel_m
+        hubo_dato = True
+    if perdida_cabezal_m is not None:
+        total += perdida_cabezal_m
+        hubo_dato = True
+    return round(total, 2) if hubo_dato else None
+
+
 # ── Agronómico: cadena ETo → ETc → AD → Dn → Fr → Db ────────────────────────
 
 # Suelo por defecto (CC/PMP/Da) según textura — mismo criterio del Diseñador de Riego (v119,

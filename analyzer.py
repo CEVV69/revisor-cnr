@@ -1086,8 +1086,11 @@ async def _extraer_datos_hidraulicos(docs_grupo: list, n_sistemas: int = 1) -> d
 
 También extrae, si el expediente los declara, la PÉRDIDA DE CARGA que el propio consultor
 calculó para cada tramo, y — una vez por sistema, no por tramo — la ALTURA MANOMÉTRICA TOTAL
-(AMT/CDT) y el CAUDAL DE DISEÑO que usó para dimensionar el equipo de bombeo (puede ser distinto
-del caudal de cada tramo individual).
+(AMT/CDT), el CAUDAL DE DISEÑO que usó para dimensionar el equipo de bombeo (puede ser distinto
+del caudal de cada tramo individual), el DESNIVEL del área de riego (diferencia de cota entre la
+fuente/bomba y el punto más desfavorable, en metros) y las PÉRDIDAS DE CARGA EN EL CABEZAL de
+control (filtros, válvulas, medidores, etc., en metros — a veces declaradas como "pérdidas
+menores" o "pérdidas localizadas").
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
@@ -1096,7 +1099,8 @@ Responde SOLO este JSON, sin texto adicional:
 "diametro_mm": number|null, "longitud_m": number|null,
 "material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null,
 "hf_declarada_mca": number|null}}],
-"amt_declarada_m": number|null, "caudal_bombeo_ls": number|null}}
+"amt_declarada_m": number|null, "caudal_bombeo_ls": number|null,
+"desnivel_m": number|null, "perdida_cabezal_m": number|null}}
 ]}}
 
 EXPEDIENTE:
@@ -1351,10 +1355,11 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
     riego y arma el bloque. Solo compara lo que efectivamente se pudo extraer.
 
     Además, si el expediente declara AMT/CDT y el caudal de diseño del equipo de bombeo, los
-    surface como dato de referencia — la app NO recalcula la cadena CDT/potencia de bomba
-    (necesita succión, elevación, pérdidas menores y margen de seguridad; ver alcance
-    documentado), así que acá solo se muestran para que el revisor/la IA los tenga a la vista
-    y los contraste manualmente contra el resto del diseño."""
+    surface como dato de referencia. Desde ago-2026 también calcula una AMT/CDT parcial = Σ Hf de
+    los tramos + desnivel del área de riego + pérdida de carga en el cabezal (ver
+    `calculos_riego.amt_calculada_m`) — sigue sin ser la cadena CDT completa (le falta succión
+    aparte y margen de seguridad si el consultor no los declaró como un tramo/dato más), por eso
+    se contrasta contra lo declarado en vez de reemplazarlo."""
     tramos = (datos or {}).get("tramos") or []
     lineas = []
     for t in tramos:
@@ -1409,6 +1414,23 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
                           f"bomba, transporta el caudal total de diseño) — si no coinciden, "
                           f"verifica que la diferencia tenga una explicación técnica (ej. varios "
                           f"sectores no simultáneos) antes de observarla.")
+    desnivel = (datos or {}).get("desnivel_m")
+    perd_cabezal = (datos or {}).get("perdida_cabezal_m")
+    amt_calc = calculos_riego.amt_calculada_m(tramos, desnivel, perd_cabezal)
+    if desnivel is not None or perd_cabezal is not None or amt_calc is not None:
+        texto += "\n\nDATOS ADICIONALES PARA LA CADENA AMT/CDT:"
+        if desnivel is not None:
+            texto += f"\n- Desnivel del área de riego declarado: {desnivel} m."
+        if perd_cabezal is not None:
+            texto += f"\n- Pérdidas de carga en el cabezal de control declaradas: {perd_cabezal} m."
+        if amt_calc is not None:
+            texto += (f"\n- AMT/CDT CALCULADA por la app = Σ Hf de los tramos + desnivel + "
+                       f"pérdida de cabezal = {amt_calc} m (no incluye succión aparte si no está "
+                       f"declarada como un tramo más, ni margen de seguridad).")
+            if amt is not None and _diferencia_relevante(amt_calc, amt, 15):
+                texto += (f" No coincide con la AMT/CDT declarada ({amt} m) — si la diferencia no "
+                          f"tiene una explicación técnica evidente en el expediente (ej. margen de "
+                          f"seguridad, succión no declarada como tramo), obsérvalo.")
     return texto
 
 
