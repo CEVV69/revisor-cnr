@@ -407,9 +407,10 @@
   <tr><td class="label">Caudal de diseño del equipo de bombeo declarado</td><td class="valor">{{ val(caudal_bombeo_ls, ' l/s') }}</td></tr>
   <tr><td class="label">Desnivel del área de riego</td><td class="valor">{{ val(desnivel_m, ' m') }}</td></tr>
   <tr><td class="label">Pérdidas de carga en el cabezal de control</td><td class="valor">{{ val(perdida_cabezal_m, ' m') }}</td></tr>
-  <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal)</td><td class="valor">{{ val(amt_calculada_m, ' m') }}{% if amt_calculada_m is not none and amt_declarada_m is not none and (amt_calculada_m - amt_declarada_m) | abs / amt_calculada_m * 100 > 15 %}<br><span class="alerta">no coincide con la declarada</span>{% endif %}</td></tr>
+  <tr><td class="label">Presión de operación del emisor (gotero/aspersor/cañón)</td><td class="valor">{{ val(agro.presion_emisor_mca, ' mca') }}</td></tr>
+  <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal + Presión emisor)</td><td class="valor">{{ val(amt_calculada_m, ' m') }}{% if amt_calculada_m is not none and amt_declarada_m is not none and (amt_calculada_m - amt_declarada_m) | abs / amt_calculada_m * 100 > 15 %}<br><span class="alerta">no coincide con la declarada</span>{% endif %}</td></tr>
 </table>
-<div class="nota-alcance">La app NO recalcula la cadena completa de CDT/potencia de bomba (succión aparte y margen de seguridad no se extraen) — la AMT calculada es solo Σ Hf de los tramos + Desnivel + Pérdida de cabezal.
+<div class="nota-alcance">La app NO recalcula la cadena completa de CDT/potencia de bomba (succión aparte y margen de seguridad no se extraen) — la AMT calculada es solo Σ Hf de los tramos + Desnivel + Pérdida de cabezal + Presión de operación del emisor.
 {% set caudales_tramos = tramos_con_datos | map(attribute='caudal_ls') | select('number') | list %}
 {% if caudal_bombeo_ls is not none and caudales_tramos %}
 {% set q_max_tramo = caudales_tramos | max %}

@@ -1857,7 +1857,8 @@ async def pagina_calculos(request: Request, proyecto_id: str):
             "desnivel_m": (s or {}).get("desnivel_m"),
             "perdida_cabezal_m": (s or {}).get("perdida_cabezal_m"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
-                tramos, (s or {}).get("desnivel_m"), (s or {}).get("perdida_cabezal_m")),
+                tramos, (s or {}).get("desnivel_m"), (s or {}).get("perdida_cabezal_m"),
+                agro_norm["sistemas"][i].get("presion_emisor_mca")),
         })
     fv = verif.get("energetico", {})
 
@@ -2039,7 +2040,8 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
             "desnivel_m": (hid_s or {}).get("desnivel_m"),
             "perdida_cabezal_m": (hid_s or {}).get("perdida_cabezal_m"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
-                tramos_raw, (hid_s or {}).get("desnivel_m"), (hid_s or {}).get("perdida_cabezal_m")),
+                tramos_raw, (hid_s or {}).get("desnivel_m"), (hid_s or {}).get("perdida_cabezal_m"),
+                agro.get("presion_emisor_mca")),
         })
 
     fv = verif.get("energetico") or {}
@@ -2200,7 +2202,8 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "desnivel_m": (hid_sistema or {}).get("desnivel_m"),
         "perdida_cabezal_m": (hid_sistema or {}).get("perdida_cabezal_m"),
         "amt_calculada_m": calculos_riego.amt_calculada_m(
-            tramos_raw, (hid_sistema or {}).get("desnivel_m"), (hid_sistema or {}).get("perdida_cabezal_m")),
+            tramos_raw, (hid_sistema or {}).get("desnivel_m"), (hid_sistema or {}).get("perdida_cabezal_m"),
+            agro.get("presion_emisor_mca")),
         "fv": fv, "fv_calc": fv_calc,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
         "mc": mc, "mc_fecha": (mc_guardado or {}).get("fecha"),
