@@ -2004,10 +2004,11 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
 
         _rellenar_none(agro, (
             "cultivo","cc_pct","pmp_pct","da","prof_radicular_cm","factor_agotamiento_pct",
-            "kc","eto_dia_mm","eficiencia_pct","superficie_riego_ha","caudal_disponible_ls",
-            "precipitacion_sistema_mmhr","horas_disponibles_dia","volumen_acumulador_m3",
-            "vib_mmhr","caudal_canon_m3h","margen_sobredimensionamiento_pct","radio_alcance_m",
-            "velocidad_viento_ms","longitud_franja_m","velocidad_avance_mh",
+            "kc","eto_dia_mm","eficiencia_pct","presion_emisor_mca","superficie_riego_ha",
+            "caudal_disponible_ls","precipitacion_sistema_mmhr","horas_disponibles_dia",
+            "volumen_acumulador_m3","vib_mmhr","caudal_canon_m3h",
+            "margen_sobredimensionamiento_pct","radio_alcance_m","velocidad_viento_ms",
+            "longitud_franja_m","velocidad_avance_mh",
         ))
         if isinstance(agro.get("declarado"), dict):
             _rellenar_none(agro["declarado"], (
@@ -2134,10 +2135,11 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
 
     _rellenar_none(agro, (
         "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
-        "kc", "eto_dia_mm", "eficiencia_pct", "superficie_riego_ha", "caudal_disponible_ls",
-        "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
-        "vib_mmhr", "caudal_canon_m3h", "margen_sobredimensionamiento_pct", "radio_alcance_m",
-        "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh",
+        "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "superficie_riego_ha",
+        "caudal_disponible_ls", "precipitacion_sistema_mmhr", "horas_disponibles_dia",
+        "volumen_acumulador_m3", "vib_mmhr", "caudal_canon_m3h",
+        "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
+        "longitud_franja_m", "velocidad_avance_mh",
     ))
     if isinstance(agro.get("declarado"), dict):
         _rellenar_none(agro["declarado"], (
@@ -2499,7 +2501,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     form = await request.form()
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "factor_agotamiento_pct", "eficiencia_pct", "vib_mmhr",
+              "factor_agotamiento_pct", "eficiencia_pct", "presion_emisor_mca", "vib_mmhr",
               "superficie_riego_ha", "caudal_disponible_ls",
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",

@@ -186,6 +186,15 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     if sys_code in ("asp", "mic", "car"):
         put("vib", sistema_agro.get("vib_mmhr"))
 
+    # Presión de operación del emisor (mca) — mismo dato en los 4 sistemas del Diseñador, pero
+    # con sufijo de campo distinto: -pres (Aspersión "a-pres"/Carrete "c-pres") vs. -pem (Goteo
+    # "g-pem"/Microaspersión "m-pem") — confirmado en el HTML fuente del Diseñador v119.
+    presion_emisor = sistema_agro.get("presion_emisor_mca")
+    if sys_code in ("asp", "car"):
+        put("pres", presion_emisor)
+    elif sys_code in ("got", "mic"):
+        put("pem", presion_emisor)
+
     # Marco de plantación / espaciamiento — los IDs del Diseñador difieren por sistema:
     #   Goteo: DEH (dist. entre hileras), DSH (dist. sobre hilera / entre plantas), N° líneas de
     #          emisor, Esp. entre goteros.
