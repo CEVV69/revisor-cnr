@@ -241,14 +241,13 @@
 {% endif %}
 
 {# ── 5. Equipo de bombeo ── #}
-{% if sis.amt_declarada_m is not none or sis.caudal_bombeo_ls is not none %}
-<div class="titulo-seccion">{{ loop.index }}.5. Equipo de bombeo — datos declarados</div>
+{% if sis.amt_calculada_m is not none %}
+<div class="titulo-seccion">{{ loop.index }}.5. Equipo de bombeo — AMT calculada</div>
 {% call paso_mc('amt_bombeo', mc_sis) %}
 <table class="tabla-datos">
-  <tr><td class="label">AMT/CDT declarada</td><td class="valor">{{ val(sis.amt_declarada_m, ' m') }}</td></tr>
-  <tr><td class="label">Caudal de diseño del equipo</td><td class="valor">{{ val(sis.caudal_bombeo_ls, ' l/s') }}</td></tr>
+  <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal)</td><td class="valor">{{ val(sis.amt_calculada_m, ' m') }}</td></tr>
 </table>
-<div class="nota-alcance" style="margin-top:0.3rem;">La app no recalcula CDT/potencia completa.</div>
+<div class="nota-alcance" style="margin-top:0.3rem;">No incluye succión aparte ni margen de seguridad.</div>
 {% endcall %}
 {% endif %}
 

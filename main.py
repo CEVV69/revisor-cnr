@@ -1632,8 +1632,8 @@ def _tiene_datos(valor) -> bool:
     """True si hay AL MENOS UN dato real en cualquier nivel de la estructura (ignorando la
     metadata de validación, que existe siempre). Sirve para distinguir "el revisor ya cargó o
     extrajo datos en el Chequeo de Cálculos" de "la clave existe pero está vacía" — un
-    formulario guardado en blanco deja `{"sistemas": [{"tramos": [], "amt_declarada_m": None,
-    ...}]}`, que NO debe impedir que el análisis extraiga por su cuenta."""
+    formulario guardado en blanco deja `{"sistemas": [{"tramos": [], "desnivel_m": None, ...}]}`,
+    que NO debe impedir que el análisis extraiga por su cuenta."""
     if isinstance(valor, dict):
         return any(_tiene_datos(v) for k, v in valor.items() if k not in _CLAVES_META_VERIF)
     if isinstance(valor, (list, tuple)):
@@ -1852,8 +1852,6 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         sistema_riego = agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
         hid_sistemas.append({
             "idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego,
-            "amt_declarada_m": (s or {}).get("amt_declarada_m"),
-            "caudal_bombeo_ls": (s or {}).get("caudal_bombeo_ls"),
             "desnivel_m": (s or {}).get("desnivel_m"),
             "perdida_cabezal_m": (s or {}).get("perdida_cabezal_m"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
@@ -1951,8 +1949,6 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
             })
         sistemas.append({
             "tramos": tramos,
-            "amt_declarada_m": _num_form(form, f"{sp}amt_declarada"),
-            "caudal_bombeo_ls": _num_form(form, f"{sp}caudal_bombeo"),
             "desnivel_m": _num_form(form, f"{sp}desnivel"),
             "perdida_cabezal_m": _num_form(form, f"{sp}perdida_cabezal"),
         })
@@ -2033,8 +2029,8 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
             "idx": i,
             "sistema_riego": agro.get("sistema_riego"),
             "agro": agro, "calc": calc, "tramos": tramos,
-            "amt_declarada_m": (hid_s or {}).get("amt_declarada_m"),
-            "caudal_bombeo_ls": (hid_s or {}).get("caudal_bombeo_ls"),
+            "amt_calculada_m": calculos_riego.amt_calculada_m(
+                tramos_raw, (hid_s or {}).get("desnivel_m"), (hid_s or {}).get("perdida_cabezal_m")),
         })
 
     fv = verif.get("energetico") or {}
@@ -2189,8 +2185,8 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "sistema_riego": agro.get("sistema_riego"),
         "agro": agro, "calc": calc,
         "tramos": tramos,
-        "amt_declarada_m": hid_sistema.get("amt_declarada_m"),
-        "caudal_bombeo_ls": hid_sistema.get("caudal_bombeo_ls"),
+        "amt_calculada_m": calculos_riego.amt_calculada_m(
+            tramos_raw, (hid_sistema or {}).get("desnivel_m"), (hid_sistema or {}).get("perdida_cabezal_m")),
         "fv": fv, "fv_calc": fv_calc,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
         "mc": mc, "mc_fecha": (mc_guardado or {}).get("fecha"),

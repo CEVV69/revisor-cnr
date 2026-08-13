@@ -1091,12 +1091,10 @@ expediente solo da un diámetro sin aclarar cuál es, extrae ese (el revisor lo 
 el catálogo de tuberías comerciales de la app si corresponde a uno distinto al interior real).
 
 También extrae, si el expediente los declara, la PÉRDIDA DE CARGA que el propio consultor
-calculó para cada tramo, y — una vez por sistema, no por tramo — la ALTURA MANOMÉTRICA TOTAL
-(AMT/CDT), el CAUDAL DE DISEÑO que usó para dimensionar el equipo de bombeo (puede ser distinto
-del caudal de cada tramo individual), el DESNIVEL del área de riego (diferencia de cota entre la
-fuente/bomba y el punto más desfavorable, en metros) y las PÉRDIDAS DE CARGA EN EL CABEZAL de
-control (filtros, válvulas, medidores, etc., en metros — a veces declaradas como "pérdidas
-menores" o "pérdidas localizadas").
+calculó para cada tramo, y — una vez por sistema, no por tramo — el DESNIVEL del área de riego
+(diferencia de cota entre la fuente/bomba y el punto más desfavorable, en metros) y las PÉRDIDAS
+DE CARGA EN EL CABEZAL de control (filtros, válvulas, medidores, etc., en metros — a veces
+declaradas como "pérdidas menores" o "pérdidas localizadas").
 
 NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
@@ -1105,7 +1103,6 @@ Responde SOLO este JSON, sin texto adicional:
 "diametro_mm": number|null, "longitud_m": number|null,
 "material": "pvc"|"pe"|"aluminio"|null, "velocidad_declarada_ms": number|null,
 "hf_declarada_mca": number|null}}],
-"amt_declarada_m": number|null, "caudal_bombeo_ls": number|null,
 "desnivel_m": number|null, "perdida_cabezal_m": number|null}}
 ]}}
 
@@ -1360,12 +1357,10 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
     """Recalcula velocidad/pérdida de carga por tramo (Hazen-Williams) para UN sistema de
     riego y arma el bloque. Solo compara lo que efectivamente se pudo extraer.
 
-    Además, si el expediente declara AMT/CDT y el caudal de diseño del equipo de bombeo, los
-    surface como dato de referencia. Desde ago-2026 también calcula una AMT/CDT parcial = Σ Hf de
-    los tramos + desnivel del área de riego + pérdida de carga en el cabezal (ver
-    `calculos_riego.amt_calculada_m`) — sigue sin ser la cadena CDT completa (le falta succión
-    aparte y margen de seguridad si el consultor no los declaró como un tramo/dato más), por eso
-    se contrasta contra lo declarado en vez de reemplazarlo."""
+    Además calcula una AMT/CDT parcial = Σ Hf de los tramos + desnivel del área de riego +
+    pérdida de carga en el cabezal (ver `calculos_riego.amt_calculada_m`) — no es la cadena CDT
+    completa (le falta succión aparte y margen de seguridad si el consultor no los declaró como
+    un tramo/dato más)."""
     tramos = (datos or {}).get("tramos") or []
     lineas = []
     for t in tramos:
@@ -1401,25 +1396,6 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
              "de velocidad recomendado 0,5–2,0 m/s) o una diferencia relevante con lo declarado, "
              "genera una observación citando los números exactos de este cálculo. Si todo está "
              "dentro de rango, NO lo menciones como observación.")
-    amt = (datos or {}).get("amt_declarada_m")
-    q_bombeo = (datos or {}).get("caudal_bombeo_ls")
-    if amt is not None or q_bombeo is not None:
-        texto += ("\n\nDATOS DECLARADOS PARA EL EQUIPO DE BOMBEO (la app NO recalcula la cadena "
-                  "CDT/potencia de bomba — succión, elevación, pérdidas menores y margen de "
-                  "seguridad no se extraen; estos valores son solo lo que declara el expediente, "
-                  "para contrastar manualmente contra el resto del diseño):")
-        if amt is not None:
-            texto += f"\n- Altura Manométrica Total (AMT/CDT) declarada: {amt} m."
-        if q_bombeo is not None:
-            texto += f"\n- Caudal de diseño para el equipo de bombeo declarado: {q_bombeo} l/s."
-            caudales_tramos = [t.get("caudal_ls") for t in tramos if t.get("caudal_ls")]
-            q_max_tramo = max(caudales_tramos) if caudales_tramos else None
-            if q_max_tramo and _diferencia_relevante(q_max_tramo, q_bombeo, 15):
-                texto += (f" El caudal máximo entre los tramos de este sistema es {q_max_tramo} "
-                          f"l/s (normalmente el tramo de succión/impulsión, el más cercano a la "
-                          f"bomba, transporta el caudal total de diseño) — si no coinciden, "
-                          f"verifica que la diferencia tenga una explicación técnica (ej. varios "
-                          f"sectores no simultáneos) antes de observarla.")
     desnivel = (datos or {}).get("desnivel_m")
     perd_cabezal = (datos or {}).get("perdida_cabezal_m")
     amt_calc = calculos_riego.amt_calculada_m(tramos, desnivel, perd_cabezal)
@@ -1433,10 +1409,6 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
             texto += (f"\n- AMT/CDT CALCULADA por la app = Σ Hf de los tramos + desnivel + "
                        f"pérdida de cabezal = {amt_calc} m (no incluye succión aparte si no está "
                        f"declarada como un tramo más, ni margen de seguridad).")
-            if amt is not None and _diferencia_relevante(amt_calc, amt, 15):
-                texto += (f" No coincide con la AMT/CDT declarada ({amt} m) — si la diferencia no "
-                          f"tiene una explicación técnica evidente en el expediente (ej. margen de "
-                          f"seguridad, succión no declarada como tramo), obsérvalo.")
     return texto
 
 
