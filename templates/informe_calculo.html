@@ -397,13 +397,21 @@
 </table>
 
 <!-- ══════════ 6. EQUIPO DE BOMBEO ══════════ -->
-{% if amt_calculada_m is not none %}
-<div class="titulo-seccion">6. Equipo de bombeo — AMT calculada</div>
+{% if amt_declarada_m is not none or caudal_bombeo_ls is not none or amt_calculada_m is not none %}
+<div class="titulo-seccion">6. Equipo de bombeo</div>
 {% call paso('amt_bombeo') %}
 <table class="tabla-datos">
-  <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal)</td><td class="valor">{{ val(amt_calculada_m, ' m') }}</td></tr>
+  <tr><td class="label">Altura Manométrica Total (AMT/CDT) declarada</td><td class="valor">{{ val(amt_declarada_m, ' m') }}</td></tr>
+  <tr><td class="label">Caudal de diseño del equipo de bombeo declarado</td><td class="valor">{{ val(caudal_bombeo_ls, ' l/s') }}</td></tr>
+  <tr><td class="label">AMT/CDT calculada (Σ Hf tramos + Desnivel + Pérdida cabezal)</td><td class="valor">{{ val(amt_calculada_m, ' m') }}{% if amt_calculada_m is not none and amt_declarada_m is not none and (amt_calculada_m - amt_declarada_m) | abs / amt_calculada_m * 100 > 15 %}<br><span class="alerta">no coincide con la declarada</span>{% endif %}</td></tr>
 </table>
-<div class="nota-alcance">No incluye succión aparte ni margen de seguridad.</div>
+<div class="nota-alcance">La app NO recalcula la cadena completa de CDT/potencia de bomba (succión aparte y margen de seguridad no se extraen) — la AMT calculada es solo Σ Hf de los tramos + Desnivel + Pérdida de cabezal.
+{% set caudales_tramos = tramos_con_datos | map(attribute='caudal_ls') | select('number') | list %}
+{% if caudal_bombeo_ls is not none and caudales_tramos %}
+{% set q_max_tramo = caudales_tramos | max %}
+El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s (normalmente el tramo de succión/impulsión, el más cercano a la bomba, transporta el caudal total de diseño) — {% if (q_max_tramo - caudal_bombeo_ls) | abs / q_max_tramo * 100 > 15 %}<span class="alerta">no coincide con el caudal de bombeo declarado; si no corresponden al mismo punto de la red, verificar que la diferencia tenga una explicación técnica (ej. sectores no simultáneos).</span>{% else %}<span class="ok">coincide.</span>{% endif %}
+{% endif %}
+</div>
 {% endcall %}
 {% endif %}
 {% endif %}

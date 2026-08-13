@@ -399,14 +399,13 @@
       <div style="overflow-x:auto;">
         <table class="calc-tbl">
           <colgroup>
-            <col style="width:160px;"><col style="width:68px;"><col style="width:150px;">
-            <col style="width:62px;"><col style="width:150px;"><col style="width:66px;">
+            <col style="width:160px;"><col style="width:68px;"><col style="width:170px;"><col style="width:58px;">
+            <col style="width:62px;"><col style="width:66px;">
             <col style="width:66px;"><col>
           </colgroup>
           <tr>
-            <th>Tramo</th><th>Q (l/s)</th><th>Ø int. (mm)</th>
+            <th>Tramo</th><th>Q (l/s)</th><th>Tubería (catálogo)</th><th>Ø int.<br><span style="font-weight:400; font-size:0.85em;">mm</span></th>
             <th>Longitud<br><span style="font-weight:400; font-size:0.85em;">m</span></th>
-            <th>Material</th>
             <th>V Dec.<br><span style="font-weight:400; font-size:0.85em;">m/s</span></th>
             <th>Hf Dec.<br><span style="font-weight:400; font-size:0.85em;">mca</span></th>
             <th>Extraído/declarado vs. calculado por la app</th>
@@ -421,23 +420,18 @@
             </td>
             <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_caudal" name="{{ sp }}t{{ loop.index0 }}_caudal" value="{{ t.caudal_ls if t.caudal_ls is not none else '' }}"></td>
             <td>
-              <input type="number" step="any" class="input-sin-flechas" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}" title="Diámetro INTERIOR real (el que exige Hazen-Williams) — no el comercial/exterior" style="margin-bottom:0.2rem;">
-              <select onchange="aplicarTuboCatalogo(this,'{{ sp }}t{{ loop.index0 }}_diametro','{{ sp }}t{{ loop.index0 }}_material')" style="font-size:0.7rem; padding:0.2rem 0.3rem; width:100%;" title="Elige un producto del catálogo para completar el Ø interior y el Material solo">
-                <option value="">Catálogo —</option>
+              <select onchange="aplicarTuboCatalogo(this,'{{ sp }}t{{ loop.index0 }}_diametro','{{ sp }}t{{ loop.index0 }}_material')" style="font-size:0.76rem; padding:0.3rem 0.35rem; width:100%;" title="Elige un producto del catálogo para completar el Ø interior y el Material solo">
+                <option value="">— elegir —</option>
                 {% for tb in tubos_catalogo %}
                 <option value="{{ tb.dint }}|{{ tb.material }}">{{ tb.nombre }}</option>
                 {% endfor %}
               </select>
             </td>
-            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
             <td>
-              <select id="{{ sp }}t{{ loop.index0 }}_material" name="{{ sp }}t{{ loop.index0 }}_material">
-                <option value="" {% if not t.material %}selected{% endif %}>—</option>
-                <option value="pvc" {% if t.material == 'pvc' %}selected{% endif %}>PVC (C=150)</option>
-                <option value="pe" {% if t.material == 'pe' %}selected{% endif %}>PE/PEAD (C=120)</option>
-                <option value="aluminio" {% if t.material == 'aluminio' %}selected{% endif %}>Aluminio (C=140)</option>
-              </select>
+              <input type="number" step="any" class="input-sin-flechas" id="{{ sp }}t{{ loop.index0 }}_diametro" name="{{ sp }}t{{ loop.index0 }}_diametro" value="{{ t.diametro_mm if t.diametro_mm is not none else '' }}" title="Diámetro INTERIOR real (el que exige Hazen-Williams) — no el comercial/exterior">
+              <input type="hidden" id="{{ sp }}t{{ loop.index0 }}_material" name="{{ sp }}t{{ loop.index0 }}_material" value="{{ t.material or '' }}">
             </td>
+            <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_longitud" name="{{ sp }}t{{ loop.index0 }}_longitud" value="{{ t.longitud_m if t.longitud_m is not none else '' }}"></td>
             <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_vel_declarada" name="{{ sp }}t{{ loop.index0 }}_vel_declarada" value="{{ t.velocidad_declarada_ms if t.velocidad_declarada_ms is not none else '' }}"></td>
             <td><input type="number" step="any" id="{{ sp }}t{{ loop.index0 }}_hf_declarada" name="{{ sp }}t{{ loop.index0 }}_hf_declarada" value="{{ t.hf_declarada_mca if t.hf_declarada_mca is not none else '' }}"></td>
             <td class="calc-resultado" id="{{ sp }}t{{ loop.index0 }}_resultado">
@@ -463,6 +457,12 @@
       <button type="button" id="{{ sp }}btn-agregar" onclick="agregarTramo('{{ sp }}')"
               class="btn btn-outline btn-sm" style="margin-top:0.5rem; font-size:0.79rem; display:none;">+ Agregar tramo</button>
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:1.1rem; margin-top:0.7rem; font-size:0.8rem;">
+        <span style="display:flex; align-items:center; gap:0.35rem;">AMT (m)
+          <input type="number" step="any" class="input-sin-flechas" id="{{ sp }}amt_declarada" name="{{ sp }}amt_declarada" value="{{ hsis.amt_declarada_m if hsis.amt_declarada_m is not none else '' }}" style="width:68px;">
+        </span>
+        <span style="display:flex; align-items:center; gap:0.35rem;">Q diseño (l/s)
+          <input type="number" step="any" class="input-sin-flechas" id="{{ sp }}caudal_bombeo" name="{{ sp }}caudal_bombeo" value="{{ hsis.caudal_bombeo_ls if hsis.caudal_bombeo_ls is not none else '' }}" style="width:68px;">
+        </span>
         <span style="display:flex; align-items:center; gap:0.35rem;">Desnivel (m)
           <input type="number" step="any" class="input-sin-flechas" id="{{ sp }}desnivel" name="{{ sp }}desnivel" value="{{ hsis.desnivel_m if hsis.desnivel_m is not none else '' }}" style="width:68px;">
         </span>

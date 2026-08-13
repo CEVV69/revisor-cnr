@@ -1852,6 +1852,8 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         sistema_riego = agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
         hid_sistemas.append({
             "idx": i, "tramos": _tramos_con_calculo(tramos), "sistema_riego": sistema_riego,
+            "amt_declarada_m": (s or {}).get("amt_declarada_m"),
+            "caudal_bombeo_ls": (s or {}).get("caudal_bombeo_ls"),
             "desnivel_m": (s or {}).get("desnivel_m"),
             "perdida_cabezal_m": (s or {}).get("perdida_cabezal_m"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
@@ -1949,6 +1951,8 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
             })
         sistemas.append({
             "tramos": tramos,
+            "amt_declarada_m": _num_form(form, f"{sp}amt_declarada"),
+            "caudal_bombeo_ls": _num_form(form, f"{sp}caudal_bombeo"),
             "desnivel_m": _num_form(form, f"{sp}desnivel"),
             "perdida_cabezal_m": _num_form(form, f"{sp}perdida_cabezal"),
         })
@@ -2029,6 +2033,8 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
             "idx": i,
             "sistema_riego": agro.get("sistema_riego"),
             "agro": agro, "calc": calc, "tramos": tramos,
+            "amt_declarada_m": (hid_s or {}).get("amt_declarada_m"),
+            "caudal_bombeo_ls": (hid_s or {}).get("caudal_bombeo_ls"),
             "amt_calculada_m": calculos_riego.amt_calculada_m(
                 tramos_raw, (hid_s or {}).get("desnivel_m"), (hid_s or {}).get("perdida_cabezal_m")),
         })
@@ -2185,6 +2191,8 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "sistema_riego": agro.get("sistema_riego"),
         "agro": agro, "calc": calc,
         "tramos": tramos,
+        "amt_declarada_m": (hid_sistema or {}).get("amt_declarada_m"),
+        "caudal_bombeo_ls": (hid_sistema or {}).get("caudal_bombeo_ls"),
         "amt_calculada_m": calculos_riego.amt_calculada_m(
             tramos_raw, (hid_sistema or {}).get("desnivel_m"), (hid_sistema or {}).get("perdida_cabezal_m")),
         "fv": fv, "fv_calc": fv_calc,
