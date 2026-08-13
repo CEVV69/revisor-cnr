@@ -1,3 +1,46 @@
+## Sesión ago-2026 — Chequeo Hidráulico: corrección de UI atochada + AMT/Q diseño declarado eliminados
+
+Feedback del usuario tras la sesión del catálogo de tuberías (ver más abajo): la tabla de tramos
+quedó con 9 columnas, muy ancha — la última (Resultado) quedaba fuera de vista con scroll
+horizontal, y los textos de ayuda eran demasiado largos. Además, aclaró que AMT/Q diseño
+DECLARADOS nunca los pidió — solo Desnivel + Pérdida cabezal + el resultado calculado.
+
+**Fusión de columnas:** "Tubería (catálogo)" y "Ø int. (mm)" (2 columnas separadas) pasan a UNA
+sola celda — `<select>` de catálogo arriba, `<input>` numérico abajo, mismo `onchange`
+(`aplicarTuboCatalogo`) sin cambios de lógica. `min-width` de `.calc-tbl` baja de 970px a 820px.
+
+**Textos recortados:** los 2 párrafos de ayuda (Hazen-Williams/Ø interior, convención de nombres
+Matriz/Terciaria/Lateral) se comprimieron a una línea cada uno; el detalle se movió a `title`
+(tooltip) — mismo criterio que ya pedía CLAUDE.md ("aclaraciones indispensables van en `title`,
+no como texto visible") y que no se había aplicado bien en la sesión anterior.
+
+**AMT/Q diseño declarados — eliminados por completo, no solo ocultados.** Se retiraron de:
+- `templates/calculos.html`: los 2 `<input>` (quedan solo Desnivel, Pérdida cabezal, AMT calc.).
+- `main.py` `calculos_guardar_hidraulico`: ya no lee esos 2 campos del form.
+- `main.py` `pagina_calculos`/`informe_calculo`/`informe_calculo_completo`: ya no los pasan al
+  template (importante: se pasó `None` explícito para `amt_calculada_m`, NO se omitió la clave —
+  omitirla deja la variable `Undefined` en Jinja, y `Undefined is not none` da `True` — verificado
+  con un test aislado — así que el bloque condicional habría intentado renderizar sin dato en vez
+  de ocultarse. Confirmado con `env.from_string(...).render(sis={})` vs. `sis={"amt_calculada_m":
+  None}` — solo el segundo caso, el real, oculta el bloque correctamente).
+- `analyzer.py` `_extraer_datos_hidraulicos`: el prompt ya no le pide a la IA extraer AMT/Q diseño.
+- `analyzer.py` `_bloque_verificacion_hidraulica_sistema`: se quitó el bloque de comparación
+  "DATOS DECLARADOS PARA EL EQUIPO DE BOMBEO" que se le inyectaba a la IA del ítem.
+
+**Informes (`informe_calculo.html`/`informe_calculo_completo.html`):** la sección "Equipo de
+bombeo" existía ANTES de esta sesión con los valores declarados, envuelta en `paso()`/`paso_mc()`
+— macros que también renderizan la comparación con la "metodología del consultor" (columna
+"Consultor: cita del expediente") cuando existe. Simplemente borrar la sección habría apagado esa
+comparación (una feature previa e independiente, no pedida para eliminar). Se cambió el CONTENIDO
+de la sección (ahora muestra "AMT/CDT calculada" en vez de "declarada") manteniendo el wrapper
+`paso()`/`paso_mc()` intacto, para no perder esa comparación.
+
+**Espaciado:** gap entre Desnivel/Pérdida cabezal subido de 0.6rem a 1.1rem; "AMT calc." alineado
+a la derecha con `margin-left:auto`; clase `.input-sin-flechas` (oculta las flechas nativas de
+`<input type=number>`) aplicada a Ø int., Desnivel y Pérdida cabezal.
+
+---
+
 ## Sesión ago-2026 — Chequeo Hidráulico: fix validación, Desnivel/Pérdida cabezal, AMT calculada
 
 **Bug reportado:** al intentar guardar datos corregidos en el Chequeo Hidráulico, el navegador

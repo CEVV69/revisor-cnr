@@ -47,9 +47,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    un proyecto real que el checkbox, autocompletado por textura y recálculo en vivo funcionen bien
    (verificado solo con números de prueba, `ad_por_capas()` en calculos_riego.py).
 
-2. **Comparación FV con metodología del consultor — 8 de 9 ítems salen sin información.** Detalle
-   y bug ya corregido en `docs/historial_sesiones.md`. Pendiente decidir: ¿verificar con el
-   expediente real que el consultor no muestra el desarrollo, o relajar el criterio de estrictez?
+2. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido
+   (`docs/historial_sesiones.md`). Pendiente: ¿verificar que el consultor no muestra el desarrollo,
+   o relajar el criterio de estrictez del prompt?
 
 3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promo hasta 31-08-2026). Evalúa
    mover ítems de texto a 4.6 y dejar Sonnet 5 solo para visión (mayor resolución: 2576px vs
@@ -59,8 +59,10 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    sectores sin respaldo). Además (ago-2026, Chequeo de Cálculos): fix de validación HTML5 al
    guardar (`step="any"`); nuevos campos Desnivel + Pérdida cabezal + "AMT calc." (Σ Hf tramos);
    selector "Tubería (catálogo)" por tramo — mismo catálogo del Diseñador de Riego (PVC/PE/
-   Aluminio × diámetro × clase PN) para usar el Ø INTERIOR real, no el comercial. Detalle en
-   `docs/historial_sesiones.md`. Falta probar todo esto en la app real con un proyecto nuevo.
+   Aluminio × diámetro × clase PN) para usar el Ø INTERIOR real, no el comercial. AMT/Q diseño
+   DECLARADOS se eliminaron por completo (usuario: nunca los pidió) — retirados de UI, guardado,
+   extracción IA y contexto del ítem; el informe ahora muestra AMT calculada en su lugar. Detalle
+   en `docs/historial_sesiones.md`. Falta probar todo esto en la app real con un proyecto nuevo.
 
 5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
    (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
