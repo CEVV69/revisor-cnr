@@ -1,3 +1,25 @@
+## Sesión ago-2026 — fix: selector de catálogo no recordaba la elección al guardar
+
+El usuario probó en la app real y reportó que, al elegir un producto en "Tubería (catálogo)" y
+guardar, el selector volvía a mostrar "— elegir —" — se perdía la elección visualmente (el dato
+Ø int./Material sí quedaba guardado bien, era solo el `<select>` el que no reflejaba nada al
+recargar). Causa: las `<option>` del catálogo nunca marcaban `selected` según lo ya guardado en
+el tramo. Fix en `templates/calculos.html`: `{% if t.diametro_mm == tb.dint and t.material ==
+tb.material %}selected{% endif %}` en cada `<option>`. Probado con un tramo PVC 110mm PN10
+(dint=99.4) — la opción correspondiente queda marcada selected tras el render.
+
+También se agregó, a la Memoria de Cálculo (`informe_calculo.html`/`informe_calculo_completo.html`),
+Desnivel y Pérdida de carga en cabezal como filas propias — antes solo se sumaban en silencio
+dentro de "AMT calc." sin mostrar sus valores declarados por separado (el usuario preguntó si esto
+llegaba a la Memoria; al revisar se encontró y corrigió este hueco).
+
+**Regla nueva del usuario, agregada a CLAUDE.md (instrucción #10):** todo cambio de cálculo/dato
+que el usuario valide en el Chequeo de Cálculos debe reflejarse también en la Memoria de Cálculo —
+no alcanza con que viva solo en la página interactiva. Revisar esto antes de cerrar cualquier
+cambio futuro en calculos.html/calculos_riego.py.
+
+---
+
 ## Sesión ago-2026 — Chequeo Hidráulico: AMT/Q diseño restaurados, catálogo con columnas separadas
 
 Corrección sobre las 2 sesiones anteriores (ver secciones de abajo), en 3 rondas de feedback de UI
