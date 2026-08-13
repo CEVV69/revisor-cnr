@@ -1,3 +1,47 @@
+## Sesión ago-2026 — Chequeo Hidráulico: AMT/Q diseño restaurados, catálogo con columnas separadas
+
+Corrección sobre las 2 sesiones anteriores (ver secciones de abajo), en 3 rondas de feedback de UI
+del usuario tras ver el resultado en la app real.
+
+**AMT declarada y Q diseño declarado — restaurados por completo.** La sesión anterior los había
+eliminado interpretando literalmente "Elimínate el AMT y Qdiseño declarado, nunca te pedí eso" —
+el usuario aclaró después que NO había que eliminarlos. Se revirtió en los 4 lugares donde se
+habían retirado: `templates/calculos.html` (los 2 `<input>` vuelven a la fila, junto a Desnivel/
+Pérdida cabezal/AMT calc., mismo estilo sin flechas + más separación), `main.py` (guardado en
+`calculos_guardar_hidraulico`, despliegue en `pagina_calculos`/`informe_calculo`/
+`informe_calculo_completo`), `analyzer.py` (`_extraer_datos_hidraulicos` vuelve a pedírselos a la
+IA; `_bloque_verificacion_hidraulica_sistema` vuelve a compararlos contra los tramos y contra la
+AMT calculada). Los informes (`informe_calculo.html`/`informe_calculo_completo.html`) ahora
+muestran los 3 juntos en la sección "Equipo de bombeo": AMT declarada, Q diseño declarado, AMT
+calculada — con alerta si calculada y declarada difieren >15%, preservando el contraste de caudal
+máximo por tramo que ya existía antes de esta sesión.
+
+**Catálogo de tuberías — vuelta a columnas separadas.** La sesión anterior había fusionado
+"Tubería (catálogo)" y "Ø int. (mm)" en una sola celda (select arriba, número abajo) para bajar el
+ancho de la tabla — el usuario dijo que se veía mal apilado. Se separaron de nuevo en 2 columnas
+angostas, una al lado de la otra (`select` de catálogo | `input` de Ø int., mismo `onchange`
+`aplicarTuboCatalogo` sin cambios de lógica).
+
+**Columna Material — eliminada de la vista, no del dato.** El usuario notó que, al elegir un
+producto del catálogo, el C de Hazen-Williams ya queda determinado — mostrar el `<select>` de
+Material aparte es redundante. Se cambió a `<input type="hidden">` con el mismo `name`/`id` de
+siempre (ningún cambio en `main.py`: el form sigue mandando `material` igual, solo cambió de qué
+tipo de elemento HTML sale). Sigue autocompletándose vía `aplicarTuboCatalogo` al elegir un
+producto del catálogo. Limitación aceptada (no pedida resolver): un tramo con diámetro tipeado a
+mano SIN elegir ningún producto del catálogo se queda sin `material`, y por lo tanto sin C para
+calcular Hf — antes tenía un `<select>` de Material independiente para cubrir ese caso, ahora no.
+
+**Nota técnica de implementación (informes):** al remover temporalmente `amt_declarada_m`/
+`caudal_bombeo_ls` del contexto de `informe_calculo.html`/`informe_calculo_completo.html` en la
+sesión anterior, se detectó (con un test aislado en Jinja2) que OMITIR una clave del contexto deja
+la variable `Undefined` en la plantilla, y `Undefined is not none` evalúa `True` — el bloque
+condicional habría intentado mostrar el dato igual, sin ocultarse. La lección para futuras
+sesiones: si se retira un dato de un template, pasar `None` explícito en vez de omitir la clave, o
+tocar también la condición del template — nunca asumir que "no pasar la clave" es equivalente a
+pasar `None`.
+
+---
+
 ## Sesión ago-2026 — Chequeo Hidráulico: corrección de UI atochada + AMT/Q diseño declarado eliminados
 
 Feedback del usuario tras la sesión del catálogo de tuberías (ver más abajo): la tabla de tramos

@@ -56,13 +56,12 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    1568px). Esperando decisión del usuario.
 
 4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
-   sectores sin respaldo). Además (ago-2026, Chequeo de Cálculos): fix de validación HTML5 al
-   guardar (`step="any"`); nuevos campos Desnivel + Pérdida cabezal + "AMT calc." (Σ Hf tramos);
-   selector "Tubería (catálogo)" por tramo — mismo catálogo del Diseñador de Riego (PVC/PE/
-   Aluminio × diámetro × clase PN) para usar el Ø INTERIOR real, no el comercial. AMT/Q diseño
-   DECLARADOS se eliminaron por completo (usuario: nunca los pidió) — retirados de UI, guardado,
-   extracción IA y contexto del ítem; el informe ahora muestra AMT calculada en su lugar. Detalle
-   en `docs/historial_sesiones.md`. Falta probar todo esto en la app real con un proyecto nuevo.
+   sectores sin respaldo). Además (ago-2026, Chequeo de Cálculos) fix de validación HTML5 al
+   guardar (`step="any"`); tabla de tramos con selector "Tubería (catálogo)" (mismo catálogo del
+   Diseñador de Riego) + Ø int. (mm) en su propia columna angosta — Material queda oculto
+   (autocompletado por el catálogo, ya no visible). Fila AMT declarada + Q diseño + Desnivel +
+   Pérdida cabezal + "AMT calc." (Σ Hf tramos). Iteración de varias vueltas de feedback de UI —
+   detalle completo en `docs/historial_sesiones.md`. Falta probar en la app real con un proyecto.
 
 5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
    (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
