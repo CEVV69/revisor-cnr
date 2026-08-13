@@ -60,8 +60,9 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    guardar (`step="any"`); tabla de tramos con selector "Tubería (catálogo)" (mismo catálogo del
    Diseñador de Riego) + Ø int. (mm) en su propia columna angosta — Material queda oculto
    (autocompletado por el catálogo, ya no visible). Fila AMT declarada + Q diseño + Desnivel +
-   Pérdida cabezal + "AMT calc." (Σ Hf tramos). Iteración de varias vueltas de feedback de UI —
-   detalle completo en `docs/historial_sesiones.md`. Falta probar en la app real con un proyecto.
+   Pérdida cabezal + "AMT calc." (Σ Hf tramos) — los 4 son extraíbles por IA. Catálogo con PVC
+   32/40/50mm PN6/PN10 agregados (dato real Tigre Chile, NCh 399/2011). Iteración de varias
+   vueltas de feedback de UI — detalle en `docs/historial_sesiones.md`. Falta probar en la app.
 
 5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos, falta probar en la app real:**
    (a) `importProject()` no leía el ARRAY de proyectos con 2+ sistemas; (b) capas de suelo: el
