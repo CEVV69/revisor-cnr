@@ -423,7 +423,7 @@
               <select onchange="aplicarTuboCatalogo(this,'{{ sp }}t{{ loop.index0 }}_diametro','{{ sp }}t{{ loop.index0 }}_material')" style="font-size:0.76rem; padding:0.3rem 0.35rem; width:100%;" title="Elige un producto del catálogo para completar el Ø interior y el Material solo">
                 <option value="">— elegir —</option>
                 {% for tb in tubos_catalogo %}
-                <option value="{{ tb.dint }}|{{ tb.material }}">{{ tb.nombre }}</option>
+                <option value="{{ tb.dint }}|{{ tb.material }}" {% if t.diametro_mm == tb.dint and t.material == tb.material %}selected{% endif %}>{{ tb.nombre }}</option>
                 {% endfor %}
               </select>
             </td>
