@@ -883,9 +883,9 @@
       setText(p + "agro-nsec-calc", "—");
       nota(p + "agro-nsec-nota", "");
     }
-    // CC/PMP/Da se ocultan en Aspersión y Carrete — en esos sistemas, solo ingresan por capas de suelo.
-    // En Goteo y Microaspersión (y si no se declara sistema o es Mixto), se muestran normalmente.
-    var mostrarCcPmpDa = !(sistema === "Aspersión" || sistema === "Carrete");
+    // CC/PMP/Da se ocultan en Goteo (alta frecuencia, no aplican), Aspersión y Carrete (solo por capas de suelo).
+    // Solo se muestran en Microaspersión (y si no se declara sistema o es Mixto).
+    var mostrarCcPmpDa = !(sistema === "Goteo" || sistema === "Aspersión" || sistema === "Carrete");
     wrap.querySelectorAll(".campo-cc-pmp-da").forEach(function(el) { el.style.display = mostrarCcPmpDa ? "" : "none"; });
     // Caudal emisor visible para Goteo, Aspersión, Microaspersión — no aplica a Carrete.
     var mostrarCaudalEmisor = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Aspersión" || sistema === "Microaspersión";
