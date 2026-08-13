@@ -135,15 +135,16 @@
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
       <div class="agro-grid">
         <div><label>Cultivo</label><input type="text" id="{{ p }}cultivo" name="{{ p }}cultivo" value="{{ agro.cultivo if agro.cultivo is not none else '' }}"></div>
-        <div class="campo-suelo"><label>CC (%)</label><input type="number" step="0.1" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
-        <div class="campo-suelo"><label>PMP (%)</label><input type="number" step="0.1" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
-        <div class="campo-suelo"><label>Da (g/cc)</label><input type="number" step="0.01" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
-        <div class="campo-suelo"><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
-        <div class="campo-suelo"><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>CC (%)</label><input type="number" step="0.1" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>PMP (%)</label><input type="number" step="0.1" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>Da (g/cc)</label><input type="number" step="0.01" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
+        <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+        <div><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
         <div><label>Kc</label><input type="number" step="0.01" id="{{ p }}kc" name="{{ p }}kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
         <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
         <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
         <div><label>Presión Operación del Emisor (mca)</label><input type="number" step="any" id="{{ p }}presion_emisor_mca" name="{{ p }}presion_emisor_mca" value="{{ agro.presion_emisor_mca if agro.presion_emisor_mca is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-caudal-emisor"><label>Caudal emisor (l/hr)</label><input type="number" step="0.01" id="{{ p }}caudal_emisor_lhr" name="{{ p }}caudal_emisor_lhr" value="{{ agro.caudal_emisor_lhr if agro.caudal_emisor_lhr is not none else '' }}"></div>
         <div class="campo-vib"><label>VIB del suelo (mm/hr)</label><input type="number" step="0.1" id="{{ p }}vib_mmhr" name="{{ p }}vib_mmhr" value="{{ agro.vib_mmhr if agro.vib_mmhr is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-goteo"><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-goteo"><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
@@ -882,11 +883,13 @@
       setText(p + "agro-nsec-calc", "—");
       nota(p + "agro-nsec-nota", "");
     }
-    // Goteo (alta frecuencia): la demanda bruta sale directo de la ETc/Ef, sin pasar por
-    // CC/PMP/Da/Prof. radicular ni Criterio de Riego (agotamiento) — se ocultan esos 5 campos
-    // (agrupados en el HTML, se ven/ocultan juntos) para que la tarjeta no quede con campos que
-    // no aplican ni pueden bloquear el cálculo (modelo calcGA del Diseñador).
-    wrap.querySelectorAll(".campo-suelo").forEach(function(el) { el.style.display = esGoteo ? "none" : ""; });
+    // CC/PMP/Da se ocultan en Aspersión y Carrete — en esos sistemas, solo ingresan por capas de suelo.
+    // En Goteo y Microaspersión (y si no se declara sistema o es Mixto), se muestran normalmente.
+    var mostrarCcPmpDa = !(sistema === "Aspersión" || sistema === "Carrete");
+    wrap.querySelectorAll(".campo-cc-pmp-da").forEach(function(el) { el.style.display = mostrarCcPmpDa ? "" : "none"; });
+    // Caudal emisor visible para Goteo, Aspersión, Microaspersión — no aplica a Carrete.
+    var mostrarCaudalEmisor = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Aspersión" || sistema === "Microaspersión";
+    wrap.querySelectorAll(".campo-caudal-emisor").forEach(function(el) { el.style.display = mostrarCaudalEmisor ? "" : "none"; });
     // Desglose de Humedad Aprovechable por capas de suelo — solo Aspersión y Carrete (v119 del
     // Diseñador de Riego no lo ofrece en Goteo ni Microaspersión).
     var esAspersionOCarrete = sistema === "Aspersión" || sistema === "Carrete";

@@ -1259,7 +1259,8 @@ aparente, profundidad radicular, Kc, evapotranspiración del mes crítico, facto
 — también llamado "criterio de riego" o "% de agua aprovechable" en algunos documentos, es el
 mismo dato —, eficiencia del sistema, presión de operación del emisor (goteros, aspersores o
 cañón, según el sistema — en mca; si el documento la da en bar o kg/cm², conviértela a mca:
-1 bar ≈ 10,2 mca, 1 kg/cm² ≈ 10 mca), y los resultados finales que el consultor declara: lámina
+1 bar ≈ 10,2 mca, 1 kg/cm² ≈ 10 mca), caudal del emisor (en l/hr — goteros o microaspersores,
+solo si el documento lo especifica), y los resultados finales que el consultor declara: lámina
 neta, frecuencia de riego, demanda bruta),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
@@ -1296,7 +1297,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "cc_pct": number|null, "pmp_pct": number|null, "da": number|null,
 "prof_radicular_cm": number|null, "kc": number|null, "eto_dia_mm": number|null,
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
-"presion_emisor_mca": number|null,
+"presion_emisor_mca": number|null, "caudal_emisor_lhr": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
 "volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
