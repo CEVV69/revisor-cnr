@@ -1259,9 +1259,9 @@ aparente, profundidad radicular, Kc, evapotranspiración del mes crítico, facto
 — también llamado "criterio de riego" o "% de agua aprovechable" en algunos documentos, es el
 mismo dato —, eficiencia del sistema, presión de operación del emisor (goteros, aspersores o
 cañón, según el sistema — en mca; si el documento la da en bar o kg/cm², conviértela a mca:
-1 bar ≈ 10,2 mca, 1 kg/cm² ≈ 10 mca), caudal del emisor (en l/hr — goteros o microaspersores,
-solo si el documento lo especifica), y los resultados finales que el consultor declara: lámina
-neta, frecuencia de riego, demanda bruta),
+1 bar ≈ 10,2 mca, 1 kg/cm² ≈ 10 mca), caudal del emisor (en l/hr — SOLO goteros o
+microaspersores; en Aspersión el caudal del aspersor va en "caudal_aspersor_m3h" y en Carrete
+el del cañón en "caudal_canon_m3h", NO los repitas acá)),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
 disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, volumen de un ACUMULADOR/estanque/tranque regulador si el
@@ -1287,7 +1287,26 @@ riego (m), velocidad de avance del carrete (m/hr), y — si el consultor lo decl
 resultado — la pluviometría media del cañón (mm/hr).
 {instr_sistemas}
 
-NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+BLOQUE "declarado" — PRÉSTALE ATENCIÓN APARTE. Son los RESULTADOS que el propio consultor
+publica en su memoria de cálculo, y sirven para contrastarlos contra el recálculo de la app: si
+quedan en null, el revisor pierde toda la comparación. Búscalos en las tablas resumen, en los
+cuadros de "resultados"/"parámetros de diseño" y en el texto corrido, no solo en un lugar. Los
+consultores los rotulan de formas distintas — considera todos estos sinónimos:
+• "dn_mm" — lámina neta · lámina de riego neta · dosis neta · dosis de riego neta (mm)
+• "fr_dias" — frecuencia de riego · intervalo de riego · turno de riego · cada cuántos días
+• "db_mm" — demanda bruta · lámina bruta · dosis bruta · lámina total · requerimiento bruto
+  (mm/día o mm/riego)
+• "caudal_diseno_ls" — caudal de diseño · caudal del sistema · caudal de operación · caudal
+  requerido · Q diseño (l/s; si viene en m³/hr divide por 3,6; si viene en l/min divide por 60)
+• "tiempo_riego_hr" — tiempo de riego · tiempo de aplicación · horas de riego por sector/postura
+• "n_sectores" — N° de sectores · N° de turnos · N° de posturas (en Aspersión/Carrete es el
+  mismo dato: repórtalo igual acá)
+• "pluviometria_mmhr" — pluviometría media · tasa de aplicación · precipitación horaria del
+  sistema (mm/hr)
+Si el consultor da uno de estos valores por sector y también un total, reporta el POR SECTOR.
+
+NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null. Esto vale también
+para el bloque "declarado": no lo deduzcas de otros datos, solo cópialo si está escrito.
 Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" tiene esta forma:
 {{"sistemas": [
 {{"cultivo": string|null, "sistema_riego": "Goteo"|"Microaspersión"|"Aspersión"|"Carrete"|null,
