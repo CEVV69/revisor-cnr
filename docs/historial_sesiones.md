@@ -1,3 +1,33 @@
+## Sesión ago-2026 — la Memoria COMPLETA pasa a tener paridad total con la Memoria por sistema
+
+El usuario pidió portar la sección que faltaba, con el criterio de que "una memoria de cálculos
+completa debe reflejar todos los datos obtenidos y calculados para aprovecharlos". Antes de portar
+se comparó campo por campo qué renderiza cada template (extrayendo los `calc.*`/`agro.*` de cada
+uno): la brecha era mucho mayor que la sección que se había detectado.
+
+**Faltaba en la Memoria completa:**
+- Las 5 verificaciones (`kc_dt05`, `eficiencia_check`, `vib_check`, `postura_check` con VA/
+  superficie/tiempo por postura, y `carrete_check` completo: Q diseño INIA, diámetro mojado,
+  pluviometría, mínimo VIB 7,5 mm/hr, superficie y tiempo por postura).
+- En "Diseño base": demanda l/s·ha, superficie de riego segura, Q requerido total, Q del estanque,
+  el chequeo de "cabe en las horas disponibles", el balance diario con volúmenes, y TODO el bloque
+  de acumulador (volumen mínimo, ΔQ, autonomía, tiempo de llenado).
+- En la cadena agronómica: `fr_dias` sin redondear y la comparación contra `declarado.fr_dias`.
+
+**Resultado:** secciones renumeradas a `.1` Datos base, `.2` Cadena agronómica, `.3`
+Verificaciones (nueva), `.4` Diseño base (ahora completa), `.5` Hidráulico, `.6` Bombeo. Los
+bloques portados usan `paso_mc(clave, mc_sis)` cuando la clave existe en `CONCEPTOS_METODOLOGIA`
+(así ganan gratis la columna "Consultor" de comparación de metodología) y `<div class="paso">`
+cuando no la hay — las verificaciones no tienen concepto de metodología asociado.
+
+**Verificación:** se dejó una comprobación de paridad — extraer los `calc.*`/`agro.*` de ambos
+templates y restar los conjuntos debe dar vacío. Hoy da vacío. Renderizado además con datos
+reales en Goteo, Aspersión y Carrete, y con 2 sistemas a la vez para confirmar que la numeración
+queda correlativa (1.1–1.6, 2.1–2.6). **Repetir esa comprobación de paridad cada vez que se toque
+una de las dos Memorias** — es lo que detectó que el port inicial se quedaba corto.
+
+---
+
 ## Sesión ago-2026 — el `.json` de exportación al Diseñador también debe reflejar los cambios
 
 El usuario fijó una regla nueva (ahora la #10 de CLAUDE.md): todo cambio validado debe llegar a

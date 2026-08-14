@@ -213,7 +213,11 @@
 {% endif %}
 {% if calc.fr_adj_dias is not none %}
 {% call paso_mc('fr', mc_sis) %}
-<div class="formula">Fr (adj) = Dn_adj / ETc = {{ val(calc.dn_adj_mm) }} / {{ val(calc.etc_mm_dia) }} = <strong>{{ val(calc.fr_adj_dias, ' días') }}</strong></div>
+<div class="formula">Fr = Dn / ETc = {{ val(calc.dn_mm) }} / {{ val(calc.etc_mm_dia) }} = {{ val(calc.fr_dias) }} días → redondeado (mínimo 1 día): <strong>{{ val(calc.fr_adj_dias, ' días') }}</strong></div>
+<div class="explica">Frecuencia de riego — cada cuántos días corresponde regar.</div>
+{% if agro.declarado and agro.declarado.fr_dias is not none %}
+<div class="compara">Declarado: {{ agro.declarado.fr_dias }} días — {% if calc.fr_adj_dias is not none and calc.fr_adj_dias != agro.declarado.fr_dias %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+{% endif %}
 {% endcall %}
 {% call paso_mc('db', mc_sis) %}
 <div class="formula">Db = (ETc × Fr_adj) / Eficiencia = ({{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }}) / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
@@ -228,29 +232,190 @@
 <p class="muted">Faltan datos base para completar la cadena agronómica.</p>
 {% endif %}
 
-{# ── 3. Diseño base ── #}
-{% if calc.n_sectores is not none or calc.caudal_operacion_ls is not none %}
-<div class="titulo-seccion">{{ loop.index }}.3. Diseño base — caudal y sectorización</div>
-{% call paso_mc('caudal_operacion', mc_sis) %}
-<div class="formula">Caudal de operación: <strong>{{ val(calc.caudal_operacion_ls, ' l/s') }}</strong></div>
+{# ── 3. Verificaciones contra valores oficiales ──
+   Portado de informe_calculo.html: esta Memoria es la "completa", así que debe mostrar TODO lo
+   obtenido y calculado, no un subconjunto. Sin esta sección, datos que la app sí calcula (VA de
+   la postura, caudal del aspersor, los checks de Kc/Eficiencia/VIB y todo el bloque de Carrete)
+   no aparecían por ningún lado en el informe completo. #}
+{% if calc.kc_dt05 or calc.eficiencia_check or calc.vib_check or calc.postura_check or calc.carrete_check %}
+<div class="titulo-seccion">{{ loop.index }}.3. Verificaciones contra valores oficiales</div>
+
+{% if calc.kc_dt05 %}
+<div class="paso">
+  <div class="formula">Kc declarado ({{ val(agro.kc) }}) vs. rango oficial DT-05 para "{{ calc.kc_dt05.cultivo_match }}": {{ calc.kc_dt05.kc_min }}–{{ calc.kc_dt05.kc_max }}</div>
+  <div class="explica">Rango de Kc aceptado por CNR (DT-05) para ese cultivo/etapa — un Kc fuera de rango debe respaldarse con publicaciones de instituciones reconocidas.</div>
+  <div class="compara">{% if calc.kc_dt05.kc_fuera_rango %}<span class="alerta">Fuera de rango.</span>{% else %}<span class="ok">Dentro del rango oficial.</span>{% endif %}</div>
+</div>
+{% endif %}
+
+{% if calc.eficiencia_check %}
+<div class="paso">
+  <div class="formula">Eficiencia declarada ({{ val(agro.eficiencia_pct) }} %) vs. rango oficial CNR (DT-24/DT-04) para {{ sis.sistema_riego }}: {{ calc.eficiencia_check.ef_min }}–{{ calc.eficiencia_check.ef_max }} %</div>
+  <div class="explica">Una eficiencia declarada SOBRE el valor oficial reduce artificialmente la demanda calculada (Tasa de riego = Demanda neta / Eficiencia) e infla la superficie que el proyecto dice poder regar con el caudal disponible.</div>
+  <div class="compara">
+    {% if calc.eficiencia_check.sobre_oficial %}<span class="alerta">SUPERIOR al máximo oficial — infla la superficie regable, salvo que el expediente lo respalde con ensayos de uniformidad.</span>
+    {% elif calc.eficiencia_check.bajo_oficial %}<span class="alerta">Inferior al rango oficial</span> — no infla la superficie (conservador), pero revisar si corresponde a un error o a la eficiencia del método ACTUAL en vez del proyectado.
+    {% else %}<span class="ok">Dentro del rango oficial.</span>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if calc.vib_check %}
+<div class="paso">
+  <div class="formula">VIB del suelo ({{ val(agro.vib_mmhr, ' mm/hr') }}) vs. Precipitación del sistema ({{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }})</div>
+  <div class="explica">La Velocidad de Infiltración Básica del suelo debe superar la tasa de aplicación del sistema — si no, hay riesgo de escorrentía.</div>
+  <div class="compara">{% if calc.vib_check.vib_ok %}<span class="ok">OK — VIB &gt; precipitación.</span>{% else %}<span class="alerta">Riesgo de escorrentía — VIB no supera la precipitación del sistema.</span>{% endif %}</div>
+</div>
+{% endif %}
+
+{% if calc.postura_check %}
+<div class="paso">
+  <div class="formula">VA = Q_aspersor×1000 / (Esp.asp × Esp.lat) = {{ val(agro.caudal_aspersor_m3h) }}×1000 / ({{ val(agro.espaciamiento_aspersores_m) }} × {{ val(agro.espaciamiento_laterales_m) }}) = <strong>{{ val(calc.postura_check.va_mmhr, ' mm/hr') }}</strong></div>
+  <div class="explica">Velocidad de aplicación de la postura de aspersores.</div>
+  {% if agro.precipitacion_sistema_mmhr is not none and calc.postura_check.va_mmhr %}
+  <div class="compara">Precipitación del sistema declarada: {{ num(agro.precipitacion_sistema_mmhr) }} mm/hr — {% if (calc.postura_check.va_mmhr - agro.precipitacion_sistema_mmhr) | abs / calc.postura_check.va_mmhr * 100 > 10 %}<span class="alerta">no coincide con la VA que resulta de su propio marco de aspersores.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+</div>
+<div class="paso">
+  <div class="formula">A_postura = Esp.asp × Esp.lat × N° aspersores / 10.000 = <strong>{{ val(calc.postura_check.superficie_postura_ha, ' ha') }}</strong> · N° posturas = ⌈Superficie / A_postura⌉ = <strong>{{ val(calc.postura_check.n_posturas) }}</strong></div>
+  <div class="explica">N° de posturas — geométrico, cuántas veces hay que reposicionar el grupo fijo de aspersores para cubrir todo el predio. NO depende del caudal disponible (a diferencia del "N° de sectores" genérico de Goteo/Microaspersión).</div>
+  {% if agro.declarado and agro.declarado.n_sectores is not none %}
+  <div class="compara">Declarado (rotulado "N° de sectores" en el expediente): {{ num(agro.declarado.n_sectores) }} — {% if calc.postura_check.n_posturas != agro.declarado.n_sectores %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+</div>
+{% if calc.postura_check.tiempo_postura_hr %}
+<div class="paso">
+  <div class="formula">T. postura = Db / VA = {{ val(calc.db_mm) }} / {{ val(calc.postura_check.va_mmhr) }} = <strong>{{ val(calc.postura_check.tiempo_postura_hr, ' hr') }}</strong>{% if calc.postura_check.posturas_dia is not none %} · Posturas/día = <strong>{{ calc.postura_check.posturas_dia }}</strong>{% endif %}</div>
+  <div class="explica">Tiempo para aplicar la demanda bruta a esa velocidad, y cuántas posturas caben en el día disponible (con 0,5 hr de traslado entre posturas).</div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if calc.carrete_check %}
+<div class="paso">
+  <div class="formula">Q diseño = Q catálogo × (1 + margen/100) = {{ val(agro.caudal_canon_m3h) }} × (1 + {{ val(agro.margen_sobredimensionamiento_pct, '') or 15 }}/100) = <strong>{{ val(calc.carrete_check.q_diseno_m3h, ' m³/hr') }}</strong> ({{ val(calc.carrete_check.q_diseno_ls, ' l/s') }})</div>
+  <div class="explica">Metodología INIA-Carillanca 2001. El margen de sobredimensionamiento (típico 15-20%) cubre viento fuerte, mayor demanda del cultivo o averías.</div>
+</div>
+<div class="paso">
+  <div class="formula">Diámetro mojado = 2 × Radio = {{ val(calc.carrete_check.d_mojado_m, ' m') }} · Espaciamiento entre franjas (según viento {{ val(agro.velocidad_viento_ms, ' m/s') }}) = <strong>{{ val(calc.carrete_check.espaciamiento_franjas_m, ' m') }}</strong></div>
+  <div class="explica">El % de espaciamiento sobre el diámetro mojado depende de la velocidad del viento de diseño (tabla INIA Cuadro 1: 80% con viento ≤1 m/s, hasta 52,5% con viento &gt;5 m/s).</div>
+</div>
+<div class="paso">
+  <div class="formula">Pluviometría = Q diseño / (π×(0,9×Radio)²) × (210°/360) × 1000 = <strong>{{ val(calc.carrete_check.pluviometria_mmhr, ' mm/hr') }}</strong></div>
+  <div class="explica">Tasa de aplicación media del cañón, con el ángulo de sector recomendado INIA (210°, fijo).</div>
+  {% if agro.declarado and agro.declarado.pluviometria_mmhr is not none %}
+  <div class="compara">Declarado: {{ num(agro.declarado.pluviometria_mmhr) }} mm/hr — {% if calc.carrete_check.pluviometria_mmhr and (calc.carrete_check.pluviometria_mmhr - agro.declarado.pluviometria_mmhr) | abs / calc.carrete_check.pluviometria_mmhr * 100 > 15 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+  {% if calc.carrete_check.vib_cumple_minimo_inia is defined %}
+  <div class="compara">VIB declarada ({{ val(agro.vib_mmhr, ' mm/hr') }}) — mínimo INIA-Carillanca 7,5 mm/hr: {% if calc.carrete_check.vib_cumple_minimo_inia %}<span class="ok">cumple.</span>{% else %}<span class="alerta">no cumple — suelo poco apto para carrete.</span>{% endif %}
+  {% if calc.carrete_check.vib_supera_pp is defined %}{% if not calc.carrete_check.vib_supera_pp %}<span class="alerta"> Además, la pluviometría supera la VIB — riesgo de escorrentía.</span>{% endif %}{% endif %}</div>
+  {% endif %}
+</div>
+<div class="paso">
+  <div class="formula">Superficie por postura = (Long. franja × Espaciamiento) / 10.000 = <strong>{{ val(calc.carrete_check.superficie_postura_ha, ' ha') }}</strong> · N° posturas = ⌈Superficie / Sup. postura⌉ = <strong>{{ val(calc.carrete_check.n_posturas) }}</strong></div>
+  <div class="explica">N° de posturas del cañón — geométrico, no depende del caudal disponible.</div>
+  {% if agro.declarado and agro.declarado.n_sectores is not none %}
+  <div class="compara">Declarado (rotulado "N° de sectores" en el expediente — en Carrete corresponde al N° de posturas): {{ num(agro.declarado.n_sectores) }} — {% if calc.carrete_check.n_posturas != agro.declarado.n_sectores %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+</div>
+<div class="paso">
+  <div class="formula">Tiempo por postura = <strong>{{ val(calc.carrete_check.tiempo_postura_hr, ' hr') }}</strong></div>
+  <div class="explica">Tiempo de manguera + avance del cañón + retorno, para cubrir una postura completa.</div>
+</div>
+{% endif %}
+{% endif %}
+
+{# ── 4. Diseño base — superficie, caudal y sectorización ── #}
+{% if calc.demanda_ls_ha is not none %}
+<div class="titulo-seccion">{{ loop.index }}.4. Diseño base — superficie, caudal y sectorización</div>
+
+{% call paso_mc('demanda_ls_ha', mc_sis) %}
+<div class="formula">Demanda = Db diario / 8,64 = {{ val(calc.db_diario_mm) }} / 8,64 = <strong>{{ val(calc.demanda_ls_ha, ' l/s/ha') }}</strong></div>
+<div class="explica">1 mm/día por hectárea equivale a 1/8,64 l/s/ha — conversión estándar para pasar de lámina diaria a caudal continuo.</div>
 {% endcall %}
-{% call paso_mc('n_sectores', mc_sis) %}
-<div class="formula">N° sectores: <strong>{{ val(calc.n_sectores) }}</strong> &nbsp;·&nbsp; Tiempo de riego/sector: <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong> &nbsp;·&nbsp; Total/día: <strong>{{ val(calc.tiempo_total_dia_hr, ' hr') }}</strong></div>
-{% if agro.declarado and agro.declarado.n_sectores is not none %}
-<div class="compara">N° sectores declarado: {{ agro.declarado.n_sectores }} — {% if calc.n_sectores and agro.declarado.n_sectores != calc.n_sectores %}<span class="alerta">difiere del calculado.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+
+{% if calc.superficie_segura_ha is not none %}
+{% call paso_mc('superficie_segura', mc_sis) %}
+<div class="formula">Superficie de riego segura = Caudal de la fuente / Demanda = {{ val(agro.caudal_disponible_ls) }} / {{ val(calc.demanda_ls_ha) }} = <strong>{{ val(calc.superficie_segura_ha, ' ha') }}</strong></div>
+<div class="explica">Cuánta superficie puede regarse de forma segura SOLO con el caudal de la fuente (sin considerar el acumulador — ITT-03 §1, balance diario).</div>
+{% if agro.superficie_riego_ha is not none %}
+<div class="compara">Superficie declarada del proyecto: {{ num(agro.superficie_riego_ha) }} ha — {% if calc.superficie_segura_ha < agro.superficie_riego_ha %}<span class="alerta">supera la superficie segura — el caudal de la fuente no alcanza por sí solo (el acumulador puede compensar, ver más abajo).</span>{% else %}<span class="ok">dentro de lo que alcanza el caudal de la fuente.</span>{% endif %}</div>
 {% endif %}
 {% endcall %}
+{% endif %}
+
+{% if calc.tiempo_riego_hr is not none %}
+{% call paso_mc('tiempo_riego', mc_sis) %}
+<div class="formula">Tiempo de riego = Db / Precipitación del sistema = {{ val(calc.db_mm) }} / {{ val(agro.precipitacion_sistema_mmhr) }} = <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong></div>
+<div class="explica">Tiempo diario de riego por sector, independiente del área total.</div>
+{% if agro.declarado and agro.declarado.tiempo_riego_hr is not none %}
+<div class="compara">Declarado: {{ num(agro.declarado.tiempo_riego_hr) }} hr — {% if calc.tiempo_riego_hr and (calc.tiempo_riego_hr - agro.declarado.tiempo_riego_hr) | abs / calc.tiempo_riego_hr * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+{% endif %}
+{% endcall %}
+{% endif %}
+
+{% if calc.n_sectores is not none and not calc.postura_check and not calc.carrete_check %}
+<div class="paso">
+  <div class="formula">Q requerido = Precipitación × Superficie × 10.000/3.600 = <strong>{{ val(calc.q_requerido_total_ls, ' l/s') }}</strong>{% if calc.caudal_estanque_ls %} · Q estanque = Volumen×1000/(Tiempo riego×3.600) = <strong>{{ val(calc.caudal_estanque_ls, ' l/s') }}</strong>{% endif %}</div>
+  <div class="explica">Caudal que exige regar TODA la superficie a la vez, al ritmo de la precipitación del sistema{% if calc.caudal_estanque_ls %}, y lo que aporta el acumulador durante el riego de un sector{% endif %}.</div>
+</div>
+{% call paso_mc('n_sectores', mc_sis) %}
+<div class="formula">N° de sectores = ⌈(Q requerido − Q estanque) / Caudal de la fuente⌉ = <strong>{{ calc.n_sectores }}</strong></div>
+<div class="explica">Si el caudal requerido supera lo que puede entregar la fuente (más el aporte del acumulador durante ese riego), hay que dividir en sectores regados por turnos.</div>
+{% if agro.declarado and agro.declarado.n_sectores is not none %}
+<div class="compara">Declarado por el consultor: {{ num(agro.declarado.n_sectores) }} — {% if calc.n_sectores != agro.declarado.n_sectores %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+{% endif %}
+{% endcall %}
+{% endif %}
+
+{% if calc.caudal_operacion_ls is not none %}
+{% call paso_mc('caudal_operacion', mc_sis) %}
+<div class="formula">Caudal de operación de la red = Q requerido / N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} = <strong>{{ val(calc.caudal_operacion_ls, ' l/s') }}</strong></div>
+<div class="explica">Caudal que circula por la tubería mientras opera UN sector/postura — el que el consultor debería haber usado para dimensionar diámetros y pérdidas de carga (distinto del caudal de la fuente).</div>
+{% if agro.declarado and agro.declarado.caudal_diseno_ls is not none %}
+<div class="compara">Caudal de diseño declarado: {{ num(agro.declarado.caudal_diseno_ls) }} l/s — {% if calc.caudal_operacion_ls and (calc.caudal_operacion_ls - agro.declarado.caudal_diseno_ls) | abs / calc.caudal_operacion_ls * 100 > 15 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+{% endif %}
+{% if calc.tiempo_total_dia_hr is not none %}
+<div class="compara">Tiempo total al día (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × tiempo de riego) = {{ num(calc.tiempo_total_dia_hr) }} hr{% if calc.cabe_en_horas_disponibles is defined %} — {% if calc.cabe_en_horas_disponibles %}<span class="ok">cabe en las horas disponibles declaradas ({{ num(agro.horas_disponibles_dia) }} hr).</span>{% else %}<span class="alerta">NO cabe en las horas disponibles declaradas ({{ num(agro.horas_disponibles_dia) }} hr) — el diseño no es ejecutable en un día.</span>{% endif %}{% endif %}</div>
+{% endif %}
+{% endcall %}
+{% endif %}
+
 {% if calc.balance_diario_ok is defined %}
 {% call paso_mc('balance_diario', mc_sis) %}
-<div class="formula">Balance diario (fuente vs. demanda): {% if calc.balance_diario_ok %}<span class="ok">la fuente cubre la demanda.</span>{% else %}<span class="alerta">la fuente NO cubre la demanda del diseño.</span>{% endif %}</div>
+<div class="formula">Volumen requerido/día = Q requerido × Tiempo de riego × 3.600 = <strong>{{ val(calc.v_requerido_dia_l, ' L') }}</strong> · Volumen que repone la fuente/día = Caudal fuente × 86.400 = <strong>{{ val(calc.v_fuente_dia_l, ' L') }}</strong></div>
+<div class="explica">Balance diario de volumen — condición de fondo: si la fuente no repone en 24 horas el volumen que exige el diseño, NINGÚN acumulador lo resuelve (habría que reducir superficie o aumentar el derecho de agua).</div>
+<div class="compara">{% if calc.balance_diario_ok %}<span class="ok">OK — la fuente repone lo suficiente en 24 horas.</span>{% else %}<span class="alerta">La fuente NO repone el volumen diario que exige el diseño.</span>{% endif %}</div>
 {% endcall %}
+{% endif %}
+
+{% if calc.volumen_minimo_estanque_l is not none %}
+{% call paso_mc('volumen_estanque', mc_sis) %}
+<div class="formula">Volumen mínimo del estanque = Volumen requerido/día − Caudal fuente × (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
+<div class="explica">Volumen mínimo que debe tener el acumulador para sostener el diseño, dado lo que la fuente ya aporta en el día.</div>
+<div class="compara">Volumen declarado: {{ val(agro.volumen_acumulador_m3, ' m³') }} — {% if calc.acumulador_ok %}<span class="ok">alcanza.</span>{% else %}<span class="alerta">NO alcanza el volumen mínimo requerido.</span>{% endif %}</div>
+{% endcall %}
+{% if calc.delta_q_estanque_ls is not none %}
+<div class="paso">
+  <div class="formula">ΔQ que aporta el estanque = Caudal de operación − Caudal de la fuente = <strong>{{ val(calc.delta_q_estanque_ls, ' l/s') }}</strong></div>
+  <div class="explica">Cuánto caudal instantáneo debe aportar el estanque además de la fuente (0 si la fuente sola ya alcanza).</div>
+  {% if calc.autonomia_estanque_hr is not none %}
+  <div class="compara">Autonomía del estanque = Volumen / ΔQ = <strong>{{ calc.autonomia_estanque_hr }} hr</strong> — cuánto tiempo aguanta ese déficit antes de vaciarse.</div>
+  {% else %}
+  <div class="compara"><span class="ok">La fuente sola alcanza — el estanque no necesita aportar caudal instantáneo.</span></div>
+  {% endif %}
+  {% if calc.tiempo_llenado_estanque_hr is not none %}
+  <div class="compara">Tiempo de llenado desde vacío (solo con la fuente) = <strong>{{ calc.tiempo_llenado_estanque_hr }} hr</strong></div>
+  {% endif %}
+</div>
+{% endif %}
 {% endif %}
 {% endif %}
 
 {# ── 4. Hidráulico ── #}
 {% set tramos_con_datos = tramos | selectattr('caudal_ls', 'ne', none) | list %}
 {% if tramos_con_datos %}
-<div class="titulo-seccion">{{ loop.index }}.4. Diseño hidráulico — tramos de tubería</div>
+<div class="titulo-seccion">{{ loop.index }}.5. Diseño hidráulico — tramos de tubería</div>
 {% call paso_mc('hidraulico_general', mc_sis) %}
 <div class="explica">Verificación Hazen-Williams (velocidad y pérdida de carga por tramo):</div>
 <table class="tabla-tramos" style="margin-top:0.3rem;">
@@ -274,7 +439,7 @@
 
 {# ── 5. Equipo de bombeo ── #}
 {% if sis.amt_declarada_m is not none or sis.caudal_bombeo_ls is not none or sis.amt_calculada_m is not none %}
-<div class="titulo-seccion">{{ loop.index }}.5. Equipo de bombeo</div>
+<div class="titulo-seccion">{{ loop.index }}.6. Equipo de bombeo</div>
 {% call paso_mc('amt_bombeo', mc_sis) %}
 <table class="tabla-datos">
   <tr><td class="label">AMT/CDT declarada</td><td class="valor">{{ val(sis.amt_declarada_m, ' m') }}</td></tr>

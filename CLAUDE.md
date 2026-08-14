@@ -35,27 +35,26 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-**El usuario prueba en la app y comenta la próxima sesión.** Todo implementado y pusheado; nada de
-acá se toca sin que él reporte primero. Detalle en `docs/`.
+**El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
+sin que él reporte primero. Detalle en `docs/`.
 
 1. **Capas de suelo (Aspersión/Carrete):** checkbox, textura, recálculo en vivo y la tabla
    "AD = Σ Ha por capa" en la Memoria. Nunca probado en un proyecto real.
 
 2. **Caudal del emisor — campo distinto por sistema, NO intercambiables:** aspersor (m³/hr) en
-   Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Verificar en Chequeo y
-   Memorias. Además: VA se compara contra la Precipitación declarada, y "Extraído/declarado" ya
-   no tiene celdas muertas.
+   Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Además: VA se compara
+   contra la Precipitación declarada, y "Extraído/declarado" ya no tiene celdas muertas.
 
 3. **Word con tablas:** subir un .docx con el presupuesto en tabla y confirmar que ese texto
    llega al análisis — antes se perdía entero.
 
-4. **Chequeo hidráulico:** "Tubería (catálogo)" con Ø int. propio y fila AMT/Q diseño/Desnivel/
-   Pérdida cabezal/"AMT calc.". **Export→Import a Diseñador v119:** 3 bugs + varios "Lateral".
+4. **Chequeo hidráulico + Export a v119:** catálogo de tuberías, fila AMT/Q diseño/Desnivel/
+   Pérdida cabezal; el export ya manda Desnivel (`-dz`) y Pérdida cabezal (`-pcab`).
+
+5. **Memoria COMPLETA con paridad total** frente a la por sistema: se portó "Verificaciones
+   oficiales" y se completó "Diseño base". Secciones .1–.6. Probar con un expediente de 2 sistemas.
 
 **Esperando decisión del usuario:**
-
-5. **La Memoria COMPLETA no tiene la sección "Verificaciones contra valores oficiales"** de la
-   Memoria por sistema (Kc, Eficiencia, VIB, postura, Carrete). ¿Se porta esa sección?
 
 6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug corregido.
    ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar el prompt?
