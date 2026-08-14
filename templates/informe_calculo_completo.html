@@ -107,8 +107,8 @@
       <div class="col-app">{{ caller() }}</div>
       <div class="col-consultor">
         {% if c.formula %}<div class="formula si-mostro">{{ c.formula }}</div>{% endif %}
-        {% if c.resultado %}<div class="explica">Resultado: <strong>{{ c.resultado }}</strong></div>{% endif %}
-        {% if not c.formula and not c.resultado %}<div class="no-mostro">No muestra el desarrollo del cálculo en el expediente.</div>{% endif %}
+        {% if c.resultado %}<div class="explica">Resultado declarado: <strong>{{ c.resultado }}</strong></div>{% endif %}
+        {% if not c.formula %}<div class="no-mostro">{% if c.resultado %}Sin desarrollo de cálculo — el consultor debe presentar la memoria.{% else %}No declara el resultado ni muestra el desarrollo del cálculo.{% endif %}</div>{% endif %}
       </div>
     </div>
   </div>

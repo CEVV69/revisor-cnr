@@ -25,8 +25,9 @@ NORMATIVA_DIR = BASE_DIR / "normativa"
 
 # ─── Modelo y configuración de costos ─────────────────────────────────────────
 # Modelos disponibles en esta cuenta (confirmado)
-MODELO_SONNET = "claude-sonnet-5"     # Revisión por ejes, chat y consultas (última generación)
-MODELO_HAIKU  = "claude-haiku-4-5"    # Extracción de datos numéricos para verificación (barato)
+MODELO_SONNET       = "claude-sonnet-5"     # Análisis con VISIÓN (planos/documentos escaneados) — mayor resolución (2576px)
+MODELO_SONNET_TEXTO = "claude-sonnet-4-6"  # Análisis texto puro, chat, consultas, metodología — sin visión
+MODELO_HAIKU        = "claude-haiku-4-5"   # Extracción numérica para verificación (barato)
 
 def _texto_respuesta(response) -> str:
     """
@@ -67,7 +68,8 @@ def _precio_sonnet5() -> dict:
 
 
 PRECIOS_USD_POR_MTOK = {
-    "claude-haiku-4-5":  {"in": 1.00, "out":  5.00, "cache_w": 2.00, "cache_r": 0.10},
+    "claude-haiku-4-5":   {"in": 1.00, "out":  5.00, "cache_w": 2.00, "cache_r": 0.10},
+    "claude-sonnet-4-6":  {"in": 3.00, "out": 15.00, "cache_w": 6.00, "cache_r": 0.30},
 }
 
 
@@ -2544,6 +2546,11 @@ DOCUMENTOS DEL GRUPO (texto):
                                    "source": {"type": "base64", "media_type": "image/jpeg",
                                               "data": b64}})
 
+    # Sonnet 5 solo si el ítem incluye imágenes (planos o documentos escaneados) — mayor
+    # resolución (2576px) justifica el mayor costo. Ítems de texto puro usan Sonnet 4.6.
+    hay_imagenes = any(b.get("type") == "image" for b in content_blocks)
+    modelo_analisis = MODELO_SONNET if hay_imagenes else MODELO_SONNET_TEXTO
+
     def _stream_final(max_tokens):
         # Streaming (no create()) para peticiones con mucho input y max_tokens alto — el ítem
         # Presupuesto reparte hasta 120.000 caracteres y pide hasta 20.000 tokens de salida: una
@@ -2551,7 +2558,7 @@ DOCUMENTOS DEL GRUPO (texto):
         # "colgada" varios minutos sin respuesta. get_final_message() devuelve el Message completo
         # (mismo objeto que create()), así que .stop_reason y _texto_respuesta() siguen igual.
         with client.messages.stream(
-            model=MODELO_SONNET,
+            model=modelo_analisis,
             max_tokens=max_tokens,
             system=system_con_cache,
             messages=[{"role": "user", "content": content_blocks}],
@@ -2565,16 +2572,15 @@ DOCUMENTOS DEL GRUPO (texto):
     response = await _llamar(max_tokens_total)
     content = _texto_respuesta(response)
 
-    # El "thinking" de Sonnet 5 a veces se come todo el cupo antes de escribir el JSON,
-    # sobre todo en grupos con imágenes (más que razonar). Si la respuesta llega vacía y
-    # cortada por límite de tokens, reintenta una vez con más cupo antes de rendirse.
+    # Sonnet 5 con razonamiento adaptativo puede agotar el cupo antes de escribir el JSON
+    # (sobre todo en grupos con imágenes). Reintenta una vez con más cupo antes de rendirse.
     if not content.strip() and response.stop_reason == "max_tokens":
         print(f"⚠️ Grupo '{nombre}': respuesta vacía por max_tokens ({max_tokens_total}) — "
               f"reintentando con más cupo…")
         response = await _llamar(max_tokens_total + 8000)
         content = _texto_respuesta(response)
 
-    _log_uso(f"análisis '{nombre}'", response)
+    _log_uso(f"análisis '{nombre}'", response, modelo_analisis)
 
     observaciones = []
     try:
@@ -2708,13 +2714,10 @@ Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda),
 {{"resueltas": []}}"""
 
     def _llamar(max_tokens):
-        # Streaming (no create()) — mismo motivo que _analizar_grupo: con hasta 150 observaciones
-        # pendientes citadas en el prompt (bug real jul-2026, "Planos Proyecto tecnificación":
-        # esta llamada también vació por max_tokens en paralelo con el análisis principal), el
-        # thinking puede ser largo y una llamada sin streaming arriesga el timeout propio del
-        # SDK, además del externo.
+        # Streaming — con hasta 150 observaciones pendientes citadas en el prompt, el cupo puede
+        # agotarse antes de terminar el JSON; una llamada sin streaming arriesga el timeout del SDK.
         with client.messages.stream(
-            model=MODELO_SONNET, max_tokens=max_tokens,
+            model=MODELO_SONNET_TEXTO, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             return stream.get_final_message()
@@ -2722,14 +2725,12 @@ Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda),
     try:
         response = await asyncio.to_thread(_llamar, 6000)
         content = _texto_respuesta(response)
-        # Mismo patrón que el resto de las llamadas a Sonnet 5: el "thinking" puede comerse el
-        # cupo antes de escribir el JSON — reintenta una vez con más cupo antes de rendirse.
         if not content.strip() and response.stop_reason == "max_tokens":
             print(f"⚠️ revisar_invalidacion_cruzada ('{item_nombre_nuevo}'): respuesta vacía por "
                   f"max_tokens — reintentando con más cupo…")
             response = await asyncio.to_thread(_llamar, 14000)
             content = _texto_respuesta(response)
-        _log_uso(f"invalidación cruzada '{item_nombre_nuevo}'", response)
+        _log_uso(f"invalidación cruzada '{item_nombre_nuevo}'", response, MODELO_SONNET_TEXTO)
         data = _extraer_json_simple(content)
         resueltas = data.get("resueltas", [])
         if not isinstance(resueltas, list):
@@ -3015,13 +3016,13 @@ Reglas del marcador:
 
     response = await asyncio.to_thread(
         client.messages.create,
-        model=MODELO_SONNET,
-        max_tokens=8000,   # holgado: el chat ahora también debe escribir el marcador ACCION_JSON
+        model=MODELO_SONNET_TEXTO,
+        max_tokens=8000,   # holgado: el chat también debe escribir el marcador ACCION_JSON
         system=system_con_cache,
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    _log_uso(f"chat '{nombre}'", response)
+    _log_uso(f"chat '{nombre}'", response, MODELO_SONNET_TEXTO)
     texto_crudo = _texto_respuesta(response)
     if not texto_crudo:
         print(f"⚠️ Chat '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3501,7 +3502,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
 
     response = await asyncio.to_thread(
         client.messages.create,
-        model=MODELO_SONNET,
+        model=MODELO_SONNET_TEXTO,
         max_tokens=4000,
         system=[{
             "type": "text",
@@ -3511,7 +3512,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    _log_uso("consulta libre", response)
+    _log_uso("consulta libre", response, MODELO_SONNET_TEXTO)
     texto = _texto_respuesta(response)
     if not texto:
         print(f"⚠️ consultar_expediente: respuesta vacía — stop_reason={response.stop_reason}")
@@ -3582,10 +3583,11 @@ la fórmula o el desarrollo del cálculo (no solo el número final) — cita el 
 
 {lista_conceptos}
 
-REGLA ESTRICTA: si el expediente solo declara el resultado final sin mostrar cómo se obtuvo, o el
-concepto no aparece en absoluto, responde null en "formula" (y en "resultado" si tampoco hay un
-valor declarado) — NO reconstruyas ni inventes una fórmula que el consultor no escribió. Si un
-concepto no aplica al sistema de riego (ej. AD/Dn/Fr en Goteo), también responde null.
+REGLA ESTRICTA — tres casos posibles:
+- El expediente muestra fórmula + desarrollo: rellena "formula" y "resultado".
+- El expediente declara solo el resultado sin mostrar cómo se obtuvo: "formula"=null, "resultado"=<el valor declarado con su unidad>.
+- El concepto no aparece, no aplica al sistema (ej. AD/Dn/Fr en Goteo), o es imposible determinarlo: "formula"=null, "resultado"=null.
+NUNCA reconstruyas ni inventes una fórmula que el consultor no escribió.
 
 Responde SOLO este JSON, sin texto adicional:
 {{"conceptos": {{
@@ -3597,7 +3599,7 @@ EXPEDIENTE:
 
     def _stream_final(max_tokens):
         with client.messages.stream(
-            model=MODELO_SONNET, max_tokens=max_tokens,
+            model=MODELO_SONNET_TEXTO, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             return stream.get_final_message()
@@ -3608,7 +3610,7 @@ EXPEDIENTE:
             print("⚠️ extraer_metodologia_consultor: respuesta vacía por max_tokens — reintentando con más cupo…")
             response = await asyncio.to_thread(_stream_final, 14000)
             content = _texto_respuesta(response)
-        _log_uso("metodología del consultor", response)
+        _log_uso("metodología del consultor", response, MODELO_SONNET_TEXTO)
         data = _extraer_json_tolerante(content)
         conceptos = data.get("conceptos")
         return conceptos if isinstance(conceptos, dict) else {}
@@ -3633,9 +3635,11 @@ expediente — fórmula + valores sustituidos + resultado con unidad:
 
 {lista}
 
-REGLA ESTRICTA: si el expediente solo declara el resultado final sin mostrar cómo se obtuvo,
-o el concepto no aparece, responde null en "formula". NUNCA reconstruyas ni inventes una
-fórmula que el consultor no escribió explícitamente.
+REGLA ESTRICTA — tres casos posibles:
+- El expediente muestra fórmula + desarrollo: rellena "formula" y "resultado".
+- El expediente declara solo el resultado sin mostrar cómo se obtuvo: "formula"=null, "resultado"=<el valor declarado con su unidad>.
+- El concepto no aparece o es imposible determinarlo: "formula"=null, "resultado"=null.
+NUNCA reconstruyas ni inventes una fórmula que el consultor no escribió.
 
 Responde SOLO este JSON:
 {{"conceptos": {{
@@ -3647,7 +3651,7 @@ EXPEDIENTE FV:
 
     def _stream(max_tokens):
         with client.messages.stream(
-            model=MODELO_SONNET, max_tokens=max_tokens,
+            model=MODELO_SONNET_TEXTO, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         ) as s:
             return s.get_final_message()
@@ -3657,7 +3661,7 @@ EXPEDIENTE FV:
         if not content.strip() and response.stop_reason == "max_tokens":
             response = await asyncio.to_thread(_stream, 8000)
             content  = _texto_respuesta(response)
-        _log_uso("metodología FV del consultor", response)
+        _log_uso("metodología FV del consultor", response, MODELO_SONNET_TEXTO)
         data = _extraer_json_tolerante(content)
         conceptos = data.get("conceptos")
         return conceptos if isinstance(conceptos, dict) else {}
@@ -3771,7 +3775,7 @@ Responde SOLO este JSON, sin texto adicional:
 
     def _stream_final(max_tokens):
         with client.messages.stream(
-            model=MODELO_SONNET, max_tokens=max_tokens, system=system_con_cache,
+            model=MODELO_SONNET_TEXTO, max_tokens=max_tokens, system=system_con_cache,
             messages=[{"role": "user", "content": prompt}],
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
         ) as stream:
@@ -3783,7 +3787,7 @@ Responde SOLO este JSON, sin texto adicional:
         print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
         return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
 
-    _log_uso(f"subsanación '{nombre_item}'", response)
+    _log_uso(f"subsanación '{nombre_item}'", response, MODELO_SONNET_TEXTO)
     content = _texto_respuesta(response)
     data = _extraer_json_tolerante(content)
     rec = data.get("recomendacion", "")

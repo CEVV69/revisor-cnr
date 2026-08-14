@@ -54,13 +54,8 @@ sin que él reporte primero. Detalle en `docs/`.
 5. **Memoria COMPLETA con paridad total** frente a la por sistema: se portó "Verificaciones
    oficiales" y se completó "Diseño base". Secciones .1–.6. Probar con un expediente de 2 sistemas.
 
-**Esperando decisión del usuario:**
-
-6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug corregido.
-   ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar el prompt?
-
-7. **Sonnet 5 vs Sonnet 4.6:** hoy todo en Sonnet 5 (promo hasta 31-08-2026). ¿Mover ítems de
-   texto a 4.6 y dejar Sonnet 5 solo para visión (2576px vs 1568px)?
+6. **Comparación FV con metodología del consultor:** prompt corregido — ahora muestra el resultado
+   declarado aunque no haya fórmula, con nota "Sin desarrollo de cálculo". Probar.
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
@@ -74,7 +69,7 @@ un motor agronómico multi-cultivo.
 
 ## Stack
 
-- FastAPI + Jinja2 · PostgreSQL Railway (persiste) · Claude Sonnet 5
+- FastAPI + Jinja2 · PostgreSQL Railway (persiste) · Claude Sonnet 5 (visión) + Sonnet 4.6 (texto)
 - Archivos PDF/Excel: guardados en tabla `archivos` de PostgreSQL (sobreviven deploys)
 - Auth: JWT + bcrypt · Extracción: PyMuPDF, python-docx, openpyxl
 
@@ -112,6 +107,7 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
 - Toma los documentos del ítem (por `tipo_doc`)
 - Documentos con texto: texto truncado inteligentemente (75% inicio + 25% final)
 - Documentos imagen/escaneados: hasta 10 páginas por visión (PLANOS siempre por visión)
+- Modelo: Sonnet 5 si el ítem incluye imágenes, Sonnet 4.6 si es texto puro
 - Bases del concurso cacheadas como 2° bloque del system prompt
 - Resultado: observaciones tageadas con `item` + `item_nombre`, guardadas en proyecto
 
