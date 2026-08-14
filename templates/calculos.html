@@ -225,26 +225,27 @@
             </td>
           </tr>
           <tr class="campo-postura">
-            <td class="col-concepto">VA (velocidad de aplicación) vs. VIB (Aspersión, postura)</td><td class="text-muted">—</td>
+            <td class="col-concepto">VA (velocidad de aplicación) vs. VIB (Aspersión, postura)</td>
+            <td id="{{ p }}agro-va-decl" title="La 'Precipitación del sistema' declarada en Datos de diseño es este mismo dato: la tasa de aplicación de la postura.">—</td>
             <td class="col-calc">
               <span id="{{ p }}agro-va-calc">—</span>
               <span id="{{ p }}agro-va-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr class="campo-postura">
-            <td class="col-concepto">Superficie por postura (Aspersión)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Superficie por postura (Aspersión)</td>
             <td class="col-calc" id="{{ p }}agro-suppos-calc">—</td>
           </tr>
           <tr class="campo-postura">
-            <td class="col-concepto">Tiempo por postura / Posturas por día (Aspersión)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Tiempo por postura / Posturas por día (Aspersión)</td>
             <td class="col-calc" id="{{ p }}agro-tpost-calc">—</td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">Caudal de diseño del cañón (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Caudal de diseño del cañón (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-q-calc">—</td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">Diámetro mojado / Espaciamiento entre franjas (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Diámetro mojado / Espaciamiento entre franjas (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-esp-calc">—</td>
           </tr>
           <tr class="campo-carrete">
@@ -256,26 +257,26 @@
             </td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">VIB vs. Pluviometría — mínimo INIA 7,5 mm/hr (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">VIB vs. Pluviometría — mínimo INIA 7,5 mm/hr (Carrete)</td>
             <td class="col-calc">
               <span id="{{ p }}agro-car-vib-calc">—</span>
               <span id="{{ p }}agro-car-vib-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">Superficie por postura (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Superficie por postura (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-post-calc">—</td>
           </tr>
           <tr class="campo-carrete">
-            <td class="col-concepto">Tiempo por postura (Carrete)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Tiempo por postura (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-tpost-calc">—</td>
           </tr>
           <tr>
-            <td class="col-concepto">ETc (mm/día)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">ETc (mm/día)</td>
             <td class="col-calc" id="{{ p }}agro-etc">—</td>
           </tr>
           <tr class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}">
-            <td class="col-concepto">AD — agua disponible (mm)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">AD — agua disponible (mm)</td>
             <td class="col-calc" id="{{ p }}agro-ad">—</td>
           </tr>
           <tr class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}">
@@ -334,29 +335,29 @@
             </td>
           </tr>
           <tr>
-            <td class="col-concepto">Balance diario de volumen (fuente vs. requerido)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Balance diario de volumen (fuente vs. requerido)</td>
             <td class="col-calc">
               <span id="{{ p }}agro-balance-calc">—</span>
               <span id="{{ p }}agro-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
-            <td class="col-concepto">Volumen mínimo del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Volumen mínimo del estanque (con acumulador)</td>
             <td class="col-calc">
               <span id="{{ p }}agro-vmin-calc">—</span>
               <span id="{{ p }}agro-vmin-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
-            <td class="col-concepto">ΔQ aporta estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">ΔQ aporta estanque (con acumulador)</td>
             <td class="col-calc" id="{{ p }}agro-deltaq-calc">—</td>
           </tr>
           <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
-            <td class="col-concepto">Autonomía del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">Autonomía del estanque (con acumulador)</td>
             <td class="col-calc" id="{{ p }}agro-autonomia-calc">—</td>
           </tr>
           <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
-            <td class="col-concepto">T. llenado del estanque (con acumulador)</td><td class="text-muted">—</td>
+            <td class="col-concepto" colspan="2">T. llenado del estanque (con acumulador)</td>
             <td class="col-calc" id="{{ p }}agro-tllenado-calc">—</td>
           </tr>
         </table>
@@ -887,11 +888,15 @@
     // Solo se muestran en Microaspersión (y si no se declara sistema o es Mixto).
     var mostrarCcPmpDa = !(sistema === "Goteo" || sistema === "Aspersión" || sistema === "Carrete");
     wrap.querySelectorAll(".campo-cc-pmp-da").forEach(function(el) { el.style.display = mostrarCcPmpDa ? "" : "none"; });
-    // Caudal emisor visible para Goteo, Aspersión, Microaspersión — no aplica a Carrete.
+    // Caudal emisor: SOLO Goteo y Microaspersión. En Aspersión el dato equivalente es "Caudal del
+    // aspersor (m³/hr)" (campo-postura), que además SÍ alimenta cálculos —VA, superficie y caudal
+    // por postura, N° de posturas, tiempo por postura— y se exporta al Diseñador como `qasp`;
+    // "Caudal emisor" ahí sería un duplicado inerte. En Carrete el equivalente es "Caudal cañón —
+    // catálogo (m³/hr)".
     // El <div> lleva `sistema-riego-campo`, que el CSS oculta salvo que tenga `.activo` — hay que
     // togglear esa clase, NO `style.display`: poner `style.display=""` solo borra el estilo inline
     // y deja mandando al `display:none` de la regla, así que el campo no se veía en ningún sistema.
-    var mostrarCaudalEmisor = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Aspersión" || sistema === "Microaspersión";
+    var mostrarCaudalEmisor = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
     wrap.querySelectorAll(".campo-caudal-emisor").forEach(function(el) { el.classList.toggle("activo", mostrarCaudalEmisor); });
     // Desglose de Humedad Aprovechable por capas de suelo — solo Aspersión y Carrete (v119 del
     // Diseñador de Riego no lo ofrece en Goteo ni Microaspersión).
@@ -1005,12 +1010,19 @@
     if (qAsp !== null && espAsp !== null && espLat !== null && nAspPostura !== null && sup !== null) {
       vaAsp = (qAsp * 1000) / (espAsp * espLat);
       setText(p + "agro-va-calc", fmt(vaAsp, 2) + " mm/hr");
-      if (vib !== null) {
-        var vaOk = vib > vaAsp;
-        nota(p + "agro-va-nota", vaOk ? "" : "VIB del suelo (" + fmt(vib, 1) + " mm/hr) NO supera la VA calculada (" + fmt(vaAsp, 2) + " mm/hr) — riesgo de escorrentía.");
-      } else {
-        nota(p + "agro-va-nota", "");
+      // La "Precipitación del sistema" declarada ES la VA del consultor (misma magnitud, mm/hr):
+      // se contrasta contra la que sale de SU propio marco de aspersores y caudal de aspersor. Si
+      // no coinciden, uno de los dos datos del expediente está mal — observación de revisor que
+      // antes no se hacía (esta celda era un guión fijo, imposible de llenar).
+      setText(p + "agro-va-decl", precip !== null ? fmt(precip, 2) + " mm/hr" : "—");
+      var avisosVa = [];
+      if (vib !== null && vib <= vaAsp) {
+        avisosVa.push("VIB del suelo (" + fmt(vib, 1) + " mm/hr) NO supera la VA calculada (" + fmt(vaAsp, 2) + " mm/hr) — riesgo de escorrentía.");
       }
+      if (precip !== null && diferenciaRelevante(vaAsp, precip, 10)) {
+        avisosVa.push("No coincide con la Precipitación del sistema declarada (" + fmt(precip, 2) + " mm/hr).");
+      }
+      nota(p + "agro-va-nota", avisosVa.join(" "));
       supPosturaAsp = (espAsp * espLat * nAspPostura) / 10000;
       nPosturasAsp = supPosturaAsp ? Math.ceil(sup / supPosturaAsp) : null;
       setText(p + "agro-suppos-calc", fmt(supPosturaAsp, 3) + " ha");
@@ -1022,6 +1034,7 @@
       }
     } else {
       setText(p + "agro-va-calc", "—");
+      setText(p + "agro-va-decl", precip !== null ? fmt(precip, 2) + " mm/hr" : "—");
       nota(p + "agro-va-nota", "");
       setText(p + "agro-suppos-calc", "—");
     }

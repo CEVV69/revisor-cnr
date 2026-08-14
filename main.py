@@ -1986,7 +1986,8 @@ _CAMPOS_AGRO_INFORME = (
     "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
     "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr",
     "superficie_riego_ha", "caudal_disponible_ls", "precipitacion_sistema_mmhr",
-    "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr", "caudal_canon_m3h",
+    "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
+    "caudal_aspersor_m3h", "caudal_canon_m3h",
     "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
     "longitud_franja_m", "velocidad_avance_mh",
 )

@@ -150,7 +150,15 @@
   <tr><td class="label">ETo día crítico</td><td class="valor">{{ val(agro.eto_dia_mm, ' mm/día') }}</td></tr>
   <tr><td class="label">Eficiencia del sistema</td><td class="valor">{{ val(agro.eficiencia_pct, ' %') }}</td></tr>
   <tr><td class="label">Presión Operación del Emisor</td><td class="valor">{{ val(agro.presion_emisor_mca, ' mca') }}</td></tr>
+  {# Ver nota en informe_calculo.html: el campo de caudal del emisor es distinto por sistema
+     (aspersor m³/hr / cañón m³/hr / emisor l/hr) y no son intercambiables. #}
+  {% if sis.sistema_riego == 'Aspersión' %}
+  <tr><td class="label">Caudal del aspersor (catálogo)</td><td class="valor">{{ val(agro.caudal_aspersor_m3h, ' m³/hr') }}</td></tr>
+  {% elif sis.sistema_riego == 'Carrete' %}
+  <tr><td class="label">Caudal del cañón (catálogo)</td><td class="valor">{{ val(agro.caudal_canon_m3h, ' m³/hr') }}</td></tr>
+  {% else %}
   <tr><td class="label">Caudal emisor</td><td class="valor">{{ val(agro.caudal_emisor_lhr, ' l/hr') }}</td></tr>
+  {% endif %}
   <tr><td class="label">Superficie de riego</td><td class="valor">{{ val(agro.superficie_riego_ha, ' ha') }}</td></tr>
   <tr><td class="label">Caudal disponible (fuente)</td><td class="valor">{{ val(agro.caudal_disponible_ls, ' l/s') }}</td></tr>
   <tr><td class="label">Precipitación del sistema</td><td class="valor">{{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }}</td></tr>
