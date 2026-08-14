@@ -48,6 +48,13 @@ en la raíz — ninguno referenciado desde ningún lado. Se agregó `docs/` y `n
 `.railwayignore`: ninguno se lee en runtime (`cargar_normativa()` usa `glob("*.txt")` de primer
 nivel, no recursivo) y viajaban en cada deploy.
 
+**Estado al cierre de la sesión:** los tres fixes quedaron pusheados a `main` y desplegados, pero
+**verificados solo en banco de pruebas, no en la app real**: los números de capas contra
+`ad_por_capas` (C1=56,70 + C2=54,60 = 111,30 mm), los dos templates de Memoria renderizados en sus
+cuatro combinaciones (por sistema / completa × con capas / sin capas), y la extracción de un
+`.docx` de prueba con una tabla de presupuesto. El usuario los probará con un expediente real y
+comenta en la próxima sesión — no rehacer nada de esto sin que él reporte primero qué falló.
+
 **Rama muerta:** `claude/revisor-cnr-design-adjustments-gt7pyc` quedó 22 commits atrás de main.
 Un commit anterior resolvió mal un conflicto de stash ahí y dejó JS apuntando a clases que en el
 HTML de esa rama no existen. Se verificó commit por commit que no contuviera trabajo único (el

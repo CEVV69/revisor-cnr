@@ -35,40 +35,41 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-**Pendiente de verificar/decidir por el usuario (próxima sesión):**
+**El usuario está probando esto en la app y comenta el resultado la próxima sesión.** Todo está
+implementado y pusheado; nada de acá se toca sin que él lo reporte primero. Detalle en `docs/`.
 
-1. **Humedad Aprovechable por capas de suelo (Aspersión/Carrete):** falta confirmar en un proyecto
-   real (checkbox, autocompletado por textura, recálculo en vivo) — solo probado con números de
-   prueba (`ad_por_capas()`).
+1. **Capas de suelo (Aspersión/Carrete):** checkbox, autocompletado por textura y recálculo en
+   vivo; y que la Memoria muestre la tabla "AD = Σ Ha por capa" en vez de la fórmula de capa
+   única. Solo probado con números y renderizando templates, nunca en un proyecto real.
 
-2. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido
-   (`docs/historial_sesiones.md`). Pendiente: ¿verificar que el consultor no muestra el desarrollo,
-   o relajar el criterio de estrictez del prompt?
+2. **Campo "Caudal emisor (l/hr)":** debe verse en Goteo/Aspersión/Microaspersión y NO en
+   Carrete. Estuvo invisible en los 4 sistemas hasta el fix de ago-2026.
 
-3. **Sonnet 5 vs Sonnet 4.6:** hoy corre todo en Sonnet 5 (precio promo hasta 31-08-2026). Evalúa
-   mover ítems de texto a 4.6 y dejar Sonnet 5 solo para visión (mayor resolución: 2576px vs
-   1568px). Esperando decisión del usuario.
+3. **Word con tablas:** subir un .docx con el presupuesto/cuadro en tabla y confirmar que ese
+   texto llega al análisis — antes se perdía entero.
 
-4. **Ítem "Diseño y cálculos hidráulicos" + Chequeo de Cálculos:** criterio de ingeniero, fix de
-   validación al guardar, selector "Tubería (catálogo)" con Ø int. propio, y fila AMT/Q diseño/
-   Desnivel/Pérdida cabezal/"AMT calc.". Falta probar en la app — detalle en `docs/`.
+4. **Chequeo de Cálculos (hidráulico):** selector "Tubería (catálogo)" con Ø int. propio y fila
+   AMT/Q diseño/Desnivel/Pérdida cabezal/"AMT calc.".
 
-5. **Export→Import Revisor CNR → Diseñador v119:** 3 bugs corregidos + soporte de varios "Lateral"
-   (crítico = el más largo). Falta confirmar en la app real — detalle en `docs/`.
+5. **Export→Import Revisor CNR → Diseñador v119:** 3 bugs corregidos + varios "Lateral"
+   (crítico = el más largo).
 
-6. **Auditoría ago-2026 (recién hecha):** 3 bugs corregidos — campo "Caudal emisor" invisible,
-   Memoria de Cálculo con fórmula de AD que no cuadraba al usar capas, y texto de tablas Word que
-   se perdía. Falta confirmar los tres en la app — detalle en `docs/`.
+**Esperando decisión del usuario:**
 
-**Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
-anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
-porque esos cálculos dependen del perfil solar horario del predio, que solo vive dentro del propio
-Revisor Fotovoltaico (`static/fotovoltaico_riego_v15.html`), importado desde el Explorador Solar.
+6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido.
+   ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar la estrictez
+   del prompt?
 
-**Fuera de alcance de Revisor CNR:** cualquier verificación que combine cultivos vía Kc mensual (ej.
-"horas de riego por mes" reconstruyendo la demanda agronómica) pertenece al **Revisor
-Fotovoltaico**, no a esta app — su chequeo FV trabaja con un solo valor diario promedio, no con un
-motor agronómico multi-cultivo (ver `docs/historial_sesiones.md`).
+7. **Sonnet 5 vs Sonnet 4.6:** hoy todo en Sonnet 5 (precio promo hasta 31-08-2026). ¿Mover ítems
+   de texto a 4.6 y dejar Sonnet 5 solo para visión (2576px vs 1568px)?
+
+**Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
+potencia requerida) en la Memoria de Cálculo Completa — bloqueado: dependen del perfil solar
+horario del predio, que solo vive dentro de `static/fotovoltaico_riego_v15.html`.
+
+**Fuera de alcance:** cualquier verificación que combine cultivos vía Kc mensual (ej. "horas de
+riego por mes") pertenece al **Revisor Fotovoltaico**, no a esta app — su chequeo FV usa un solo
+valor diario promedio, no un motor agronómico multi-cultivo.
 
 ---
 
