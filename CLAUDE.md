@@ -38,8 +38,8 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo implementado y pusheado; nada de
 acá se toca sin que él reporte primero. Detalle en `docs/`.
 
-1. **Capas de suelo (Aspersión/Carrete):** checkbox, autocompletado por textura, recálculo en
-   vivo, y la tabla "AD = Σ Ha por capa" en la Memoria. Nunca probado en un proyecto real.
+1. **Capas de suelo (Aspersión/Carrete):** checkbox, textura, recálculo en vivo y la tabla
+   "AD = Σ Ha por capa" en la Memoria. Nunca probado en un proyecto real.
 
 2. **Caudal del emisor — campo distinto por sistema, NO intercambiables:** aspersor (m³/hr) en
    Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Verificar en Chequeo y
@@ -57,12 +57,11 @@ acá se toca sin que él reporte primero. Detalle en `docs/`.
 5. **La Memoria COMPLETA no tiene la sección "Verificaciones contra valores oficiales"** de la
    Memoria por sistema (Kc, Eficiencia, VIB, postura, Carrete). ¿Se porta esa sección?
 
-6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido.
-   ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar la estrictez
-   del prompt?
+6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug corregido.
+   ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar el prompt?
 
-7. **Sonnet 5 vs Sonnet 4.6:** hoy todo en Sonnet 5 (precio promo hasta 31-08-2026). ¿Mover ítems
-   de texto a 4.6 y dejar Sonnet 5 solo para visión (2576px vs 1568px)?
+7. **Sonnet 5 vs Sonnet 4.6:** hoy todo en Sonnet 5 (promo hasta 31-08-2026). ¿Mover ítems de
+   texto a 4.6 y dejar Sonnet 5 solo para visión (2576px vs 1568px)?
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
@@ -145,7 +144,9 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
    Presupuesto y Planos son la BASE del proyecto. Su análisis prioriza profundidad de
    juicio por sobre presencia/consistencia de datos. Ante observaciones "superficiales"
    en estos cuatro, tratarlo con prioridad alta.
-10. **Todo cambio de cálculo/dato validado por el usuario debe reflejarse también en la Memoria
-    de Cálculo** (`informe_calculo.html`/`informe_calculo_completo.html`) — no alcanza con que
-    viva solo en el Chequeo de Cálculos interactivo. Antes de dar por cerrado un cambio en
-    calculos.html/calculos_riego.py, revisar si la Memoria necesita el mismo dato/fila.
+10. **Todo cambio de cálculo/dato validado debe llegar a los TRES lados**, no solo al Chequeo
+    interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
+    (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
+    exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
+    En el export, confirmar el ID contra `static/disenador_riego_v119.html` — **nunca adivinarlo**;
+    si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.

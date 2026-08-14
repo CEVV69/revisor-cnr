@@ -1,3 +1,36 @@
+## Sesión ago-2026 — el `.json` de exportación al Diseñador también debe reflejar los cambios
+
+El usuario fijó una regla nueva (ahora la #10 de CLAUDE.md): todo cambio validado debe llegar a
+los TRES lados — Chequeo interactivo, Memoria de Cálculo (las dos) y el `.json` de exportación.
+Faltaba el tercero.
+
+**Agregado al export:**
+- `desnivel_m` → `-dz` ("ΔZ [m]" / "Dif. de Cota ΔZ [m]"), existe en los 4 sistemas.
+- `perdida_cabezal_m` → `-pcab` ("Pérdidas Cabezal [mca]"), **solo Goteo y Microaspersión**: en
+  Aspersión/Carrete el Diseñador no tiene equivalente (`a-pb` es "Presión Mín. Aspersor" y `c-pb`
+  la presión en la boquilla del cañón — otro dato).
+Ambos viven en el bloque hidráulico, no en `sistema_agro`, así que `construir()` recibe un
+parámetro nuevo `hid_sistema` y las dos rutas de main.py se lo pasan.
+
+**Bug encontrado de paso:** el export emitía `g-cc`/`g-pmp`/`g-da`, que NO existen en el Diseñador
+— Goteo no tiene esos campos, por la misma razón por la que Revisor los oculta ahí (alta
+frecuencia: Db sale directo de ETc/Ef sin pasar por el agotamiento del suelo). Eran 3 claves
+muertas en cada archivo exportado. Ahora se omiten en Goteo. `g-pr` sí existe, se mantiene.
+
+**Datos que NO se pueden exportar** (documentado en el docstring del módulo para no reintentarlo):
+`caudal_emisor_lhr` (el Diseñador saca el caudal del gotero de su propio catálogo de emisores
+`g-tipe`, no de un campo numérico); `eto_dia_mm` (su campo es "ETo Mes Crítico [mm/MES]",
+convertir exigiría asumir los días del mes); `amt_declarada_m`/`caudal_bombeo_ls` (`-bomb-h`/
+`-bomb-q` son "H/Q Nominal", la placa de la bomba elegida, no la AMT que exige el diseño).
+
+**Método de verificación (repetirlo en todo cambio al export):** se validan TODAS las claves
+generadas contra los `id="..."` reales de `static/disenador_riego_v119.html`, en los 4 sistemas.
+Ojo con dos trampas que dan falsos positivos: `__capasA`/`__capasC`/`__tramos` no son `id=` sino
+claves especiales del formato, y los campos FV se generan por JS (`id="'+pfx+'-fv-hsp"`), así que
+un grep de `id="..."` a secas no los ve. Resultado tras el fix: 0 claves inválidas en los 4.
+
+---
+
 ## Sesión ago-2026 — caudal del emisor por sistema + columna "Extraído/declarado"
 
 El usuario probó la auditoría anterior y reportó dos cosas.
