@@ -8,3 +8,10 @@ uploads/
 data/
 /tmp/
 *.log
+
+# Documentación de trabajo y fuentes normativas sin destilar: viven en el repo para poder
+# consultarlas/re-destilarlas, pero la app no las lee en runtime (`cargar_normativa()` solo
+# recorre el primer nivel de `normativa/`, no `normativa/fuentes/`). No tienen por qué viajar
+# en cada deploy.
+docs/
+normativa/fuentes/
