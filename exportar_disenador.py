@@ -26,7 +26,16 @@ formatos según el sistema, confirmados leyendo el HTML fuente del Diseñador v1
 El Desglose de Humedad Aprovechable por capas de suelo (checkbox "reemplaza CC/PMP/Da/Prof.",
 solo Aspersión/Carrete) se exporta como `__capasA`/`__capasC` — mismo formato que usa el propio
 Diseñador para guardar/exportar sus proyectos, confirmado contra un archivo real exportado desde
-el Diseñador v119 (no adivinado)."""
+el Diseñador v119 (no adivinado).
+
+DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intentarlo cada vez):
+- `caudal_emisor_lhr` (Goteo/Microaspersión): el Diseñador NO tiene un campo numérico para el
+  caudal del gotero — lo saca del emisor elegido en su propio catálogo (`g-tipe`/`m-tipe`, select
+  con botón "⚙ Gestionar"). Escribirlo exigiría inventar una entrada de catálogo.
+- `eto_dia_mm`: el campo del Diseñador es "ETo Mes Crítico [mm/MES]" (`-etom`) y el de Revisor es
+  del día crítico [mm/día]. Convertir exige asumir los días del mes, que Revisor no sabe.
+- `amt_declarada_m` / `caudal_bombeo_ls`: los campos `-bomb-h`/`-bomb-q` del Diseñador son
+  "H Nominal"/"Q Nominal" — la placa de la bomba elegida, no la AMT que exige el diseño."""
 import unicodedata
 
 import calculos_riego
@@ -119,14 +128,19 @@ def _clasificar_tramos_jerarquico(tramos: list) -> dict:
 
 
 def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
-              proyecto: dict, nombre_sistema: str, fecha_str: str) -> dict:
+              proyecto: dict, nombre_sistema: str, fecha_str: str,
+              hid_sistema: dict = None) -> dict:
     """Arma el dict del archivo del Diseñador para UN sistema de riego, o None si el sistema no
-    es uno de los cuatro exportables (Goteo/Microaspersión/Aspersión/Carrete)."""
+    es uno de los cuatro exportables (Goteo/Microaspersión/Aspersión/Carrete).
+
+    `hid_sistema`: el bloque hidráulico del sistema (`verificacion_calculos.hidraulico.sistemas[i]`)
+    — de ahí salen desnivel y pérdida de cabezal, que NO viven en `sistema_agro`."""
     par = SISTEMA_A_DR.get(nombre_sistema)
     if not par:
         return None
     p, sys_code = par
     sistema_agro = sistema_agro or {}
+    hid_sistema = hid_sistema or {}
     fv = fv or {}
     resumen = resumen or {}
 
@@ -150,9 +164,14 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     # ── Cadena agronómica (Chequeo de Cálculos) ──
     put("cult", sistema_agro.get("cultivo"))
     put("ef", sistema_agro.get("eficiencia_pct"))
-    put("cc", sistema_agro.get("cc_pct"))
-    put("pmp", sistema_agro.get("pmp_pct"))
-    put("da", sistema_agro.get("da"))
+    # CC/PMP/Da: el Diseñador NO los tiene en Goteo (no existen `g-cc`/`g-pmp`/`g-da` en su HTML)
+    # — misma razón por la que Revisor los oculta ahí: en alta frecuencia la demanda bruta sale
+    # directo de ETc/Ef, sin pasar por el agotamiento del suelo. Emitirlos igual solo metía 3
+    # claves muertas en el archivo. Prof. radicular (`g-pr`) SÍ existe en los 4.
+    if sys_code != "got":
+        put("cc", sistema_agro.get("cc_pct"))
+        put("pmp", sistema_agro.get("pmp_pct"))
+        put("da", sistema_agro.get("da"))
     put("pr", sistema_agro.get("prof_radicular_cm"))
     put("kc", sistema_agro.get("kc"))
     put("q", sistema_agro.get("caudal_disponible_ls"))
@@ -194,6 +213,17 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("pres", presion_emisor)
     elif sys_code in ("got", "mic"):
         put("pem", presion_emisor)
+
+    # Desnivel del área de riego → "ΔZ [m]" (`-dz`), presente en los 4 sistemas del Diseñador
+    # ("Dif. de Cota ΔZ [m]" en Aspersión). Mismo dato que Revisor suma en la AMT calculada.
+    put("dz", hid_sistema.get("desnivel_m"))
+
+    # Pérdidas de carga del cabezal de control → "Pérdidas Cabezal [mca]" (`-pcab`). SOLO existe
+    # en Goteo y Microaspersión: en Aspersión/Carrete el Diseñador no tiene un campo equivalente
+    # (`a-pb` es "Presión Mín. Aspersor" y `c-pb` la presión en la boquilla del cañón — otro dato,
+    # no la pérdida del cabezal), así que ahí simplemente no se exporta.
+    if sys_code in ("got", "mic"):
+        put("pcab", hid_sistema.get("perdida_cabezal_m"))
 
     # Marco de plantación / espaciamiento — los IDs del Diseñador difieren por sistema:
     #   Goteo: DEH (dist. entre hileras), DSH (dist. sobre hilera / entre plantas), N° líneas de
@@ -283,8 +313,10 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
             q = _s(t.get("caudal_ls"))
             if l is None and q is None:
                 continue
-            # `t` (¿nº de tramos iguales?) y `z` (desnivel) no existen en Revisor — se dejan
-            # vacíos para que el revisor los complete en el Diseñador (no se inventan).
+            # `t` (¿nº de tramos iguales?) y `z` no existen en Revisor a nivel de TRAMO — se dejan
+            # vacíos para que el revisor los complete en el Diseñador (no se inventan). Ojo: el
+            # desnivel que sí tiene Revisor es del sistema completo, no por tramo, y va al campo
+            # `-dz` de arriba; repartirlo entre los tramos sería inventar.
             tramos.append({"l": l or "", "q": q or "", "t": "", "z": ""})
         if tramos:
             fields["__tramos"] = tramos

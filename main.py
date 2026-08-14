@@ -2313,10 +2313,12 @@ async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
     exportados = []
     for idx in range(n_sistemas):
         sistema_agro = agro_norm["sistemas"][idx] if idx < len(agro_norm["sistemas"]) else {}
-        tramos_hid = (hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos", [])
+        hid_sistema = hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}
+        tramos_hid = (hid_sistema or {}).get("tramos", [])
         nombre_sistema = (sistema_agro or {}).get("sistema_riego")
         data = exportar_disenador.construir(
-            sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, fecha)
+            sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, fecha,
+            hid_sistema=hid_sistema)
         if data:
             exportados.append(data)
 
@@ -2353,7 +2355,8 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
 
     sistema_agro = agro_norm["sistemas"][idx]
     nombre_sistema = (sistema_agro or {}).get("sistema_riego")
-    tramos_hid = (hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos", [])
+    hid_sistema = hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}
+    tramos_hid = (hid_sistema or {}).get("tramos", [])
     fv = verif.get("energetico", {})
     # La UTM del Resumen puede venir en notación chilena de miles ("5.946.762"); el input
     # type="number" del Diseñador solo acepta un número plano, así que se normaliza aquí.
@@ -2364,7 +2367,8 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
             resumen[k] = int(num) if float(num).is_integer() else num
 
     data = exportar_disenador.construir(
-        sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, _fecha_disenador())
+        sistema_agro, tramos_hid, fv, resumen, proyecto, nombre_sistema, _fecha_disenador(),
+        hid_sistema=hid_sistema)
     if not data:
         return RedirectResponse(
             url=f"/proyecto/{proyecto_id}/calculos?export_sin_sistema=1", status_code=302)
