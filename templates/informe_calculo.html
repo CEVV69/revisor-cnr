@@ -126,8 +126,15 @@
   <tr><td class="label">Sistema de riego</td><td class="valor{% if not sistema_riego %} vacio{% endif %}">{{ sistema_riego or '—' }}</td></tr>
   <tr><td class="label">Cultivo</td><td class="valor{% if not agro.cultivo %} vacio{% endif %}">{{ agro.cultivo or '—' }}</td></tr>
   {% if sistema_riego != 'Goteo' %}
+  {% if calc.capas_suelo_calc %}
+  {# Con desglose por capas, CC/PMP/Da/Prof. uniformes no alimentan ningún cálculo — mostrarlos
+     vacíos acá hacía leer el informe como si faltaran datos del expediente. #}
+  <tr><td class="label">Suelo</td>
+    <td class="valor">Desglose por capas ({{ calc.capas_suelo_calc.capas|length }} capa{{ 's' if calc.capas_suelo_calc.capas|length != 1 }}, {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm) — ver detalle en 2</td></tr>
+  {% else %}
   <tr><td class="label">CC / PMP / Da / Prof. radicular</td>
     <td class="valor">{{ val(agro.cc_pct, ' %') }} / {{ val(agro.pmp_pct, ' %') }} / {{ val(agro.da) }} / {{ val(agro.prof_radicular_cm, ' cm') }}</td></tr>
+  {% endif %}
   <tr><td class="label">Criterio de riego (factor de agotamiento)</td><td class="valor">{{ val(agro.factor_agotamiento_pct, ' %') }}</td></tr>
   {% endif %}
   <tr><td class="label">Kc</td><td class="valor">{{ val(agro.kc) }}</td></tr>
@@ -160,8 +167,22 @@
 {% endcall %}
 {% else %}
 {% call paso('ad') %}
+  {% if calc.capas_suelo_calc %}
+  {# Desglose por capas activo: el AD sale de la suma por horizonte, no de CC/PMP/Da/Prof.
+     uniformes — imprimir la fórmula de capa única dejaba una igualdad que no cuadra. #}
+  <div class="formula">AD = Σ Ha por capa = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
+  <div class="explica">Agua disponible del suelo, con desglose de Humedad Aprovechable por capas: Ha<sub>capa</sub> = (CC − PMP)/100 × Da × Altura, con Altura[mm] = (Hasta − Desde)[cm] × 10. Reemplaza el cálculo de capa única — CC/PMP/Da/Prof. radicular uniformes no intervienen.</div>
+  <table class="tabla-tramos" style="margin-top:0.3rem;">
+    <tr><th>Capa</th><th>Textura</th><th>Desde (cm)</th><th>Hasta (cm)</th><th>Altura (mm)</th><th>CC (%)</th><th>PMP (%)</th><th>Da (g/cc)</th><th>Ha capa (mm)</th></tr>
+    {% for c in calc.capas_suelo_calc.capas %}
+    <tr><td>C{{ loop.index }}</td><td>{{ c.textura or '—' }}</td><td>{{ num(c.desde_cm) }}</td><td>{{ num(c.hasta_cm) }}</td><td>{{ num(c.altura_mm) }}</td><td>{{ num(c.cc_pct) }}</td><td>{{ num(c.pmp_pct) }}</td><td>{{ num(c.da) }}</td><td>{{ num(c.ha_capa_mm) }}</td></tr>
+    {% endfor %}
+    <tr><td colspan="8" style="text-align:right; font-weight:bold;">AD total (profundidad acumulada {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
+  </table>
+  {% else %}
   <div class="formula">AD = (CC − PMP)/100 × Da × Prof(m) × 1000 = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
   <div class="explica">Agua disponible del suelo — cuánta agua puede retener y ceder el suelo en la profundidad de raíces del cultivo.</div>
+  {% endif %}
 {% endcall %}
 {% call paso('dn') %}
   <div class="formula">Dn = AD × Criterio de riego = {{ val(calc.ad_mm) }} × ({{ val(agro.factor_agotamiento_pct) }}/100) = <strong>{{ val(calc.dn_mm, ' mm') }}</strong></div>
