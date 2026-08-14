@@ -269,6 +269,26 @@ Acepta:
       <div class="big"><div class="k">Superficie regable con el volumen acumulado</div><div class="n" id="rSup">–</div><div class="u">ha · a prorrata de superficie de cada cultivo</div></div>
     </div>
   </div>
+
+  <div class="card">
+    <h2>Superficie de postulación</h2>
+    <div class="row">
+      <label for="supFisica">Superficie física del proyecto <small>editable — precargada desde superficie total</small></label>
+      <div><input type="text" inputmode="decimal" class="num" id="supFisica" value="0"><span class="unit">ha</span></div>
+    </div>
+    <div class="row">
+      <label>Trimestres productivos detectados <small>meses de todos los cultivos agrupados por trimestre calendario</small></label>
+      <div><span id="rTrim" style="font-weight:600">–</span><span class="unit">de 4</span></div>
+    </div>
+    <div class="row">
+      <label>Factor de rotación de cultivos (FRC) <small>FRC = 1 + trimestres/8 · si hay ≥2 trimestres con cultivo; si no, FRC=1</small></label>
+      <div><span id="rFRC" style="font-weight:600">–</span></div>
+    </div>
+    <div class="res" style="margin-top:14px">
+      <div class="big"><div class="k">Superficie de postulación</div><div class="n" id="rSupPost">–</div><div class="u">ha · superficie física × FRC</div></div>
+    </div>
+    <p class="note">Bases del concurso, punto 9.24: "Cálculo de superficie de postulación". Si no existe rotación de cultivos, el FRC se considera 1.</p>
+  </div>
 </section>
 
 <!-- ============ TAB 3 : BALANCE ============ -->
@@ -487,6 +507,20 @@ function chart(){
     </div>`).join('');
 }
 
+const QTRS={anual:[1,2,3,4],q1:[1],q2:[2],q3:[3],q4:[4],q1q2:[1,2],q2q3:[2,3],q3q4:[3,4],q4q1:[4,1]};
+S.supFisicaEditada=false;
+function calcPostulacion(){
+  const qset=new Set();
+  S.crops.forEach(c=>{if(c.sup>0)(QTRS[c.tri]||[]).forEach(q=>qset.add(q));});
+  const nTrim=qset.size;
+  const frc=nTrim>=2?1+nTrim/8:1;
+  const supFis=num($('supFisica').value);
+  $('rTrim').textContent=nTrim;
+  $('rFRC').textContent=fmt(frc,3);
+  $('rSupPost').textContent=supFis>0?fmt(supFis*frc,3):'–';
+}
+$('supFisica').addEventListener('input',()=>{S.supFisicaEditada=true;calcPostulacion();});
+
 function calcDem(){
   const eto=DATA.eto[$('est').value]||Array(12).fill(0);
   const supT=S.crops.reduce((a,c)=>a+c.sup,0);
@@ -517,6 +551,8 @@ function calcDem(){
   $('rSupTot').textContent=fmt(supT,3);
   $('rDt').textContent=tB>0?fmt(tB,3):'–';
   $('rSup').textContent=(tB>0&&supT>0)?fmt(vDisp/tB*supT,3):'–';
+  if(!S.supFisicaEditada)$('supFisica').value=fmt(supT,3);
+  calcPostulacion();
   calcBal();
 }
 
