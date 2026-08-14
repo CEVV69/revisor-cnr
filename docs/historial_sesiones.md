@@ -1,3 +1,62 @@
+## Auditoría ago-2026 — código muerto y bugs encontrados en revisión completa
+
+El usuario pidió revisar toda la app buscando código muerto o problemas. Resultado: la base está
+sana (sin imports muertos, funciones/constantes/rutas huérfanas, funciones JS sin llamar, clases
+CSS sin usar, claves duplicadas en dicts, `except:` desnudos ni dependencias sobrantes en
+`requirements.txt`), pero salieron tres bugs reales y algo de peso muerto. Todo corregido.
+
+**1. El campo "Caudal emisor (l/hr)" nunca se mostraba.** El `<div>` (calculos.html) se declaró
+con DOS clases: `sistema-riego-campo campo-caudal-emisor`. La primera la oculta el CSS salvo que
+tenga `.activo`; el JS, en cambio, lo manejaba con `style.display = ""`, que solo borra el estilo
+inline y deja mandando al `display:none` de la regla. Resultado: invisible en los 4 sistemas, con
+el backend guardándolo, extrayéndolo por IA y mostrándolo en los informes igual. Corregido usando
+`classList.toggle("activo", ...)`, como ya hacían `campo-goteo`/`campo-aspersion`/`campo-carrete`.
+**Lección:** un campo con `sistema-riego-campo` se muestra/oculta con `.activo`, NUNCA con
+`style.display` — mezclar los dos patrones lo deja invisible sin error en consola.
+
+**2. La Memoria de Cálculo imprimía una fórmula que no cuadraba al usar capas de suelo.**
+`_agronomico_calculo` ya calculaba y adjuntaba `capas_suelo_calc` (main.py), pero NINGUNO de los
+dos informes lo leía: ambos imprimían siempre la fórmula de capa única
+`AD = (CC − PMP)/100 × Da × Prof`, con operandos vacíos (CC/PMP/Da/Prof. no se llenan cuando hay
+capas) y un AD que sí traía valor — una igualdad falsa en un documento que se adjunta al SEP.
+Ahora, cuando hay desglose activo, ambas memorias muestran `AD = Σ Ha por capa` con una tabla por
+capa (textura, desde/hasta, altura, CC, PMP, Da, Ha capa) y el total con la profundidad
+acumulada; y la fila de datos base dice "Desglose por capas (N capas, X cm)" en vez de mostrar
+CC/PMP/Da vacíos, que se leía como si faltaran datos del expediente. Verificado renderizando los
+dos templates en las dos vías (con y sin capas) contra `ad_por_capas` (C1=56,70 + C2=54,60 =
+111,30 mm).
+
+**3. Word: se perdía todo el texto de las tablas.** `_from_word` (extractor.py) leía solo
+`doc.paragraphs`, que en python-docx NO incluye lo que está dentro de tablas — o sea, en estos
+expedientes se perdían presupuestos, cuadros de cultivos y planillas de sectores, justo lo más
+tabulado. Ahora recorre el cuerpo del documento a nivel XML e intercala párrafos y tablas en el
+orden real de lectura (una tabla malformada se salta sola sin costar el documento entero). El
+`.doc` binario (Word 97-2003) no lo abre python-docx: antes devolvía el error crudo de la
+librería como si fuera el contenido; ahora devuelve un marcador claro pidiendo convertirlo a
+.docx o PDF — como queda bajo `MIN_CHARS_TEXTO`, el documento se marca solo como "Resubir?".
+
+**Deduplicación:** el bloque de normalización para los informes (~40 líneas rellenando None) estaba
+copiado íntegro en las dos rutas de Memoria. Agregar un campo obligaba a editar ambas listas, y
+olvidar una lo dejaba roto en un solo informe sin error visible (ya había pasado con
+`caudal_emisor_lhr`). Extraído a `_normalizar_sistema_informe` + las listas `_CAMPOS_*_INFORME`
+en main.py. `FORMATOS_SOPORTADOS` también estaba definido dos veces (subida suelta y subida ZIP);
+ahora vive solo en extractor.py.
+
+**Código muerto eliminado (8,9 MB):** `static/disenador_riego_v112.html` y `v114.html` (4,4 MB
+c/u, superados por v119), `static/fotovoltaico_riego_v9.html` (superado por v15) y `pagina.html`
+en la raíz — ninguno referenciado desde ningún lado. Se agregó `docs/` y `normativa/fuentes/` al
+`.railwayignore`: ninguno se lee en runtime (`cargar_normativa()` usa `glob("*.txt")` de primer
+nivel, no recursivo) y viajaban en cada deploy.
+
+**Rama muerta:** `claude/revisor-cnr-design-adjustments-gt7pyc` quedó 22 commits atrás de main.
+Un commit anterior resolvió mal un conflicto de stash ahí y dejó JS apuntando a clases que en el
+HTML de esa rama no existen. Se verificó commit por commit que no contuviera trabajo único (el
+único candidato, el ajuste visual de las capas, ya estaba en main y mejorado: casillas de 80px vs
+69px y separación de 11px). **El trabajo real de esta app va a `main`** — es lo que despliega
+Railway.
+
+---
+
 ## Sesión ago-2026 — nuevo campo: Presión Operación del Emisor (mca)
 
 Pedido del usuario: agregar "Presión Operación del Emisor" al Chequeo Agronómico, para TODOS los

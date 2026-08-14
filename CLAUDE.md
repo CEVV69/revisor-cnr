@@ -8,19 +8,13 @@ Guía operativa para Claude. **Español siempre.** Archivos de referencia en `do
 
 ## LÍMITE DE TAMAÑO — este archivo NO debe crecer
 
-Este archivo se leyó completo una vez y ocupó 390KB / 4.552 líneas, lo que saturó
-el contexto ("Autocompact is thrashing") antes de poder trabajar. Se redujo a esto.
-
-**Regla:** este archivo debe mantenerse bajo ~150 líneas / ~8KB. Antes de agregar
-cualquier contenido nuevo:
-1. Si es historial de sesión, decisión ya cerrada, o detalle de una función/ítem
-   específico → va a `docs/historial_sesiones.md` o `docs/items_sep.md`, NUNCA acá.
-2. Si es una decisión pendiente del usuario → reemplazar la sección "Estado actual"
-   existente, no acumular decisiones viejas ya resueltas.
-3. Si al terminar una edición este archivo supera ~150 líneas, mover el contenido
-   más antiguo/detallado a `docs/` en el mismo commit, antes de pushear.
-
-Este archivo es solo el índice + reglas fijas. Todo lo demás vive en `docs/`.
+Se leyó completo una vez y ocupó 390KB / 4.552 líneas: saturó el contexto ("Autocompact is
+thrashing") antes de poder trabajar. **Debe mantenerse bajo ~150 líneas / ~8KB** — es solo
+índice + reglas fijas. Historial de sesión, decisiones ya cerradas y detalle de una función o
+ítem específico van a `docs/historial_sesiones.md` / `docs/items_sep.md`, NUNCA acá. Una
+decisión pendiente del usuario REEMPLAZA a la anterior en "Estado actual", no se acumula. Si al
+terminar una edición supera ~150 líneas, mover lo más antiguo/detallado a `docs/` en el mismo
+commit, antes de pushear.
 
 ---
 
@@ -55,18 +49,16 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
    mover ítems de texto a 4.6 y dejar Sonnet 5 solo para visión (mayor resolución: 2576px vs
    1568px). Esperando decisión del usuario.
 
-4. **Ítem "Diseño y cálculos hidráulicos":** se aplicó fix (criterio de ingeniero + aviso de N°
-   sectores sin respaldo). Además (ago-2026, Chequeo de Cálculos) fix de validación HTML5 al
-   guardar (`step="any"`); tabla de tramos con selector "Tubería (catálogo)" (mismo catálogo del
-   Diseñador de Riego) + Ø int. (mm) en su propia columna angosta — Material queda oculto
-   (autocompletado por el catálogo, ya no visible). Fila AMT declarada + Q diseño + Desnivel +
-   Pérdida cabezal + "AMT calc." (Σ Hf tramos) — los 4 son extraíbles por IA. Catálogo con PVC
-   32/40/50mm PN6/PN10 agregados (dato real Tigre Chile, NCh 399/2011). Iteración de varias
-   vueltas de feedback de UI — detalle en `docs/historial_sesiones.md`. Falta probar en la app.
+4. **Ítem "Diseño y cálculos hidráulicos" + Chequeo de Cálculos:** criterio de ingeniero, fix de
+   validación al guardar, selector "Tubería (catálogo)" con Ø int. propio, y fila AMT/Q diseño/
+   Desnivel/Pérdida cabezal/"AMT calc.". Falta probar en la app — detalle en `docs/`.
 
-5. **Export→Import Revisor CNR → Diseñador v119 — 3 bugs corregidos + aviso de nombres de tramos
-   + soporte varios "Lateral"** (lateral crítico = el más largo). Falta confirmar en la app real.
-   Detalle completo en `docs/historial_sesiones.md`.
+5. **Export→Import Revisor CNR → Diseñador v119:** 3 bugs corregidos + soporte de varios "Lateral"
+   (crítico = el más largo). Falta confirmar en la app real — detalle en `docs/`.
+
+6. **Auditoría ago-2026 (recién hecha):** 3 bugs corregidos — campo "Caudal emisor" invisible,
+   Memoria de Cálculo con fórmula de AD que no cuadraba al usar capas, y texto de tablas Word que
+   se perdía. Falta confirmar los tres en la app — detalle en `docs/`.
 
 **Pendiente de implementar:** incluir los chequeos del Revisor Fotovoltaico (generación, cobertura
 anual, potencia requerida vía perfil solar horario) en la Memoria de Cálculo Completa — bloqueado
