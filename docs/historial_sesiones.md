@@ -1,3 +1,53 @@
+## Sesión ago-2026 — caudal del emisor por sistema + columna "Extraído/declarado"
+
+El usuario probó la auditoría anterior y reportó dos cosas.
+
+**1. En Aspersión sobraba "Caudal emisor (l/hr)".** Ya existía "Caudal del aspersor (m³/hr)"
+(`caudal_aspersor_m3h`), y el desempate es objetivo: ese SÍ alimenta cálculos —`postura_aspersion()`:
+VA, superficie y caudal por postura, N° de posturas, tiempo por postura— y se exporta al Diseñador
+como `qasp`; `caudal_emisor_lhr` no aparece ni una vez en `calculos_riego.py` ni en
+`exportar_disenador.py`, era un dato inerte. Ahora "Caudal emisor" solo se muestra en Goteo y
+Microaspersión. **Regla:** el caudal del emisor es un campo DISTINTO por sistema y no son
+intercambiables — aspersor (m³/hr) / cañón (m³/hr) / emisor (l/hr); la fila de las dos Memorias
+elige cuál mostrar según `sistema_riego`, antes imprimía siempre el de l/hr y quedaba vacía justo
+en los dos sistemas donde el dato existe. Se agregó `caudal_aspersor_m3h` a `_CAMPOS_AGRO_INFORME`
+(sin eso Jinja lo rendía como `Undefined`, que `val()` trata como "no es none" y lo imprime vacío).
+También se le dijo al prompt de extracción que no repita el caudal del aspersor/cañón en
+`caudal_emisor_lhr`.
+
+**2. La columna "Extraído/declarado" salía vacía en varias filas.** Eran DOS causas distintas:
+
+*Causa A — la casilla no existía.* 14 filas tenían un `<td class="text-muted">—</td>` escrito a
+mano, sin `id` ni `input`: nunca podían mostrar nada. Son pasos intermedios que el consultor no
+publica como número suelto (ETc, AD, superficie/tiempo por postura, balance diario, las 4 de
+acumulador y varias de Carrete). Ahora la celda de concepto ocupa las dos columnas (`colspan=2`) y
+la fila se lee sola como "esto es solo cálculo, no hay nada que comparar", sin agregar texto y
+manteniendo alineada la columna "Calculado por la app". **Ojo al editar esa tabla:** cada `<tr>`
+debe sumar exactamente 3 columnas contando los `colspan`.
+
+*Causa B — la casilla existía pero la IA la devolvió vacía* (Db en Goteo, Caudal de diseño en
+Aspersión). Se verificó que el `declarado` que devuelve la IA se guarda íntegro (`main.py`, ruta de
+extracción) — no se perdía por el camino. El problema era el prompt: los 7 campos de `declarado`
+iban enterrados al final de un párrafo largo. Ahora hay un bloque propio y explícito, con los
+sinónimos reales de los expedientes (Db = "demanda bruta"/"lámina bruta"/"dosis bruta"; Q diseño =
+"caudal de diseño"/"caudal del sistema"/"caudal de operación", con conversión desde m³/hr y l/min)
+y la instrucción de reportar el valor POR SECTOR cuando el consultor da sector y total.
+
+**Fila VA conectada (mejora nueva).** "Precipitación del sistema" que el consultor declara ES la
+VA: misma magnitud, mm/hr. Antes la fila VA mostraba solo el cálculo. Ahora se contrasta contra la
+VA que sale de SU propio marco de aspersores y caudal de aspersor, en el Chequeo y en la Memoria
+por sistema — si no coinciden (>10%), uno de los dos datos del expediente está mal. Dato cero
+nuevo: ya estaba todo guardado. Verificado: Q=3,6 m³/hr con marco 12×18 da VA=16,67 mm/hr contra
+15,0 declarada → marca discrepancia (10,02%).
+
+**PENDIENTE detectado, no implementado:** la **Memoria de Cálculo Completa no tiene la sección
+"Verificaciones contra valores oficiales"** que sí tiene la Memoria por sistema (Kc vs DT-05,
+Eficiencia vs DT-24/DT-04, VIB, bloque de postura de Aspersión y bloque de Carrete). Por eso el
+caudal del aspersor y la VA no aparecen ahí aunque sí se calculen. Portar esa sección es un cambio
+aparte, propuesto al usuario y a la espera de su VB.
+
+---
+
 ## Auditoría ago-2026 — código muerto y bugs encontrados en revisión completa
 
 El usuario pidió revisar toda la app buscando código muerto o problemas. Resultado: la base está

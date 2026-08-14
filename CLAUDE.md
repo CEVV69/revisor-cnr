@@ -35,26 +35,27 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (ago-2026)
 
-**El usuario está probando esto en la app y comenta el resultado la próxima sesión.** Todo está
-implementado y pusheado; nada de acá se toca sin que él lo reporte primero. Detalle en `docs/`.
+**El usuario prueba en la app y comenta la próxima sesión.** Todo implementado y pusheado; nada de
+acá se toca sin que él reporte primero. Detalle en `docs/`.
 
-1. **Capas de suelo (Aspersión/Carrete):** checkbox, autocompletado por textura y recálculo en
-   vivo; y que la Memoria muestre la tabla "AD = Σ Ha por capa" en vez de la fórmula de capa
-   única. Solo probado con números y renderizando templates, nunca en un proyecto real.
+1. **Capas de suelo (Aspersión/Carrete):** checkbox, autocompletado por textura, recálculo en
+   vivo, y la tabla "AD = Σ Ha por capa" en la Memoria. Nunca probado en un proyecto real.
 
-2. **Campo "Caudal emisor (l/hr)":** debe verse en Goteo/Aspersión/Microaspersión y NO en
-   Carrete. Estuvo invisible en los 4 sistemas hasta el fix de ago-2026.
+2. **Caudal del emisor — campo distinto por sistema, NO intercambiables:** aspersor (m³/hr) en
+   Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Verificar en Chequeo y
+   Memorias. Además: VA se compara contra la Precipitación declarada, y "Extraído/declarado" ya
+   no tiene celdas muertas.
 
-3. **Word con tablas:** subir un .docx con el presupuesto/cuadro en tabla y confirmar que ese
-   texto llega al análisis — antes se perdía entero.
+3. **Word con tablas:** subir un .docx con el presupuesto en tabla y confirmar que ese texto
+   llega al análisis — antes se perdía entero.
 
-4. **Chequeo de Cálculos (hidráulico):** selector "Tubería (catálogo)" con Ø int. propio y fila
-   AMT/Q diseño/Desnivel/Pérdida cabezal/"AMT calc.".
-
-5. **Export→Import Revisor CNR → Diseñador v119:** 3 bugs corregidos + varios "Lateral"
-   (crítico = el más largo).
+4. **Chequeo hidráulico:** "Tubería (catálogo)" con Ø int. propio y fila AMT/Q diseño/Desnivel/
+   Pérdida cabezal/"AMT calc.". **Export→Import a Diseñador v119:** 3 bugs + varios "Lateral".
 
 **Esperando decisión del usuario:**
+
+5. **La Memoria COMPLETA no tiene la sección "Verificaciones contra valores oficiales"** de la
+   Memoria por sistema (Kc, Eficiencia, VIB, postura, Carrete). ¿Se porta esa sección?
 
 6. **Comparación FV con metodología del consultor — 8/9 ítems sin información.** Bug ya corregido.
    ¿Verificar con el expediente que el consultor no muestra el desarrollo, o relajar la estrictez
@@ -64,12 +65,12 @@ implementado y pusheado; nada de acá se toca sin que él lo reporte primero. De
    de texto a 4.6 y dejar Sonnet 5 solo para visión (2576px vs 1568px)?
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
-potencia requerida) en la Memoria de Cálculo Completa — bloqueado: dependen del perfil solar
-horario del predio, que solo vive dentro de `static/fotovoltaico_riego_v15.html`.
+potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
+predio, que solo vive dentro de `static/fotovoltaico_riego_v15.html`.
 
-**Fuera de alcance:** cualquier verificación que combine cultivos vía Kc mensual (ej. "horas de
-riego por mes") pertenece al **Revisor Fotovoltaico**, no a esta app — su chequeo FV usa un solo
-valor diario promedio, no un motor agronómico multi-cultivo.
+**Fuera de alcance:** verificaciones que combinen cultivos vía Kc mensual (ej. "horas de riego por
+mes") pertenecen al **Revisor Fotovoltaico** — su chequeo FV usa un solo valor diario promedio, no
+un motor agronómico multi-cultivo.
 
 ---
 
