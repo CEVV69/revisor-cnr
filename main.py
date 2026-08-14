@@ -1977,6 +1977,82 @@ def _fecha_disenador() -> str:
     return f"{now.day:02d}-{now.month:02d}-{now.year}, {h12}:{now.minute:02d}:{now.second:02d} {ampm}"
 
 
+# ── Normalización de un sistema para la Memoria de Cálculo ──────────────────────
+# Estas listas y `_normalizar_sistema_informe` las comparten las DOS memorias (la completa,
+# `/calculos/informe`, y la de un sistema, `/calculos/informe/{idx}`). Antes el bloque entero
+# estaba copiado en las dos rutas: agregar un campo obligaba a editar ambas listas y olvidar una
+# dejaba ese campo roto en solo uno de los dos informes, sin error visible.
+_CAMPOS_AGRO_INFORME = (
+    "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
+    "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr",
+    "superficie_riego_ha", "caudal_disponible_ls", "precipitacion_sistema_mmhr",
+    "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr", "caudal_canon_m3h",
+    "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
+    "longitud_franja_m", "velocidad_avance_mh",
+)
+_CAMPOS_DECLARADO_INFORME = (
+    "dn_mm", "fr_dias", "db_mm", "caudal_diseno_ls", "tiempo_riego_hr", "n_sectores",
+    "pluviometria_mmhr",
+)
+_CAMPOS_CALC_INFORME = (
+    "etc_mm_dia", "ad_mm", "dn_mm", "fr_dias", "fr_adj_dias", "dn_adj_mm", "db_mm",
+    "db_diario_mm", "demanda_ls_ha", "superficie_segura_ha", "tiempo_riego_hr", "n_sectores",
+    "tiempo_total_dia_hr", "caudal_operacion_ls", "v_requerido_dia_l", "v_fuente_dia_l",
+    "volumen_minimo_estanque_l", "acumulador_ok", "delta_q_estanque_ls", "autonomia_estanque_hr",
+    "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
+)
+_CAMPOS_TRAMO_INFORME = (
+    "nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
+    "velocidad_declarada_ms", "hf_declarada_mca",
+)
+
+
+def _rellenar_none(d: dict, claves) -> dict:
+    for k in claves:
+        d.setdefault(k, None)
+    return d
+
+
+def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
+    """Deja un sistema listo para los templates de Memoria de Cálculo. Muta `agro` (ambas rutas
+    le pasan una copia) y devuelve `(calc, tramos)`.
+
+    Varios de estos dicts son ADITIVOS por diseño (`calculos_riego.py`, y los datos "en bruto"
+    recién extraídos por la IA, aún sin pasar por "Guardar"): una clave que no se pudo calcular
+    o extraer queda AUSENTE del dict, no en None — correcto para el resto de la app (que solo
+    lee con `.get()` en Python o la ignora en JS), pero en Jinja `dict.clave_ausente` devuelve
+    `Undefined`, y `Undefined is not none` da `True` (mismo bug ya documentado para
+    `fila-acumulador` en calculos.html) — rompería cada `{% if x is not none %}` de estos
+    informes, que SÍ leen estos campos directo en el servidor (a diferencia de calculos.html, que
+    los deja en "—" y los rellena por JS). Se normaliza acá, una sola vez por dict, en vez de
+    repetir la trampa en cada condicional del template.
+
+    Lo que NO se normaliza, a propósito:
+    • `cabe_en_horas_disponibles` y `balance_diario_ok` — el template los distingue con
+      `is defined` (¿se pudo verificar, o faltaban horas_disponibles_dia/caudal_disponible_ls?),
+      no con `is not none`. Rellenarlos a None haría que "no se pudo verificar" se viera igual
+      que "no cumple" (None es falsy): un falso positivo de incumplimiento sin datos reales.
+    • `vib_supera_pp` / `vib_cumple_minimo_inia` de `carrete_check` — mismo caso: el template
+      pregunta `is defined` (¿se declaró VIB?), así que "no se declaró VIB" pasaría a verse como
+      "VIB no cumple".
+    • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
+      por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
+    """
+    _rellenar_none(agro, _CAMPOS_AGRO_INFORME)
+    if isinstance(agro.get("declarado"), dict):
+        _rellenar_none(agro["declarado"], _CAMPOS_DECLARADO_INFORME)
+
+    calc = _agronomico_calculo(agro) or {}
+    _rellenar_none(calc, _CAMPOS_CALC_INFORME)
+    if calc.get("postura_check"):
+        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia"))
+
+    tramos = _tramos_con_calculo(tramos_raw)
+    for t in tramos:
+        _rellenar_none(t, _CAMPOS_TRAMO_INFORME)
+    return calc, tramos
+
+
 @app.get("/proyecto/{proyecto_id}/calculos/informe")
 async def informe_calculo_completo(request: Request, proyecto_id: str):
     """Memoria de cálculo completa del proyecto: todos los sistemas de riego + FV en un solo informe."""
@@ -1998,39 +2074,7 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
         hid_s = hid_norm["sistemas"][i] if i < len(hid_norm["sistemas"]) else {}
         tramos_raw = list((hid_s or {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
 
-        def _rellenar_none(d, claves):
-            for k in claves:
-                d.setdefault(k, None)
-            return d
-
-        _rellenar_none(agro, (
-            "cultivo","cc_pct","pmp_pct","da","prof_radicular_cm","factor_agotamiento_pct",
-            "kc","eto_dia_mm","eficiencia_pct","presion_emisor_mca","caudal_emisor_lhr","superficie_riego_ha",
-            "caudal_disponible_ls","precipitacion_sistema_mmhr","horas_disponibles_dia",
-            "volumen_acumulador_m3","vib_mmhr","caudal_canon_m3h",
-            "margen_sobredimensionamiento_pct","radio_alcance_m","velocidad_viento_ms",
-            "longitud_franja_m","velocidad_avance_mh",
-        ))
-        if isinstance(agro.get("declarado"), dict):
-            _rellenar_none(agro["declarado"], (
-                "dn_mm","fr_dias","db_mm","caudal_diseno_ls","tiempo_riego_hr",
-                "n_sectores","pluviometria_mmhr",
-            ))
-        calc  = _agronomico_calculo(agro) or {}
-        _rellenar_none(calc, (
-            "etc_mm_dia","ad_mm","dn_mm","fr_dias","fr_adj_dias","dn_adj_mm","db_mm",
-            "db_diario_mm","demanda_ls_ha","superficie_segura_ha","tiempo_riego_hr",
-            "n_sectores","tiempo_total_dia_hr","caudal_operacion_ls","v_requerido_dia_l",
-            "v_fuente_dia_l","volumen_minimo_estanque_l","acumulador_ok","delta_q_estanque_ls",
-            "autonomia_estanque_hr","tiempo_llenado_estanque_hr","caudal_estanque_ls",
-            "q_requerido_total_ls",
-        ))
-        if calc.get("postura_check"):
-            _rellenar_none(calc["postura_check"], ("tiempo_postura_hr","posturas_dia"))
-        tramos = _tramos_con_calculo(tramos_raw)
-        for t in tramos:
-            _rellenar_none(t, ("nombre","caudal_ls","diametro_mm","longitud_m","material",
-                               "velocidad_declarada_ms","hf_declarada_mca"))
+        calc, tramos = _normalizar_sistema_informe(agro, tramos_raw)
         sistemas.append({
             "idx": i,
             "sistema_riego": agro.get("sistema_riego"),
@@ -2121,59 +2165,7 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
     tramos_raw = list((hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}).get("tramos") or [])[:N_TRAMOS_HIDRAULICOS]
     hid_sistema = hid_norm["sistemas"][idx] if idx < len(hid_norm["sistemas"]) else {}
 
-    # Varios de estos dicts son ADITIVOS por diseño (`calculos_riego.py`, y los datos "en bruto"
-    # recién extraídos por la IA, aún sin pasar por "Guardar"): una clave que no se pudo calcular
-    # o extraer queda AUSENTE del dict, no en None — correcto para el resto de la app (que solo
-    # lee con `.get()` en Python o la ignora en JS), pero en Jinja `dict.clave_ausente` devuelve
-    # `Undefined`, y `Undefined is not none` da `True` (mismo bug ya documentado para
-    # `fila-acumulador` en calculos.html) — rompería cada `{% if x is not none %}` de este
-    # informe, que SÍ lee estos campos directo en el servidor (a diferencia de calculos.html, que
-    # los deja en "—" y los rellena por JS). Se normaliza acá, una sola vez por dict, en vez de
-    # repetir la trampa en cada condicional del template.
-    def _rellenar_none(d: dict, claves) -> dict:
-        for k in claves:
-            d.setdefault(k, None)
-        return d
-
-    _rellenar_none(agro, (
-        "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
-        "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr", "superficie_riego_ha",
-        "caudal_disponible_ls", "precipitacion_sistema_mmhr", "horas_disponibles_dia",
-        "volumen_acumulador_m3", "vib_mmhr", "caudal_canon_m3h",
-        "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
-        "longitud_franja_m", "velocidad_avance_mh",
-    ))
-    if isinstance(agro.get("declarado"), dict):
-        _rellenar_none(agro["declarado"], (
-            "dn_mm", "fr_dias", "db_mm", "caudal_diseno_ls", "tiempo_riego_hr", "n_sectores",
-            "pluviometria_mmhr",
-        ))
-
-    calc = _agronomico_calculo(agro) or {}
-    # `cabe_en_horas_disponibles` y `balance_diario_ok` NO se incluyen acá a propósito — a
-    # diferencia del resto, el template los distingue con `is defined` (¿se pudo verificar o no,
-    # por faltar horas_disponibles_dia/caudal_disponible_ls?), no con `is not none`. Si se
-    # rellenaran a None, "no se pudo verificar" pasaría a mostrarse igual que "no cumple" (None
-    # es falsy) — un resultado incorrecto (falso positivo de incumplimiento sin datos reales).
-    _rellenar_none(calc, (
-        "etc_mm_dia", "ad_mm", "dn_mm", "fr_dias", "fr_adj_dias", "dn_adj_mm", "db_mm",
-        "db_diario_mm", "demanda_ls_ha", "superficie_segura_ha", "tiempo_riego_hr", "n_sectores",
-        "tiempo_total_dia_hr", "caudal_operacion_ls",
-        "v_requerido_dia_l", "v_fuente_dia_l", "volumen_minimo_estanque_l",
-        "acumulador_ok", "delta_q_estanque_ls", "autonomia_estanque_hr",
-        "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
-    ))
-    if calc.get("postura_check"):
-        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia"))
-    # `vib_supera_pp`/`vib_cumple_minimo_inia` de carrete_check NO se normalizan a propósito: el
-    # template los distingue con `is defined` (¿se declaró VIB o no?), no con `is not none` — si
-    # se rellenaran a None acá, "no se declaró VIB" pasaría a verse igual que "VIB no cumple"
-    # (None es falsy), un resultado incorrecto y distinto del real.
-
-    tramos = _tramos_con_calculo(tramos_raw)
-    for t in tramos:
-        _rellenar_none(t, ("nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
-                           "velocidad_declarada_ms", "hf_declarada_mca"))
+    calc, tramos = _normalizar_sistema_informe(agro, tramos_raw)
 
     # Metodología del consultor (ver "Comparar con la metodología del consultor", más abajo) —
     # guardada aparte de `verificacion_calculos.agronomico`/`hidraulico` porque es un dato de otra
@@ -2684,8 +2676,7 @@ async def subir_multiple(
     if not proyecto:
         raise HTTPException(status_code=404)
 
-    from extractor import detectar_anexo
-    FORMATOS_SOPORTADOS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
+    from extractor import detectar_anexo, FORMATOS_SOPORTADOS
     registrados = 0
     textos_nuevos = {}
 
