@@ -2,6 +2,13 @@
 from pathlib import Path
 import re
 
+# Extensiones que la app acepta subir y de las que sabe extraer texto. Única fuente de verdad:
+# la usan tanto la subida de archivos sueltos (main.py) como la de ZIP (`extract_zip`) — estaban
+# definidas por separado en cada lado, con el riesgo de aceptar por una vía lo que la otra
+# rechaza. `.doc` se acepta para que el archivo quede guardado y descargable, pero su texto no se
+# puede leer (ver `_from_word`).
+FORMATOS_SOPORTADOS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
+
 # ─── Mapa de anexos SEP → tipo de documento ───────────────────────────────────
 ANEXOS_SEP = {
     "9.1":    ("plano_ubicacion",       "Anexo 9.1 - Plano de ubicación del proyecto"),
@@ -103,7 +110,6 @@ def extract_zip(zip_path: str, dest_dir: str) -> list:
     dest = Path(dest_dir)
     dest.mkdir(parents=True, exist_ok=True)
 
-    FORMATOS_SOPORTADOS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
     archivos = []
 
     with zipfile.ZipFile(zip_path, "r") as zf:
@@ -232,9 +238,44 @@ def render_plano_tiles(filepath: str, max_pages: int = 2, lado_px: int = 1550) -
 
 
 def _from_word(filepath: str) -> str:
+    """Texto de un .docx, párrafos Y tablas, en el orden en que aparecen en el documento.
+
+    `doc.paragraphs` NO incluye lo que está dentro de tablas — leerlo solo a él dejaba fuera
+    presupuestos, cuadros de cultivos, planillas de sectores y en general casi todo lo que en
+    estos expedientes va tabulado. Por eso se recorre el cuerpo del documento a nivel XML: así
+    cada tabla queda intercalada donde corresponde y no al final, que es lo que pasa si se
+    concatena `doc.paragraphs` y después `doc.tables`.
+
+    El .doc binario antiguo (Word 97-2003) NO lo abre python-docx. Devuelve un marcador claro en
+    vez del error crudo de la librería: el texto queda bajo MIN_CHARS_TEXTO, así que el documento
+    se marca solo como "Resubir?" en la página de Documentos.
+    """
+    if Path(filepath).suffix.lower() == ".doc":
+        return ("[Documento Word 97-2003 (.doc): formato antiguo que no se puede leer. "
+                "Vuelve a guardarlo como .docx o PDF y súbelo de nuevo.]")
+
     from docx import Document
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
     doc = Document(filepath)
-    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    partes = []
+    for hijo in doc.element.body.iterchildren():
+        if hijo.tag.endswith("}p"):
+            t = Paragraph(hijo, doc).text.strip()
+            if t:
+                partes.append(t)
+        elif hijo.tag.endswith("}tbl"):
+            try:
+                for fila in Table(hijo, doc).rows:
+                    celdas = [c.text.strip().replace("\n", " ") for c in fila.cells]
+                    if any(celdas):
+                        partes.append(" | ".join(celdas))
+            except Exception:
+                # Una tabla malformada (celdas combinadas raras) no debe costar el documento
+                # entero — se salta esa tabla y se sigue con el resto.
+                continue
+    return "\n".join(partes)
 
 
 def _from_excel(filepath: str) -> str:
