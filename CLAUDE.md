@@ -54,8 +54,11 @@ sin que él reporte primero. Detalle en `docs/`.
 5. **Memoria COMPLETA con paridad total** frente a la por sistema: se portó "Verificaciones
    oficiales" y se completó "Diseño base". Secciones .1–.6. Probar con un expediente de 2 sistemas.
 
-6. **Comparación FV con metodología del consultor:** prompt corregido — ahora muestra el resultado
-   declarado aunque no haya fórmula, con nota "Sin desarrollo de cálculo". Probar.
+6. **Evaluación del Consultor** (nueva): sección al final de `/items` (editable) y de la Ficha de
+   Revisión (solo lectura) — admisibilidad (Sí/No) + veredicto Diseño/Superficie/Presupuesto/
+   Planos, cada uno con lista desplegable y observación ≤250 caracteres. "Sugerir con IA" llena
+   solo campos vacíos: estado por regla determinística, texto por síntesis Haiku (ver
+   `EVALUACION_CONSULTOR_CAMPOS` en `main.py`). Nunca probado.
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del

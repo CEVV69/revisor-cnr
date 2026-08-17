@@ -31,7 +31,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
-                      TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo)
+                      TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
+                      sintetizar_evaluacion_item)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -411,6 +412,7 @@ PASOS_COSTO = {
     "chat":        "Debatir con la IA",
     "consulta":    "Consulta al expediente",
     "subsanacion": "Respuestas del consultor",
+    "evaluacion_consultor": "Evaluación del Consultor",
 }
 
 
@@ -835,6 +837,10 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "cont_item": _contadores(prin_item),
         "item_reciente": item_reciente,
         "items_cumplen": items_cumplen,
+        # Evaluación del Consultor (cierre de la revisión por ítems, ver rutas /evaluacion*)
+        "evaluacion_campos": EVALUACION_CONSULTOR_CAMPOS,
+        "evaluacion": {k: proyecto.get("evaluacion_consultor", {}).get(k, "")
+                       for k in EVALUACION_CONSULTOR_KEYS},
         # Resumen del proyecto (formulario)
         "resumen_secciones": RESUMEN_SECCIONES,
         "resumen": resumen,
@@ -2962,7 +2968,10 @@ async def ficha_revision(request: Request, proyecto_id: str):
             "user": user,
             "obs_aprobadas": obs_aprobadas,
             "grupos_ficha": grupos_ficha,
-            "fecha_ficha": _ahora().strftime("%d/%m/%Y")
+            "fecha_ficha": _ahora().strftime("%d/%m/%Y"),
+            "evaluacion_campos": EVALUACION_CONSULTOR_CAMPOS,
+            "evaluacion": {k: proyecto.get("evaluacion_consultor", {}).get(k, "")
+                          for k in EVALUACION_CONSULTOR_KEYS},
         })
     except Exception as e:
         import traceback
@@ -3078,6 +3087,126 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     db.save_proyecto(proyecto)
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/resumen?auto_ok={completados}",
+        status_code=302)
+
+
+# ─── Evaluación del Consultor (cierre de la revisión por ítems) ──────────────────────────────
+# Tabla final que el revisor completa a mano (o con ayuda de la IA) tras revisar los ítems SEP,
+# para copiar al Sistema Electrónico de Postulación igual que las observaciones. Vive en
+# `proyecto["evaluacion_consultor"]`: 2 campos Sí/No de admisibilidad + 4 campos de veredicto
+# (Diseño/Superficie/Presupuesto/Planos), cada uno con una lista desplegable y una observación de
+# hasta 250 caracteres. Se muestra editable al final de /items y de solo lectura al final de la
+# Ficha de Revisión (ficha.html), el informe que se imprime para el SEP.
+EVALUACION_CONSULTOR_CAMPOS = [
+    {"key": "diseno", "label": "Diseño",
+     "items": ["diseno_hidraulico", "diseno_fotovoltaico"],
+     "opciones": ["Está correcto", "Requiere modificaciones menores", "Requiere nuevo diseño"]},
+    {"key": "superficie", "label": "Superficie",
+     "items": ["memoria_superficies", "estudio_suelos"],
+     "opciones": ["Está correcto", "Debe modificar superficie"]},
+    {"key": "presupuesto", "label": "Presupuesto",
+     "items": ["presupuesto", "presupuesto_electrico"],
+     "opciones": ["Está correcto", "Requiere modificaciones menores", "Requiere nuevo presupuesto"]},
+    {"key": "planos", "label": "Planos",
+     "items": ["planos_tecnificacion", "planos_obras_civiles"],
+     "opciones": ["Están correctos", "Requiere modificaciones menores", "Requiere nuevos planos"]},
+]
+EVALUACION_CONSULTOR_KEYS = (
+    ["completa_revision", "visita_terreno"]
+    + [f"{c['key']}_estado" for c in EVALUACION_CONSULTOR_CAMPOS]
+    + [f"{c['key']}_obs" for c in EVALUACION_CONSULTOR_CAMPOS]
+)
+
+
+def _sugerir_estado_evaluacion(proyecto: dict, item_keys: list, opciones: list) -> tuple:
+    """Deriva DETERMINÍSTICAMENTE (sin IA) el estado sugerido de un campo de la Evaluación del
+    Consultor, a partir de las observaciones YA APROBADAS por el revisor (validadas) sobre los
+    ítems SEP dados — mismo criterio que usa ficha.html para el resumen oficial:
+    `estado == "aprobada" and severidad != "informativa"`. `opciones` viene en orden creciente de
+    gravedad: sin observaciones aprobadas → la primera ("Está/Están correcto/s"); con 2
+    alternativas, cualquier observación aprobada → la segunda; con 3, solo "mayor" empuja a la
+    tercera ("requiere nuevo/a..."), "menor" sin mayor cae en la segunda ("modificaciones
+    menores"). Devuelve (estado, [textos de esas observaciones]) — los textos alimentan la
+    síntesis por IA en `sintetizar_evaluacion_item`."""
+    obs = [o for o in proyecto.get("observaciones", [])
+           if o.get("item") in item_keys and o.get("estado") == "aprobada"
+           and o.get("severidad") != "informativa"]
+    if not obs:
+        estado = opciones[0]
+    elif len(opciones) == 2:
+        estado = opciones[1]
+    else:
+        n_mayor = len([o for o in obs if o.get("severidad") == "mayor"])
+        estado = opciones[2] if n_mayor > 0 else opciones[1]
+    textos = [o.get("texto", "") for o in obs if o.get("texto")]
+    return estado, textos
+
+
+@app.post("/proyecto/{proyecto_id}/evaluacion")
+async def guardar_evaluacion_consultor(request: Request, proyecto_id: str):
+    """Guarda los campos de Evaluación del Consultor editados a mano por el revisor."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    form = await request.form()
+    evaluacion = dict(proyecto.get("evaluacion_consultor", {}))
+    for k in EVALUACION_CONSULTOR_KEYS:
+        valor = (form.get(k) or "").strip()
+        evaluacion[k] = valor[:250] if k.endswith("_obs") else valor
+    proyecto["evaluacion_consultor"] = evaluacion
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?eval_ok=1#evaluacion-consultor",
+                            status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/evaluacion/sugerir")
+async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
+    """Completa con la IA (más la regla determinística de estado) SOLO los campos vacíos de la
+    Evaluación del Consultor — mismo patrón que 'Autocompletar con IA' del Resumen: nunca pisa lo
+    que el revisor ya escribió o eligió."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    evaluacion = dict(proyecto.get("evaluacion_consultor", {}))
+    completados = 0
+    if not evaluacion.get("completa_revision"):
+        evaluacion["completa_revision"] = "Sí"
+        completados += 1
+    if not evaluacion.get("visita_terreno"):
+        evaluacion["visita_terreno"] = "No"
+        completados += 1
+
+    acc_costo = iniciar_costo()
+    try:
+        pendientes = [(c, *_sugerir_estado_evaluacion(proyecto, c["items"], c["opciones"]))
+                      for c in EVALUACION_CONSULTOR_CAMPOS
+                      if not evaluacion.get(f"{c['key']}_estado")]
+        sintesis = await asyncio.gather(*[
+            sintetizar_evaluacion_item(campo["label"], textos)
+            for campo, estado, textos in pendientes
+        ])
+        for (campo, estado, _textos), texto_obs in zip(pendientes, sintesis):
+            evaluacion[f"{campo['key']}_estado"] = estado
+            evaluacion[f"{campo['key']}_obs"] = texto_obs
+            completados += 1
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en sugerir_evaluacion_consultor {proyecto_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al sugerir evaluación: {str(e)}")
+
+    proyecto["evaluacion_consultor"] = evaluacion
+    _registrar_costo(proyecto, "evaluacion_consultor", acc_costo)
+    db.save_proyecto(proyecto)
+    return RedirectResponse(
+        url=f"/proyecto/{proyecto_id}/items?eval_auto_ok={completados}#evaluacion-consultor",
         status_code=302)
 
 

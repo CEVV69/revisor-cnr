@@ -150,6 +150,38 @@
   <p class="sin-obs">Sin observaciones registradas como aprobadas para este proyecto.</p>
 {% endif %}
 
+<!-- Evaluación del Consultor -->
+<div class="titulo-obs">Evaluación del Consultor</div>
+<table class="tabla-proyecto" style="margin-bottom:0.8rem;">
+  <tr>
+    <td class="label">¿Es posible su completa revisión?</td>
+    <td class="valor">{{ evaluacion.completa_revision or '—' }}</td>
+    <td class="label">¿Visita terreno?</td>
+    <td class="valor">{{ evaluacion.visita_terreno or '—' }}</td>
+  </tr>
+</table>
+<table class="tabla-proyecto">
+  <tr>
+    <td class="label" style="width:12%;">Diseño</td>
+    <td class="valor" style="width:23%;">{{ evaluacion.diseno_estado or '—' }}</td>
+    <td class="valor celda-ancha">{{ evaluacion.diseno_obs or '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Superficie</td>
+    <td class="valor">{{ evaluacion.superficie_estado or '—' }}</td>
+    <td class="valor celda-ancha">{{ evaluacion.superficie_obs or '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Presupuesto</td>
+    <td class="valor">{{ evaluacion.presupuesto_estado or '—' }}</td>
+    <td class="valor celda-ancha">{{ evaluacion.presupuesto_obs or '' }}</td>
+  </tr>
+  <tr>
+    <td class="label">Planos</td>
+    <td class="valor">{{ evaluacion.planos_estado or '—' }}</td>
+    <td class="valor celda-ancha">{{ evaluacion.planos_obs or '' }}</td>
+  </tr>
+</table>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>

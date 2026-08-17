@@ -829,6 +829,75 @@ function actualizarEtiqueta(input) {
 
 {{ bloque_cumplimiento(items_cumplen, proyecto.id) }}
 
+<!-- Evaluación del Consultor — cierre de la revisión, se copia al SEP igual que las observaciones -->
+<div class="card" id="evaluacion-consultor" style="margin-top:1rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.2rem;">
+    <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap;">
+      <h2 style="margin:0; border:none; padding:0;">Evaluación del Consultor</h2>
+      <span style="font-size:0.8rem; color:var(--text-2);">Se copia al SEP igual que las observaciones. Editable siempre — la sugerencia es un punto de partida.</span>
+    </div>
+    <form method="post" action="/proyecto/{{ proyecto.id }}/evaluacion/sugerir">
+      <button type="submit" class="btn btn-primary btn-sm"
+              onclick="this.disabled=true; this.textContent='Analizando…'; this.form.submit();">
+        Sugerir con IA
+      </button>
+    </form>
+  </div>
+
+  {% if request.query_params.get('eval_ok') %}
+  <div class="alert" style="background:#f0fff4; border:1px solid #68d391; color:#276749; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">Evaluación guardada.</div>
+  {% endif %}
+  {% if request.query_params.get('eval_auto_ok') %}
+  <div class="alert" style="background:#ebf8ff; border:1px solid #90cdf4; color:#2b6cb0; margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">La IA completó {{ request.query_params.get('eval_auto_ok') }} campo(s) que estaban vacíos. Revisa y edita lo que falte, luego Guarda.</div>
+  {% endif %}
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/evaluacion" style="margin-top:0.75rem;">
+    <div style="font-weight:700; color:#2b6cb0; font-size:0.9rem; border-bottom:1px solid var(--border); padding-bottom:0.25rem; margin-bottom:0.6rem;">Proyecto</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:0.7rem 1rem; margin-bottom:1.1rem;">
+      <div>
+        <label style="display:block; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">¿Es posible su completa revisión?</label>
+        <select name="completa_revision" style="width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem;">
+          <option value="" {% if not evaluacion.completa_revision %}selected{% endif %}>—</option>
+          <option value="Sí" {% if evaluacion.completa_revision == 'Sí' %}selected{% endif %}>Sí</option>
+          <option value="No" {% if evaluacion.completa_revision == 'No' %}selected{% endif %}>No</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">¿Visita terreno?</label>
+        <select name="visita_terreno" style="width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem;">
+          <option value="" {% if not evaluacion.visita_terreno %}selected{% endif %}>—</option>
+          <option value="Sí" {% if evaluacion.visita_terreno == 'Sí' %}selected{% endif %}>Sí</option>
+          <option value="No" {% if evaluacion.visita_terreno == 'No' %}selected{% endif %}>No</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="font-weight:700; color:#2b6cb0; font-size:0.9rem; border-bottom:1px solid var(--border); padding-bottom:0.25rem; margin-bottom:0.6rem;">Revisión</div>
+    {% for campo in evaluacion_campos %}
+    <div style="display:grid; grid-template-columns:minmax(180px,220px) 1fr; gap:0.7rem; align-items:start; margin-bottom:0.7rem;">
+      <div>
+        <label style="display:block; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">{{ campo.label }}</label>
+        <select name="{{ campo.key }}_estado" style="width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem;">
+          <option value="" {% if not evaluacion[campo.key ~ '_estado'] %}selected{% endif %}>—</option>
+          {% for op in campo.opciones %}
+          <option value="{{ op }}" {% if evaluacion[campo.key ~ '_estado'] == op %}selected{% endif %}>{{ op }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:0.8rem; color:var(--text-2); margin-bottom:0.2rem;">Observaciones <span class="text-muted">(máx. 250 caracteres)</span></label>
+        <textarea name="{{ campo.key }}_obs" rows="2" maxlength="250" class="auto-expand"
+                  style="width:100%; padding:0.45rem 0.55rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; resize:vertical; overflow:hidden;">{{ evaluacion[campo.key ~ '_obs'] }}</textarea>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top:0.5rem;">
+      <button type="submit" class="btn btn-success btn-sm">Guardar evaluación</button>
+    </div>
+  </form>
+</div>
+
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"
       onsubmit="return confirm('¿Limpiar la revisión por ÍTEMS SEP? Se borran las observaciones y el estado de los ítems. NO afecta los documentos.')">

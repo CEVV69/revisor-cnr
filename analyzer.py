@@ -3670,6 +3670,44 @@ EXPEDIENTE FV:
         return {}
 
 
+# ── Síntesis de la Evaluación del Consultor (Diseño/Superficie/Presupuesto/Planos) ───────────
+
+async def sintetizar_evaluacion_item(etiqueta: str, textos_observaciones: list) -> str:
+    """Sintetiza en prosa breve las 'principales falencias' de un grupo de observaciones YA
+    APROBADAS por el revisor (nunca inventa: solo resume lo que el revisor ya validó), para la
+    sección "Evaluación del Consultor" al final de la revisión por ítems. `etiqueta` es el nombre
+    del campo (Diseño/Superficie/Presupuesto/Planos), usado solo para dar contexto al prompt.
+    Devuelve texto plano SIN comillas ni numeración — el llamador lo recorta a 250 caracteres con
+    `_limitar_texto` (los modelos no cuentan caracteres de forma confiable, ver esa función)."""
+    if not textos_observaciones:
+        return ""
+    client = _get_client()
+    lista = "\n".join(f"- {t}" for t in textos_observaciones)
+    prompt = f"""Estas son las observaciones YA APROBADAS por el revisor sobre "{etiqueta}" en un \
+proyecto de riego (Ley 18.450 CNR):
+
+{lista}
+
+Sintetiza en UNA sola frase breve (máximo 220 caracteres) las principales falencias, para un \
+campo de "Observaciones" en una ficha de evaluación. Sin comillas, sin numeración, sin viñetas, \
+sin repetir la palabra "{etiqueta}" al inicio. Ve directo al punto técnico."""
+
+    def _stream(max_tokens):
+        with client.messages.stream(
+            model=MODELO_HAIKU, max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        ) as s:
+            return s.get_final_message()
+    try:
+        response = await asyncio.to_thread(_stream, 300)
+        texto = _texto_respuesta(response).strip()
+        _log_uso(f"evaluación consultor: {etiqueta}", response, MODELO_HAIKU)
+        return _limitar_texto(texto, 250)
+    except Exception as e:
+        print(f"⚠️ sintetizar_evaluacion_item ({etiqueta}): {e}")
+        return ""
+
+
 # ── Evaluación IA de la respuesta del consultor a una observación (subsanación) ──────────────
 # Parte del PROCESO de revisión, que solo termina al aprobar/rechazar el proyecto: la IA ayuda al
 # revisor a juzgar si la respuesta del consultor RESUELVE la observación, cruzándola con TODOS los

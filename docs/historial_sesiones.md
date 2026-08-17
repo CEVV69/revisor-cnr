@@ -1,3 +1,84 @@
+## Sesión ago-2026 — Evaluación del Consultor; migración de texto a Sonnet 4.6; Scall v21
+
+**1. Sonnet 5 vs Sonnet 4.6, decidido.** El usuario confirmó migrar los ítems de texto a Sonnet
+4.6 de inmediato (no esperar al 31-08-2026, fin de la promo de Sonnet 5). `analyzer.py` ganó
+`MODELO_SONNET_TEXTO = "claude-sonnet-4-6"`; `MODELO_SONNET` (Sonnet 5) queda reservado para
+`_analizar_grupo` SOLO cuando el grupo trae imágenes (`any(b["type"]=="image" for b in
+content_blocks)`) — planos y documentos escaneados siguen en la resolución más alta (2576px).
+Todas las demás llamadas (chat, consulta libre, metodología del consultor, invalidación cruzada,
+subsanación) pasaron a `MODELO_SONNET_TEXTO`. Se agregó su precio a `PRECIOS_USD_POR_MTOK` para
+que `_log_uso` siga calculando el costo real (antes solo tenía Haiku; Sonnet 5 se calcula aparte
+por `_precio_sonnet5()` según la fecha).
+
+**2. Comparación FV con metodología del consultor — confirmado correcto, no era un bug.** El
+usuario revisó el expediente real: el consultor efectivamente NO muestra la fórmula de cálculo
+para 8 de 9 conceptos FV — el prompt estricto ("nunca reconstruyas una fórmula que el consultor
+no escribió") estaba funcionando como debía. Pero pidió una mejora real: aunque falte la fórmula,
+SIEMPRE mostrar el resultado/dato declarado por el consultor, para poder observarle que falta la
+memoria de cálculo (antes, si "formula" era null, el prompt a veces dejaba "resultado" también en
+null aunque el expediente sí declarara un valor final). Se reescribió la regla en
+`extraer_metodologia_consultor()` y `extraer_metodologia_fv()` con tres casos explícitos:
+fórmula+resultado / solo resultado declarado / nada. El macro `paso_mc()` de
+`informe_calculo_completo.html` ahora muestra "Sin desarrollo de cálculo — el consultor debe
+presentar la memoria" junto al resultado, en vez de ocultar el resultado cuando falta la fórmula.
+
+**3. Scall v20 → v21.** El usuario subió un nuevo archivo de la app hermana Scall
+(`scalldisenoV21.html`). Reemplazado sin dejar la versión anterior (`static/scall_diseno_v20.html`
+eliminado, el enlace "Cálculo Scall" en `calculos.html` apunta a `scall_diseno_v21.html`) — pedido
+explícito del usuario de no guardar versiones anteriores.
+
+**4. Evaluación del Consultor — sección nueva al cierre de la revisión por ítems.** El usuario
+pidió una tabla final (equivalente a lo que se copia al SEP junto con las observaciones) con:
+admisibilidad del proyecto (¿es posible su completa revisión? / ¿visita terreno?, Sí/No) y
+veredicto de Diseño/Superficie/Presupuesto/Planos (lista desplegable con 2-3 alternativas según
+el campo, más una observación de hasta 250 caracteres). Antes de implementar se le preguntó al
+usuario 3 puntos que la app no podía resolver sola (se usó `AskUserQuestion`, patrón "revisa,
+propone y luego con mi VB ejecuta" de sesiones anteriores):
+- **Título de la sección:** "Evaluación del Consultor" (no "del Revisor" — el usuario lo usó
+  primero pero corrigió al final del mensaje; se le preguntó directo y confirmó el segundo).
+- **Síntesis del texto de Observaciones (≤250 caracteres):** IA breve (Haiku), no concatenación
+  determinística — el usuario prefirió prosa más natural aunque cueste unos centavos por uso.
+- **Sugerencia para los 2 campos Sí/No de Proyecto:** sin señal derivable de la app (a diferencia
+  de Diseño/Superficie/Presupuesto/Planos, que sí tienen observaciones aprobadas de qué partir),
+  el usuario fijó defaults constantes: "Es posible su completa revisión" = Sí, "Visita terreno" = No.
+
+Diseño de la solución:
+- `proyecto["evaluacion_consultor"]`: `completa_revision`, `visita_terreno`,
+  `{diseno,superficie,presupuesto,planos}_estado` y `_obs`.
+- Mapeo Revisión → ítems SEP de los que se sacan las observaciones APROBADAS (mismo criterio que
+  usa `ficha.html` para el resumen oficial: `estado=="aprobada" and severidad!="informativa"`):
+  Diseño = `diseno_hidraulico` (incluye agronómico, mismo ítem SEP) + `diseno_fotovoltaico`;
+  Superficie = `memoria_superficies` + `estudio_suelos`; Presupuesto = `presupuesto` +
+  `presupuesto_electrico`; Planos = `planos_tecnificacion` + `planos_obras_civiles`.
+- Regla determinística de estado (`_sugerir_estado_evaluacion()`, main.py, SIN IA): sin
+  observaciones aprobadas → primera opción ("Está/Están correcto/s"); con 2 alternativas (caso
+  Superficie), cualquier aprobada → la segunda; con 3, solo severidad "mayor" empuja a la tercera
+  ("requiere nuevo/a..."), "menor" sin "mayor" cae en la del medio ("modificaciones menores").
+- Texto de observaciones: `sintetizar_evaluacion_item()` (analyzer.py, Haiku) recibe los textos de
+  esas observaciones aprobadas y sintetiza en ≤220 caracteres (el llamador recorta a 250 con
+  `_limitar_texto`, ya que los modelos no cuentan caracteres de forma confiable).
+- Botón único "Sugerir con IA" (mismo patrón que "Autocompletar con IA" del Resumen): llena SOLO
+  los campos que estén vacíos, nunca pisa lo que el revisor ya escribió o eligió — ni el estado
+  determinístico ni el texto de la IA se recalculan una vez que el campo tiene un valor guardado.
+- Vive editable al final de `/proyecto/{id}/items` (antes del botón "Limpiar revisión por
+  ítems") y de solo lectura al final de `ficha.html` (el informe que se imprime para el SEP).
+- Rutas nuevas: `POST /proyecto/{id}/evaluacion` (guardar el formulario) y
+  `POST /proyecto/{id}/evaluacion/sugerir` (autocompletar con la regla + IA).
+- Costo registrado bajo el paso `"evaluacion_consultor"` en `PASOS_COSTO`, mismo mecanismo que el
+  resto de las operaciones de IA (`iniciar_costo()`/`_registrar_costo()`).
+
+No forma parte de la regla 10 de CLAUDE.md (los tres lados de un cambio de cálculo/dato): esto es
+un veredicto administrativo del revisor, no un dato de diseño — no toca `calculos_riego.py`,
+las Memorias de cálculo ni `exportar_disenador.py`.
+
+Verificado: `python3 -m py_compile main.py analyzer.py` sin errores; render Jinja aislado de
+`ficha.html` completo y del bloque nuevo de `proyecto.html` con evaluación vacía y con datos
+(incluido un caso de texto de 260 caracteres para confirmar que el render no revienta aunque el
+dato llegue más largo de lo esperado). Nunca probado en la app real — el usuario lo prueba y
+reporta la próxima sesión.
+
+---
+
 ## Sesión ago-2026 — la Memoria COMPLETA pasa a tener paridad total con la Memoria por sistema
 
 El usuario pidió portar la sección que faltaba, con el criterio de que "una memoria de cálculos
