@@ -181,14 +181,17 @@
   {% if calc.capas_suelo_calc %}
   {# Desglose por capas activo: el AD sale de la suma por horizonte, no de CC/PMP/Da/Prof.
      uniformes — imprimir la fórmula de capa única dejaba una igualdad que no cuadra. #}
-  <div class="formula">AD = Σ Ha por capa = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
-  <div class="explica">Agua disponible del suelo, con desglose de Humedad Aprovechable por capas: Ha<sub>capa</sub> = (CC − PMP)/100 × Da × Altura, con Altura[mm] = (Hasta − Desde)[cm] × 10. Reemplaza el cálculo de capa única — CC/PMP/Da/Prof. radicular uniformes no intervienen.</div>
+  <div class="formula">AD = Σ Ha por capa (truncada a Prof. radicular) = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
+  <div class="explica">Agua disponible del suelo, con desglose de Humedad Aprovechable por capas: Ha<sub>capa</sub> = (CC − PMP)/100 × Da × Alt.ef, con Alt.ef[mm] = MAX(0, MIN(Hasta, Prof. radicular) − Desde)[cm] × 10 — cada capa se trunca a la profundidad radicular ({{ val(calc.capas_suelo_calc.prof_radicular_cm, ' cm') }}{% if agro.prof_radicular_cm is none %}, valor por defecto del Diseñador — no declarada{% endif %}); una capa bajo esa profundidad no aporta. Reemplaza el cálculo de capa única — CC/PMP/Da uniformes no intervienen.</div>
+  {% if calc.capas_suelo_calc.capas_no_alcanzan_prof_radicular %}
+  <div class="compara"><span class="alerta">Las capas declaradas no alcanzan la profundidad radicular — falta información de suelo para esa profundidad.</span></div>
+  {% endif %}
   <table class="tabla-tramos" style="margin-top:0.3rem;">
-    <tr><th>Capa</th><th>Textura</th><th>Desde (cm)</th><th>Hasta (cm)</th><th>Altura (mm)</th><th>CC (%)</th><th>PMP (%)</th><th>Da (g/cc)</th><th>Ha capa (mm)</th></tr>
+    <tr><th>Capa</th><th>Textura</th><th>Desde (cm)</th><th>Hasta (cm)</th><th>Alt. efectiva (mm)</th><th>CC (%)</th><th>PMP (%)</th><th>Da (g/cc)</th><th>Ha capa (mm)</th></tr>
     {% for c in calc.capas_suelo_calc.capas %}
     <tr><td>C{{ loop.index }}</td><td>{{ c.textura or '—' }}</td><td>{{ num(c.desde_cm) }}</td><td>{{ num(c.hasta_cm) }}</td><td>{{ num(c.altura_mm) }}</td><td>{{ num(c.cc_pct) }}</td><td>{{ num(c.pmp_pct) }}</td><td>{{ num(c.da) }}</td><td>{{ num(c.ha_capa_mm) }}</td></tr>
     {% endfor %}
-    <tr><td colspan="8" style="text-align:right; font-weight:bold;">AD total (profundidad acumulada {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
+    <tr><td colspan="8" style="text-align:right; font-weight:bold;">AD total (profundidad efectiva {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
   </table>
   {% else %}
   <div class="formula">AD = (CC − PMP)/100 × Da × Prof(m) × 1000 = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
@@ -273,8 +276,8 @@
 </div>
 {% if calc.postura_check.tiempo_postura_hr %}
 <div class="paso">
-  <div class="formula">T. postura = Db / VA = {{ val(calc.db_mm) }} / {{ val(calc.postura_check.va_mmhr) }} = <strong>{{ val(calc.postura_check.tiempo_postura_hr, ' hr') }}</strong>{% if calc.postura_check.posturas_dia is not none %} · Posturas/día = <strong>{{ calc.postura_check.posturas_dia }}</strong>{% endif %}</div>
-  <div class="explica">Tiempo para aplicar la demanda bruta a esa velocidad, y cuántas posturas caben en el día disponible (con 0,5 hr de traslado entre posturas).</div>
+  <div class="formula">T. postura = Db / VA = {{ val(calc.db_mm) }} / {{ val(calc.postura_check.va_mmhr) }} = <strong>{{ val(calc.postura_check.tiempo_postura_hr, ' hr') }}</strong>{% if calc.postura_check.posturas_dia is not none %} · Posturas/día = <strong>{{ calc.postura_check.posturas_dia }}</strong>{% endif %}{% if calc.postura_check.dias_necesarios is not none %} · Días necesarios = <strong>{{ calc.postura_check.dias_necesarios }} días</strong>{% endif %}</div>
+  <div class="explica">Tiempo para aplicar la demanda bruta a esa velocidad, cuántas posturas caben en el día disponible (con 0,5 hr de traslado entre posturas), y en cuántos días se completa el ciclo de riego.</div>
 </div>
 {% endif %}
 {% endif %}
@@ -307,8 +310,8 @@
   {% endif %}
 </div>
 <div class="paso">
-  <div class="formula">Tiempo por postura = <strong>{{ val(calc.carrete_check.tiempo_postura_hr, ' hr') }}</strong></div>
-  <div class="explica">Tiempo de manguera + avance del cañón + retorno, para cubrir una postura completa.</div>
+  <div class="formula">Tiempo por postura = <strong>{{ val(calc.carrete_check.tiempo_postura_hr, ' hr') }}</strong>{% if calc.carrete_check.posturas_dia is not none %} · Posturas/día = ⌊Horas disp. / (T.postura + T.cambio)⌋ = <strong>{{ calc.carrete_check.posturas_dia }}</strong>{% endif %}{% if calc.carrete_check.dias_necesarios is not none %} · Días necesarios = <strong>{{ calc.carrete_check.dias_necesarios }} días</strong>{% endif %}</div>
+  <div class="explica">Tiempo de manguera + avance del cañón + retorno, para cubrir una postura completa; con las horas disponibles al día ({{ val(agro.horas_disponibles_dia, ' hr') }}) y el tiempo de cambio de postura ({{ val(agro.tiempo_cambio_postura_hr, ' hr') }}{% if agro.tiempo_cambio_postura_hr is none %}, 1,5 hr por defecto — no declarado{% endif %}), cuántas posturas caben en el día y en cuántos días se completa el ciclo.</div>
 </div>
 {% endif %}
 

@@ -81,7 +81,7 @@
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-      <a href="/static/disenador_riego_v119.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+      <a href="/static/disenador_riego_v121.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador" class="btn btn-outline btn-sm" title="Exporta agronómico, hidráulico y fotovoltaico de todos los sistemas">Exportar para el Diseñador (.json)</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Memoria de cálculo completa</a>
     </div>
@@ -160,6 +160,7 @@
         <div class="sistema-riego-campo campo-carrete"><label>Velocidad del viento de diseño (m/s)</label><input type="number" step="0.1" id="{{ p }}velocidad_viento_ms" name="{{ p }}velocidad_viento_ms" value="{{ agro.velocidad_viento_ms if agro.velocidad_viento_ms is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Longitud de franja (m)</label><input type="number" step="1" id="{{ p }}longitud_franja_m" name="{{ p }}longitud_franja_m" value="{{ agro.longitud_franja_m if agro.longitud_franja_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="1" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Tiempo cambio de postura (hr)</label><input type="number" step="0.1" id="{{ p }}tiempo_cambio_postura_hr" name="{{ p }}tiempo_cambio_postura_hr" value="{{ agro.tiempo_cambio_postura_hr if agro.tiempo_cambio_postura_hr is not none else '' }}" placeholder="1.5"></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Referencia para contrastar contra el plano y el presupuesto: no entra al recálculo. Los datos del cañón (Carrete) sí — alimentan el modelo INIA-Carillanca.</p>
 
@@ -167,7 +168,7 @@
         <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:0.85rem; cursor:pointer;">
           <input type="checkbox" id="{{ p }}capas_chk" onchange="toggleCapas('{{ p }}')" {% if agro.capas_suelo %}checked{% endif %}>
           Desglose de Humedad Aprovechable por capas de suelo
-          <span class="text-muted" style="font-weight:400; font-size:0.78rem;">reemplaza CC/PMP/Da/Prof. de arriba si se activa</span>
+          <span class="text-muted" style="font-weight:400; font-size:0.78rem;">reemplaza CC/PMP/Da de arriba si se activa — Prof. radicular se sigue usando para truncar cada capa</span>
         </label>
         <div id="{{ p }}capas_box" style="display:{{ 'block' if agro.capas_suelo else 'none' }}; margin-top:0.6rem;">
           <div id="{{ p }}capas_list" style="overflow-x:auto;"></div>
@@ -270,6 +271,10 @@
           <tr class="campo-carrete">
             <td class="col-concepto" colspan="2">Tiempo por postura (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-tpost-calc">—</td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto" colspan="2">Posturas por día / Días necesarios (Carrete)</td>
+            <td class="col-calc" id="{{ p }}agro-car-postdia-calc">—</td>
           </tr>
           <tr>
             <td class="col-concepto" colspan="2">ETc (mm/día)</td>
@@ -793,24 +798,27 @@
     }).join("");
     recalcAgroSistema(p);
   }
-  function calcAdCapas(p) {
+  function calcAdCapas(p, prof, sistema) {
     if (!(document.getElementById(p + "capas_chk") || {}).checked) return null;
     var capas = estadoCapas[p] || [];
     var total = document.getElementById(p + "capas_total");
+    // z (profundidad radicular, ago-2026 — Diseñador v121): trunca cada capa. Sin dato
+    // declarado, cae al default del propio Diseñador (60 cm Aspersión, 30 cm Carrete).
+    var z = (prof !== null && prof !== undefined) ? prof : (sistema === "Carrete" ? 30 : 60);
     var adTotal = 0, profTotal = 0, huboValida = false, detalle = [];
     capas.forEach(function(c) {
       var desde = parseFloat(c.desde), hasta = parseFloat(c.hasta),
           cc = parseFloat(c.cc), pmp = parseFloat(c.pmp), da = parseFloat(c.da);
       if (!isFinite(desde) || !isFinite(hasta) || !isFinite(cc) || !isFinite(pmp) || !isFinite(da)) return;
       if (hasta <= desde || cc <= pmp) return;
-      var altura = (hasta - desde) * 10;
-      var haCapa = (cc - pmp) / 100 * da * altura;
-      adTotal += haCapa; profTotal += (hasta - desde); huboValida = true;
-      detalle.push("C" + (detalle.length + 1) + ": Altura=" + fmt(altura, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
+      var alturaEf = Math.max(0, Math.min(hasta, z) - desde) * 10;
+      var haCapa = alturaEf > 0 ? (cc - pmp) / 100 * da * alturaEf : 0;
+      adTotal += haCapa; profTotal += alturaEf / 10; huboValida = true;
+      detalle.push("C" + (detalle.length + 1) + ": Alt.ef=" + fmt(alturaEf, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
     });
     if (total) {
       total.textContent = huboValida
-        ? "AD total = " + fmt(adTotal, 2) + " mm (" + fmt(profTotal, 0) + " cm) — " + detalle.join(" · ")
+        ? "AD total = " + fmt(adTotal, 2) + " mm (truncada a z=" + fmt(z, 0) + " cm, prof. efectiva " + fmt(profTotal, 0) + " cm) — " + detalle.join(" · ")
         : "Complete al menos una capa (Desde < Hasta, CC > PMP) para calcular.";
     }
     return huboValida ? adTotal : null;
@@ -839,6 +847,7 @@
     var caudalCanon = numVal(p + "caudal_canon_m3h"), margenSobredim = numVal(p + "margen_sobredimensionamiento_pct"),
         radioAlcance = numVal(p + "radio_alcance_m"), velocidadViento = numVal(p + "velocidad_viento_ms"),
         longitudFranja = numVal(p + "longitud_franja_m"), velocidadAvance = numVal(p + "velocidad_avance_mh"),
+        tiempoCambioCar = numVal(p + "tiempo_cambio_postura_hr"),
         declPp = numVal(p + "decl_pp");
     var declDn = numVal(p + "decl_dn"), declFr = numVal(p + "decl_fr"), declDb = numVal(p + "decl_db");
     var sup = numVal(p + "superficie_riego_ha"), caudalDisp = numVal(p + "caudal_disponible_ls"),
@@ -898,7 +907,7 @@
     // y deja mandando al `display:none` de la regla, así que el campo no se veía en ningún sistema.
     var mostrarCaudalEmisor = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
     wrap.querySelectorAll(".campo-caudal-emisor").forEach(function(el) { el.classList.toggle("activo", mostrarCaudalEmisor); });
-    // Desglose de Humedad Aprovechable por capas de suelo — solo Aspersión y Carrete (v119 del
+    // Desglose de Humedad Aprovechable por capas de suelo — solo Aspersión y Carrete (del
     // Diseñador de Riego no lo ofrece en Goteo ni Microaspersión).
     var esAspersionOCarrete = sistema === "Aspersión" || sistema === "Carrete";
     wrap.querySelectorAll(".campo-capas-suelo").forEach(function(el) { el.style.display = esAspersionOCarrete ? "" : "none"; });
@@ -1076,6 +1085,21 @@
       var tPostura = lManguera / velocidadAvance + tiCar + Math.max(tfeCar, 0);
       setText(p + "agro-car-tpost-calc", fmt(tPostura, 2) + " hr");
 
+      // Posturas/día y Días necesarios (ago-2026, Diseñador v121) — T. cambio postura: 1,5 hr
+      // por defecto si no se declara (INIA-Carillanca: ≈1 hr cambio de posición + ≈0,5 hr puesta
+      // en posición).
+      if (horas !== null) {
+        var tCambio = tiempoCambioCar !== null ? tiempoCambioCar : 1.5;
+        var posturasDiaCar = Math.max(0, Math.floor(horas / (tPostura + tCambio)));
+        var txtPostDia = String(posturasDiaCar) + " postura" + (posturasDiaCar === 1 ? "" : "s") + "/día (cambio " + fmt(tCambio, 1) + " hr)";
+        if (posturasDiaCar > 0 && nPosturas !== null) {
+          txtPostDia += " · " + Math.ceil(nPosturas / posturasDiaCar) + " días necesarios";
+        }
+        setText(p + "agro-car-postdia-calc", txtPostDia);
+      } else {
+        setText(p + "agro-car-postdia-calc", "—");
+      }
+
       var vibNotaCar = "";
       if (vib !== null) {
         if (ppCalc > vib) {
@@ -1091,7 +1115,7 @@
       nota(p + "agro-car-vib-nota", vibNotaCar);
     } else {
       ["agro-car-q-calc", "agro-car-esp-calc", "agro-car-pp-calc", "agro-car-post-calc",
-       "agro-car-tpost-calc", "agro-car-vib-calc"].forEach(function(id) { setText(p + id, "—"); });
+       "agro-car-tpost-calc", "agro-car-postdia-calc", "agro-car-vib-calc"].forEach(function(id) { setText(p + id, "—"); });
       nota(p + "agro-car-pp-nota", "");
       nota(p + "agro-car-vib-nota", "");
     }
@@ -1100,7 +1124,7 @@
 
     // Desglose por capas de suelo activo y con al menos una capa válida: reemplaza AD de capa
     // única — CC/PMP/Da/Prof. radicular dejan de ser obligatorios (igual que en Goteo).
-    var adCapas = esAspersionOCarrete ? calcAdCapas(p) : null;
+    var adCapas = esAspersionOCarrete ? calcAdCapas(p, prof, sistema) : null;
     var usaCapas = adCapas !== null;
 
     // En goteo (alta frecuencia) Db sale directo de ETc/Ef — CC/PMP/Da/Prof. radicular NO
@@ -1163,6 +1187,9 @@
       if (horas !== null) {
         var posturasDia = Math.floor(horas / (tiempoPosturaAsp + 0.5));
         txtTpost += " · Posturas/día = " + posturasDia + " (traslado 0,5 hr)";
+        if (posturasDia > 0 && nPosturasAsp !== null) {
+          txtTpost += " · Días necesarios = " + Math.ceil(nPosturasAsp / posturasDia);
+        }
       }
       setText(p + "agro-tpost-calc", txtTpost);
     }

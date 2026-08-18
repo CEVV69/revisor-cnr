@@ -25,7 +25,7 @@ VELOCIDAD_MIN_RECOMENDADA = 0.5   # m/s — bajo esto, riesgo de sedimentación
 VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdidas excesivas
 
 # Catálogo de tuberías comerciales — MISMOS datos que usa el Diseñador de Riego (array `TUBOS`
-# por defecto en static/disenador_riego_v119.html), portado tal cual para que el Chequeo
+# por defecto en static/disenador_riego_v121.html), portado tal cual para que el Chequeo
 # Hidráulico use el diámetro INTERIOR real en Hazen-Williams en vez del diámetro comercial/
 # exterior que suele venir en la memoria. El espesor de pared NO es un único valor por
 # diámetro+material — depende también de la clase de presión (PN/SDR), por eso esto es un
@@ -153,36 +153,52 @@ SUELO_DEFAULT_POR_TEXTURA = {
 }
 
 
-def ad_por_capas(capas: list) -> dict:
+def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
     """Agua Disponible (AD) total del suelo a partir de un desglose por capas — mismo criterio
-    que el Diseñador de Riego (v119, checkbox "Desglose de Humedad Aprovechable por capas de
-    suelo", disponible en Aspersión y Carrete). Reemplaza el cálculo de capa única (CC/PMP/Da/
-    Prof. radicular uniforme) cuando el consultor declara horizontes de suelo distintos.
+    que el Diseñador de Riego (checkbox "Desglose de Humedad Aprovechable por capas de suelo",
+    disponible en Aspersión y Carrete). Reemplaza el cálculo de capa única (CC/PMP/Da/Prof.
+    radicular uniforme) cuando el consultor declara horizontes de suelo distintos.
 
-    Por capa: Altura[mm] = (Hasta − Desde)[cm] × 10
-              Ha_capa[mm] = (CC − PMP)/100 × Da × Altura
+    Por capa: Alt.ef[mm] = MAX(0, MIN(Hasta, z) − Desde)[cm] × 10
+              Ha_capa[mm] = (CC − PMP)/100 × Da × Alt.ef
     AD total = Σ Ha_capa
+
+    `prof_radicular_cm` (z, ago-2026 — Diseñador de Riego v121): cada capa se trunca a la
+    profundidad radicular del cultivo. Una capa íntegramente bajo z no aporta nada (Alt.ef=0,
+    Ha_capa=0, pero SIGUE siendo una capa válida — no se descarta); una capa que cruza z se corta
+    justo ahí. Sin z (None, compatibilidad con datos guardados antes de este cambio), no trunca —
+    se comporta como el modelo anterior (Alt.ef = espesor completo declarado).
 
     `capas`: lista de {"desde_cm", "hasta_cm", "cc_pct", "pmp_pct", "da"}. Una capa con datos
     incompletos, Hasta≤Desde o CC≤PMP se descarta silenciosamente (mismo criterio de validación
-    que el Diseñador — nunca calcula con una capa a medio llenar). Devuelve {} si no queda
-    ninguna capa válida."""
+    que el Diseñador — nunca calcula con una capa a medio llenar; esto es independiente del
+    truncamiento por z). Devuelve {} si no queda ninguna capa válida."""
     validas = []
     ad_total = 0.0
     prof_total = 0.0
+    max_hasta = 0.0
     for c in (capas or []):
         desde, hasta = c.get("desde_cm"), c.get("hasta_cm")
         cc, pmp, da = c.get("cc_pct"), c.get("pmp_pct"), c.get("da")
         if None in (desde, hasta, cc, pmp, da) or hasta <= desde or cc <= pmp:
             continue
-        altura = (hasta - desde) * 10
-        ha_capa = (cc - pmp) / 100 * da * altura
-        validas.append({**c, "altura_mm": round(altura, 1), "ha_capa_mm": round(ha_capa, 2)})
+        if hasta > max_hasta:
+            max_hasta = hasta
+        if prof_radicular_cm is not None:
+            altura_ef = max(0.0, min(hasta, prof_radicular_cm) - desde) * 10
+        else:
+            altura_ef = (hasta - desde) * 10
+        ha_capa = (cc - pmp) / 100 * da * altura_ef if altura_ef > 0 else 0.0
+        validas.append({**c, "altura_mm": round(altura_ef, 1), "ha_capa_mm": round(ha_capa, 2)})
         ad_total += ha_capa
-        prof_total += (hasta - desde)
+        prof_total += altura_ef / 10
     if not validas:
         return {}
-    return {"capas": validas, "ad_total_mm": round(ad_total, 2), "prof_total_cm": round(prof_total, 1)}
+    r = {"capas": validas, "ad_total_mm": round(ad_total, 2), "prof_total_cm": round(prof_total, 1)}
+    if prof_radicular_cm is not None:
+        r["prof_radicular_cm"] = prof_radicular_cm
+        r["capas_no_alcanzan_prof_radicular"] = max_hasta < prof_radicular_cm
+    return r
 
 
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
@@ -446,11 +462,16 @@ def postura_aspersion(caudal_aspersor_m3h: float, espaciamiento_aspersores_m: fl
                        necesita Db, la cadena agronómica completa)
     Posturas/día     = ⌊Horas disponibles / (T_postura + T_traslado)⌋   (T_traslado entre
                        posturas: 0,5 hr por defecto, mismo valor del Diseñador)
+    Días necesarios  = ⌈N_posturas / Posturas_día⌉  (ago-2026, Diseñador v121 — cuántos días
+                       toma completar el ciclo de riego con las posturas/día que rinden las
+                       horas disponibles)
 
     VA, A_postura, Q_postura y N_posturas son independientes del resto de la cadena agronómica
     (no necesitan AD/Dn/Fr/Db) — todos los argumentos salvo `vib_mmhr`/`db_mm`/
     `horas_disponibles_dia` son obligatorios. T_postura y Posturas/día solo se calculan si se
-    pasa `db_mm` (y, además, `horas_disponibles_dia` para Posturas/día)."""
+    pasa `db_mm` (y, además, `horas_disponibles_dia` para Posturas/día); Días_necesarios solo si
+    Posturas/día resulta mayor que 0 (con menos horas que un traslado+postura, no se puede regar
+    ni una postura al día — no hay ciclo posible que reportar)."""
     if not all([caudal_aspersor_m3h, espaciamiento_aspersores_m, espaciamiento_laterales_m,
                 n_aspersores, superficie_ha]):
         return {}
@@ -471,7 +492,10 @@ def postura_aspersion(caudal_aspersor_m3h: float, espaciamiento_aspersores_m: fl
         r["tiempo_postura_hr"] = round(tiempo_postura_hr, 2)
         if horas_disponibles_dia:
             t_trasl = tiempo_traslado_hr if tiempo_traslado_hr is not None else 0.5
-            r["posturas_dia"] = math.floor(horas_disponibles_dia / (tiempo_postura_hr + t_trasl))
+            posturas_dia = math.floor(horas_disponibles_dia / (tiempo_postura_hr + t_trasl))
+            r["posturas_dia"] = posturas_dia
+            if posturas_dia > 0:
+                r["dias_necesarios"] = math.ceil(n_posturas / posturas_dia)
     return r
 
 
@@ -495,7 +519,8 @@ def _pct_espaciamiento_viento(vv_ms: float) -> float:
 
 def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio_alcance_m: float,
                    velocidad_viento_ms: float, longitud_franja_m: float, velocidad_avance_mh: float,
-                   superficie_ha: float, vib_mmhr: float = None) -> dict:
+                   superficie_ha: float, vib_mmhr: float = None, horas_disponibles_dia: float = None,
+                   tiempo_cambio_postura_hr: float = None) -> dict:
     """Recalcula los parámetros de operación de un carrete de riego (cañón viajero) con el
     modelo INIA-Carillanca 2001 (Simpfendörfer) — la misma fórmula que usa el Diseñador de Riego
     (`calcCarP`, leída directo de su código fuente). A diferencia de goteo/microaspersión/
@@ -516,6 +541,10 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     Ti[hr]           = (2/3×Radio / V_avance) × (α/360)
     Tfe[hr]          = (2/3×Radio / V_avance) × (1 − α/360)
     T_postura[hr]    = L_manguera/V_avance + Ti + máx(Tfe, 0)
+    Posturas/día     = ⌊Horas disponibles / (T_postura + T_cambio_postura)⌋   (ago-2026,
+                       Diseñador v121 — T_cambio_postura: 1,5 hr por defecto si no se declara,
+                       INIA-Carillanca: ≈1 hr cambio de posición + ≈0,5 hr puesta en posición)
+    Días necesarios  = ⌈N_posturas / Posturas_día⌉
 
     Verificación VIB — DISTINTA de la de Aspersión (`verificacion_vib`, que compara contra la
     Precipitación del sistema declarada libremente por el consultor): acá el umbral es FIJO en
@@ -523,9 +552,11 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     importar el cañón elegido), y además se compara la VIB contra la Pluviometría (PP) recién
     calculada, no contra un dato declarado aparte.
 
-    Todos los argumentos (salvo `vib_mmhr`) son obligatorios — a diferencia de otras
-    verificaciones de esta app, acá los datos son interdependientes (el modelo completo de
-    postura no tiene un resultado parcial útil con datos a medias)."""
+    Todos los argumentos (salvo `vib_mmhr`, `horas_disponibles_dia`, `tiempo_cambio_postura_hr`)
+    son obligatorios — a diferencia de otras verificaciones de esta app, acá los datos son
+    interdependientes (el modelo completo de postura no tiene un resultado parcial útil con
+    datos a medias). Posturas/día y Días necesarios solo se calculan si se pasa
+    `horas_disponibles_dia`."""
     if not all([caudal_catalogo_m3h, radio_alcance_m, velocidad_viento_ms, longitud_franja_m,
                 velocidad_avance_mh, superficie_ha]):
         return {}
@@ -557,6 +588,12 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     if vib_mmhr:
         r["vib_supera_pp"] = vib_mmhr > pp_mmhr
         r["vib_cumple_minimo_inia"] = vib_mmhr >= VIB_MINIMA_CARRETE_MMHR
+    if horas_disponibles_dia:
+        t_cambio = tiempo_cambio_postura_hr if tiempo_cambio_postura_hr is not None else 1.5
+        posturas_dia = max(0, math.floor(horas_disponibles_dia / (t_postura_hr + t_cambio)))
+        r["posturas_dia"] = posturas_dia
+        if posturas_dia > 0:
+            r["dias_necesarios"] = math.ceil(n_posturas / posturas_dia)
     return r
 
 

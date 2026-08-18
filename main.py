@@ -1698,12 +1698,19 @@ def _es_goteo(datos: dict) -> bool:
 
 def _agronomico_calculo(datos: dict):
     alta_frec = _es_goteo(datos)
-    # Desglose de Humedad Aprovechable por capas de suelo (Diseñador v119) — solo Aspersión y
+    # Desglose de Humedad Aprovechable por capas de suelo (Diseñador de Riego) — solo Aspersión y
     # Carrete. Si hay capas válidas, reemplazan el cálculo de AD de capa única (CC/PMP/Da/Prof
     # dejan de ser obligatorios) — igual que el checkbox del Diseñador.
     capas_calc = None
     if datos and datos.get("sistema_riego") in ("Aspersión", "Carrete") and datos.get("capas_suelo"):
-        capas_calc = calculos_riego.ad_por_capas(datos["capas_suelo"]) or None
+        # z (profundidad radicular): usa la declarada; si no hay, cae al default del propio
+        # Diseñador de Riego (v121, `_calcCapasGenerico`) — 60 cm en Aspersión, 30 en Carrete.
+        prof_default = 60 if datos.get("sistema_riego") == "Aspersión" else 30
+        prof_z = datos.get("prof_radicular_cm")
+        capas_calc = calculos_riego.ad_por_capas(
+            datos["capas_suelo"],
+            prof_radicular_cm=prof_z if prof_z not in (None, "") else prof_default,
+        ) or None
     usa_capas = capas_calc is not None
     # En goteo (alta frecuencia) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof. radicular
     # NO entran en esa cuenta, solo se usan para el dato informativo AD (que en goteo ni
@@ -1750,6 +1757,8 @@ def _agronomico_calculo(datos: dict):
             velocidad_avance_mh=datos.get("velocidad_avance_mh"),
             superficie_ha=datos.get("superficie_riego_ha"),
             vib_mmhr=datos.get("vib_mmhr"),
+            horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+            tiempo_cambio_postura_hr=datos.get("tiempo_cambio_postura_hr"),
         ) or None
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
         r = {}
@@ -1995,7 +2004,7 @@ _CAMPOS_AGRO_INFORME = (
     "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
     "caudal_aspersor_m3h", "caudal_canon_m3h",
     "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
-    "longitud_franja_m", "velocidad_avance_mh",
+    "longitud_franja_m", "velocidad_avance_mh", "tiempo_cambio_postura_hr",
 )
 _CAMPOS_DECLARADO_INFORME = (
     "dn_mm", "fr_dias", "db_mm", "caudal_diseno_ls", "tiempo_riego_hr", "n_sectores",
@@ -2052,7 +2061,9 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     calc = _agronomico_calculo(agro) or {}
     _rellenar_none(calc, _CAMPOS_CALC_INFORME)
     if calc.get("postura_check"):
-        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia"))
+        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios"))
+    if calc.get("carrete_check"):
+        _rellenar_none(calc["carrete_check"], ("posturas_dia", "dias_necesarios"))
 
     tramos = _tramos_con_calculo(tramos_raw)
     for t in tramos:
@@ -2295,7 +2306,7 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador")
 async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
     """Descarga un .json con TODOS los sistemas del proyecto en formato Diseñador de Riego.
-    Si hay 1 sistema exportable → JSON simple; si hay 2 → array JSON. El Diseñador v119
+    Si hay 1 sistema exportable → JSON simple; si hay 2 → array JSON. El Diseñador
     soporta arrays: importa todos los sistemas de una sola vez."""
     user = get_current_user(request)
     if not user:
@@ -2514,7 +2525,8 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",
               "espaciamiento_laterales_m", "n_aspersores_postura", "caudal_aspersor_m3h",
               "caudal_canon_m3h", "margen_sobredimensionamiento_pct", "radio_alcance_m",
-              "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh"]
+              "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh",
+              "tiempo_cambio_postura_hr"]
     sistemas = []
     for i in range(n_sistemas):
         p = f"s{i}_"

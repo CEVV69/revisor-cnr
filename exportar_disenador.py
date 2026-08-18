@@ -1,5 +1,5 @@
 """Exporta los datos del Chequeo de Cálculos al formato de archivo del Diseñador de Riego
-(la app hermana del mismo usuario, `disenador_riego_v119.html`), para poder abrirlo ahí y seguir
+(la app hermana del mismo usuario, `disenador_riego_v121.html`), para poder abrirlo ahí y seguir
 evaluando aspectos que no cubre Revisor CNR — sin recargar Revisor con esos cálculos.
 
 REGLA: solo se exportan los datos que Revisor efectivamente tiene (extraídos/validados en el
@@ -23,10 +23,12 @@ formatos según el sistema, confirmados leyendo el HTML fuente del Diseñador v1
   o más es ambiguo → no se exporta); Lateral es la excepción porque es normal declarar varios
   (uno por sector) — con 2+ laterales se exporta el "lateral crítico" (mayor `longitud_m`).
 
-El Desglose de Humedad Aprovechable por capas de suelo (checkbox "reemplaza CC/PMP/Da/Prof.",
-solo Aspersión/Carrete) se exporta como `__capasA`/`__capasC` — mismo formato que usa el propio
-Diseñador para guardar/exportar sus proyectos, confirmado contra un archivo real exportado desde
-el Diseñador v119 (no adivinado).
+El Desglose de Humedad Aprovechable por capas de suelo (checkbox "reemplaza CC/PMP/Da", solo
+Aspersión/Carrete — desde v120 es la ÚNICA vía de entrada de esos datos ahí, ver más abajo) se
+exporta como `__capasA`/`__capasC` — mismo formato que usa el propio Diseñador para guardar/
+exportar sus proyectos, confirmado contra un archivo real exportado desde el Diseñador v121 (no
+adivinado). El truncamiento de cada capa a la profundidad radicular (`{p}-pr`) lo hace el propio
+Diseñador al recalcular — acá se exportan las capas tal cual las declaró el consultor.
 
 DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intentarlo cada vez):
 - `caudal_emisor_lhr` (Goteo/Microaspersión): el Diseñador NO tiene un campo numérico para el
@@ -166,9 +168,13 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     put("ef", sistema_agro.get("eficiencia_pct"))
     # CC/PMP/Da: el Diseñador NO los tiene en Goteo (no existen `g-cc`/`g-pmp`/`g-da` en su HTML)
     # — misma razón por la que Revisor los oculta ahí: en alta frecuencia la demanda bruta sale
-    # directo de ETc/Ef, sin pasar por el agotamiento del suelo. Emitirlos igual solo metía 3
-    # claves muertas en el archivo. Prof. radicular (`g-pr`) SÍ existe en los 4.
-    if sys_code != "got":
+    # directo de ETc/Ef, sin pasar por el agotamiento del suelo. Aspersión y Carrete TAMPOCO los
+    # tienen desde v120 (eliminados junto con `a-tex`/`c-tex`: la textura/CC/PMP/Da de esos dos
+    # sistemas ahora entra SOLO por `__capasA`/`__capasC`, ver más abajo) — Microaspersión es el
+    # ÚNICO que conserva el modelo de capa única (confirmado contra el HTML fuente del Diseñador
+    # v121, no adivinado). Emitirlos para asp/car/got metía claves muertas en el archivo. Prof.
+    # radicular (`{p}-pr`) SÍ existe en los 4 — sigue siendo el z que trunca las capas.
+    if sys_code == "mic":
         put("cc", sistema_agro.get("cc_pct"))
         put("pmp", sistema_agro.get("pmp_pct"))
         put("da", sistema_agro.get("da"))
@@ -191,9 +197,16 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     elif sys_code == "car":
         put("supr", superficie)
 
-    # Horas de riego disponibles al día — Carrete no tiene ese campo en el Diseñador.
-    if sys_code in ("got", "mic", "asp"):
-        put("hrs", sistema_agro.get("horas_disponibles_dia"))
+    # Horas de riego disponibles al día — Carrete SÍ tiene el campo desde v121 (`c-hrs`, antes
+    # no existía).
+    put("hrs", sistema_agro.get("horas_disponibles_dia"))
+
+    # Tiempo de cambio de postura / traslado (Carrete: `c-tras`, desde v121). Aspersión también
+    # tiene `a-tras` en el Diseñador, pero Revisor no lo captura como dato editable para ese
+    # sistema (usa un valor fijo interno, ver `calculos_riego.postura_aspersion`) — no hay nada
+    # que exportar ahí.
+    if sys_code == "car":
+        put("tras", sistema_agro.get("tiempo_cambio_postura_hr"))
 
     # Criterio de riego (% de agotamiento) — solo Aspersión y Carrete lo exponen.
     if sys_code in ("asp", "car"):
@@ -206,11 +219,15 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("vib", sistema_agro.get("vib_mmhr"))
 
     # Presión de operación del emisor (mca) — mismo dato en los 4 sistemas del Diseñador, pero
-    # con sufijo de campo distinto: -pres (Aspersión "a-pres"/Carrete "c-pres") vs. -pem (Goteo
-    # "g-pem"/Microaspersión "m-pem") — confirmado en el HTML fuente del Diseñador v119.
+    # con sufijo de campo distinto según sistema. Aspersión: -pres ("a-pres"). Goteo/
+    # Microaspersión: -pem ("g-pem"/"m-pem"). Carrete: -pb ("c-pb") — su campo "c-pres" se
+    # eliminó en v120/121 y se fusionó en "c-pb" ("Presión en el Cañón"), que antes NO se
+    # exportaba (confirmado contra el HTML fuente del Diseñador v121, no adivinado).
     presion_emisor = sistema_agro.get("presion_emisor_mca")
-    if sys_code in ("asp", "car"):
+    if sys_code == "asp":
         put("pres", presion_emisor)
+    elif sys_code == "car":
+        put("pb", presion_emisor)
     elif sys_code in ("got", "mic"):
         put("pem", presion_emisor)
 
@@ -249,9 +266,11 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("qasp", sistema_agro.get("caudal_aspersor_m3h"))
     elif sys_code == "car":
         # Datos distintivos del carrete (metodología INIA-Carillanca) — IDs confirmados en el
-        # código fuente del Diseñador v108 (`calcCarP`, campos c-desc/c-margq/c-radio/c-vv/c-lf/
-        # c-va). `c-fv` ("Factor Esp. Viento") existe en la UI del Diseñador pero NO se lee en
-        # `calcCarP` (el % real sale de una tabla fija según `c-vv`) — no se exporta, es vestigial.
+        # código fuente del Diseñador (`calcCarP`, campos c-desc/c-margq/c-radio/c-vv/c-lf/c-va).
+        # `c-fv` ("Factor Esp. Viento", % editable desde v121) no se exporta: Revisor no captura
+        # un dato de consultor distinto de `velocidad_viento_ms` para ese %, y el propio
+        # Diseñador se autocompleta con el mismo valor sugerido por tabla INIA cuando llega
+        # vacío — exportarlo sería repetir un cálculo que el Diseñador ya hace solo.
         put("desc", sistema_agro.get("caudal_canon_m3h"))
         put("margq", sistema_agro.get("margen_sobredimensionamiento_pct"))
         put("radio", sistema_agro.get("radio_alcance_m"))
@@ -260,9 +279,9 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("va", sistema_agro.get("velocidad_avance_mh"))
 
     # ── Desglose de Humedad Aprovechable por capas de suelo (solo Aspersión/Carrete — mismo
-    # checkbox "reemplaza CC/PMP/Da/Prof." del Chequeo Agronómico). Mismas claves de textura
+    # checkbox "reemplaza CC/PMP/Da" del Chequeo Agronómico). Mismas claves de textura
     # (franco_arenoso/franco/franco_limoso/franco_arcilloso/arcilloso) en ambas apps — confirmado
-    # contra el HTML del Diseñador v119, no adivinado.
+    # contra el HTML del Diseñador v121, no adivinado.
     if sys_code in ("asp", "car"):
         capas_suelo = sistema_agro.get("capas_suelo") or []
         if capas_suelo:

@@ -1,3 +1,73 @@
+## Sesión ago-2026 — Diseñador de Riego v121 (Carrete + capas de suelo); UI Evaluación del Consultor
+
+**0. Ajustes de UI menores de la sesión anterior.** (a) Botón "Sugerir con IA" de Evaluación del
+Consultor: se sacó de la fila del título y se puso al pie de la tarjeta, en la misma fila que
+"Guardar evaluación" (izquierda) pero a la derecha — usa el atributo HTML5 `form="eval-form"` para
+que "Guardar" siga apuntando al `<form>` aunque el botón quedó fuera de él (evita anidar
+`<form>`s). (b) Encabezado "Evaluación del Consultor" de `ficha.html`: pasó de `.titulo-obs` (azul
+oscuro `#1a365d`, igual que "Observaciones") a azul medio `#2b6cb0` con borde `#bee3f8` — visualmente
+subordinado. (c) El usuario aclaró que pedía el relleno de las CELDAS `.label` de esa sección, no
+el título: se agregó `.eval-tablas td.label { background: #e8f3fb; }` (antes `#d0d8e8`, el mismo
+gris-azul de toda la Ficha) scopeado a esa sección con un wrapper `<div class="eval-tablas">`.
+
+**1. Diseñador de Riego v119 → v121 — cambios reales, no solo un reemplazo de archivo.** El
+usuario subió `disenadorRiegoV121.html` (aviso: cambios en Carrete + en la lógica de capas de
+suelo, "considerándose ahora la profundidad radicular") junto con `formato_json_import.md` (spec
+del formato de exportación, escrito por el Claude que trabaja en el Diseñador). Antes de tocar
+nada se comparó el HTML nuevo contra el v119 que vivía en el repo, función por función — no se
+asumió nada del anuncio del usuario. Hallazgos:
+
+- **Truncamiento de capas por Profundidad radicular (Aspersión Y Carrete, no solo Carrete).**
+  `_calcCapasGenerico(pfx,cls)` del Diseñador (usada por `calcCapasA`/`calcCapasC`) ahora trunca
+  cada capa a `z` = Prof. radicular (`a-pr`/`c-pr`, default 60cm Aspersión / 30cm Carrete si no se
+  declara): `Alt.ef = MAX(0, MIN(Hasta,z) − Desde) × 10`. Antes sumaba `(Hasta−Desde)×10` sin
+  importar la profundidad radicular. `ad_por_capas()` de `calculos_riego.py` ganó el parámetro
+  `prof_radicular_cm` con la misma fórmula (capa bajo z aporta 0 pero sigue siendo "válida", no se
+  descarta); `main.py` resuelve el default por sistema antes de llamarla. Replicado en el JS de
+  `calculos.html` (`calcAdCapas(p, prof, sistema)`) y en las dos Memorias (tabla de capas ahora
+  dice "Alt. efectiva" en vez de "Altura", con nota de la Prof. radicular usada y alerta si las
+  capas declaradas no alcanzan esa profundidad — `capas_no_alcanzan_prof_radicular`).
+
+- **Carrete gana Posturas/día y Días necesarios (campos nuevos `c-hrs`/`c-tras` en el
+  Diseñador).** Antes Carrete no tenía esos campos; Aspersión sí (`a-hrs`/`a-tras`, ya replicados
+  como `posturas_dia` en `postura_aspersion()`). Se agregó a `diseno_carrete()`:
+  `posturas_dia = ⌊horas_disponibles_dia / (tiempo_postura_hr + tiempo_cambio_postura_hr)⌋` y
+  `dias_necesarios = ⌈n_posturas / posturas_dia⌉`. "Horas disponibles al día" ya existía como
+  campo genérico en el Chequeo (no estaba restringido a un sistema) — se reutilizó tal cual. Para
+  "Tiempo cambio de postura" el usuario pidió explícitamente que fuera un campo EDITABLE (no un
+  default fijo interno como el 0,5hr de traslado de Aspersión, que nunca se expuso en el Chequeo):
+  "Déjalo con dato, pero editable, para ver algún caso en que si pongan dato y se desee probar".
+  Se agregó `tiempo_cambio_postura_hr` (default visual 1,5hr, placeholder) en Chequeo, extracción
+  IA (`analyzer.py`, tanto el schema JSON de `_extraer_datos_agronomicos` como el texto que arma
+  `chatear_item`/análisis del ítem de cálculos), Memoria (ambas) y exportación (`c-tras`). Se
+  aprovechó de sumarle "Días necesarios" a Aspersión también (`postura_aspersion()`), que el
+  Diseñador v121 agregó ahí igual — antes solo tenía Posturas/día.
+
+- **2 bugs reales encontrados en `exportar_disenador.py` al leer `formato_json_import.md` contra
+  el código actual** (no relacionados con Carrete per se, pero el archivo exportado quedaba corrupto
+  para el Diseñador desde que este migró a v120/121):
+  1. Seguía mandando `cc`/`pmp`/`da` (capa única) para Aspersión Y Carrete. Esos campos
+     (`a-cc`/`a-pmp`/`a-da`/`c-cc`/`c-pmp`/`c-da`) se eliminaron del Diseñador en v120 — la
+     textura ahora entra SOLO por `__capasA`/`__capasC`. Solo Microaspersión los conserva
+     (no tocada en esa reestructuración). Corregido: el `put("cc"/"pmp"/"da", ...)` ahora es
+     exclusivo de `sys_code == "mic"`.
+  2. Mandaba `-pres` para Carrete (`c-pres`). Ese campo se eliminó y se fusionó en `c-pb`
+     ("Presión en el Cañón"), que antes simplemente no se exportaba. Corregido: Carrete ahora
+     manda `presion_emisor_mca` a `c-pb`; Aspersión sigue en `a-pres` (no tocado, sigue existiendo).
+  3. (Menor, no bug) `c-hrs` no se mandaba para Carrete porque antes no existía ese campo allá —
+     ahora se manda igual que los otros 3 sistemas (el `put("hrs",...)` dejó de estar restringido
+     por `sys_code`).
+
+Verificado end-to-end con datos reales simulados (no solo `py_compile`): `ad_por_capas()` con
+truncamiento, `diseno_carrete()`/`postura_aspersion()` con Posturas/día y Días necesarios,
+`_agronomico_calculo()` completo (incluye resolución del default de Prof. radicular por sistema),
+render real de `informe_calculo.html` e `informe_calculo_completo.html` con Jinja, y el JSON de
+`exportar_disenador.py` para Carrete/Aspersión/Microaspersión (confirmando que ya NO manda
+claves muertas y que `c-pb`/`c-hrs`/`c-tras` salen bien). Archivo viejo `disenador_riego_v119.html`
+borrado del repo, nuevo `disenador_riego_v121.html` subido, enlace "Abrir Diseñador de Riego" en
+`calculos.html` actualizado. Nada de esto se ha probado dentro de la app en un proyecto real
+(el usuario prueba y reporta la próxima sesión, mismo patrón de siempre).
+
 ## Sesión ago-2026 — Evaluación del Consultor; migración de texto a Sonnet 4.6; Scall v21
 
 **1. Sonnet 5 vs Sonnet 4.6, decidido.** El usuario confirmó migrar los ítems de texto a Sonnet

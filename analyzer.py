@@ -1285,8 +1285,9 @@ Si el sistema es CARRETE (cañón viajero), extrae ADEMÁS los datos distintivos
 operacional (metodología INIA-Carillanca): caudal de descarga del cañón según catálogo (m³/hr),
 margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
 alcance del cañón (m), velocidad del viento de diseño (m/s), longitud de la franja/pasada de
-riego (m), velocidad de avance del carrete (m/hr), y — si el consultor lo declara como
-resultado — la pluviometría media del cañón (mm/hr).
+riego (m), velocidad de avance del carrete (m/hr), tiempo de cambio de postura o traslado del
+cañón entre posturas si se declara (hr — normalmente ≈1,5 hr), y — si el consultor lo declara
+como resultado — la pluviometría media del cañón (mm/hr).
 {instr_sistemas}
 
 BLOQUE "declarado" — PRÉSTALE ATENCIÓN APARTE. Son los RESULTADOS que el propio consultor
@@ -1326,6 +1327,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "caudal_canon_m3h": number|null, "margen_sobredimensionamiento_pct": number|null,
 "radio_alcance_m": number|null, "velocidad_viento_ms": number|null,
 "longitud_franja_m": number|null, "velocidad_avance_mh": number|null,
+"tiempo_cambio_postura_hr": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null,
 "pluviometria_mmhr": number|null}}}}
@@ -1636,6 +1638,8 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             velocidad_avance_mh=datos.get("velocidad_avance_mh"),
             superficie_ha=datos.get("superficie_riego_ha"),
             vib_mmhr=datos.get("vib_mmhr"),
+            horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+            tiempo_cambio_postura_hr=datos.get("tiempo_cambio_postura_hr"),
         )
         if carrete:
             texto += (
@@ -1650,6 +1654,10 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 f"- Superficie regada por postura = {carrete['superficie_postura_ha']} ha — "
                 f"N° DE POSTURAS = ⌈Superficie del proyecto / Superficie por postura⌉ = {carrete['n_posturas']}\n"
                 f"- Tiempo por postura = {carrete['tiempo_postura_hr']} hr")
+            if carrete.get("posturas_dia") is not None:
+                texto += f" — Posturas/día = {carrete['posturas_dia']}"
+                if carrete.get("dias_necesarios") is not None:
+                    texto += f" — Días necesarios para completar el ciclo = {carrete['dias_necesarios']}"
             declarado_npost = (datos.get("declarado") or {}).get("n_sectores")
             if declarado_npost is not None and declarado_npost != carrete["n_posturas"]:
                 texto += (f"\n- El consultor declara {declarado_npost} (rotulado como \"N° de "

@@ -38,8 +38,12 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Capas de suelo (Aspersión/Carrete):** checkbox, textura, recálculo en vivo y la tabla
-   "AD = Σ Ha por capa" en la Memoria. Nunca probado en un proyecto real.
+1. **Diseñador de Riego → v121** (ago-2026): capas de suelo (Aspersión/Carrete) ahora TRUNCAN a la
+   Profundidad radicular (`ad_por_capas(prof_radicular_cm=...)`) en vez de sumar el espesor
+   completo. Carrete suma "Tiempo cambio de postura" editable → Posturas/día y Días necesarios
+   (`diseno_carrete()`, igual que Aspersión). De paso: 2 bugs corregidos en
+   `exportar_disenador.py` (CC/PMP/Da de capa única ya no van para Aspersión/Carrete, solo Micro;
+   `-pres` de Carrete ahora es `-pb`). Nada probado — detalle en `docs/historial_sesiones.md`.
 
 2. **Caudal del emisor — campo distinto por sistema, NO intercambiables:** aspersor (m³/hr) en
    Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Además: VA se compara
@@ -48,8 +52,8 @@ sin que él reporte primero. Detalle en `docs/`.
 3. **Word con tablas:** subir un .docx con el presupuesto en tabla y confirmar que ese texto
    llega al análisis — antes se perdía entero.
 
-4. **Chequeo hidráulico + Export a v119:** catálogo de tuberías, fila AMT/Q diseño/Desnivel/
-   Pérdida cabezal; el export ya manda Desnivel (`-dz`) y Pérdida cabezal (`-pcab`).
+4. **Chequeo hidráulico:** catálogo de tuberías, fila AMT/Q diseño/Desnivel/Pérdida cabezal; el
+   export ya manda Desnivel (`-dz`) y Pérdida cabezal (`-pcab`).
 
 5. **Memoria COMPLETA con paridad total** frente a la por sistema: se portó "Verificaciones
    oficiales" y se completó "Diseño base". Secciones .1–.6. Probar con un expediente de 2 sistemas.
@@ -95,7 +99,7 @@ database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLo
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
 templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
-static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v119.html
+static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v121.html
                  (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v15.html
                  (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
 ```
@@ -146,5 +150,5 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v119.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v121.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.
