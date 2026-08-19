@@ -38,12 +38,17 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Diseñador de Riego → v121** (ago-2026): capas de suelo (Aspersión/Carrete) ahora TRUNCAN a la
-   Prof. radicular (`ad_por_capas(prof_radicular_cm=...)`) en vez de sumar el espesor completo.
-   Carrete suma "Tiempo cambio de postura" editable → Posturas/día y Días necesarios
-   (`diseno_carrete()`, igual que Aspersión). De paso, 2 bugs de `exportar_disenador.py`
-   (CC/PMP/Da de capa única ya no van para Aspersión/Carrete, solo Micro; `-pres` de Carrete
-   ahora es `-pb`). Nada probado — detalle en `docs/historial_sesiones.md`.
+1. **Diseñador de Riego v121 — correcciones tras la primera prueba real del usuario** (ago-2026):
+   Fr redondea al entero MÁS CERCANO, no al piso (afecta Dn_adj/Db/superficie segura aguas abajo) —
+   corregido en `calculos_riego.py`, `calculos.html` y las 4 fórmulas duplicadas del propio
+   Diseñador. Carrete es ahora ADITIVO: si solo falta la velocidad del viento (rara vez se
+   extrae), calcula igual Q diseño/D mojado/Pluviometría/T. postura/Posturas por día (no dependen
+   de ella) y declara qué falta para lo que sí depende (espaciamiento/superficie por postura/N°
+   posturas/días) — nunca asume un viento medio. Fila "Dn" separada en Dn (AD×fa, la que declara
+   el consultor) y Dn ajustada (ETc×Fr, la que alimenta Db) — antes mezcladas bajo un rótulo.
+   Ángulo de sector (α) ahora se extrae/declara (default 210° INIA con aviso); al Diseñador aún
+   le falta ese campo — pendiente que el usuario lo agregue para poder exportarlo. Detalle
+   completo en `docs/historial_sesiones.md`.
 
 2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
    ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
@@ -52,11 +57,9 @@ sin que él reporte primero. Detalle en `docs/`.
    turbina/fuelle y regulador si Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
    Origen: prompt del Claude del Diseñador — detalle de qué se descartó en `docs/`.
 
-3. **Pendientes de probar de sesiones anteriores** (detalle en `docs/historial_sesiones.md`):
-   caudal del emisor con campo distinto por sistema (aspersor/cañón m³/hr vs. emisor l/hr, NO
-   intercambiables); Word con presupuesto en tabla; chequeo hidráulico (catálogo de tuberías, fila
-   AMT/Q diseño/Desnivel/Pérdida cabezal); Memoria COMPLETA con paridad total frente a la por
-   sistema (probar con un expediente de 2 sistemas).
+3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
+   intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
+   paridad total (probar con 2 sistemas).
 
 4. **Evaluación del Consultor** (nueva): sección al final de `/items` (editable) y de la Ficha de
    Revisión (solo lectura) — admisibilidad (Sí/No) + veredicto Diseño/Superficie/Presupuesto/

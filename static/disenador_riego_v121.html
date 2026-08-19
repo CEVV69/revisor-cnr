@@ -2119,7 +2119,7 @@ function autoS(p){const t=document.getElementById(p+'-tex').value;if(!t||!SDB[t]
 
 // ══ M12/M13: Agua Disponible, Lámina Neta y Frecuencia de Riego ══
 // ITT-03 §1 (CNR 2017): AD=(CC-PMP)/100×Da×Prof(m)×1000 [mm]
-// Dn=AD×(crit/100)  |  Fr=floor(Dn/ETc_día)
+// Dn=AD×(crit/100)  |  Fr=round(Dn/ETc_día)
 // Se llama desde calcAA/CA/GA/MA para mantener datos actualizados en el informe
 
 function etoMax(cls){
@@ -2160,7 +2160,7 @@ function calcAA(){
   const ha=window._capasHaA||0;
   const dn=ha*crit/100;
   const fr=dn/etc;
-  const frAdj=Math.floor(fr)||1;
+  const frAdj=Math.round(fr)||1;
   const dnAdj=etc*frAdj;
   const db=dnAdj/(ef/100);
   // Sup. de Riego Seguro (ITT-03 §1): SIEMPRE con demanda DIARIA, no con Db de Fr días
@@ -2191,7 +2191,7 @@ function calcAA(){
     ])}
     ${fbox('Fr <small style="font-weight:400;color:var(--slate)">(frecuencia de riego)</small>',[
       {eq:`Fr = Dn / ETc = ${fd(dn,3)} / ${fd(etc,3)}`,res:`${fd(fr,2)} días`},
-      {eq:`Fr ajustada (⌊Fr⌋)`,res:`${frAdj} días`},
+      {eq:`Fr ajustada (redondeo)`,res:`${frAdj} días`},
       {eq:`Dn ajustada = ETc × Fr_adj = ${fd(etc,3)} × ${frAdj}`,res:`${fd(dnAdj,3)} mm`}
     ])}
     ${fbox('Db <small style="font-weight:400;color:var(--slate)">(demanda bruta)</small>',[
@@ -2204,7 +2204,7 @@ function calcAA(){
     <tr><td>AD (agua disponible)</td><td class="un">(CC−PMP)/100×Da×Prof(m)×1000</td><td class="vr">${fd(ha,2)}</td><td class="un">mm</td></tr>
     <tr><td>fa (factor agotamiento)</td><td class="un">${crit}/100</td><td class="vr">${fd(crit/100,2)}</td><td class="un">—</td></tr>
     <tr><td>Dn (lámina neta)</td><td class="un">AD × fa</td><td class="vr">${fd(dn,3)}</td><td class="un">mm</td></tr>
-    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → ⌊Fr⌋</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
+    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → redondeo(Fr)</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
     <tr><td>Dn ajustada</td><td class="un">ETc × Fr_adj</td><td class="vr">${fd(dnAdj,3)}</td><td class="un">mm</td></tr>
     <tr><td>Db (demanda bruta)</td><td class="un">Dn_adj / Ef</td><td class="vr">${fd(db,3)}</td><td class="un">mm</td></tr>
     </table>
@@ -2460,7 +2460,7 @@ function calcCA(){
   const etp=etoM/dias, etc=etp*kc;
   calcCapasC(); // única fuente de Ha — refresca con el z (Prof. Radicular) actual
   const ha=window._capasHaC||0;
-  const dn=ha*crit/100, fr=dn/etc, frAdj=Math.floor(fr)||1, dnAdj=etc*frAdj, db=dnAdj/(ef/100);
+  const dn=ha*crit/100, fr=dn/etc, frAdj=Math.round(fr)||1, dnAdj=etc*frAdj, db=dnAdj/(ef/100);
   // Sup. de Riego Seguro (ITT-03 §1): SIEMPRE con demanda DIARIA, no con Db de Fr días
   const dbDiarioC=etc/(ef/100);
   const qDispC=v('c-q',17.756), demLsHaC=dbDiarioC/8.64, supSegC=qDispC/demLsHaC;
@@ -2476,7 +2476,7 @@ function calcCA(){
       {eq:`AD (agua disponible) = Σ Ha_capa (${document.querySelectorAll('#c-capas-list .capa-wrap').length} capa${document.querySelectorAll('#c-capas-list .capa-wrap').length>1?'s':''}, truncado a Prof. Radicular)`,res:`${fd(ha,2)} mm`},
       {eq:`fa (factor agotamiento) = ${crit}/100`,res:`${fd(crit/100,2)}`},
       {eq:`Dn (lámina neta) = AD × fa = ${fd(ha,2)} × ${fd(crit/100,2)}`,res:`${fd(dn,3)} mm`},
-      {eq:`Fr = Dn/ETc = ${fd(dn,3)}/${fd(etc,3)} → ⌊Fr⌋`,res:`${fd(fr,2)} → ${frAdj} días`},
+      {eq:`Fr = Dn/ETc = ${fd(dn,3)}/${fd(etc,3)} → redondeo(Fr)`,res:`${fd(fr,2)} → ${frAdj} días`},
       {eq:`Db (demanda bruta) = (ETc × Fr_adj) / Ef = (${fd(etc,3)} × ${frAdj}) / ${fd((ef/100),2)}`,res:`${fd(db,3)} mm`},
       {note:'Mes crítico: '+em.mes+' | Kc='+kc+' | Ef (eficiencia)='+ef+'%'}
     ])}
@@ -2486,7 +2486,7 @@ function calcCA(){
     <tr><td>AD (agua disponible)</td><td class="un">Σ Ha_capa (truncado a z)</td><td class="vr">${fd(ha,2)}</td><td class="un">mm</td></tr>
     <tr><td>fa (factor agotamiento)</td><td class="un">${crit}/100</td><td class="vr">${fd(crit/100,2)}</td><td class="un">—</td></tr>
     <tr><td>Dn (lámina neta)</td><td class="un">AD × fa</td><td class="vr">${fd(dn,3)}</td><td class="un">mm</td></tr>
-    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → ⌊Fr⌋</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
+    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → redondeo(Fr)</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
     <tr><td>Db (demanda bruta)</td><td class="un">(ETc×Fr_adj) / Ef</td><td class="vr">${fd(db,3)}</td><td class="un">mm</td></tr>
     </table>
     ${fbox('Sup. de Riego Seguro (ITT-03 §1 — base diaria)',[
@@ -3057,7 +3057,7 @@ function buildInfHtml(sys){
     sec3body=ifull(agTablaAC)
       +irow('HA (Agua Aprovechable)',fd(ag.ha||0,1),'mm','HA = (CC – PMP) × Da × Prof. radicular')
       +irow('Demanda Neta (Dn)',fd(ag.dn||0,2),'mm','Lámina neta de agua a reponer en cada evento de riego')
-      +irow('Frecuencia de Riego',fd(ag.fr||0,2)+' → ajustada: '+(ag.frAdj||'—'),'días','Intervalo máximo entre riegos, ajustado al entero inferior')
+      +irow('Frecuencia de Riego',fd(ag.fr||0,2)+' → ajustada: '+(ag.frAdj||'—'),'días','Intervalo máximo entre riegos, ajustado al entero más próximo')
       +irow('Demanda Bruta (Db)',fd(ag.db||0,2),'mm','Db = Dn_ajustada / Eficiencia. Lámina que debe aplicar el sistema');
   }
 
@@ -4474,7 +4474,7 @@ function buildDetalleHtml(sys) {
     if (_ag_inf && _ag_inf.etc > 0) {
       const _dn_inf = ha * (_crit_inf||50) / 100;
       const _fr_inf = _dn_inf / _ag_inf.etc;
-      const _frAdj_inf = Math.max(1, Math.floor(_fr_inf));
+      const _frAdj_inf = Math.max(1, Math.round(_fr_inf));
       const _fa_inf = (_crit_inf||50)/100;
       suelo_content += `<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-left:3px solid #3b82f6;border-radius:5px">
         <div style="font-size:.68rem;font-weight:700;color:var(--blue-mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Disponibilidad Hídrica del Suelo — ITT-03 §1</div>
@@ -4511,12 +4511,12 @@ function buildDetalleHtml(sys) {
           </tr>
           <tr style="background:#dbeafe">
             <td style="padding:5px 10px;border:1px solid #bfdbfe;font-weight:700">Frecuencia ajustada (Fr)</td>
-            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">⌊Fr real⌋ → entero inferior</td>
+            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">redondeo(Fr real) → entero más próximo</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center;font-weight:700;color:#1d4ed8">${_frAdj_inf}</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center">días</td>
           </tr>
         </table>
-        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero inferior (Math.floor).</div>
+        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero más próximo (Math.round).</div>
       </div>`;
     }
     // Solo 3 meses: Dic(idx11), Ene(idx0), Feb(idx1)
@@ -6425,7 +6425,7 @@ function calcMA(){
   var ha=(cc-pmp)*da*(pr/100)*10;
   var dn=ha*crit/100;
   var fr=dn/etc;
-  var frAdj=Math.floor(fr)||1;
+  var frAdj=Math.round(fr)||1;
   var dnAdj=etc*frAdj;
   R.MA={etp,etc,db,kc,etoM,dias,mesC:em.mes,demLsHa,supSeg,ef,
         ha,dn,fr,frAdj,dnAdj,cc,pmp,da,pr,crit,
@@ -6443,7 +6443,7 @@ function calcMA(){
     +fbox('AD/Dn/Fr (referencia informativa de suelo — NO se usa para Db)',[
       {eq:'AD=(CC−PMP)/100×Da×Prof(m)×1000=('+cc+'−'+pmp+')/100×'+da+'×'+fd(pr/100,2)+'×1000',res:fd(ha,2)+' mm'},
       {eq:'Dn=AD×fa='+fd(ha,2)+'×'+fd(crit/100,2),res:fd(dn,3)+' mm'},
-      {eq:'Fr=Dn/ETc → ⌊Fr⌋='+fd(fr,2),res:frAdj+' días'},
+      {eq:'Fr=Dn/ETc → redondeo(Fr)='+fd(fr,2),res:frAdj+' días'},
       {eq:'Dn adj=ETc×Fr='+fd(etc,3)+'×'+frAdj,res:fd(dnAdj,3)+' mm'},
       {note:'CC='+cc+'% | PMP='+pmp+'% | Da='+da+' | Prof='+pr+' cm | fa='+fd(crit/100,2)+' — Microaspersión es riego localizado (igual que goteo); Db diario no depende de Fr.'}
     ])

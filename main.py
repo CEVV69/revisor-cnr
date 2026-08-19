@@ -1759,6 +1759,7 @@ def _agronomico_calculo(datos: dict):
             vib_mmhr=datos.get("vib_mmhr"),
             horas_disponibles_dia=datos.get("horas_disponibles_dia"),
             tiempo_cambio_postura_hr=datos.get("tiempo_cambio_postura_hr"),
+            angulo_sector_deg=datos.get("angulo_sector_deg"),
         ) or None
     if not (datos and all(datos.get(k) not in (None, "") for k in campos)):
         r = {}
@@ -2004,7 +2005,7 @@ _CAMPOS_AGRO_INFORME = (
     "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
     "caudal_aspersor_m3h", "caudal_canon_m3h",
     "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
-    "longitud_franja_m", "velocidad_avance_mh", "tiempo_cambio_postura_hr",
+    "longitud_franja_m", "velocidad_avance_mh", "tiempo_cambio_postura_hr", "angulo_sector_deg",
 )
 _CAMPOS_DECLARADO_INFORME = (
     "dn_mm", "fr_dias", "db_mm", "caudal_diseno_ls", "tiempo_riego_hr", "n_sectores",
@@ -2051,6 +2052,8 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     • `vib_supera_pp` / `vib_cumple_minimo_inia` de `carrete_check` — mismo caso: el template
       pregunta `is defined` (¿se declaró VIB?), así que "no se declaró VIB" pasaría a verse como
       "VIB no cumple".
+    • `angulo_sector_fuera_rango` de `carrete_check` — mismo caso: su ausencia significa "dentro
+      de rango o no declarado", no "fuera de rango".
     • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
       por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
     """
@@ -2063,7 +2066,15 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     if calc.get("postura_check"):
         _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios"))
     if calc.get("carrete_check"):
-        _rellenar_none(calc["carrete_check"], ("posturas_dia", "dias_necesarios"))
+        # ago-2026: diseno_carrete() es ADITIVO (cada clave puede faltar si no llegó el dato que
+        # necesita, típicamente la velocidad del viento) — hay que rellenar TODAS las que la
+        # Memoria lee con `is not none`/`val()`, no solo posturas_dia/dias_necesarios. Quedan
+        # afuera a propósito vib_supera_pp/vib_cumple_minimo_inia (ver docstring de esta función).
+        _rellenar_none(calc["carrete_check"], (
+            "q_diseno_m3h", "q_diseno_ls", "d_mojado_m", "espaciamiento_franjas_m",
+            "pluviometria_mmhr", "superficie_postura_ha", "n_posturas", "tiempo_postura_hr",
+            "posturas_dia", "dias_necesarios", "angulo_sector_deg", "angulo_sector_declarado",
+        ))
 
     tramos = _tramos_con_calculo(tramos_raw)
     for t in tramos:
@@ -2526,7 +2537,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
               "espaciamiento_laterales_m", "n_aspersores_postura", "caudal_aspersor_m3h",
               "caudal_canon_m3h", "margen_sobredimensionamiento_pct", "radio_alcance_m",
               "velocidad_viento_ms", "longitud_franja_m", "velocidad_avance_mh",
-              "tiempo_cambio_postura_hr"]
+              "tiempo_cambio_postura_hr", "angulo_sector_deg"]
     sistemas = []
     for i in range(n_sistemas):
         p = f"s{i}_"

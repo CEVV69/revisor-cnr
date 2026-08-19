@@ -277,6 +277,12 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
         put("vv", sistema_agro.get("velocidad_viento_ms"))
         put("lf", sistema_agro.get("longitud_franja_m"))
         put("va", sistema_agro.get("velocidad_avance_mh"))
+        # `angulo_sector_deg` (ago-2026, Revisor ya lo extrae/calcula — ver calculos_riego.py
+        # `diseno_carrete()`) TODAVÍA NO se exporta: el Diseñador de Riego v121 no tiene un campo
+        # para el ángulo de sector (α), fijo en 210° en su propio código (`calcCarP`). El usuario
+        # va a agregar ese campo en el Diseñador — cuando exista, confirmar el ID real contra el
+        # HTML fuente (nunca adivinarlo, ver CLAUDE.md regla 10) y agregar acá
+        # `put("<id-confirmado>", sistema_agro.get("angulo_sector_deg"))`.
 
     # ── Desglose de Humedad Aprovechable por capas de suelo (solo Aspersión/Carrete — mismo
     # checkbox "reemplaza CC/PMP/Da" del Chequeo Agronómico). Mismas claves de textura

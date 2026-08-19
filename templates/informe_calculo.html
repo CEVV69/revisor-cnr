@@ -200,18 +200,22 @@
 {% endcall %}
 {% call paso('dn') %}
   <div class="formula">Dn = AD × Criterio de riego = {{ val(calc.ad_mm) }} × ({{ val(agro.factor_agotamiento_pct) }}/100) = <strong>{{ val(calc.dn_mm, ' mm') }}</strong></div>
-  <div class="explica">Lámina neta — cuánta agua se repone en cada riego, sin agotar más allá del criterio definido.</div>
+  <div class="explica">Lámina neta — cuánta agua se repone en cada riego, sin agotar más allá del criterio definido. Es el dato que el Diseñador de Riego y el consultor rotulan "Dn"; NO ha pasado aún por el redondeo de Fr a un número entero de días (ver "Dn ajustada" más abajo).</div>
   {% if agro.declarado and agro.declarado.dn_mm is not none %}
-  <div class="compara">Declarado: {{ num(agro.declarado.dn_mm) }} mm — {% if calc.dn_adj_mm and (calc.dn_adj_mm - agro.declarado.dn_mm) | abs / calc.dn_adj_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo ({{ num(calc.dn_adj_mm) }} mm).</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  <div class="compara">Declarado: {{ num(agro.declarado.dn_mm) }} mm — {% if calc.dn_mm and (calc.dn_mm - agro.declarado.dn_mm) | abs / calc.dn_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo ({{ num(calc.dn_mm) }} mm).</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
 {% endcall %}
 {% call paso('fr') %}
-  <div class="formula">Fr = Dn / ETc = {{ val(calc.dn_mm) }} / {{ val(calc.etc_mm_dia) }} = {{ val(calc.fr_dias) }} días → redondeado (mínimo 1 día): <strong>{{ val(calc.fr_adj_dias, ' días') }}</strong></div>
+  <div class="formula">Fr = Dn / ETc = {{ val(calc.dn_mm) }} / {{ val(calc.etc_mm_dia) }} = {{ val(calc.fr_dias) }} días → redondeado al entero más próximo (mínimo 1 día): <strong>{{ val(calc.fr_adj_dias, ' días') }}</strong></div>
   <div class="explica">Frecuencia de riego — cada cuántos días corresponde regar.</div>
   {% if agro.declarado and agro.declarado.fr_dias is not none %}
   <div class="compara">Declarado: {{ agro.declarado.fr_dias }} días — {% if calc.fr_adj_dias is not none and calc.fr_adj_dias != agro.declarado.fr_dias %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
 {% endcall %}
+<div class="paso">
+  <div class="formula">Dn ajustada = ETc × Fr = {{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }} = <strong>{{ val(calc.dn_adj_mm, ' mm') }}</strong></div>
+  <div class="explica">Lámina neta ajustada al Fr entero — un dato DISTINTO de Dn (arriba): es la que efectivamente alimenta la demanda bruta (Db) más abajo, precisamente porque Fr se redondeó a un número entero de días.</div>
+</div>
 {% call paso('db') %}
   <div class="formula">Db = (ETc × Fr_adj) / Eficiencia = ({{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }}) / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
   <div class="explica">Demanda bruta — lo que hay que aplicar en cada riego, considerando la eficiencia real del sistema.</div>
@@ -292,8 +296,8 @@
   <div class="explica">El % de espaciamiento sobre el diámetro mojado depende de la velocidad del viento de diseño (tabla INIA Cuadro 1: 80% con viento ≤1 m/s, hasta 52,5% con viento &gt;5 m/s).</div>
 </div>
 <div class="paso">
-  <div class="formula">Pluviometría = Q diseño / (π×(0,9×Radio)²) × (210°/360) × 1000 = <strong>{{ val(calc.carrete_check.pluviometria_mmhr, ' mm/hr') }}</strong></div>
-  <div class="explica">Tasa de aplicación media del cañón, con el ángulo de sector recomendado INIA (210°, fijo).</div>
+  <div class="formula">Pluviometría = Q diseño / (π×(0,9×Radio)²) × (α/360) × 1000 = <strong>{{ val(calc.carrete_check.pluviometria_mmhr, ' mm/hr') }}</strong></div>
+  <div class="explica">Tasa de aplicación media del cañón. α (ángulo de sector) = {{ val(calc.carrete_check.angulo_sector_deg, '°') }}{% if calc.carrete_check.angulo_sector_declarado is defined and not calc.carrete_check.angulo_sector_declarado %} — no declarado en el expediente, se asume el default INIA{% endif %}{% if calc.carrete_check.angulo_sector_fuera_rango is defined %} — <span class="alerta">fuera del rango recomendado INIA (200-220°)</span>{% endif %} (rango recomendado INIA: 200-220°).</div>
   {% if agro.declarado and agro.declarado.pluviometria_mmhr is not none %}
   <div class="compara">Declarado: {{ num(agro.declarado.pluviometria_mmhr) }} mm/hr — {% if calc.carrete_check.pluviometria_mmhr and (calc.carrete_check.pluviometria_mmhr - agro.declarado.pluviometria_mmhr) | abs / calc.carrete_check.pluviometria_mmhr * 100 > 15 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}

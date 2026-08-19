@@ -1,3 +1,117 @@
+## Sesión ago-2026 — Fr redondeo, Carrete aditivo, Dn separado, ángulo de sector (primera prueba real)
+
+El usuario probó por primera vez en la app el Diseñador v121 y comparó, con los MISMOS datos
+(exportados de Revisor al Diseñador), los resultados de ambas apps. Reportó una tabla de
+diferencias. Antes de tocar código se investigó cada fila numéricamente (no se asumió nada de la
+causa a partir del reporte) — el detalle completo de esa investigación y las 3 alternativas
+propuestas (con orden de prioridad sugerido) quedó en el mensaje de "reporte y sugerencias" previo
+a implementar; acá solo el resumen de lo que efectivamente se implementó, en el orden que pidió el
+usuario (2, luego 1, luego 3 de ese reporte) más una corrección transversal (Fr) que pidió aparte.
+
+**0. Fr redondea al entero más próximo, no al piso (pedido transversal del usuario).** "En general
+los consultores redondean al entero más próximo... la app y el diseñador lo hacen al más bajo y
+con eso cambian todos los demás cálculos." Confirmado: `fr_adj = floor(fr)` en las 3 apps. Con el
+ejemplo real del usuario (Dn=18,359, Fr=3,906) el piso da Fr_adj=3 → Dn_adj=14,1 (lo que el
+Chequeo mostraba); el redondeo da Fr_adj=4 → Dn_adj=18,8. Se implementó:
+- `calculos_riego.py`: nueva `_redondear_fr(fr)` = `floor(fr+0.5)`, NO `round()` de Python (que usa
+  redondeo bancario — `round(2.5)==2`, `round(3.5)==4` — distinto del redondeo aritmético clásico
+  que espera un consultor y del que usa `Math.round` de JavaScript, que SIEMPRE sube el 0,5).
+  Usada en `cadena_agronomica()`.
+- `calculos.html`: `Math.floor(fr)` → `Math.round(fr)` (JS ya redondea 0,5 hacia arriba nativo).
+- `static/disenador_riego_v121.html`: los 4 lugares que calculaban Fr_adj (`calcAA`/`calcMA`/
+  `calcCA`, más un cálculo duplicado en la sección de "informe" de suelo) tenían el mismo
+  `Math.floor(fr)||1` — cambiado a `Math.round(fr)||1`. También se corrigieron las 5 etiquetas de
+  UI que mostraban "⌊Fr⌋"/"entero inferior"/"Math.floor" (ya no describían lo que el código hace).
+  **Esta es la copia LOCAL del Diseñador dentro del repo de Revisor** — el usuario avisó que va a
+  resincronizarla con la sesión que lo desarrolla; si esa resincronización trae una versión más
+  nueva sin este fix, hay que reaplicarlo (o pedirle a esa sesión que lo aplique del lado de ella).
+
+**2. Carrete "(sin dato)" — ahora ADITIVO, no todo-o-nada.** El bloque completo (5 filas: Q diseño,
+diámetro/espaciamiento, pluviometría, superficie por postura, tiempo por postura, posturas/día)
+exigía los 6 datos base A LA VEZ (`if (caudalCanon !== null && radioAlcance !== null && ...)`) — si
+faltaba UNO, las 5 filas quedaban en "—" sin decir cuál. El usuario confirmó: "Los únicos datos que
+faltan de los extraídos en el revisor son VIB y Velocidad del viento... el Revisor no debe asumir,
+pero debe calcular todo lo que no implique necesariamente esos datos faltantes, y que declare lo
+faltante para el cálculo." Se mapearon las dependencias reales de cada resultado (documentadas en
+el nuevo docstring de `diseno_carrete()`):
+```
+Q_diseño → caudal catálogo            D_mojado → radio
+PP       → caudal catálogo + radio (NO necesita viento)
+E_franjas/A_postura/N_posturas → SÍ necesitan viento (en cadena)
+T_postura → radio + avance + longitud (NO necesita viento)
+Posturas/día → T_postura + horas (NO necesita viento ni N_posturas)
+Días necesarios → Posturas/día + N_posturas (SÍ necesita viento, indirecto)
+```
+- `calculos_riego.py`: `diseno_carrete()` reescrita de raíz — cada resultado se calcula solo si
+  están sus propios datos, ya no `if not all([...]): return {}`. Sigue sin asumir NUNCA un viento
+  medio (a diferencia del Diseñador, que si el campo llega vacío se autocompleta con un valor
+  sugerido por su tabla INIA — eso es lo que el usuario confirmó como correcto para el Diseñador y
+  explícitamente incorrecto para el Revisor).
+- `calculos.html`: mismo criterio aditivo en JS, con mensajes explícitos por fila ("Falta:
+  velocidad del viento de diseño (el Revisor no asume un valor medio)", etc.) en vez de un guión.
+- **Bug encontrado de paso, con potencial de romper la app**: `analyzer.py` construía el texto de
+  verificación para la IA indexando el dict de `carrete_check` directo (`carrete['n_posturas']`,
+  etc.) asumiendo que SIEMPRE estaban las 10 claves. Con el nuevo `diseno_carrete()` aditivo eso
+  genera `KeyError` en cualquier proyecto Carrete con viento no declarado — y como esa función va
+  dentro de un único `try/except` que envuelve TODA la verificación de `diseno_hidraulico`
+  (hidráulica + agronómica), el error se habría tragado en silencio el bloque completo, justo en el
+  escenario que se estaba intentando mejorar. Reescrito con `.get()` en todo, construyendo cada
+  línea del texto solo si el dato está, y explicando a la IA que la ausencia es "una limitación del
+  recálculo, no necesariamente del consultor" (para que no lo tome como excusa para observar).
+- `main.py`: `_normalizar_sistema_informe` — el `_rellenar_none` de `carrete_check` cubría solo
+  `posturas_dia`/`dias_necesarios` (los únicos que podían faltar en el modelo viejo, todo-o-nada);
+  ahora cubre las 10 claves que pueden faltar, para no pisar el mismo bug del trampa
+  Undefined-vs-None en Jinja que ya estaba documentado para otros casos en esta misma función.
+- Verificado con los 3 escenarios (todo presente / viento+VIB ausentes / todo vacío) en los 3
+  consumidores (`calculos_riego.py` directo, `main._agronomico_calculo`/`_normalizar_sistema_
+  informe`, render real de ambas Memorias) — sin crash, con "sin dato"/mensajes de falta correctos.
+
+**1. Dn — fila separada en Dn y Dn ajustada.** El Diseñador rotula "Dn (lámina neta)" = AD×fa
+(18,359 en el ejemplo del usuario); el Chequeo de Revisor mostraba, bajo el MISMO rótulo "Dn —
+lámina neta", el valor `dn_adj_mm` = ETc×Fr_adj (14,100) — dos pasos distintos de la misma cadena
+confundidos en una sola fila. Peor: la Memoria de Cálculo mostraba la fórmula con `dn_mm` (18,359,
+coincidiendo con el Diseñador) pero comparaba el valor DECLARADO contra `dn_adj_mm` por debajo,
+sin mostrar ese segundo número en ningún lado — una contradicción interna silenciosa. El usuario
+confirmó: "que presente ambos, pero agregando una fila más... son dos datos distintos." Se
+implementó en los 3 lados:
+- `calculos.html`: la fila "Dn — lámina neta" ahora muestra/compara `dn` (AD×fa, sin ajustar) —
+  coherente con lo que declara el consultor y con el Diseñador. Fila nueva "Dn ajustada — ETc × Fr
+  entero" con `dnAdj`.
+- `informe_calculo.html` / `informe_calculo_completo.html`: el bloque "compara" de Dn ahora
+  compara contra `calc.dn_mm` (antes comparaba contra `calc.dn_adj_mm` sin mostrarlo). Nuevo paso
+  informativo "Dn ajustada = ETc × Fr" entre Fr y Db (sin comparación contra un valor declarado —
+  el consultor no reporta por separado un "Dn ajustada", es un intermedio del modelo).
+- No se tocó `calculos_riego.py`: `dn_mm` y `dn_adj_mm` ya existían ambos en `cadena_agronomica()`,
+  el problema era enteramente de presentación (qué campo se mostraba bajo cada rótulo).
+
+**3. Ángulo de sector (α) del carrete — se extrae, con default explícito, no fijo mudo.** Estaba
+hardcodeado en 210° en las 3 apps sin posibilidad de declararlo, pese a que INIA da un RANGO
+(200-220°) y el ángulo mueve la Pluviometría hasta ±5% entre extremos — relevante porque PP se
+compara contra la VIB y contra el mínimo INIA 7,5 mm/hr, así que un proyecto límite puede cambiar
+de veredicto según el ángulo asumido. El usuario: "hay que extraerlo, y si no está asumir un 210,
+pero explicitar que se asume eso." Implementado:
+- `calculos_riego.py`: `diseno_carrete()` gana `angulo_sector_deg` (opcional). Si se declara, se
+  usa; si no, cae a `ANGULO_SECTOR_CARRETE_DEG=210`. Devuelve `angulo_sector_deg` (el que
+  efectivamente se usó), `angulo_sector_declarado` (bool) y `angulo_sector_fuera_rango` (solo si
+  está fuera de 200-220°, mismo patrón `is defined` que los campos de VIB — su ausencia significa
+  "dentro de rango o no declarado", nunca "fuera de rango").
+- `calculos.html`: campo nuevo "Ángulo de sector del cañón (°)", placeholder 210. La fila de
+  Pluviometría ahora dice "α=210° por defecto INIA, no declarado" o "α=205° declarado", con aviso
+  si cae fuera de 200-220°.
+- `analyzer.py`: se agrega a la extracción IA (schema + prompt de Carrete) y al texto de
+  verificación que ve la IA, con instrucción explícita de NO observar el default (es un supuesto
+  del Revisor, no una omisión del consultor) pero SÍ observar si el declarado cae fuera de rango.
+  El checklist de `diseno_hidraulico` (agregado la sesión anterior) también se actualizó: el
+  ángulo es dato OPCIONAL, no de los "mínimos exigibles" del Carrete.
+- Memorias: fórmula de Pluviometría ahora dice `× (α/360)` en vez de `× (210°/360)`, con el mismo
+  texto de declarado/default/fuera de rango.
+- **Export al Diseñador — NO implementado a propósito.** El Diseñador v121 no tiene un campo para
+  α (fijo en su propio código). El usuario: "Modificaré el dato para que sí se considere un campo
+  para ello en el Diseñador, así cuando se exporte, use el declarado o asuma uno de no ser
+  encontrado." Queda un comentario en `exportar_disenador.py` explicando por qué no se mapea
+  todavía y qué hacer cuando el campo exista — confirmar el ID real contra el HTML fuente, nunca
+  adivinarlo (regla 10 de `CLAUDE.md`).
+
 ## Sesión ago-2026 — Criterios de revisión por método de riego (prompt del Claude del Diseñador)
 
 El usuario subió `prompt_revision_diseno_riego.md`, escrito por el Claude que desarrolla el

@@ -201,6 +201,22 @@ def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
     return r
 
 
+def _redondear_fr(fr: float) -> int:
+    """Redondeo al entero más próximo (no truncamiento hacia abajo) — mismo criterio que usan los
+    consultores al declarar la frecuencia de riego (Fr), confirmado por el usuario (ago-2026):
+    antes esta app y el Diseñador de Riego truncaban Fr con `floor`, lo que sistemáticamente subía
+    la frecuencia de riego declarable y arrastraba una diferencia a toda la cadena aguas abajo
+    (Dn_adj, Db, superficie de riego segura, N° de sectores/posturas).
+
+    Se implementa como `floor(fr + 0.5)` en vez de usar `round()` de Python a propósito: `round()`
+    usa redondeo bancario (`round(2.5) == 2`, `round(3.5) == 4`) — no es el redondeo aritmético
+    clásico que espera un consultor ni el que aplica `Math.round` en JavaScript (que SIEMPRE
+    redondea 0,5 hacia arriba). Con `floor(fr + 0.5)` el comportamiento es idéntico al de
+    `Math.round` del Diseñador de Riego y del propio Chequeo (`recalcAgroSistema` en
+    calculos.html), evitando que el mismo Fr redondee distinto en Python y en JS."""
+    return int(math.floor(fr + 0.5))
+
+
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
                       kc: float, eto_dia_mm: float, factor_agotamiento_pct: float,
                       eficiencia_pct: float, alta_frecuencia: bool = False,
@@ -212,7 +228,12 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     · Aspersión / Carrete / Microaspersión (por turnos, con agotamiento — `alta_frecuencia=False`):
         AD     = (CC − PMP)/100 × Da × Prof(m) × 1000   [mm — agua disponible del suelo]
         Dn     = AD × fa                                 [mm — lámina neta de riego]
-        Fr     = Dn / ETc  →  Fr_adj = floor(Fr) (mín. 1) [días — frecuencia de riego]
+        Fr     = Dn / ETc  →  Fr_adj = redondeo al entero más cercano (mín. 1) [días — frecuencia
+                 de riego. Ago-2026: antes se truncaba hacia abajo (floor) — el usuario advirtió
+                 que los consultores redondean al entero más próximo, no al piso, y que ese truncar
+                 arrastraba una diferencia a TODA la cadena aguas abajo (Dn_adj, Db, superficie
+                 segura, N° de sectores/posturas...). Mismo criterio aplicado en el Diseñador de
+                 Riego (`calcAA`/`calcCA`/`calcMA`) — ver docstring de `_redondear_fr`]
         Dn_adj = ETc × Fr_adj
         Db     = Dn_adj / Ef                             [mm — demanda bruta]
 
@@ -245,7 +266,7 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     else:
         dn = ad * (factor_agotamiento_pct / 100) if ad is not None else 0
         fr = dn / etc if etc else 0
-        fr_adj = max(1, math.floor(fr)) if fr else 1
+        fr_adj = max(1, _redondear_fr(fr)) if fr else 1
         dn_adj = etc * fr_adj
     db = dn_adj / (eficiencia_pct / 100) if eficiencia_pct else 0
     # Db "diario" (ETc/Ef, SIN pasar por Fr) — el propio Diseñador de Riego lo calcula aparte
@@ -501,7 +522,10 @@ def postura_aspersion(caudal_aspersor_m3h: float, espaciamiento_aspersores_m: fl
 
 # ── Carrete de riego (cañón viajero): modelo INIA-Carillanca 2001 (Simpfendörfer) ───────────
 
-ANGULO_SECTOR_CARRETE_DEG = 210    # ángulo de sector recomendado INIA (rango 200-220°, fijo)
+ANGULO_SECTOR_CARRETE_DEG = 210    # ángulo de sector INIA por DEFECTO (usado solo si el
+                                    # expediente no lo declara — rango recomendado 200-220°)
+ANGULO_SECTOR_CARRETE_MIN = 200    # rango recomendado INIA — fuera de este rango, advertir
+ANGULO_SECTOR_CARRETE_MAX = 220
 VIB_MINIMA_CARRETE_MMHR = 7.5      # INIA-Carillanca: mínimo exigido para que el suelo sea apto
 
 
@@ -520,7 +544,7 @@ def _pct_espaciamiento_viento(vv_ms: float) -> float:
 def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio_alcance_m: float,
                    velocidad_viento_ms: float, longitud_franja_m: float, velocidad_avance_mh: float,
                    superficie_ha: float, vib_mmhr: float = None, horas_disponibles_dia: float = None,
-                   tiempo_cambio_postura_hr: float = None) -> dict:
+                   tiempo_cambio_postura_hr: float = None, angulo_sector_deg: float = None) -> dict:
     """Recalcula los parámetros de operación de un carrete de riego (cañón viajero) con el
     modelo INIA-Carillanca 2001 (Simpfendörfer) — la misma fórmula que usa el Diseñador de Riego
     (`calcCarP`, leída directo de su código fuente). A diferencia de goteo/microaspersión/
@@ -534,7 +558,11 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     %viento          = 80% (viento≤1 m/s) · 75% (≤2,5) · 62,5% (≤5) · 52,5% (>5)  — INIA Cuadro 1
     E_franjas[m]     = D_mojado × %viento                 — espaciamiento entre pasadas del cañón
     PP[mm/hr]        = Q_diseño / (π×(0,9×Radio)²) × (α/360) × 1000   — pluviometría media,
-                       α=210° (ángulo de sector recomendado INIA, fijo — no editable)
+                       α=`angulo_sector_deg` si el expediente lo declara; si no, 210° por
+                       defecto INIA (rango recomendado 200-220°; ago-2026 — antes α estaba fijo
+                       en 210° sin extraerlo, y el ángulo mueve la PP hasta ±5% entre los
+                       extremos del rango — relevante porque PP se compara contra la VIB y
+                       contra el mínimo INIA de 7,5 mm/hr)
     A_postura[ha]    = (Longitud de franja × E_franjas) / 10.000
     N_posturas       = ⌈Superficie del proyecto / A_postura⌉
     L_manguera[m]    = máx(Longitud de franja/2 − 2/3×Radio, 10)
@@ -552,48 +580,83 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     importar el cañón elegido), y además se compara la VIB contra la Pluviometría (PP) recién
     calculada, no contra un dato declarado aparte.
 
-    Todos los argumentos (salvo `vib_mmhr`, `horas_disponibles_dia`, `tiempo_cambio_postura_hr`)
-    son obligatorios — a diferencia de otras verificaciones de esta app, acá los datos son
-    interdependientes (el modelo completo de postura no tiene un resultado parcial útil con
-    datos a medias). Posturas/día y Días necesarios solo se calculan si se pasa
-    `horas_disponibles_dia`."""
-    if not all([caudal_catalogo_m3h, radio_alcance_m, velocidad_viento_ms, longitud_franja_m,
-                velocidad_avance_mh, superficie_ha]):
-        return {}
+    ADITIVO, no todo-o-nada (ago-2026): antes exigía los 6 datos base a la vez y devolvía {} si
+    faltaba cualquiera. El usuario advirtió que, en la práctica, lo único que casi nunca se logra
+    extraer del expediente es la velocidad del viento de diseño (y la VIB) — y esos dos datos NO
+    son necesarios para Q_diseño, D_mojado, PP ni T_postura. Ahora cada resultado se calcula si
+    están los datos que necesita — mismo criterio que el resto de `calculos_riego.py`
+    (`verificacion_diseno_riego`, `cadena_agronomica`). Dependencias reales de cada salida:
+      Q_diseño          → caudal_catalogo_m3h
+      D_mojado          → radio_alcance_m
+      PP                → caudal_catalogo_m3h, radio_alcance_m (NO necesita viento)
+      E_franjas         → radio_alcance_m, velocidad_viento_ms
+      A_postura         → longitud_franja_m, E_franjas (⇒ además radio y viento)
+      N_posturas        → A_postura, superficie_ha
+      T_postura         → radio_alcance_m, velocidad_avance_mh, longitud_franja_m (NO necesita
+                          viento ni superficie)
+      Posturas/día      → T_postura, horas_disponibles_dia (NO necesita viento ni N_posturas)
+      Días necesarios   → Posturas/día, N_posturas (⇒ sí necesita viento, indirectamente)
+    A diferencia de una verificación silenciosa, esta app NUNCA asume un viento medio por sector o
+    suelo (a diferencia del Diseñador de Riego, que si el campo llega vacío completa un valor
+    sugerido según su tabla INIA — ver `c-fv` en `exportar_disenador.py`): sin el dato declarado,
+    los resultados que dependen de él simplemente no se calculan."""
+    r = {}
     margen = margen_sobredim_pct if margen_sobredim_pct is not None else 15
-    q_diseno_m3h = caudal_catalogo_m3h * (1 + margen / 100)
+    alfa = angulo_sector_deg if angulo_sector_deg is not None else ANGULO_SECTOR_CARRETE_DEG
 
-    d_mojado = 2 * radio_alcance_m
-    pct_vv = _pct_espaciamiento_viento(velocidad_viento_ms)
-    esp_franja = d_mojado * pct_vv
+    q_diseno_m3h = None
+    if caudal_catalogo_m3h:
+        q_diseno_m3h = caudal_catalogo_m3h * (1 + margen / 100)
+        r["q_diseno_m3h"] = round(q_diseno_m3h, 1)
+        r["q_diseno_ls"] = round(q_diseno_m3h / 3.6, 2)
 
-    alfa = ANGULO_SECTOR_CARRETE_DEG
-    pp_mmhr = q_diseno_m3h / (math.pi * (0.9 * radio_alcance_m) ** 2) * (alfa / 360) * 1000
+    d_mojado = 2 * radio_alcance_m if radio_alcance_m else None
+    if d_mojado is not None:
+        r["d_mojado_m"] = round(d_mojado, 1)
 
-    sup_postura_ha = (longitud_franja_m * esp_franja) / 10000
-    n_posturas = math.ceil(superficie_ha / sup_postura_ha) if sup_postura_ha else 0
+    pp_mmhr = None
+    if q_diseno_m3h and radio_alcance_m:
+        pp_mmhr = q_diseno_m3h / (math.pi * (0.9 * radio_alcance_m) ** 2) * (alfa / 360) * 1000
+        r["pluviometria_mmhr"] = round(pp_mmhr, 1)
+        if vib_mmhr:
+            r["vib_supera_pp"] = vib_mmhr > pp_mmhr
+            r["vib_cumple_minimo_inia"] = vib_mmhr >= VIB_MINIMA_CARRETE_MMHR
 
-    l_manguera = max(longitud_franja_m / 2 - (2 / 3) * radio_alcance_m, 10)
-    ti = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (alfa / 360)
-    tfe = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (1 - alfa / 360)
-    t_postura_hr = l_manguera / velocidad_avance_mh + ti + max(tfe, 0)
+    esp_franja = None
+    if d_mojado is not None and velocidad_viento_ms is not None:
+        esp_franja = d_mojado * _pct_espaciamiento_viento(velocidad_viento_ms)
+        r["espaciamiento_franjas_m"] = round(esp_franja, 1)
 
-    r = {
-        "q_diseno_m3h": round(q_diseno_m3h, 1), "q_diseno_ls": round(q_diseno_m3h / 3.6, 2),
-        "d_mojado_m": round(d_mojado, 1), "espaciamiento_franjas_m": round(esp_franja, 1),
-        "pluviometria_mmhr": round(pp_mmhr, 1),
-        "superficie_postura_ha": round(sup_postura_ha, 3), "n_posturas": n_posturas,
-        "tiempo_postura_hr": round(t_postura_hr, 2),
-    }
-    if vib_mmhr:
-        r["vib_supera_pp"] = vib_mmhr > pp_mmhr
-        r["vib_cumple_minimo_inia"] = vib_mmhr >= VIB_MINIMA_CARRETE_MMHR
-    if horas_disponibles_dia:
+    sup_postura_ha = None
+    if longitud_franja_m and esp_franja is not None:
+        sup_postura_ha = (longitud_franja_m * esp_franja) / 10000
+        r["superficie_postura_ha"] = round(sup_postura_ha, 3)
+
+    n_posturas = None
+    if sup_postura_ha and superficie_ha:
+        n_posturas = math.ceil(superficie_ha / sup_postura_ha)
+        r["n_posturas"] = n_posturas
+
+    t_postura_hr = None
+    if radio_alcance_m and velocidad_avance_mh and longitud_franja_m:
+        l_manguera = max(longitud_franja_m / 2 - (2 / 3) * radio_alcance_m, 10)
+        ti = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (alfa / 360)
+        tfe = (2 / 3 * radio_alcance_m / velocidad_avance_mh) * (1 - alfa / 360)
+        t_postura_hr = l_manguera / velocidad_avance_mh + ti + max(tfe, 0)
+        r["tiempo_postura_hr"] = round(t_postura_hr, 2)
+
+    if t_postura_hr is not None and horas_disponibles_dia:
         t_cambio = tiempo_cambio_postura_hr if tiempo_cambio_postura_hr is not None else 1.5
         posturas_dia = max(0, math.floor(horas_disponibles_dia / (t_postura_hr + t_cambio)))
         r["posturas_dia"] = posturas_dia
-        if posturas_dia > 0:
+        if posturas_dia > 0 and n_posturas is not None:
             r["dias_necesarios"] = math.ceil(n_posturas / posturas_dia)
+
+    if pp_mmhr is not None or t_postura_hr is not None:
+        r["angulo_sector_deg"] = alfa
+        r["angulo_sector_declarado"] = angulo_sector_deg is not None
+        if angulo_sector_deg is not None and not (ANGULO_SECTOR_CARRETE_MIN <= angulo_sector_deg <= ANGULO_SECTOR_CARRETE_MAX):
+            r["angulo_sector_fuera_rango"] = True
     return r
 
 

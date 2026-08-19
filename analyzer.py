@@ -547,7 +547,9 @@ DATOS MÍNIMOS SEGÚN EL SISTEMA — sin ellos el diseño no es verificable, y s
   laterales · tiempo de traslado entre posturas.
 · Carrete, además: cañón (boquilla, descarga, presión, radio) · largo de franja · velocidad de
   avance · velocidad del viento de diseño · pérdida del mecanismo de propulsión · margen de
-  seguridad del caudal · tiempo de cambio de postura.
+  seguridad del caudal · tiempo de cambio de postura. El ángulo de sector del cañón (α, INIA
+  200-220°) es OPCIONAL — si el expediente no lo declara, el Revisor asume 210° por defecto sin
+  que sea observable; solo es observable si el valor declarado cae fuera del rango 200-220°.
 
 METODOLOGÍA AGRONÓMICA — usar el modelo equivocado es observable aunque los números cuadren:
 · Goteo y Microaspersión son de ALTA FRECUENCIA (se riega a diario reponiendo la ETc del día):
@@ -1368,8 +1370,9 @@ operacional (metodología INIA-Carillanca): caudal de descarga del cañón segú
 margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
 alcance del cañón (m), velocidad del viento de diseño (m/s), longitud de la franja/pasada de
 riego (m), velocidad de avance del carrete (m/hr), tiempo de cambio de postura o traslado del
-cañón entre posturas si se declara (hr — normalmente ≈1,5 hr), y — si el consultor lo declara
-como resultado — la pluviometría media del cañón (mm/hr).
+cañón entre posturas si se declara (hr — normalmente ≈1,5 hr), el ángulo de sector o ángulo de
+riego del cañón si se declara (° — INIA recomienda 200-220°, normalmente ≈210°), y — si el
+consultor lo declara como resultado — la pluviometría media del cañón (mm/hr).
 {instr_sistemas}
 
 BLOQUE "declarado" — PRÉSTALE ATENCIÓN APARTE. Son los RESULTADOS que el propio consultor
@@ -1409,7 +1412,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "caudal_canon_m3h": number|null, "margen_sobredimensionamiento_pct": number|null,
 "radio_alcance_m": number|null, "velocidad_viento_ms": number|null,
 "longitud_franja_m": number|null, "velocidad_avance_mh": number|null,
-"tiempo_cambio_postura_hr": number|null,
+"tiempo_cambio_postura_hr": number|null, "angulo_sector_deg": number|null,
 "declarado": {{"dn_mm": number|null, "fr_dias": number|null, "db_mm": number|null,
 "caudal_diseno_ls": number|null, "tiempo_riego_hr": number|null, "n_sectores": number|null,
 "pluviometria_mmhr": number|null}}}}
@@ -1770,32 +1773,67 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             vib_mmhr=datos.get("vib_mmhr"),
             horas_disponibles_dia=datos.get("horas_disponibles_dia"),
             tiempo_cambio_postura_hr=datos.get("tiempo_cambio_postura_hr"),
+            angulo_sector_deg=datos.get("angulo_sector_deg"),
         )
         if carrete:
+            # ADITIVO (ago-2026): `diseno_carrete()` ya no exige los 6 datos base a la vez — cada
+            # clave puede faltar (típicamente `espaciamiento_franjas_m`/`superficie_postura_ha`/
+            # `n_posturas`/`dias_necesarios`, que dependen de la velocidad del viento, casi nunca
+            # declarada en el expediente). Se usa SIEMPRE `.get()`, nunca indexado directo — un
+            # KeyError acá se traga TODO el bloque de verificación (hidráulico + agronómico) del
+            # ítem, no solo esta sección, porque el llamador envuelve todo en un único try/except.
             texto += (
                 f"\n\nVERIFICACIÓN DE OPERACIÓN DEL CARRETE (cálculo determinístico, metodología "
                 f"INIA-Carillanca 2001/Simpfendörfer — misma fórmula que usa el Diseñador de "
-                f"Riego, no una estimación de la IA):\n"
-                f"- Caudal de diseño = Caudal de catálogo × (1 + margen de seguridad) = "
-                f"{carrete['q_diseno_m3h']} m³/hr ({carrete['q_diseno_ls']} l/s)\n"
-                f"- Diámetro mojado = 2 × Radio de alcance = {carrete['d_mojado_m']} m\n"
-                f"- Espaciamiento entre franjas (según viento declarado) = {carrete['espaciamiento_franjas_m']} m\n"
-                f"- Pluviometría media del cañón = {carrete['pluviometria_mmhr']} mm/hr\n"
-                f"- Superficie regada por postura = {carrete['superficie_postura_ha']} ha — "
-                f"N° DE POSTURAS = ⌈Superficie del proyecto / Superficie por postura⌉ = {carrete['n_posturas']}\n"
-                f"- Tiempo por postura = {carrete['tiempo_postura_hr']} hr")
-            if carrete.get("posturas_dia") is not None:
-                texto += f" — Posturas/día = {carrete['posturas_dia']}"
-                if carrete.get("dias_necesarios") is not None:
-                    texto += f" — Días necesarios para completar el ciclo = {carrete['dias_necesarios']}"
+                f"Riego, no una estimación de la IA. El Revisor NO asume un viento medio como sí "
+                f"hace el Diseñador — si el expediente no declara la velocidad del viento de "
+                f"diseño, los resultados que dependen de ella simplemente no se calculan, y se "
+                f"señala cuáles son):\n")
+            if carrete.get("q_diseno_m3h") is not None:
+                texto += (f"- Caudal de diseño = Caudal de catálogo × (1 + margen de seguridad) = "
+                          f"{carrete['q_diseno_m3h']} m³/hr ({carrete['q_diseno_ls']} l/s)\n")
+            if carrete.get("d_mojado_m") is not None:
+                texto += f"- Diámetro mojado = 2 × Radio de alcance = {carrete['d_mojado_m']} m\n"
+            if carrete.get("espaciamiento_franjas_m") is not None:
+                texto += (f"- Espaciamiento entre franjas (según viento declarado) = "
+                          f"{carrete['espaciamiento_franjas_m']} m\n")
+            elif carrete.get("d_mojado_m") is not None:
+                texto += ("- Espaciamiento entre franjas: NO se pudo calcular — falta la velocidad "
+                          "del viento de diseño en el expediente. NO generes observación por esto: "
+                          "es una limitación del recálculo, no necesariamente del consultor (puede "
+                          "estar en un documento que la app no procesó).\n")
+            if carrete.get("pluviometria_mmhr") is not None:
+                texto += f"- Pluviometría media del cañón = {carrete['pluviometria_mmhr']} mm/hr"
+                if carrete.get("angulo_sector_deg") is not None:
+                    if carrete.get("angulo_sector_declarado"):
+                        texto += f" (α={carrete['angulo_sector_deg']}° declarado en el expediente"
+                        if carrete.get("angulo_sector_fuera_rango"):
+                            texto += ", FUERA del rango recomendado INIA 200-220° — genera una observación citando este dato"
+                        texto += ")\n"
+                    else:
+                        texto += f" (α={carrete['angulo_sector_deg']}° — NO declarado, se asumió el default INIA. NO generes observación por esto: es un supuesto de cálculo del Revisor, no una omisión necesaria del consultor)\n"
+                else:
+                    texto += "\n"
+            if carrete.get("superficie_postura_ha") is not None and carrete.get("n_posturas") is not None:
+                texto += (f"- Superficie regada por postura = {carrete['superficie_postura_ha']} ha "
+                          f"— N° DE POSTURAS = ⌈Superficie del proyecto / Superficie por postura⌉ = "
+                          f"{carrete['n_posturas']}\n")
+            if carrete.get("tiempo_postura_hr") is not None:
+                texto += f"- Tiempo por postura = {carrete['tiempo_postura_hr']} hr"
+                if carrete.get("posturas_dia") is not None:
+                    texto += f" — Posturas/día = {carrete['posturas_dia']}"
+                    if carrete.get("dias_necesarios") is not None:
+                        texto += f" — Días necesarios para completar el ciclo = {carrete['dias_necesarios']}"
             declarado_npost = (datos.get("declarado") or {}).get("n_sectores")
-            if declarado_npost is not None and declarado_npost != carrete["n_posturas"]:
+            if (declarado_npost is not None and carrete.get("n_posturas") is not None
+                    and declarado_npost != carrete["n_posturas"]):
                 texto += (f"\n- El consultor declara {declarado_npost} (rotulado como \"N° de "
                           f"sectores\" en el expediente, pero en Carrete ese dato corresponde al "
                           f"N° DE POSTURAS de este modelo) — no coincide con el recálculo. Genera "
                           f"una observación citando estos números exactos.")
             declarado_pp = (datos.get("declarado") or {}).get("pluviometria_mmhr")
-            if declarado_pp is not None and _diferencia_relevante(carrete["pluviometria_mmhr"], declarado_pp, 15):
+            if (declarado_pp is not None and carrete.get("pluviometria_mmhr") is not None
+                    and _diferencia_relevante(carrete["pluviometria_mmhr"], declarado_pp, 15)):
                 texto += (f"\n- Pluviometría declarada = {declarado_pp} mm/hr — no coincide con el "
                           f"recálculo ({carrete['pluviometria_mmhr']} mm/hr). Genera una observación "
                           f"citando estos números.")
@@ -1818,6 +1856,10 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                   f"mm/hr) — suelo poco apto para este sistema, independiente del "
                                   f"cañón elegido.")
                     texto += " Genera una observación citando estos números exactos."
+            elif datos.get("vib_mmhr") is None:
+                texto += ("\n- VERIFICACIÓN VIB (INIA-Carillanca): NO se pudo verificar — el "
+                          "expediente no declara la VIB del suelo. NO generes observación por esto "
+                          "acá (ver más abajo si corresponde exigirla como dato faltante).")
             texto += ("\n\nNOTA: el modelo de posturas de arriba (INIA-Carillanca) es el diseño "
                       "REAL y específico del carrete — el N° de posturas que resulta de acá es "
                       "el mismo que usa la \"VERIFICACIÓN DE DISEÑO BASE\" más abajo para Caudal "
