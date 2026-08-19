@@ -24,6 +24,7 @@
   .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:normal; line-height:1.5; }
   .calc-resultado b { color:var(--text); }
   .calc-alerta { color:#c0392b; font-weight:600; }
+  .calc-falta { color:#a35b00; font-style:italic; }
   .btn-elim-tramo { display:block; margin-top:3px; font-size:0.69rem; color:var(--text-2); background:none; border:none; cursor:pointer; padding:0; opacity:0.5; line-height:1.2; }
   .btn-elim-tramo:hover { opacity:1; color:#c00; }
   .agro-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(115px, 1fr));
@@ -34,8 +35,8 @@
     background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; }
 
   .calc-resultados-tbl { width:100%; border-collapse:collapse; font-size:0.84rem; margin-bottom:0.8rem; }
-  .calc-resultados-tbl th { text-align:left; font-weight:600; color:var(--text-2); padding:0.35rem 0.5rem;
-    border-bottom:2px solid var(--border); }
+  .calc-resultados-tbl th { text-align:left; font-weight:700; color:var(--text-2); padding:0.35rem 0.5rem;
+    border-bottom:2px solid var(--border); text-transform:none; letter-spacing:normal; }
   .calc-resultados-tbl td { padding:0.4rem 0.5rem; border-bottom:1px solid var(--border); vertical-align:top; }
   .calc-resultados-tbl tr:last-child td { border-bottom:none; }
   .calc-resultados-tbl .col-concepto { color:var(--text-2); }
@@ -81,7 +82,7 @@
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-      <a href="/static/disenador_riego_v121.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
+      <a href="/static/disenador_riego_v123.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador" class="btn btn-outline btn-sm" title="Exporta agronómico, hidráulico y fotovoltaico de todos los sistemas">Exportar para el Diseñador (.json)</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Memoria de cálculo completa</a>
     </div>
@@ -195,7 +196,7 @@
       <p id="{{ p }}agro-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa todos los datos base para ver el recálculo.</p>
       <div style="overflow-x:auto;">
         <table class="calc-resultados-tbl">
-          <colgroup><col><col style="width:210px;"><col style="width:230px;"></colgroup>
+          <colgroup><col><col style="width:191px;"><col style="width:287px;"></colgroup>
           <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
           <tr>
             <td class="col-concepto">Kc vs. rango DT-05</td><td id="{{ p }}agro-kc-decl">—</td>
@@ -720,7 +721,13 @@
   }
   function setText(id, text) {
     var el = document.getElementById(id);
-    if (el) el.textContent = text;
+    if (!el) return;
+    el.textContent = text;
+    // "Falta: ..." (ago-2026) se distingue con un color propio (ni negro normal ni rojo de
+    // alerta) para que sea fácil de diferenciar de un resultado calculado y de una diferencia
+    // con lo declarado — con solo tocar este helper se aplica a TODOS los mensajes de dato
+    // faltante del Chequeo, sin tener que envolver cada llamada individualmente.
+    el.classList.toggle("calc-falta", typeof text === "string" && text.indexOf("Falta:") === 0);
   }
   function setHtml(id, html) {
     var el = document.getElementById(id);
@@ -1118,9 +1125,14 @@
             notaNsecDeclarada = (declNsec !== null && declNsec !== nPosturas)
               ? "No coincide con lo declarado (" + fmt(declNsec, 0) + ")." : "";
           }
+        } else if (sistema === "Carrete") {
+          setText(p + "agro-nsec-calc", "Falta: superficie de riego.");
         }
       } else {
         setText(p + "agro-car-post-calc", "Falta: " + (espFranja === null ? "velocidad del viento (para el espaciamiento)" : "longitud de franja") + ".");
+        if (sistema === "Carrete") {
+          setText(p + "agro-nsec-calc", "Falta: " + (espFranja === null ? "velocidad del viento (para el N° de posturas)." : "longitud de franja."));
+        }
       }
 
       if (radioAlcance !== null && velocidadAvance !== null && longitudFranja !== null) {
@@ -1348,7 +1360,12 @@
       nota(p + "agro-qdiseno-nota", diferenciaRelevante(caudalOperacion, declQdiseno, 10)
         ? "No coincide con lo declarado (" + fmt(declQdiseno, 2) + " l/s)." : "");
     } else {
-      setText(p + "agro-qdiseno-calc", "—");
+      // Declara por qué no se pudo calcular, en vez de un guión mudo (ago-2026).
+      var motivoQOp = null;
+      if (precip === null) motivoQOp = "precipitación del sistema";
+      else if (sup === null) motivoQOp = "superficie de riego";
+      else if (esPosturas && nSectores === null) motivoQOp = "N° de " + palabraPl + " (ver fila anterior)";
+      setText(p + "agro-qdiseno-calc", motivoQOp ? "Falta: " + motivoQOp + "." : "—");
       nota(p + "agro-qdiseno-nota", "");
     }
 

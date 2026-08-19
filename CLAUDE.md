@@ -38,17 +38,14 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Diseñador de Riego v121 — correcciones tras la primera prueba real del usuario** (ago-2026):
-   Fr redondea al entero MÁS CERCANO, no al piso (afecta Dn_adj/Db/superficie segura aguas abajo) —
-   corregido en `calculos_riego.py`, `calculos.html` y las 4 fórmulas duplicadas del propio
-   Diseñador. Carrete es ahora ADITIVO: si solo falta la velocidad del viento (rara vez se
-   extrae), calcula igual Q diseño/D mojado/Pluviometría/T. postura/Posturas por día (no dependen
-   de ella) y declara qué falta para lo que sí depende (espaciamiento/superficie por postura/N°
-   posturas/días) — nunca asume un viento medio. Fila "Dn" separada en Dn (AD×fa, la que declara
-   el consultor) y Dn ajustada (ETc×Fr, la que alimenta Db) — antes mezcladas bajo un rótulo.
-   Ángulo de sector (α) ahora se extrae/declara (default 210° INIA con aviso); al Diseñador aún
-   le falta ese campo — pendiente que el usuario lo agregue para poder exportarlo. Detalle
-   completo en `docs/historial_sesiones.md`.
+1. **Diseñador de Riego v123 — confirmado funcionando** (ago-2026): el usuario probó v121 y
+   reportó "resultados esperados". Quedaban 2 filas mudas sin resultado NI aviso de dato
+   faltante (N° de posturas, Caudal de diseño/operación vs. declarado) — mismo origen que el
+   viento ausente de la sesión anterior, ahora declaradas explícitamente. Mensajes "Falta: ..."
+   con color propio (`.calc-falta`, ámbar) para distinguirlos de un resultado normal y de una
+   alerta de diferencia (rojo). v123 agrega el campo `c-alfa` (Ángulo Sector Cañón) que faltaba
+   en el Diseñador — ya mapeado en `exportar_disenador.py`. Archivo reemplazado, enlace
+   actualizado. Detalle en `docs/historial_sesiones.md`.
 
 2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
    ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
@@ -102,7 +99,7 @@ database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLo
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
 templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
-static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v121.html
+static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v123.html
                  (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v15.html
                  (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
 ```
@@ -153,5 +150,5 @@ static/          Apps hermanas standalone (HTML único, sin build): disenador_ri
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v121.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v123.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.

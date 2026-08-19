@@ -1,3 +1,68 @@
+## Sesión ago-2026 — v121 confirmado OK; 2 filas mudas corregidas; color "Falta"; anchos tabla; v123+c-alfa
+
+El usuario probó v121 en la app: "funciona bien, con resultados esperados" — primera confirmación
+positiva de todo lo hecho la sesión anterior (Fr redondeado, Carrete aditivo, Dn separado, ángulo
+de sector). Reportó 2 huecos puntuales que sobrevivieron a esa sesión, más 2 pedidos de estética,
+y subió `disenadorRiegoV123.html` (ya con el campo de ángulo de sector que faltaba).
+
+**1. Dos filas mudas — mismo bug de origen que el viento ausente, en un punto que no se cubrió.**
+"N° de posturas" y "Caudal de diseño (operación de la red) vs. declarado" no mostraban resultado
+NI aviso de dato faltante — un guión "—" indistinguible de "no hay problema". Investigado: ambas
+dependen de `nPosturasReal`, que la sesión anterior dejó sin setear (ni con valor ni con "Falta:")
+cuando el Carrete no podía calcular N° de posturas por falta de viento — el fix aditivo de esa
+sesión cubrió las 5 filas propias del bloque Carrete, pero no las 2 filas de la sección GENÉRICA
+más abajo ("VERIFICACIÓN DE DISEÑO BASE", compartida con Goteo/Micro/Aspersión) que consumen ese
+mismo N° de posturas. Corregido en `calculos.html`:
+- Bloque Carrete (`agro-car-post-calc`): cuando no puede calcular N° de posturas (falta viento o
+  superficie), ahora también escribe explícitamente en `agro-nsec-calc` — "Falta: superficie de
+  riego." o "Falta: velocidad del viento (para el N° de posturas)."/"Falta: longitud de franja."
+- Bloque genérico (`agro-qdiseno-calc`, Caudal de operación): antes cualquier combinación de datos
+  faltantes caía al mismo `else` mudo (`"—"`). Ahora distingue 3 motivos posibles (precipitación
+  del sistema / superficie de riego / N° de posturas-sectores "ver fila anterior") y los declara.
+
+**2. Color propio para "Falta: ..." — pedido explícito, no solo un nice-to-have.** El usuario:
+"podrías poner el texto donde se señala que falta un dato en un color diferente al negro y al de
+alerta de diferencias de resultados." Se agregó `.calc-falta { color:#a35b00; font-style:italic; }`
+(ámbar, tono de la misma familia que `#744210` ya usado en la app para severidad "Menor" — no un
+color inventado) y se modificó el helper `setText()` para que TOGGLEE esa clase automáticamente
+cuando el texto empieza con "Falta:" — un solo punto de cambio que cubre los ~10 call-sites
+existentes (y cualquiera futuro) sin tener que envolver cada uno a mano. `.calc-alerta` (rojo,
+`#c0392b`) sigue siendo exclusivo de "no coincide con lo declarado" — nunca se mezclan.
+
+**3. Ajuste de anchos — solo en Chequeo Agronómico, no en la tabla gemela de Fotovoltaico.** El
+archivo tiene 2 tablas con la misma clase `calc-resultados-tbl` y el mismo colgroup
+(`<col><col 210px><col 230px>`): la de Chequeo Agronómico (línea ~198) y la de Fotovoltaico (línea
+~577, "N° paneles declarado", etc.). El usuario pidió el ajuste "en Chequeo Agronómico" — se
+verificó cuál era cuál antes de tocar nada, y solo se editó el colgroup de la primera:
+`<col 210px>`→`<col 191px>` (Extraído/declarado, −0,5cm≈19px) y `<col 230px>`→`<col 287px>`
+(Calculado por la app, +1,5cm≈57px). La primera columna ("Resultado") no tiene ancho explícito —
+es la fila flexible/restante de `table-layout:fixed`, así que al mover 0,5cm de la segunda columna
+y 1,5cm hacia la tercera, la primera pierde automáticamente el 1cm neto que pidió el usuario, sin
+necesidad de fijarle un ancho propio (la aritmética: −1cm(col1) −0,5cm(col2) +1,5cm(col3) = 0 neto).
+
+**4. Encabezados en negrita y minúscula con inicial mayúscula.** El texto de los `<th>` YA estaba
+escrito así en el HTML ("Resultado", "Extraído / declarado", "Calculado por la app") — el problema
+era que `base.html` tiene una regla GLOBAL `th { text-transform:uppercase; letter-spacing:0.04em;
+}` que los mostraba en MAYÚSCULAS en pantalla pese a estar escritos en minúscula en el código, y
+`.calc-resultados-tbl th` no tenía un override como sí lo tiene `.calc-tbl th` (la tabla de tramos
+hidráulicos, más arriba en el mismo archivo). Agregado `text-transform:none; letter-spacing:normal;`
+y subido `font-weight` de 600 a 700 (negrita real). Como esta regla es de la clase COMPARTIDA con
+la tabla de Fotovoltaico, el cambio de estilo (no el de ancho, que sí se acotó al colgroup) aplica
+a las dos tablas por igual — incidental pero deseable (mismos encabezados, mismo criterio).
+
+**5. Diseñador v121 → v123 + campo `c-alfa`.** El usuario confirmó que agregaría el campo de
+ángulo de sector al Diseñador — lo hizo: `disenadorRiegoV123.html` trae `<input id="c-alfa"
+type="number" value="210" min="180" max="270">` ("Ángulo Sector Cañón [°]"), leído en `calcCarP`
+como `v('c-alfa',210)`. Confirmado el ID contra el HTML fuente (no adivinado, regla 10). Se
+reemplazó el archivo (`static/disenador_riego_v121.html` → `v123.html`), se actualizó el enlace en
+`calculos.html` y las referencias de comentario en `calculos_riego.py`/`exportar_disenador.py`, y
+se completó el mapeo pendiente: `exportar_disenador.py` ahora manda `put("alfa",
+sistema_agro.get("angulo_sector_deg"))` — solo si el revisor lo declaró/extrajo (la regla de "nunca
+inventar valores" sigue aplicando: si no hay dato, no se manda la clave y el Diseñador cae a su
+propio default 210° al importar). De paso confirmado que v123 ya trae `Math.round(fr)` en los 3
+lugares donde v121 tenía `Math.floor(fr)` (parche local de la sesión anterior) — la resincronización
+del usuario con la sesión del Diseñador ya incorporó ese fix, no hizo falta reaplicarlo.
+
 ## Sesión ago-2026 — Fr redondeo, Carrete aditivo, Dn separado, ángulo de sector (primera prueba real)
 
 El usuario probó por primera vez en la app el Diseñador v121 y comparó, con los MISMOS datos

@@ -18,6 +18,10 @@
   --sh2:0 4px 20px rgba(10,22,40,.15),0 8px 32px rgba(10,22,40,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* Valor asumido (placeholder en campo numérico usado en cálculos, sin dato ingresado) — visible en naranjo */
+input[type="number"]::placeholder{color:var(--orange);opacity:.85}
+input.nocalc::placeholder{color:var(--mist);opacity:1}
+select:invalid,select option[value=""]{color:var(--orange)}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;font-size:14px}
 
 /* ── TOPBAR ── */
@@ -334,14 +338,14 @@ select option{background:var(--white)}
       <div class="f"><label>Sector / Fundo</label><input id="a-sec" placeholder="Nombre del predio"></div>
       <div class="f"><label>Comuna</label><input id="a-com" placeholder="Ej: Pinto"></div>
       <div class="f"><label style="font-size:.7rem">Datum WGS 84 · Huso</label><select id="a-huso" style="padding:9px 8px;border:1.5px solid var(--fog);border-radius:var(--r);font-family:var(--mono);font-size:.8rem;outline:none;background:var(--white)"><option value="18">18 S (Chile central/sur)</option><option value="19">19 S (Chile norte/centro)</option><option value="17">17 S (Zona norte extremo)</option></select></div>
-      <div class="f"><label>UTM Norte [m]</label><div class="ig"><input id="a-utmn" type="number" placeholder="5936064"><span class="isuf">m N</span></div></div>
-      <div class="f"><label>UTM Este [m]</label><div class="ig"><input id="a-utme" type="number" placeholder="235703"><span class="isuf">m E</span></div></div>
+      <div class="f"><label>UTM Norte [m]</label><div class="ig"><input id="a-utmn" type="number" class="nocalc" placeholder="5936064"><span class="isuf">m N</span></div></div>
+      <div class="f"><label>UTM Este [m]</label><div class="ig"><input id="a-utme" type="number" class="nocalc" placeholder="235703"><span class="isuf">m E</span></div></div>
     </div>
     <div style="margin-top:6px;margin-bottom:2px"><button onclick="openMapCoords('a')" class="btn bc" style="font-size:.75rem;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">📍 Ver en Mapa</button><span style="font-size:.65rem;color:var(--mist);font-family:var(--mono);margin-left:8px">Google Earth / Maps / Apple Maps</span></div>
     <hr class="sep">
     <div class="sl">Superficie, cultivo y parámetros operacionales</div>
     <div class="fg">
-      <div class="f"><label>Sup. Total Predio [ha]</label><div class="ig"><input id="a-sttot" type="number" step=".01" placeholder="58.38"><span class="isuf">ha</span></div></div>
+      <div class="f"><label>Sup. Total Predio [ha]</label><div class="ig"><input id="a-sttot" type="number" class="nocalc" step=".01" placeholder="58.38"><span class="isuf">ha</span></div></div>
       <div class="f"><label>Sup. a Regar [ha]</label><div class="ig"><input id="a-strie" type="number" step=".01" placeholder="2.30"><span class="isuf">ha</span></div></div>
       
       <div class="f"><label>Eficiencia [%]<span class="tip" onclick="showTip(this)" title="Aspersión: 75%. Incluye pérdidas por deriva y evaporación.">?</span></label><div class="ig"><input id="a-ef" type="number" value="75" min="50" max="90"><span class="isuf">%</span></div></div>
@@ -664,8 +668,8 @@ select option{background:var(--white)}
       <div class="f"><label>Sector / Fundo</label><input id="c-sec" placeholder="Nombre del predio"></div>
       <div class="f"><label>Comuna</label><input id="c-com" placeholder="Ej: Chillán"></div>
       <div class="f"><label style="font-size:.7rem">Datum WGS 84 · Huso</label><select id="c-huso" style="padding:9px 8px;border:1.5px solid var(--fog);border-radius:var(--r);font-family:var(--mono);font-size:.8rem;outline:none;background:var(--white)"><option value="18">18 S (Chile central/sur)</option><option value="19">19 S (Chile norte/centro)</option><option value="17">17 S (Zona norte extremo)</option></select></div>
-      <div class="f"><label>UTM Norte [m]</label><div class="ig"><input id="c-utmn" type="number" placeholder="5951561"><span class="isuf">m N</span></div></div>
-      <div class="f"><label>UTM Este [m]</label><div class="ig"><input id="c-utme" type="number" placeholder="764025"><span class="isuf">m E</span></div></div>
+      <div class="f"><label>UTM Norte [m]</label><div class="ig"><input id="c-utmn" type="number" class="nocalc" placeholder="5951561"><span class="isuf">m N</span></div></div>
+      <div class="f"><label>UTM Este [m]</label><div class="ig"><input id="c-utme" type="number" class="nocalc" placeholder="764025"><span class="isuf">m E</span></div></div>
     <div style="margin-top:6px;margin-bottom:2px"><button onclick="openMapCoords('c')" class="btn bc" style="font-size:.75rem;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">📍 Ver en Mapa</button><span style="font-size:.65rem;color:var(--mist);font-family:var(--mono);margin-left:8px">Google Earth / Maps / Apple Maps</span></div>
       <div class="f"><label>Sup. a Regar [ha]</label><div class="ig"><input id="c-supr" type="number" step=".01" placeholder="4.85"><span class="isuf">ha</span></div></div>
       
@@ -805,6 +809,7 @@ select option{background:var(--white)}
       <div class="f"><label>Margen Seguridad Caudal [%]<span class="tip" onclick="showTip(this)" title="INIA-Carillanca: sobredimensionar el caudal del cañón 15-20% para cubrir viento fuerte, mayor demanda del cultivo o averías. Se aplica sobre la Descarga catálogo.">?</span></label><div class="ig"><input id="c-margq" type="number" step="1" placeholder="15"><span class="isuf">%</span></div></div>
       <div class="f"><label>Radio Alcance [m]</label><div class="ig"><input id="c-radio" type="number" step=".5" placeholder="37.5"><span class="isuf">m</span></div></div>
       <div class="f"><label>Vel. Viento [m/s]</label><div class="ig"><input id="c-vv" type="number" step=".1" placeholder="1.66"><span class="isuf">m/s</span></div></div>
+      <div class="f"><label>Ángulo Sector Cañón [°]<span class="tip" onclick="showTip(this)" title="INIA-Carillanca recomienda 200-220° para mojar franjas contiguas sin traslape. Editable según boquilla/cañón del fabricante.">?</span></label><div class="ig"><input id="c-alfa" type="number" step="1" value="210" min="180" max="270"><span class="isuf">°</span></div></div>
       <div class="f"><label>Factor Esp. Viento [%]<span class="tip" onclick="showTip(this)" title="Se sugiere automáticamente según Vel. Viento (INIA Cuadro 1) al presionar Calcular. Editable: use un valor distinto si el consultor lo estima necesario (ej. boquilla cónica vs. anillo).">?</span></label><div class="ig"><input id="c-fv" type="number" step=".1" min="50" max="100" placeholder="auto"><span class="isuf">%</span></div></div>
       <div class="f"><label>Largo Franja [m]</label><div class="ig"><input id="c-lf" type="number" step="5" placeholder="190"><span class="isuf">m</span></div></div>
       <div class="f"><label>Vel. Avance [m/hr]</label><div class="ig"><input id="c-va" type="number" step="1" placeholder="24"><span class="isuf">m/hr</span></div></div>
@@ -2119,7 +2124,7 @@ function autoS(p){const t=document.getElementById(p+'-tex').value;if(!t||!SDB[t]
 
 // ══ M12/M13: Agua Disponible, Lámina Neta y Frecuencia de Riego ══
 // ITT-03 §1 (CNR 2017): AD=(CC-PMP)/100×Da×Prof(m)×1000 [mm]
-// Dn=AD×(crit/100)  |  Fr=round(Dn/ETc_día)
+// Dn=AD×(crit/100)  |  Fr=floor(Dn/ETc_día)
 // Se llama desde calcAA/CA/GA/MA para mantener datos actualizados en el informe
 
 function etoMax(cls){
@@ -2191,7 +2196,7 @@ function calcAA(){
     ])}
     ${fbox('Fr <small style="font-weight:400;color:var(--slate)">(frecuencia de riego)</small>',[
       {eq:`Fr = Dn / ETc = ${fd(dn,3)} / ${fd(etc,3)}`,res:`${fd(fr,2)} días`},
-      {eq:`Fr ajustada (redondeo)`,res:`${frAdj} días`},
+      {eq:`Fr ajustada (redondeo(Fr))`,res:`${frAdj} días`},
       {eq:`Dn ajustada = ETc × Fr_adj = ${fd(etc,3)} × ${frAdj}`,res:`${fd(dnAdj,3)} mm`}
     ])}
     ${fbox('Db <small style="font-weight:400;color:var(--slate)">(demanda bruta)</small>',[
@@ -2506,7 +2511,7 @@ function calcCarP(){
   const radio=v('c-radio',37.5), vv=v('c-vv',2.5);
   const lF=v('c-lf',190), vA=v('c-va',24), supR=v('c-supr',4.85);
   const hrs=v('c-hrs',16), tras=v('c-tras',1.5);
-  const alfa=210; // ángulo sector recomendado INIA (200-220°)
+  const alfa=v('c-alfa',210); // ángulo sector cañón — sugerido INIA (200-220°), editable
   // Espaciamiento entre franjas según velocidad del viento (INIA Cuadro 1) — sugerido, editable por el consultor
   const pctVvSug=vv<=1?0.80:vv<=2.5?0.75:vv<=5?0.625:0.525;
   var _fvEl=document.getElementById('c-fv');
@@ -3057,7 +3062,7 @@ function buildInfHtml(sys){
     sec3body=ifull(agTablaAC)
       +irow('HA (Agua Aprovechable)',fd(ag.ha||0,1),'mm','HA = (CC – PMP) × Da × Prof. radicular')
       +irow('Demanda Neta (Dn)',fd(ag.dn||0,2),'mm','Lámina neta de agua a reponer en cada evento de riego')
-      +irow('Frecuencia de Riego',fd(ag.fr||0,2)+' → ajustada: '+(ag.frAdj||'—'),'días','Intervalo máximo entre riegos, ajustado al entero más próximo')
+      +irow('Frecuencia de Riego',fd(ag.fr||0,2)+' → ajustada: '+(ag.frAdj||'—'),'días','Intervalo máximo entre riegos, ajustado al entero inferior')
       +irow('Demanda Bruta (Db)',fd(ag.db||0,2),'mm','Db = Dn_ajustada / Eficiencia. Lámina que debe aplicar el sistema');
   }
 
@@ -3738,7 +3743,7 @@ function initSectores(sys){
 // ════════════════════════════════════════════════════
 const FIELD_IDS = {
   asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-serie", "a-pend", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
-  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
+  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-alfa", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
   got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
   mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
 };
@@ -4474,7 +4479,7 @@ function buildDetalleHtml(sys) {
     if (_ag_inf && _ag_inf.etc > 0) {
       const _dn_inf = ha * (_crit_inf||50) / 100;
       const _fr_inf = _dn_inf / _ag_inf.etc;
-      const _frAdj_inf = Math.max(1, Math.round(_fr_inf));
+      const _frAdj_inf = Math.max(1, Math.floor(_fr_inf));
       const _fa_inf = (_crit_inf||50)/100;
       suelo_content += `<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-left:3px solid #3b82f6;border-radius:5px">
         <div style="font-size:.68rem;font-weight:700;color:var(--blue-mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Disponibilidad Hídrica del Suelo — ITT-03 §1</div>
@@ -4511,12 +4516,12 @@ function buildDetalleHtml(sys) {
           </tr>
           <tr style="background:#dbeafe">
             <td style="padding:5px 10px;border:1px solid #bfdbfe;font-weight:700">Frecuencia ajustada (Fr)</td>
-            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">redondeo(Fr real) → entero más próximo</td>
+            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">⌊Fr real⌋ → entero inferior</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center;font-weight:700;color:#1d4ed8">${_frAdj_inf}</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center">días</td>
           </tr>
         </table>
-        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero más próximo (Math.round).</div>
+        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero inferior (Math.floor).</div>
       </div>`;
     }
     // Solo 3 meses: Dic(idx11), Ene(idx0), Feb(idx1)
