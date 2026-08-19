@@ -1,3 +1,75 @@
+## Sesión ago-2026 — Criterios de revisión por método de riego (prompt del Claude del Diseñador)
+
+El usuario subió `prompt_revision_diseno_riego.md`, escrito por el Claude que desarrolla el
+Diseñador de Riego a partir del contexto acumulado de esa app y de los documentos CNR. Pidió
+evaluarlo y decidir si convenía incorporarlo, advirtiendo él mismo que "puede que mucho de eso
+quizás ya lo tengamos en los lineamientos". Efectivamente: se contrastó punto por punto contra
+`normativa/*.txt` (que va cacheada dentro de `SYSTEM_PROMPT`) y contra los `checklist` de
+`ITEMS_SEP`, y buena parte ya estaba. Se incorporó SOLO lo que no existía.
+
+**Ya cubierto — NO se agregó (para no volver a evaluarlo cada vez):**
+- Toda la sección 5 (COSTOS) del prompt: eficiencias por método (Goteo 90/Micro 85/Aspersión 75/
+  Borboteo 70/Surcos 45/Tendido 30), honorarios ITT-04 ($900k/$600k/$800k, tope $4M), límite 15%
+  (GG+Imprevistos+Estudio+ITO), y los precios de excavación DT-18 ($3.208–3.686/m³ etc.) están
+  literalmente en `normativa/ITT_Criterios_Tecnificacion.txt` y en las reglas a-k del checklist de
+  `presupuesto`. Cero que agregar ahí.
+- Kc por DT-05, ETc = ETo×Kc, Hazen-Williams y el rango de velocidad 0,5–2,0 m/s: los tres primeros
+  en `normativa/`, y el de velocidad ya lo inyecta el bloque determinístico "VERIFICACIÓN
+  HIDRÁULICA" que arma `analyzer.py` con los números recalculados por `calculos_riego.py`.
+- Espaciamiento de franjas del carrete por viento, pluviometría del cañón, T_postura, posturas/día:
+  ya recalculados determinísticamente (`diseno_carrete()`) e inyectados al prompt.
+
+**Descartado a propósito:**
+- **Sección 6 (SALIDA)** del prompt — formato `[OK]/[OBSERVACIÓN]/[RECHAZO]` con resumen final.
+  CHOCA con el formato de salida de esta app, que es un JSON estricto con
+  `categoria`/`severidad`/`texto`/`referencia_normativa` y reglas propias de redacción (cierre
+  obligatorio "Debe aclarar/justificar", cero validaciones positivas). Meterlo habría roto el
+  parseo de observaciones.
+- **"Tolerancia ±5%"** — la app usa tolerancias propias por concepto (10% en Dn/Db/caudal, 15% en
+  pluviometría) tanto en el Chequeo como en las Memorias. Una tolerancia global distinta en el
+  prompt habría contradicho los números que la propia app le entrega ya comparados.
+- El preámbulo "Eres revisor técnico CNR" — duplica el rol que ya fija `SYSTEM_PROMPT`.
+
+**Incorporado — al checklist de `diseno_hidraulico`** (el ítem SEP que cubre diseño agronómico E
+hidráulico, ver comentario en `analyzer.py`), como bloque "CRITERIOS DE VERIFICACIÓN POR MÉTODO DE
+RIEGO". Se eligió el checklist del ítem y no un archivo nuevo en `normativa/` por la arquitectura
+"cada observación va en UN solo ítem": estos criterios son para juzgar el diseño, y meterlos en el
+prompt cacheado los habría puesto también frente a los ítems legales. El costo es equivalente en
+ambas vías (el checklist son ~2.000 tokens sin cachear de un ítem, contra ~2.000 tokens cacheados
+a 0,30 USD/Mtok en los 19). Contenido:
+- **Datos mínimos exigibles por sistema** (comunes / Goteo-Micro / Aspersión-Carrete / Aspersión /
+  Carrete) — permite observar "falta la VIB" o "falta la velocidad de avance" con precisión, en vez
+  de una queja genérica de información incompleta.
+- **Error metodológico Goteo/Micro:** son de ALTA FRECUENCIA (Db = ETc/Ef directo, sin CC/PMP/Da ni
+  Fr). Si el consultor desarrolla AD→Dn→Fr en goteo, está usando un modelo de turnos que no
+  corresponde — observable aunque los números cuadren entre sí. La app YA modela esta distinción
+  (`cadena_agronomica(alta_frecuencia=...)`) pero a la IA nunca se le había dicho que el error es
+  observable.
+- **Truncamiento de capas a la profundidad radicular** (lo implementado en la sesión anterior con
+  el Diseñador v121): sumar el espesor completo de capas bajo la profundidad de raíces infla el AD
+  y alarga la frecuencia de riego.
+- **Superficie de riego segura con demanda DIARIA**, no con el Db del ciclo de Fr días — la misma
+  distinción que ya hace `db_diario_mm` en `calculos_riego.py`, ahora explicada como error frecuente.
+- **Caudal de operación vs. caudal de la fuente:** la matriz debe conducir el caudal del sector que
+  opera simultáneamente (Q_requerido/N°sectores). Si el mayor caudal de tramo declarado es menor,
+  la red está subdimensionada aunque cada tramo cumpla velocidad y pérdida de carga por separado.
+- **Pérdidas singulares ≈20% de Σhf** (no estaba en ninguna parte).
+- **Variación de presión ≤20% dentro del sector** (⇒ ≤10% de caudal entre emisores) en Goteo/Micro,
+  o reguladores/emisores autocompensados (no estaba en ninguna parte).
+- **Carrete:** la CDT debe incluir la pérdida del mecanismo de propulsión (turbina/fuelle, 5–10 mca)
+  APARTE de la presión del cañón — corresponde al campo `c-pturb` del Diseñador, que Revisor no
+  verificaba; y regulador de presión obligatorio si Hmáx/Hmín > 1,20 a la entrada del carrete.
+- **Acumulador:** el chequeo de fondo es de VOLUMEN diario, no de caudal instantáneo — si la fuente
+  no repone el volumen diario, ningún estanque lo resuelve.
+
+**Incorporado — al checklist de `diseno_fotovoltaico`:** la HSP debe ser la del punto GPS del predio
+(no un valor por defecto), y en sistemas ON-GRID la generación anual NO debe superar el consumo del
+proyecto (tope de la Ley de Generación Distribuida). El checklist ya exigía cubrir el 100% del
+consumo, pero no decía que pasarse también es observable.
+
+Se descartó el ángulo de descarga 20–21° con viento >4 m/s: es criterio de operación en terreno,
+no de verificación de un expediente de postulación.
+
 ## Sesión ago-2026 — Diseñador de Riego v121 (Carrete + capas de suelo); UI Evaluación del Consultor
 
 **0. Ajustes de UI menores de la sesión anterior.** (a) Botón "Sugerir con IA" de Evaluación del

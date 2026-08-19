@@ -39,26 +39,26 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle en `docs/`.
 
 1. **Diseñador de Riego → v121** (ago-2026): capas de suelo (Aspersión/Carrete) ahora TRUNCAN a la
-   Profundidad radicular (`ad_por_capas(prof_radicular_cm=...)`) en vez de sumar el espesor
-   completo. Carrete suma "Tiempo cambio de postura" editable → Posturas/día y Días necesarios
-   (`diseno_carrete()`, igual que Aspersión). De paso: 2 bugs corregidos en
-   `exportar_disenador.py` (CC/PMP/Da de capa única ya no van para Aspersión/Carrete, solo Micro;
-   `-pres` de Carrete ahora es `-pb`). Nada probado — detalle en `docs/historial_sesiones.md`.
+   Prof. radicular (`ad_por_capas(prof_radicular_cm=...)`) en vez de sumar el espesor completo.
+   Carrete suma "Tiempo cambio de postura" editable → Posturas/día y Días necesarios
+   (`diseno_carrete()`, igual que Aspersión). De paso, 2 bugs de `exportar_disenador.py`
+   (CC/PMP/Da de capa única ya no van para Aspersión/Carrete, solo Micro; `-pres` de Carrete
+   ahora es `-pb`). Nada probado — detalle en `docs/historial_sesiones.md`.
 
-2. **Caudal del emisor — campo distinto por sistema, NO intercambiables:** aspersor (m³/hr) en
-   Aspersión, cañón (m³/hr) en Carrete, emisor (l/hr) solo en Goteo/Micro. Además: VA se compara
-   contra la Precipitación declarada, y "Extraído/declarado" ya no tiene celdas muertas.
+2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
+   ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
+   de usar AD/Dn/Fr en Goteo/Micro, truncamiento de capas, superficie segura con demanda diaria,
+   caudal de operación vs. de fuente, singulares ≈20%, variación de presión ≤20%, y del Carrete
+   turbina/fuelle y regulador si Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
+   Origen: prompt del Claude del Diseñador — detalle de qué se descartó en `docs/`.
 
-3. **Word con tablas:** subir un .docx con el presupuesto en tabla y confirmar que ese texto
-   llega al análisis — antes se perdía entero.
+3. **Pendientes de probar de sesiones anteriores** (detalle en `docs/historial_sesiones.md`):
+   caudal del emisor con campo distinto por sistema (aspersor/cañón m³/hr vs. emisor l/hr, NO
+   intercambiables); Word con presupuesto en tabla; chequeo hidráulico (catálogo de tuberías, fila
+   AMT/Q diseño/Desnivel/Pérdida cabezal); Memoria COMPLETA con paridad total frente a la por
+   sistema (probar con un expediente de 2 sistemas).
 
-4. **Chequeo hidráulico:** catálogo de tuberías, fila AMT/Q diseño/Desnivel/Pérdida cabezal; el
-   export ya manda Desnivel (`-dz`) y Pérdida cabezal (`-pcab`).
-
-5. **Memoria COMPLETA con paridad total** frente a la por sistema: se portó "Verificaciones
-   oficiales" y se completó "Diseño base". Secciones .1–.6. Probar con un expediente de 2 sistemas.
-
-6. **Evaluación del Consultor** (nueva): sección al final de `/items` (editable) y de la Ficha de
+4. **Evaluación del Consultor** (nueva): sección al final de `/items` (editable) y de la Ficha de
    Revisión (solo lectura) — admisibilidad (Sí/No) + veredicto Diseño/Superficie/Presupuesto/
    Planos, cada uno con lista desplegable y observación ≤250 caracteres. "Sugerir con IA" llena
    solo campos vacíos: estado por regla determinística, texto por síntesis Haiku (ver

@@ -511,7 +511,72 @@ con que aparezca declarado como una cifra. Si más abajo se te entrega un bloque
 DE DISEÑO BASE" que avisa que ese número no se pudo recalcular por falta de datos base en el
 expediente, revisa tú mismo si la memoria al menos explica de dónde sale esa cifra; si no lo
 explica, obsérvalo — es exactamente el tipo de número que "aparece sin respaldo" y que el
-consultor debe justificar, con o sin que la app haya podido verificarlo numéricamente.""",
+consultor debe justificar, con o sin que la app haya podido verificarlo numéricamente.
+
+───────────────────────────────────────────────────────
+CRITERIOS DE VERIFICACIÓN POR MÉTODO DE RIEGO
+───────────────────────────────────────────────────────
+VERIFICAS, NO DIMENSIONAS: el diseño lo hizo el consultor; tu trabajo es recalcular y contrastar.
+Los bloques "VERIFICACIÓN ..." que puedan venir más abajo ya traen el recálculo determinístico de
+la app — úsalos como valor de referencia. Lo que sigue es el criterio para juzgar lo que la app NO
+recalcula, y para saber qué datos EXIGIR según el sistema declarado.
+
+DATOS MÍNIMOS SEGÚN EL SISTEMA — sin ellos el diseño no es verificable, y su ausencia es observable:
+· Todos: ETo de los 12 meses (el crítico es el mayor) · cultivo y su Kc · superficie a regar ·
+  eficiencia · caudal disponible y derecho de agua · horas de riego disponibles al día · desnivel
+  y altura de succión · potencia de la bomba.
+· Goteo/Microaspersión: marco de plantación · emisor (caudal, presión, N° por planta) · % de área
+  mojada y traslape de bulbos.
+· Aspersión/Carrete: textura del suelo POR CAPA (Desde/Hasta/CC/PMP/Da) · profundidad radicular ·
+  criterio de riego (% de humedad aprovechable) · VIB del suelo.
+· Aspersión, además: aspersor (caudal, presión, radio) · espaciamiento entre aspersores y entre
+  laterales · tiempo de traslado entre posturas.
+· Carrete, además: cañón (boquilla, descarga, presión, radio) · largo de franja · velocidad de
+  avance · velocidad del viento de diseño · pérdida del mecanismo de propulsión · margen de
+  seguridad del caudal · tiempo de cambio de postura.
+
+METODOLOGÍA AGRONÓMICA — usar el modelo equivocado es observable aunque los números cuadren:
+· Goteo y Microaspersión son de ALTA FRECUENCIA (se riega a diario reponiendo la ETc del día):
+  Db = ETc/Ef, directo. NO usan CC/PMP/Da ni frecuencia de riego. Si en un proyecto de goteo o
+  microaspersión el consultor desarrolla la cadena AD → Dn → Fr, es un error metodológico
+  observable: está diseñando con un modelo de riego por turnos que no corresponde al sistema.
+· Aspersión y Carrete sí usan la cadena con agotamiento (AD → Dn → Fr → Db). Ahí el AD se calcula
+  por capas de suelo TRUNCADAS a la profundidad radicular: la parte de una capa que queda bajo la
+  profundidad de raíces no aporta agua aprovechable. Sumar el espesor completo de capas que
+  sobrepasan la profundidad radicular infla el AD y alarga artificialmente la frecuencia de riego.
+  Si las capas declaradas no alcanzan la profundidad radicular, falta información de suelo.
+· Superficie de riego segura: se calcula con la demanda DIARIA (24 h), no con el Db del ciclo de
+  varios días ni con el tiempo de riego declarado. Usar el Db de Fr días acá subestima la demanda
+  por hectárea e infla la superficie que el proyecto dice poder regar. Si la superficie segura
+  resulta menor que la superficie del proyecto, el caudal es insuficiente — observación mayor,
+  salvo acumulador correctamente justificado.
+· Acumulador: lo que hay que verificar es el balance de VOLUMEN, no solo el caudal instantáneo. Si
+  la fuente no repone el volumen diario que exige el diseño, ningún estanque lo resuelve — el
+  problema es de derecho de agua o de superficie, y así debe observarse.
+
+RED HIDRÁULICA — más allá de la pérdida de carga por tramo:
+· El caudal que debe conducir la matriz es el CAUDAL DE OPERACIÓN — el del sector o postura que
+  opera simultáneamente (caudal requerido total / N° de sectores) —, NO el caudal de la fuente. Si
+  el mayor caudal de tramo declarado es menor que ese caudal de operación, la red está
+  subdimensionada aunque cada tramo por separado cumpla velocidad y pérdida de carga.
+· Pérdidas singulares (fittings, válvulas, cambios de dirección): del orden del 20% de la suma de
+  las pérdidas por fricción. Un diseño que las omite por completo subestima la CDT y, con ella, la
+  potencia de bombeo.
+· Goteo/Microaspersión: la variación de presión dentro de un sector no debe superar el 20% (que
+  equivale a ~10% de variación de caudal entre emisores). Si el diseño la excede, deben proyectarse
+  reguladores de presión o emisores autocompensados — su ausencia es observable.
+· El tiempo total de riego (N° de sectores × tiempo por sector, o N° de posturas × tiempo por
+  postura más los cambios) debe caber en las horas de riego declaradas. Si no cabe, el diseño no es
+  operable y la superficie o la sectorización están mal dimensionadas.
+
+CARRETE (metodología INIA-Carillanca) — puntos que se omiten con frecuencia:
+· La CDT debe incluir la pérdida del MECANISMO DE PROPULSIÓN (turbina o fuelle, del orden de 5–10
+  mca) ADEMÁS de la presión requerida en la boquilla del cañón. Son dos cosas distintas: usar solo
+  la presión del cañón subestima la CDT y la potencia de la bomba.
+· Si la relación entre la presión máxima y la mínima a la entrada del carrete supera 1,20, se
+  requiere regulador de presión.
+· La VIB del suelo debe ser ≥ 7,5 mm/hr para que el suelo sea apto para riego con carrete, y la
+  pluviometría del cañón no debe superarla (riesgo de escorrentía).""",
     },
     "diseno_fotovoltaico": {
         "nombre": "Diseño Fotovoltaico",
@@ -523,7 +588,10 @@ generación cubre el 100% de la energía requerida en la temporada de riego, o l
 complementaria declarada — coherente con el consumo de la bomba del diseño hidráulico
 (dimensionamiento básico ya verificado por la app: N° de paneles, kWp, sección de cable DC). La
 capacidad de generación debe basarse en el Explorador Solar del Ministerio de Energía — exige el
-reporte y que los kWh/año declarados sean consistentes con él.
+reporte y que los kWh/año declarados sean consistentes con él; la HSP debe corresponder al punto
+GPS del predio, no a un valor genérico por defecto. En sistemas ON-GRID la generación anual no debe
+SUPERAR el consumo del proyecto (tope de la Ley de Generación Distribuida): un sistema
+sobredimensionado por sobre su propio consumo también es observable, no solo uno que queda corto.
 El proyecto eléctrico debe estar firmado por profesional acreditado SEC y detallar
 cubicación/precios de sus componentes (postes, cable de conducción, subestación, elementos de
 protección y medida, costos de tramitación SEC). Verifica certificación/tramitación SEC según
