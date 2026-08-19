@@ -521,6 +521,18 @@ Los bloques "VERIFICACIÓN ..." que puedan venir más abajo ya traen el recálcu
 la app — úsalos como valor de referencia. Lo que sigue es el criterio para juzgar lo que la app NO
 recalcula, y para saber qué datos EXIGIR según el sistema declarado.
 
+PRIMERO IDENTIFICA EL SISTEMA DE RIEGO (Goteo, Microaspersión, Aspersión o Carrete) y aplica SOLO
+la columna que le corresponde. Cada método se diseña con datos y ecuaciones distintas: un dato que
+es obligatorio en aspersión puede no usarse en goteo. NUNCA observes como faltante un dato que el
+sistema declarado no utiliza — es un falso positivo que desprestigia la revisión. Ejemplos de lo
+que NO debes exigir donde no corresponde: VIB, CC/PMP/Da, textura por capa, profundidad radicular
+como dato de cálculo y criterio de riego NO se usan en Goteo ni Microaspersión; el marco de
+plantación y el % de área mojada no aplican en Aspersión ni Carrete; el espaciamiento entre
+aspersores y laterales no aplica en Carrete (usa un único cañón que se desplaza). Si más abajo
+viene un bloque que declara el sistema, ese es el sistema — no lo discutas. Si no viene y tampoco
+puedes determinarlo con certeza leyendo los documentos, lo observable es justamente que el
+expediente no identifica con claridad el método de riego, no la falta de un dato específico.
+
 DATOS MÍNIMOS SEGÚN EL SISTEMA — sin ellos el diseño no es verificable, y su ausencia es observable:
 · Todos: ETo de los 12 meses (el crítico es el mayor) · cultivo y su Kc · superficie a regar ·
   eficiencia · caudal disponible y derecho de agua · horas de riego disponibles al día · desnivel
@@ -1535,16 +1547,54 @@ def _bloque_verificacion_hidraulica_sistema(datos: dict) -> str:
     return texto
 
 
+def _encabezado_sistema_declarado(sistemas: list) -> str:
+    """Anuncia explícitamente QUÉ sistema(s) de riego declara el expediente, antes de cualquier
+    recálculo.
+
+    El checklist de `diseno_hidraulico` lista los datos mínimos exigibles POR SISTEMA (goteo no usa
+    VIB ni CC/PMP/Da; carrete no usa marco de plantación; etc.). Sin este encabezado la IA tenía que
+    inferir el sistema del texto del expediente, y el nombre solo aparecía de casualidad dentro de
+    la línea de eficiencia — y solo si el expediente declaraba eficiencia Y existía rango oficial
+    para ese sistema. En un proyecto de goteo sin eficiencia declarada, la IA quedaba sin señal
+    alguna y podía observar como faltante un dato que en goteo simplemente no se usa (falso
+    positivo). Por eso el sistema se declara SIEMPRE acá, y cuando no se pudo determinar se dice
+    explícitamente para que no invente exigencias de ningún sistema en particular."""
+    nombres = [(s.get("sistema_riego") or "").strip() for s in sistemas]
+    nombres = [n for n in nombres if n]
+    if not nombres:
+        return ("\n\nSISTEMA DE RIEGO: no se pudo determinar a partir del expediente. Identifícalo "
+                "tú mismo leyendo los documentos y aplica SOLO los criterios y datos mínimos de ese "
+                "sistema. Si tampoco puedes determinarlo con certeza, NO observes como faltante "
+                "ningún dato que sea específico de un sistema (VIB, textura por capa, marco de "
+                "plantación, radio del cañón, etc.) — en ese caso lo observable es que el "
+                "expediente no identifica con claridad el método de riego proyectado.")
+    if len(nombres) == 1:
+        return (f"\n\nSISTEMA DE RIEGO DECLARADO EN EL EXPEDIENTE: {nombres[0]}. Aplica ÚNICAMENTE "
+                f"los criterios, la metodología de cálculo y los datos mínimos que corresponden a "
+                f"{nombres[0]} (ver el checklist). NO observes como faltante un dato que este "
+                f"sistema no utiliza: cada método de riego se diseña con datos distintos, y exigir "
+                f"un dato de otro sistema es un falso positivo.")
+    lista = " y ".join(nombres)
+    return (f"\n\nSISTEMAS DE RIEGO DECLARADOS EN EL EXPEDIENTE: {lista}. Aplica a cada sector los "
+            f"criterios y datos mínimos de SU propio sistema — no exijas en uno los datos que solo "
+            f"usa el otro.")
+
+
 def _bloque_verificacion_agronomica(datos: dict) -> str:
     """Punto de entrada: recibe {"sistemas": [ {...}, ... ]} (1 o 2 sistemas de riego) y arma el
     bloque de verificación agronómica para inyectar en el prompt del ítem. Con 1 sistema es un
     solo bloque (igual que antes); con 2, cada sistema se recalcula por separado y se etiqueta
-    explícitamente, para que la IA no cruce parámetros (Kc/eficiencia/etc.) entre sistemas."""
+    explícitamente, para que la IA no cruce parámetros (Kc/eficiencia/etc.) entre sistemas.
+
+    El encabezado con el sistema declarado se emite SIEMPRE que haya extracción, incluso si no se
+    pudo recalcular nada (ver `_encabezado_sistema_declarado`): saber de qué sistema se trata es lo
+    que permite a la IA no exigir datos de otro método de riego."""
     sistemas = (datos or {}).get("sistemas") or []
     if not sistemas:
-        return ""
+        return _encabezado_sistema_declarado([])
+    encabezado = _encabezado_sistema_declarado(sistemas)
     if len(sistemas) == 1:
-        return _bloque_verificacion_agronomica_sistema(sistemas[0])
+        return encabezado + _bloque_verificacion_agronomica_sistema(sistemas[0])
     bloques = []
     for i, s in enumerate(sistemas, start=1):
         nombre_sis = s.get("sistema_riego") or f"Sistema {i}"
@@ -1552,8 +1602,9 @@ def _bloque_verificacion_agronomica(datos: dict) -> str:
         if cuerpo:
             bloques.append(f"\n\n=== SISTEMA DE RIEGO {i} ({nombre_sis}) ==="+ cuerpo)
     if not bloques:
-        return ""
-    return ("\n\nEste proyecto declara 2 sistemas de riego distintos — a continuación la "
+        return encabezado
+    return encabezado + (
+            "\n\nEste proyecto declara 2 sistemas de riego distintos — a continuación la "
             "verificación agronómica de CADA sistema por separado (bloques \"SISTEMA DE RIEGO "
             "1\"/\"SISTEMA DE RIEGO 2\"). Trátalos de forma independiente: NO compares ni "
             "mezcles parámetros (Kc, eficiencia, factor de agotamiento, etc.) de un sistema con "

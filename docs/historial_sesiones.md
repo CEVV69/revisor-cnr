@@ -62,6 +62,29 @@ a 0,30 USD/Mtok en los 19). Contenido:
 - **Acumulador:** el chequeo de fondo es de VOLUMEN diario, no de caudal instantáneo — si la fuente
   no repone el volumen diario, ningún estanque lo resuelve.
 
+**Corrección inmediata: el análisis no siempre sabía QUÉ sistema estaba revisando.** El usuario
+levantó el riesgo apenas se pusheó lo anterior: "que no observe la falta de un dato que en Goteo no
+se usa". Al verificarlo resultó ser un defecto real que el bloque nuevo habría amplificado. El
+sistema de riego sí se extrae (`_extraer_datos_agronomicos` lo trae en `sistema_riego`), pero su
+NOMBRE solo llegaba al prompt de casualidad, embebido en la línea de la verificación de eficiencia
+— y esa línea únicamente se emite si el expediente declara eficiencia Y existe rango oficial para
+ese sistema. Probado con 4 casos realistas, en 3 la IA no recibía ninguna señal del sistema:
+goteo sin eficiencia declarada, goteo con solo la superficie, y sistema no detectado. Con el
+checklist nuevo listando los datos mínimos de los cuatro métodos, eso podía producir el falso
+positivo exacto que el usuario temía ("falta la VIB" en un proyecto de goteo). Se corrigió por dos
+vías, a propósito redundantes:
+- `_encabezado_sistema_declarado()` (nueva en `analyzer.py`): antepone SIEMPRE al bloque de
+  verificación el sistema declarado, con la instrucción de aplicar solo sus criterios. Cubre los
+  tres casos — 1 sistema, 2 sistemas, y sistema indeterminado (donde dice explícitamente que lo
+  observable es que el expediente no identifica el método, NO la falta de un dato específico).
+  `_bloque_verificacion_agronomica` ahora emite ese encabezado incluso cuando no pudo recalcular
+  nada, que antes era el caso en que devolvía cadena vacía.
+- El propio checklist abre con "PRIMERO IDENTIFICA EL SISTEMA DE RIEGO", con ejemplos explícitos de
+  qué NO exigir dónde (VIB/CC/PMP/Da/textura por capa/criterio de riego no aplican en Goteo ni
+  Micro; marco de plantación y % de área mojada no aplican en Aspersión ni Carrete; espaciamiento
+  entre aspersores y laterales no aplica en Carrete). Esta vía es la que protege cuando la
+  extracción falla por completo y no hay bloque de verificación que enviar.
+
 **Incorporado — al checklist de `diseno_fotovoltaico`:** la HSP debe ser la del punto GPS del predio
 (no un valor por defecto), y en sistemas ON-GRID la generación anual NO debe superar el consumo del
 proyecto (tope de la Ley de Generación Distribuida). El checklist ya exigía cubrir el 100% del
