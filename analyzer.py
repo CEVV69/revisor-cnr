@@ -529,9 +529,11 @@ que NO debes exigir donde no corresponde: VIB, CC/PMP/Da, textura por capa, prof
 como dato de cálculo y criterio de riego NO se usan en Goteo ni Microaspersión; el marco de
 plantación y el % de área mojada no aplican en Aspersión ni Carrete; el espaciamiento entre
 aspersores y laterales no aplica en Carrete (usa un único cañón que se desplaza). Si más abajo
-viene un bloque que declara el sistema, ese es el sistema — no lo discutas. Si no viene y tampoco
-puedes determinarlo con certeza leyendo los documentos, lo observable es justamente que el
-expediente no identifica con claridad el método de riego, no la falta de un dato específico.
+viene un bloque que declara el sistema, ese es el sistema — no lo discutas. Si no viene, identifica
+el sistema leyendo los documentos: todo expediente que llega a revisión declara su método de riego,
+de modo que su ausencia en los datos extraídos es una limitación de la extracción automática y
+NUNCA una observación contra el consultor. Si aun así no logras determinarlo con certeza, omite en
+silencio los criterios que dependen del sistema y revisa el resto del checklist.
 
 DATOS MÍNIMOS SEGÚN EL SISTEMA — sin ellos el diseño no es verificable, y su ausencia es observable:
 · Todos: ETo de los 12 meses (el crítico es el mayor) · cultivo y su Kc · superficie a regar ·
@@ -1557,17 +1559,26 @@ def _encabezado_sistema_declarado(sistemas: list) -> str:
     la línea de eficiencia — y solo si el expediente declaraba eficiencia Y existía rango oficial
     para ese sistema. En un proyecto de goteo sin eficiencia declarada, la IA quedaba sin señal
     alguna y podía observar como faltante un dato que en goteo simplemente no se usa (falso
-    positivo). Por eso el sistema se declara SIEMPRE acá, y cuando no se pudo determinar se dice
-    explícitamente para que no invente exigencias de ningún sistema en particular."""
+    positivo). Por eso el sistema se declara SIEMPRE acá.
+
+    La rama "no se pudo identificar" NO es un caso de negocio: según el usuario (revisor CNR), un
+    proyecto que no declara su sistema de riego ni siquiera entra a revisión, así que el expediente
+    SIEMPRE lo trae. Esa rama cubre únicamente fallas de la extracción (PDF escaneado, texto
+    truncado, Haiku que devuelve null) — de ahí que su texto prohíba explícitamente convertirlo en
+    observación: el problema sería nuestro, no del consultor, y observarlo sería el mismo tipo de
+    falso positivo que este encabezado vino a evitar."""
     nombres = [(s.get("sistema_riego") or "").strip() for s in sistemas]
     nombres = [n for n in nombres if n]
     if not nombres:
-        return ("\n\nSISTEMA DE RIEGO: no se pudo determinar a partir del expediente. Identifícalo "
-                "tú mismo leyendo los documentos y aplica SOLO los criterios y datos mínimos de ese "
-                "sistema. Si tampoco puedes determinarlo con certeza, NO observes como faltante "
-                "ningún dato que sea específico de un sistema (VIB, textura por capa, marco de "
-                "plantación, radio del cañón, etc.) — en ese caso lo observable es que el "
-                "expediente no identifica con claridad el método de riego proyectado.")
+        return ("\n\nSISTEMA DE RIEGO: la extracción automática no logró identificarlo. Todo "
+                "expediente que llega a revisión declara su sistema de riego, así que esto es una "
+                "limitación de la extracción, NO una omisión del consultor: identifícalo tú mismo "
+                "leyendo los documentos y aplica SOLO los criterios y datos mínimos de ese sistema. "
+                "Bajo ninguna circunstancia generes una observación por este punto — ni por que el "
+                "expediente 'no identifique el método de riego', ni por la falta de un dato "
+                "específico de un sistema (VIB, textura por capa, marco de plantación, radio del "
+                "cañón, etc.). Si no logras determinarlo con certeza, simplemente omite los "
+                "criterios que dependen del sistema y revisa el resto del checklist.")
     if len(nombres) == 1:
         return (f"\n\nSISTEMA DE RIEGO DECLARADO EN EL EXPEDIENTE: {nombres[0]}. Aplica ÚNICAMENTE "
                 f"los criterios, la metodología de cálculo y los datos mínimos que corresponden a "

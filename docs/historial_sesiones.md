@@ -75,10 +75,21 @@ positivo exacto que el usuario temía ("falta la VIB" en un proyecto de goteo). 
 vías, a propósito redundantes:
 - `_encabezado_sistema_declarado()` (nueva en `analyzer.py`): antepone SIEMPRE al bloque de
   verificación el sistema declarado, con la instrucción de aplicar solo sus criterios. Cubre los
-  tres casos — 1 sistema, 2 sistemas, y sistema indeterminado (donde dice explícitamente que lo
-  observable es que el expediente no identifica el método, NO la falta de un dato específico).
+  tres casos — 1 sistema, 2 sistemas, y sistema indeterminado.
   `_bloque_verificacion_agronomica` ahora emite ese encabezado incluso cuando no pudo recalcular
   nada, que antes era el caso en que devolvía cadena vacía.
+
+**Aclaración del usuario sobre la rama "sistema indeterminado" — corregida en el momento.** La
+primera versión de esa rama le decía a la IA que, si no lograba identificar el sistema, "lo
+observable es que el expediente no identifica con claridad el método de riego". El usuario corrigió
+el supuesto: un proyecto que no declara su sistema de riego NI SIQUIERA entra a revisión, así que
+ese caso de negocio no existe. La consecuencia es que esa rama solo se activa por fallas de la
+extracción (PDF escaneado, texto truncado, Haiku que devuelve null) — es decir, un problema NUESTRO,
+no del consultor. Tal como estaba redactada habría generado exactamente el mismo tipo de falso
+positivo que el encabezado vino a evitar, pero contra el expediente completo. Se reescribió para
+prohibir explícitamente cualquier observación por ese punto: la IA identifica el sistema leyendo los
+documentos y, si no lo logra, omite EN SILENCIO los criterios que dependen del sistema y sigue con
+el resto del checklist. Misma corrección aplicada a la frase equivalente del checklist.
 - El propio checklist abre con "PRIMERO IDENTIFICA EL SISTEMA DE RIEGO", con ejemplos explícitos de
   qué NO exigir dónde (VIB/CC/PMP/Da/textura por capa/criterio de riego no aplican en Goteo ni
   Micro; marco de plantación y % de área mojada no aplican en Aspersión ni Carrete; espaciamiento
