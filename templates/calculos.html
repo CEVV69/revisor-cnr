@@ -282,11 +282,11 @@
             <td class="col-concepto" colspan="2">ETc (mm/día)</td>
             <td class="col-calc" id="{{ p }}agro-etc">—</td>
           </tr>
-          <tr class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}">
+          <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto" colspan="2">AD — agua disponible (mm)</td>
             <td class="col-calc" id="{{ p }}agro-ad">—</td>
           </tr>
-          <tr class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}">
+          <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto">Dn — lámina neta (mm)</td>
             <td><input type="number" step="0.01" id="{{ p }}decl_dn" name="{{ p }}decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></td>
             <td class="col-calc">
@@ -294,7 +294,7 @@
               <span id="{{ p }}agro-dn-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
-          <tr class="fila-agotamiento{{ '' if agro.sistema_riego == 'Goteo' else ' activa' }}">
+          <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto" colspan="2">Dn ajustada — ETc × Fr entero (mm)</td>
             <td class="col-calc" id="{{ p }}agro-dnadj-calc">—</td>
           </tr>
@@ -872,7 +872,11 @@
     // ambos grupos. Si es "Mixto", el chequeo de abajo (Kc, Dn/Fr/Db, etc.) igual corresponde
     // a UN solo sistema a la vez — se avisa explícitamente en vez de mezclarlos en silencio.
     var sistema = strVal(p + "sistema_riego");
-    var esGoteo = sistema === "Goteo";
+    // Alta frecuencia = Goteo Y Microaspersión (riego diario, Db directo de la ETc: sin AD, sin
+    // Fr, sin criterio de riego ni textura del suelo). Debe coincidir con
+    // `SISTEMAS_ALTA_FRECUENCIA` en main.py y con `alta_frec` en analyzer.py — si se cambia acá,
+    // replicar allá (y al revés).
+    var esAltaFrecuencia = sistema === "Goteo" || sistema === "Microaspersión";
     var mostrarGoteo = !sistema || sistema === "Mixto" || sistema === "Goteo" || sistema === "Microaspersión";
     var mostrarAspersion = !sistema || sistema === "Mixto" || sistema === "Aspersión";
     var mostrarCarrete = !sistema || sistema === "Mixto" || sistema === "Carrete";
@@ -906,9 +910,11 @@
       setText(p + "agro-nsec-calc", "—");
       nota(p + "agro-nsec-nota", "");
     }
-    // CC/PMP/Da se ocultan en Goteo (alta frecuencia, no aplican), Aspersión y Carrete (solo por capas de suelo).
-    // Solo se muestran en Microaspersión (y si no se declara sistema o es Mixto).
-    var mostrarCcPmpDa = !(sistema === "Goteo" || sistema === "Aspersión" || sistema === "Carrete");
+    // CC/PMP/Da no aplican en NINGÚN sistema declarado: en Goteo/Microaspersión porque son de alta
+    // frecuencia (no usan la textura del suelo), y en Aspersión/Carrete porque ahí el suelo entra
+    // por el desglose de capas (.campo-capas-suelo). Solo quedan visibles mientras no se haya
+    // declarado el sistema, o si es "Mixto" — ahí no se sabe todavía cuál de los dos modelos toca.
+    var mostrarCcPmpDa = !(esAltaFrecuencia || sistema === "Aspersión" || sistema === "Carrete");
     wrap.querySelectorAll(".campo-cc-pmp-da").forEach(function(el) { el.style.display = mostrarCcPmpDa ? "" : "none"; });
     // Caudal emisor: SOLO Goteo y Microaspersión. En Aspersión el dato equivalente es "Caudal del
     // aspersor (m³/hr)" (campo-postura), que además SÍ alimenta cálculos —VA, superficie y caudal
@@ -924,11 +930,11 @@
     // Diseñador de Riego no lo ofrece en Goteo ni Microaspersión).
     var esAspersionOCarrete = sistema === "Aspersión" || sistema === "Carrete";
     wrap.querySelectorAll(".campo-capas-suelo").forEach(function(el) { el.style.display = esAspersionOCarrete ? "" : "none"; });
-    // Filas AD/Dn — solo tienen sentido en el modelo con agotamiento (Aspersión/Microaspersión/
-    // Carrete). En Goteo (alta frecuencia) nunca se calculan (Db sale directo de la ETc, sin
-    // pasar por AD→Dn) — mantenerlas visibles mostrando "—" confundía más que ayudaba. Mismo
-    // patrón que las filas "(con acumulador)": ocultas por completo, no solo con un guión.
-    wrap.querySelectorAll(".fila-agotamiento").forEach(function(el) { el.classList.toggle("activa", !esGoteo); });
+    // Filas AD/Dn — solo tienen sentido en el modelo con agotamiento (Aspersión/Carrete). En alta
+    // frecuencia (Goteo/Microaspersión) nunca se calculan (Db sale directo de la ETc, sin pasar
+    // por AD→Dn) — mantenerlas visibles mostrando "—" confundía más que ayudaba. Mismo patrón
+    // que las filas "(con acumulador)": ocultas por completo, no solo con un guión.
+    wrap.querySelectorAll(".fila-agotamiento").forEach(function(el) { el.classList.toggle("activa", !esAltaFrecuencia); });
     // VIB (Velocidad de Infiltración Básica) aplica a Aspersión Y Carrete (con umbrales/lógica
     // distinta cada uno, ver más abajo) — el campo de ENTRADA es el mismo. La fila de resultado
     // "VIB vs. Precipitación del sistema" es específica de Aspersión (Carrete tiene su propia
@@ -1195,7 +1201,7 @@
     // tampoco son obligatorios (el override de AD los hace innecesarios), pero sí se sigue
     // necesitando el Criterio de Riego (fa) para Dn = AD × fa.
     var base;
-    if (esGoteo) base = [kc, eto, ef];
+    if (esAltaFrecuencia) base = [kc, eto, ef];
     else if (usaCapas) base = [kc, eto, fa, ef];
     else base = [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
@@ -1205,7 +1211,7 @@
        "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
       ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota",
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
-      setText(p + "agro-hint", esGoteo
+      setText(p + "agro-hint", esAltaFrecuencia
         ? "Completa Kc, ETo y Eficiencia para ver el recálculo."
         : esAspersionOCarrete && (document.getElementById(p + "capas_chk") || {}).checked
         ? "Completa al menos una capa de suelo válida (o Kc/ETo/Criterio de Riego/Eficiencia) para ver el recálculo."
@@ -1219,8 +1225,8 @@
       : (cc !== null && pmp !== null && da !== null && prof !== null)
       ? (cc - pmp) / 100 * da * (prof / 100) * 1000 : null;
     var dn, fr, frAdj, dnAdj, db;
-    if (esGoteo) {
-      // Goteo: riego diario, Db directo de la ETc, sin factor de agotamiento (Fr=1).
+    if (esAltaFrecuencia) {
+      // Goteo/Microaspersión: riego diario, Db directo de la ETc, sin factor de agotamiento (Fr=1).
       frAdj = 1;
       dnAdj = etc;
       db = ef ? dnAdj / (ef / 100) : 0;
@@ -1233,17 +1239,17 @@
     }
 
     setText(p + "agro-etc", fmt(etc, 3) + " mm/día");
-    setText(p + "agro-ad", esGoteo ? "—" : fmt(ad, 2) + " mm");
+    setText(p + "agro-ad", esAltaFrecuencia ? "—" : fmt(ad, 2) + " mm");
     // Dn (AD×fa, "lámina neta" tal como la llama el Diseñador de Riego y la declara el
     // consultor) vs. Dn ajustada (ETc×Fr entero, la que realmente alimenta Db aguas abajo) —
     // ago-2026: son dos datos distintos, antes esta fila mostraba la ajustada bajo el rótulo de
     // la sin ajustar, lo que no calzaba con la Memoria de Cálculo ni con el Diseñador.
-    setText(p + "agro-dn-calc", esGoteo ? "—" : fmt(dn, 3) + " mm");
-    setText(p + "agro-dnadj-calc", esGoteo ? "—" : fmt(dnAdj, 3) + " mm");
-    setText(p + "agro-fr-calc", esGoteo ? "1 (riego diario)" : frAdj + " días");
+    setText(p + "agro-dn-calc", esAltaFrecuencia ? "—" : fmt(dn, 3) + " mm");
+    setText(p + "agro-dnadj-calc", esAltaFrecuencia ? "—" : fmt(dnAdj, 3) + " mm");
+    setText(p + "agro-fr-calc", esAltaFrecuencia ? "1 (riego diario)" : frAdj + " días");
     setText(p + "agro-db-calc", fmt(db, 3) + " mm/día");
-    nota(p + "agro-dn-nota", (!esGoteo && diferenciaRelevante(dn, declDn, 10)) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
-    nota(p + "agro-fr-nota", (!esGoteo && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
+    nota(p + "agro-dn-nota", (!esAltaFrecuencia && diferenciaRelevante(dn, declDn, 10)) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
+    nota(p + "agro-fr-nota", (!esAltaFrecuencia && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
     // Tiempo por postura y posturas/día (Aspersión) — necesitan Db, recién disponible acá.

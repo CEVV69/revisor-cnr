@@ -324,14 +324,17 @@
 </div>
 
 <!-- Banner bases del concurso -->
-{% if not concurso or not concurso.bases_texto %}
+{# `concurso` acá es el resumen liviano de `db.resumen_concurso` (existe / tiene_bases /
+   documentos obligatorios), NO el concurso completo — esta página no necesita el texto de las
+   bases, solo saber si está cargado. #}
+{% if not concurso.tiene_bases %}
 <div style="background:#fffbeb; border:1px solid #f6ad55; border-radius:6px; padding:0.6rem 1rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
   <span style="font-size:0.85rem; color:#92400e;">
     El concurso <strong>{{ concurso_id }}</strong> no tiene bases cargadas.
     Los análisis no podrán verificar el cumplimiento de bases específicas.
   </span>
   {% if user.rol == 'admin' %}
-  <a href="/admin/concursos/{{ concurso_id }}{% if not concurso %}?crear=1{% endif %}"
+  <a href="/admin/concursos/{{ concurso_id }}{% if not concurso.existe %}?crear=1{% endif %}"
      style="margin-left:auto; font-size:0.82rem; color:#c05621; text-decoration:underline; white-space:nowrap;">
     Configurar bases →
   </a>

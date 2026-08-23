@@ -125,7 +125,7 @@
 <table class="tabla-datos">
   <tr><td class="label">Sistema de riego</td><td class="valor{% if not sistema_riego %} vacio{% endif %}">{{ sistema_riego or '—' }}</td></tr>
   <tr><td class="label">Cultivo</td><td class="valor{% if not agro.cultivo %} vacio{% endif %}">{{ agro.cultivo or '—' }}</td></tr>
-  {% if sistema_riego != 'Goteo' %}
+  {% if sistema_riego not in SISTEMAS_ALTA_FRECUENCIA %}
   {% if calc.capas_suelo_calc %}
   {# Con desglose por capas, CC/PMP/Da/Prof. uniformes no alimentan ningún cálculo — mostrarlos
      vacíos acá hacía leer el informe como si faltaran datos del expediente. #}
@@ -168,7 +168,7 @@
   <div class="explica">Evapotranspiración del cultivo — cuánta agua consume la planta ese día. Es el punto de partida de toda la cadena.</div>
 {% endcall %}
 
-{% if sistema_riego == 'Goteo' %}
+{% if sistema_riego in SISTEMAS_ALTA_FRECUENCIA %}
 {% call paso('db') %}
   <div class="formula">Db = ETc / Eficiencia = {{ val(calc.etc_mm_dia) }} / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
   <div class="explica">Demanda bruta diaria. En Goteo se riega a diario reponiendo lo que la planta consumió ese mismo día (riego de alta frecuencia) — la demanda sale DIRECTO de la ETc, sin pasar por la cadena de agotamiento del suelo (por eso no hay AD, Dn ni Fr en este modelo; Fr=1 siempre).</div>
@@ -226,7 +226,7 @@
 {% endif %}
 
 {% if not calc.etc_mm_dia %}
-<p class="muted">Faltan datos base (Kc, ETo, Eficiencia{% if sistema_riego != 'Goteo' %}, CC/PMP/Da/Prof, Criterio de riego{% endif %}) para completar esta cadena.</p>
+<p class="muted">Faltan datos base (Kc, ETo, Eficiencia{% if sistema_riego not in SISTEMAS_ALTA_FRECUENCIA %}, CC/PMP/Da/Prof, Criterio de riego{% endif %}) para completar esta cadena.</p>
 {% endif %}
 
 <!-- ══════════ 3. VERIFICACIONES INDEPENDIENTES ══════════ -->

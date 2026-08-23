@@ -389,9 +389,21 @@ def _fmt_usd(valor, decimales: int = 2) -> str:
         return "0,00"
 
 
+# Sistemas de riego de ALTA FRECUENCIA: se riegan a diario reponiendo la ETc del día, así que
+# Db = ETc/Ef directo — sin AD, sin Fr, sin criterio de riego y sin la textura del suelo
+# (CC/PMP/Da/Prof. radicular). Aspersión y Carrete sí usan la cadena con agotamiento.
+# Debe coincidir con `alta_frec` en analyzer.py y con `esAltaFrecuencia` en calculos.html.
+SISTEMAS_ALTA_FRECUENCIA = ("Goteo", "Microaspersión")
+
 templates.env.filters["fecha"] = _fmt_fecha
 templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 templates.env.filters["usd"] = _fmt_usd
+# Expuesta como global de Jinja (no por contexto de cada ruta) para que las plantillas del
+# Chequeo y de las Memorias de cálculo decidan con la MISMA lista que el motor, sin repetir la
+# tupla ("Goteo", "Microaspersión") en cada `{% if %}`. Ver `_es_alta_frecuencia` más abajo:
+# fue justamente una copia desalineada de este criterio la que dejó a Microaspersión sin
+# verificación agronómica durante meses.
+templates.env.globals["SISTEMAS_ALTA_FRECUENCIA"] = SISTEMAS_ALTA_FRECUENCIA
 
 
 # ── Contador de costo de la API por proyecto ────────────────────────────────────
@@ -507,6 +519,10 @@ async def startup_event():
             _get_pg()
             print("✅ Conexión PostgreSQL OK")
             db.migrar_proyectos()
+            # Antes que `migrar_criterios_enfasis()`, que recorre todos los concursos y los
+            # vuelve a guardar: si corriera con el blob legacy todavía sin migrar, escribiría
+            # las claves nuevas y la migración posterior las pisaría con la versión vieja.
+            db.migrar_concursos()
         except Exception as e:
             print(f"❌ Error PostgreSQL: {e}")
     else:
@@ -688,11 +704,20 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    # En `to_thread`: psycopg2 es SINCRÓNICO, y esta es la ruta más caliente de la app (Resumen,
+    # Documentos e Ítems pasan por acá). Llamarlo directo desde este `async def` bloqueaba el
+    # event loop —o sea, congelaba TODAS las páginas para TODOS los usuarios— mientras duraba la
+    # consulta y la deserialización del JSON. Mismo patrón de bug ya corregido para la API de
+    # Anthropic, PyMuPDF, bcrypt y `_restaurar_archivos_necesarios`; este punto se había quedado
+    # afuera pese a ser el que más veces se ejecuta.
+    proyecto = await asyncio.to_thread(db.get_proyecto, proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
+    # Resumen LIVIANO del concurso (existe / tiene bases / documentos obligatorios), no el
+    # concurso completo: esta página solo necesita esos tres datos, y el concurso arrastra el
+    # texto íntegro de las bases y su historial de feedback. Ver `db.resumen_concurso`.
+    concurso = await asyncio.to_thread(db.resumen_concurso, concurso_id)
     # Ordenar documentos por número de anexo SEP
     proyecto["documentos"] = sorted(
         proyecto.get("documentos", []),
@@ -708,7 +733,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     # concurso afectaría a TODOS sus proyectos, la mayoría de los cuales sí la necesitan.
     faltan_obligatorios = []
     obligatorios_exceptuados = []
-    if concurso and concurso.get("documentos_obligatorios_revisado") and concurso.get("documentos_obligatorios"):
+    if concurso["documentos_obligatorios_revisado"] and concurso["documentos_obligatorios"]:
         tipos_presentes = {d.get("tipo_doc") for d in proyecto["documentos"]}
         excepciones = proyecto.get("obligatorios_excepciones", {})
         for k in concurso["documentos_obligatorios"]:
@@ -725,11 +750,16 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     # texto, ver _restaurar_archivos_necesarios); el resto ya tiene su texto extraído guardado y
     # no requiere el archivo físico.
     carpeta_proyecto = UPLOAD_DIR / proyecto_id
-    ids_guardados_db = db.ids_con_archivo(proyecto_id)
+    # También en `to_thread` (consulta a Postgres, ver la nota de arriba). De paso se lista la
+    # carpeta UNA vez en vez de hacer un `stat()` por documento dentro del bucle: con expedientes
+    # de 30-40 archivos eran 40 llamadas al sistema de archivos en cada carga de página.
+    ids_guardados_db, archivos_en_disco = await asyncio.to_thread(
+        lambda: (db.ids_con_archivo(proyecto_id),
+                 {f.name for f in carpeta_proyecto.iterdir()} if carpeta_proyecto.is_dir() else set()))
     for doc in proyecto["documentos"]:
         doc["necesita_archivo"] = (doc.get("texto_len", 0) < MIN_CHARS_TEXTO
                                     or doc.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
-        doc["archivo_presente"] = ((carpeta_proyecto / doc.get("filename", "")).exists()
+        doc["archivo_presente"] = (doc.get("filename", "") in archivos_en_disco
                                     or doc["id"] in ids_guardados_db)
     n_faltan_resubir = len([d for d in proyecto["documentos"]
                             if d["necesita_archivo"] and not d["archivo_presente"]])
@@ -1689,15 +1719,20 @@ def _normalizar_verif_multisistema(datos: dict, n_sistemas: int, campo_legacy: s
             "fecha_validado": datos.get("fecha_validado"), "validado_por": datos.get("validado_por")}
 
 
-def _es_goteo(datos: dict) -> bool:
-    """True si el sistema de riego declarado es Goteo — usa el modelo de alta frecuencia (Db
-    directo de la ETc, sin criterio de riego). Microaspersión/Aspersión/Carrete usan la cadena
-    con agotamiento, igual que el Diseñador de Riego (calcGA vs. calcMA/calcAA)."""
-    return (datos or {}).get("sistema_riego") == "Goteo"
+def _es_alta_frecuencia(datos: dict) -> bool:
+    """True si el sistema de riego declarado es de ALTA FRECUENCIA (Goteo o Microaspersión):
+    riego localizado que se aplica a diario reponiendo la ETc del día, así que Db sale directo
+    de ETc/Ef — sin AD, sin Fr y sin criterio de riego. Aspersión y Carrete sí usan la cadena
+    con agotamiento (AD → Dn → Fr → Db).
+
+    Microaspersión se sumó en ago-2026: el checklist que la app le entrega a la IA siempre la
+    trató como alta frecuencia (y declara observable que el consultor le desarrolle AD→Dn→Fr),
+    pero el motor solo eximía a Goteo — ver la nota extensa en `analyzer.py`, misma corrección."""
+    return (datos or {}).get("sistema_riego") in SISTEMAS_ALTA_FRECUENCIA
 
 
 def _agronomico_calculo(datos: dict):
-    alta_frec = _es_goteo(datos)
+    alta_frec = _es_alta_frecuencia(datos)
     # Desglose de Humedad Aprovechable por capas de suelo (Diseñador de Riego) — solo Aspersión y
     # Carrete. Si hay capas válidas, reemplazan el cálculo de AD de capa única (CC/PMP/Da/Prof
     # dejan de ser obligatorios) — igual que el checkbox del Diseñador.
@@ -1712,9 +1747,9 @@ def _agronomico_calculo(datos: dict):
             prof_radicular_cm=prof_z if prof_z not in (None, "") else prof_default,
         ) or None
     usa_capas = capas_calc is not None
-    # En goteo (alta frecuencia) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof. radicular
-    # NO entran en esa cuenta, solo se usan para el dato informativo AD (que en goteo ni
-    # siquiera se muestra). Exigirlos ahí bloqueaba el cálculo sin necesidad — el revisor tenía
+    # En alta frecuencia (Goteo/Microaspersión) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof.
+    # radicular NO entran en esa cuenta, solo se usan para el dato informativo AD (que ahí ni
+    # siquiera se muestra). Exigirlos bloqueaba el cálculo sin necesidad — el revisor tenía
     # que rellenarlos con un valor cualquiera (ej. "1") solo para que el resto se calculara.
     campos = ["kc", "eto_dia_mm", "eficiencia_pct"]
     if not alta_frec:
@@ -1774,9 +1809,9 @@ def _agronomico_calculo(datos: dict):
         if carrete_check:
             r["carrete_check"] = carrete_check
         return r or None
-    # cc_pct/pmp_pct/da/prof_radicular_cm van con .get() (no datos[...]): en goteo ya no están
-    # garantizados por `campos` — cadena_agronomica los admite en None (AD queda None, dato
-    # puramente informativo que en goteo ni se usa ni se muestra). Con capas de suelo activas
+    # cc_pct/pmp_pct/da/prof_radicular_cm van con .get() (no datos[...]): en alta frecuencia ya no
+    # están garantizados por `campos` — cadena_agronomica los admite en None (AD queda None, dato
+    # puramente informativo que ahí ni se usa ni se muestra). Con capas de suelo activas
     # tampoco están garantizados — el override de AD los hace innecesarios.
     r = calculos_riego.cadena_agronomica(
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
@@ -2257,7 +2292,8 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
     acc_costo = iniciar_costo()
-    conceptos = await extraer_metodologia_consultor(docs_grupo, sistema_riego)
+    # Devuelve una lista (un dict por sistema); acá se pide uno solo.
+    conceptos = (await extraer_metodologia_consultor(docs_grupo, [sistema_riego]))[0]
 
     proyecto.setdefault("verificacion_calculos", {})
     mc_bloque = proyecto["verificacion_calculos"].setdefault("metodologia_consultor", {})
@@ -2291,20 +2327,22 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
 
     acc_costo = iniciar_costo()
 
-    # Extraer por sistema (agronómico + hidráulico) en paralelo + FV
-    import asyncio as _asyncio
-    tareas_sis = [
-        extraer_metodologia_consultor(
-            docs_hidraulicos,
-            agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
-        )
+    # DOS llamadas en total, no una por sistema: los sistemas de riego comparten el mismo pool de
+    # documentos hidráulicos, así que van juntos en una sola extracción (ver la nota de costo en
+    # `extraer_metodologia_consultor`); el FV usa otros documentos, así que sí necesita la suya.
+    # Ambas en paralelo — no se esperan entre sí.
+    nombres_sistemas = [
+        agro_norm["sistemas"][i].get("sistema_riego") if i < len(agro_norm["sistemas"]) else None
         for i in range(n_sistemas)
     ]
-    tarea_fv = extraer_metodologia_fv(docs_fv)
-    resultados = await _asyncio.gather(*tareas_sis, tarea_fv)
+    conceptos_por_sistema, conceptos_fv = await asyncio.gather(
+        extraer_metodologia_consultor(docs_hidraulicos, nombres_sistemas),
+        extraer_metodologia_fv(docs_fv),
+    )
 
-    sistemas_mc = [{"conceptos": r, "fecha": _ahora().isoformat()} for r in resultados[:-1]]
-    fv_mc = {"conceptos": resultados[-1], "fecha": _ahora().isoformat()}
+    ahora = _ahora().isoformat()
+    sistemas_mc = [{"conceptos": c, "fecha": ahora} for c in conceptos_por_sistema]
+    fv_mc = {"conceptos": conceptos_fv, "fecha": ahora}
 
     proyecto.setdefault("verificacion_calculos", {})
     mc = proyecto["verificacion_calculos"].setdefault("metodologia_consultor", {})

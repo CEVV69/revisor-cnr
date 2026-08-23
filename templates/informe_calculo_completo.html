@@ -134,7 +134,7 @@
 <table class="tabla-datos">
   <tr><td class="label">Sistema de riego</td><td class="valor{% if not sis.sistema_riego %} vacio{% endif %}">{{ sis.sistema_riego or '—' }}</td></tr>
   <tr><td class="label">Cultivo</td><td class="valor{% if not agro.cultivo %} vacio{% endif %}">{{ agro.cultivo or '—' }}</td></tr>
-  {% if sis.sistema_riego != 'Goteo' %}
+  {% if sis.sistema_riego not in SISTEMAS_ALTA_FRECUENCIA %}
   {% if calc.capas_suelo_calc %}
   {# Con desglose por capas, CC/PMP/Da/Prof. uniformes no se usan — mostrarlos acá (vacíos o con
      valores viejos que no alimentan ningún cálculo) hacía leer el informe como si faltaran datos. #}
@@ -175,7 +175,7 @@
 <div class="formula">ETc = ETo × Kc = {{ val(agro.eto_dia_mm) }} × {{ val(agro.kc) }} = <strong>{{ val(calc.etc_mm_dia, ' mm/día') }}</strong></div>
 {% endcall %}
 
-{% if sis.sistema_riego == 'Goteo' %}
+{% if sis.sistema_riego in SISTEMAS_ALTA_FRECUENCIA %}
 {% call paso_mc('db', mc_sis) %}
 <div class="formula">Db = ETc / Eficiencia = {{ val(calc.etc_mm_dia) }} / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
 {% if agro.declarado and agro.declarado.db_mm is not none %}

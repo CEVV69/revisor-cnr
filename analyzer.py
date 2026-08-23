@@ -25,9 +25,18 @@ NORMATIVA_DIR = BASE_DIR / "normativa"
 
 # ─── Modelo y configuración de costos ─────────────────────────────────────────
 # Modelos disponibles en esta cuenta (confirmado)
-MODELO_SONNET       = "claude-sonnet-5"     # Análisis con VISIÓN (planos/documentos escaneados) — mayor resolución (2576px)
-MODELO_SONNET_TEXTO = "claude-sonnet-4-6"  # Análisis texto puro, chat, consultas, metodología — sin visión
-MODELO_HAIKU        = "claude-haiku-4-5"   # Extracción numérica para verificación (barato)
+# QUÉ MODELO USA CADA TAREA — criterio único, no repetir el nombre del modelo en los docstrings
+# de cada función (se desactualizan: ya pasó dos veces, con comentarios que seguían diciendo
+# "Sonnet 5" después de haber movido la tarea a Sonnet 4.6). Los docstrings citan la CONSTANTE.
+#   · Haiku          → leer texto y devolver JSON estructurado. Nada que exija criterio.
+#   · Sonnet (texto) → todo lo que exige razonamiento técnico sobre texto.
+#   · Sonnet (visión)→ solo cuando el ítem incluye imágenes; su mayor resolución es lo que se paga.
+MODELO_SONNET       = "claude-sonnet-5"    # Análisis con VISIÓN (planos/escaneados) — 2576px
+MODELO_SONNET_TEXTO = "claude-sonnet-4-6"  # Razonamiento sobre texto puro: análisis de ítems sin
+                                           # imágenes, invalidación cruzada, metodología del
+                                           # consultor, chat, consulta libre, subsanación
+MODELO_HAIKU        = "claude-haiku-4-5"   # Extracción a JSON: chequeo de cálculos, resumen,
+                                           # partidas, documentos obligatorios, destilados
 
 def _texto_respuesta(response) -> str:
     """
@@ -97,7 +106,15 @@ def iniciar_costo() -> dict:
     return acc
 
 
-def _log_uso(etiqueta: str, response, modelo: str = None) -> None:
+# Orden de trabajo del revisor dentro de un proyecto. El número que abre cada etiqueta de
+# `_log_uso` sigue esta secuencia, para que el log de Railway y el desglose de costo se lean en el
+# mismo orden en que el revisor avanza, en vez de en el orden azaroso en que fueron apareciendo
+# las funciones. Las tareas de administración (que no pertenecen a un proyecto puntual y por eso
+# tampoco se cargan a su costo, ver PASOS_COSTO en main.py) van con el prefijo "Admin".
+#   1 Resumen del proyecto · 2 Chequeo de cálculos · 3 Revisión por ítems ·
+#   4 Invalidación cruzada · 5 Memoria de cálculo · 6 Evaluación del Consultor ·
+#   7 Debatir con la IA · 8 Consulta al expediente · 9 Respuestas del consultor (subsanación)
+def _log_uso(etiqueta: str, response, modelo: str) -> None:
     """Registra en el log de Railway el uso REAL de tokens de una respuesta (incluida la lectura
     de caché) MÁS el costo estimado en USD — visibilidad para poder medir el gasto real de la API
     en vez de estimarlo, y confirmar que la caché de prompt (SYSTEM_PROMPT + bases + criterios
@@ -113,16 +130,23 @@ def _log_uso(etiqueta: str, response, modelo: str = None) -> None:
         u = response.usage
         cache_leido = getattr(u, "cache_read_input_tokens", 0) or 0
         cache_creado = getattr(u, "cache_creation_input_tokens", 0) or 0
-        modelo_efectivo = modelo or MODELO_SONNET
-        p = (_precio_sonnet5() if modelo_efectivo == MODELO_SONNET
-             else PRECIOS_USD_POR_MTOK.get(modelo_efectivo))
+        # `modelo` es obligatorio a propósito (antes tenía default MODELO_SONNET): con un default,
+        # una llamada que olvidara pasarlo se tarificaba en silencio al precio del modelo más caro
+        # y falseaba el contador de costo que ve el revisor. Mejor un TypeError al escribir el
+        # código que un número equivocado en producción.
+        p = (_precio_sonnet5() if modelo == MODELO_SONNET
+             else PRECIOS_USD_POR_MTOK.get(modelo))
         costo = ""
         usd = 0.0
         if p:
             usd = (u.input_tokens * p["in"] + u.output_tokens * p["out"]
                    + cache_creado * p["cache_w"] + cache_leido * p["cache_r"]) / 1_000_000
             costo = f" ≈ USD {usd:.4f}"
-        print(f"Uso '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
+        else:
+            costo = " ≈ USD ? (modelo sin precio en PRECIOS_USD_POR_MTOK)"
+        # El modelo va en la propia línea: es el dato que explica por qué dos llamadas con tokens
+        # parecidos cuestan distinto, y evita tener que ir al código a deducir cuál corrió.
+        print(f"Uso [{modelo}] '{etiqueta}': input={u.input_tokens} output={u.output_tokens} "
               f"cache_leido={cache_leido} cache_creado={cache_creado}{costo}")
 
         acc = _costo_acumulado.get()
@@ -1204,7 +1228,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
-        _log_uso("extracción hidráulica", response, MODELO_HAIKU)
+        _log_uso("2 · Chequeo · extracción hidráulica", response, MODELO_HAIKU)
         data = _extraer_json_simple(_texto_respuesta(response))
         sistemas = data.get("sistemas")
         if not isinstance(sistemas, list) or not sistemas:
@@ -1427,7 +1451,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION * n,
             messages=[{"role": "user", "content": prompt}],
         )
-        _log_uso("extracción agronómica", response, MODELO_HAIKU)
+        _log_uso("2 · Chequeo · extracción agronómica", response, MODELO_HAIKU)
         data = _extraer_json_simple(_texto_respuesta(response))
         sistemas = data.get("sistemas")
         if not isinstance(sistemas, list) or not sistemas:
@@ -1868,11 +1892,21 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                       "partiendo de la Precipitación del sistema DECLARADA, que puede no coincidir "
                       "exactamente con la Pluviometría calculada arriba.")
 
-    # Goteo: riego de alta frecuencia, Db directo de ETc sin factor de agotamiento (modelo
-    # calcGA del Diseñador). No requiere ni usa el criterio de riego NI los datos de suelo
-    # (CC/PMP/Da/Prof. radicular) — esos solo alimentan AD, que en goteo no se usa ni se
-    # muestra. Exigirlos acá bloqueaba todo el bloque de verificación sin necesidad real.
-    alta_frec = datos.get("sistema_riego") == "Goteo"
+    # Goteo Y MICROASPERSIÓN: riego localizado de alta frecuencia (se riega a diario reponiendo
+    # la ETc del día), Db directo de ETc sin factor de agotamiento (modelo calcGA del Diseñador).
+    # No requieren ni usan el criterio de riego NI los datos de suelo (CC/PMP/Da/Prof. radicular)
+    # — esos solo alimentan AD, que en alta frecuencia no se usa ni se muestra. Exigirlos acá
+    # bloqueaba todo el bloque de verificación sin necesidad real.
+    #
+    # Microaspersión se incorporó acá en ago-2026: el checklist de `diseno_hidraulico` (más
+    # arriba en este archivo) SIEMPRE dijo que Goteo y Microaspersión son de alta frecuencia y
+    # que desarrollar la cadena AD→Dn→Fr en ellos es un error metodológico observable, pero el
+    # motor solo eximía a Goteo. La contradicción tenía dos efectos, ambos silenciosos: el prompt
+    # le mostraba a la IA un recálculo con la misma cadena que el checklist declara errónea, y —
+    # peor — en un proyecto de microaspersión bien presentado (sin CC/PMP/Da, que el checklist
+    # dice no exigir) el `return` de más abajo descartaba TODO el bloque de verificación, dejando
+    # sin superficie segura, N° de sectores, caudal de operación, balance ni estanque.
+    alta_frec = datos.get("sistema_riego") in ("Goteo", "Microaspersión")
     if alta_frec:
         base = ["kc", "eto_dia_mm", "eficiencia_pct"]
     else:
@@ -1888,8 +1922,9 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     if alta_frec:
         lineas = [
             f"ETc = ETo × Kc = {datos['eto_dia_mm']} × {datos['kc']} = {r['etc_mm_dia']} mm/día",
-            f"Db (demanda bruta) recalculada = ETc / Ef = {r['db_mm']} mm/día (goteo: riego diario, "
-            f"la demanda sale directo de la ETc — sin factor de agotamiento)",
+            f"Db (demanda bruta) recalculada = ETc / Ef = {r['db_mm']} mm/día "
+            f"({(datos.get('sistema_riego') or 'alta frecuencia').lower()}: riego diario, la "
+            f"demanda sale directo de la ETc — sin AD, sin Fr y sin factor de agotamiento)",
         ]
     else:
         lineas = [
@@ -2194,7 +2229,7 @@ EXPEDIENTE:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
-        _log_uso("extracción FV", response, MODELO_HAIKU)
+        _log_uso("2 · Chequeo · extracción fotovoltaica", response, MODELO_HAIKU)
         return _extraer_json_simple(_texto_respuesta(response))
     except Exception as e:
         print(f"⚠️ _extraer_datos_fv: {e}")
@@ -2309,7 +2344,7 @@ PRESUPUESTO:
             model=MODELO_HAIKU, max_tokens=4000,   # presupuestos pueden tener muchas partidas
             messages=[{"role": "user", "content": prompt}],
         )
-        _log_uso("extracción partidas de presupuesto", response, MODELO_HAIKU)
+        _log_uso("3 · Revisión · partidas de presupuesto", response, MODELO_HAIKU)
         return _extraer_json_tolerante(_texto_respuesta(response))
     except Exception as e:
         print(f"⚠️ _extraer_partidas_presupuesto: {e}")
@@ -2760,7 +2795,7 @@ DOCUMENTOS DEL GRUPO (texto):
         response = await _llamar(max_tokens_total + 8000)
         content = _texto_respuesta(response)
 
-    _log_uso(f"análisis '{nombre}'", response, modelo_analisis)
+    _log_uso(f"3 · Revisión ítem '{nombre}'", response, modelo_analisis)
 
     observaciones = []
     try:
@@ -2804,15 +2839,17 @@ async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nue
     hidráulico" había marcado como ambiguo). Retorna una lista de dicts a auto-descartar:
     [{"id": "...", "justificacion": "..."}].
 
-    Usa **Sonnet 5**, no Haiku: bug real reportado por el usuario (jul-2026) — con Haiku, este
-    juicio ("¿el contenido de un ítem resuelve una observación de otro?") se comportaba mal en
-    producción, descartando en bloque TODAS las observaciones pendientes de "Diseño y cálculos
-    hidráulicos" (sobre una inconsistencia de superficies) al revisar "Presupuesto de obras" —
-    un documento que solo lista materiales y precios, sin ningún dato de superficie que pudiera
-    rebatir esa observación. Este juicio es más cercano a razonamiento técnico que a extracción
-    de datos (regla de costo del proyecto: Haiku es para "leer texto y devolver JSON
-    estructurado", Sonnet 5 para lo que exige razonamiento), así que se subió de modelo pese al
-    costo extra — un falso positivo acá esconde un hallazgo real sin que el revisor lo note.
+    NO usa Haiku: bug real reportado por el usuario (jul-2026) — con Haiku, este juicio ("¿el
+    contenido de un ítem resuelve una observación de otro?") se comportaba mal en producción,
+    descartando en bloque TODAS las observaciones pendientes de "Diseño y cálculos hidráulicos"
+    (sobre una inconsistencia de superficies) al revisar "Presupuesto de obras" — un documento
+    que solo lista materiales y precios, sin ningún dato de superficie que pudiera rebatir esa
+    observación. Es un juicio más cercano al razonamiento técnico que a la extracción de datos, y
+    por la regla de costo del proyecto (Haiku solo para "leer texto y devolver JSON
+    estructurado") corresponde un modelo de la familia Sonnet aunque cueste más: un falso
+    positivo acá esconde un hallazgo real sin que el revisor lo note. El modelo concreto es
+    `MODELO_SONNET_TEXTO`, definido arriba en este archivo — no se nombra acá para que el
+    docstring no quede desmentido la próxima vez que se cambie esa constante.
 
     Corre con un resumen corto del ítem (no el presupuesto completo de caracteres del análisis
     principal), en paralelo a `_analizar_grupo` — no agrega latencia.
@@ -2910,7 +2947,7 @@ Si ninguna se resuelve (el caso más común, y el correcto ante cualquier duda),
                   f"max_tokens — reintentando con más cupo…")
             response = await asyncio.to_thread(_llamar, 14000)
             content = _texto_respuesta(response)
-        _log_uso(f"invalidación cruzada '{item_nombre_nuevo}'", response, MODELO_SONNET_TEXTO)
+        _log_uso(f"4 · Invalidación cruzada tras '{item_nombre_nuevo}'", response, MODELO_SONNET_TEXTO)
         data = _extraer_json_simple(content)
         resueltas = data.get("resueltas", [])
         if not isinstance(resueltas, list):
@@ -3202,7 +3239,7 @@ Reglas del marcador:
         messages=mensajes,
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    _log_uso(f"chat '{nombre}'", response, MODELO_SONNET_TEXTO)
+    _log_uso(f"7 · Debatir con la IA · '{nombre}'", response, MODELO_SONNET_TEXTO)
     texto_crudo = _texto_respuesta(response)
     if not texto_crudo:
         print(f"⚠️ Chat '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3277,7 +3314,7 @@ Responde SOLO el JSON, sin texto adicional."""
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_uso("autocompletar Resumen", response, MODELO_HAIKU)
+    _log_uso("1 · Resumen del proyecto", response, MODELO_HAIKU)
 
     content = _texto_respuesta(response)
     datos = {}
@@ -3475,7 +3512,7 @@ BASES DEL CONCURSO:
             model=MODELO_HAIKU, max_tokens=MAX_TOKENS_EXTRACCION,
             messages=[{"role": "user", "content": prompt}],
         )
-        _log_uso("documentos obligatorios", response, MODELO_HAIKU)
+        _log_uso("Admin · documentos obligatorios del concurso", response, MODELO_HAIKU)
         data = _extraer_json_tolerante(_texto_respuesta(response))
         obligatorios = data.get("obligatorios", [])
         if not isinstance(obligatorios, list):
@@ -3595,7 +3632,7 @@ Responde SOLO el perfil, en viñetas con "-"."""
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_uso("consolidar aprendizaje", response, MODELO_HAIKU)
+    _log_uso("Admin · perfil del consultor", response, MODELO_HAIKU)
     texto = _texto_respuesta(response).strip()
     if not texto:
         print(f"⚠️ consolidar_perfil_consultor '{nombre}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3637,7 +3674,7 @@ Responde SOLO las reglas, en viñetas con "-"."""
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
-    _log_uso("perfil de consultor", response, MODELO_HAIKU)
+    _log_uso("Admin · criterios aprendidos del ítem", response, MODELO_HAIKU)
     texto = _texto_respuesta(response).strip()
     if not texto:
         print(f"⚠️ consolidar_aprendizaje '{clave}': respuesta vacía — stop_reason={response.stop_reason}")
@@ -3692,7 +3729,7 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
         messages=[{"role": "user", "content": prompt}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
-    _log_uso("consulta libre", response, MODELO_SONNET_TEXTO)
+    _log_uso("8 · Consulta al expediente", response, MODELO_SONNET_TEXTO)
     texto = _texto_respuesta(response)
     if not texto:
         print(f"⚠️ consultar_expediente: respuesta vacía — stop_reason={response.stop_reason}")
@@ -3708,7 +3745,8 @@ Sé directo y práctico — el revisor necesita saber qué hacer con esta inform
 # concepto — no solo el resultado final. Es una tarea de comprensión de texto libre (el
 # consultor puede llamar "Lámina Bruta a reponer" a lo que la app llama "Db", mostrar el cálculo
 # en cualquier orden, o no mostrarlo en absoluto) — más cercana a razonamiento que a extracción
-# de datos, por eso usa Sonnet 5 y no Haiku (misma regla de costo del proyecto). Bajo demanda
+# de datos, por eso usa `MODELO_SONNET_TEXTO` y no Haiku (misma regla de costo del proyecto:
+# Haiku solo para "leer texto y devolver JSON estructurado"). Bajo demanda
 # (botón en la Memoria de cálculo explicada, ver main.py) — nunca automática, para no sumar
 # costo a cada revisión.
 
@@ -3742,37 +3780,71 @@ CONCEPTOS_METODOLOGIA_FV = [
 ]
 
 
-async def extraer_metodologia_consultor(docs_grupo: list, sistema_riego: str = None) -> dict:
+async def extraer_metodologia_consultor(docs_grupo: list, sistemas_riego: list = None) -> list:
     """Para cada concepto de `CONCEPTOS_METODOLOGIA`, busca si el expediente MUESTRA la fórmula/
-    cálculo del consultor (no solo el resultado). Devuelve {"concepto_key": {"formula": str|null,
-    "resultado": str|null}, ...} — ambos null si el concepto no aparece o solo se declara el
-    resultado final sin mostrar cómo se obtuvo. NUNCA inventa ni reconstruye una fórmula que el
-    consultor no mostró explícitamente — si el expediente no la muestra, es tarea del revisor
-    observarlo (un proyecto que solo presenta resultados sin memoria de cálculo es, en sí mismo,
-    observable), no de esta función suplirla."""
+    cálculo del consultor (no solo el resultado).
+
+    `sistemas_riego`: lista con el nombre del sistema de CADA sistema de riego del proyecto (ej.
+    ["Goteo", "Aspersión"]); `None` o `[None]` si no se conoce. Devuelve una LISTA de la misma
+    longitud, con un dict {"concepto_key": {"formula": str|null, "resultado": str|null}, ...} por
+    sistema — ambos null si el concepto no aparece o solo se declara el resultado final sin
+    mostrar cómo se obtuvo.
+
+    Es UNA sola llamada aunque el proyecto tenga dos sistemas de riego (ago-2026). Antes el
+    informe completo la invocaba una vez por sistema, y como ambos comparten exactamente el mismo
+    conjunto de documentos (`_documentos_para_verificacion("hidraulico", ...)`, hasta 120.000
+    caracteres ≈ 30.000 tokens), el expediente entero se pagaba dos veces cambiando solo la
+    etiqueta del sistema en el prompt: la mitad del costo de ese botón era puro desperdicio. Pedir
+    los dos bloques en una respuesta cuesta apenas unos tokens más de salida y ninguno de entrada.
+
+    NUNCA inventa ni reconstruye una fórmula que el consultor no mostró explícitamente — si el
+    expediente no la muestra, es tarea del revisor observarlo (un proyecto que solo presenta
+    resultados sin memoria de cálculo es, en sí mismo, observable), no de esta función suplirla."""
+    sistemas = list(sistemas_riego) if sistemas_riego else [None]
+    n = max(1, len(sistemas))
     texto = _texto_grupo_para_extraccion(docs_grupo, max_chars=MAX_CHARS_POR_ITEM.get("diseno_hidraulico", MAX_CHARS_EJE_TOTAL))
     if not texto.strip():
-        return {}
+        return [{} for _ in sistemas]
     client = _get_client()
     lista_conceptos = "\n".join(f'- "{k}": {label}' for k, label in CONCEPTOS_METODOLOGIA)
-    prompt = f"""Estás auditando la memoria de cálculo de un proyecto de riego{f' (sistema: {sistema_riego})' if sistema_riego else ''}.
+    forma_conceptos = ", ".join(
+        f'"{k}": {{"formula": string|null, "resultado": string|null}}' for k, _ in CONCEPTOS_METODOLOGIA)
+
+    if n == 1:
+        etiqueta = f' (sistema: {sistemas[0]})' if sistemas[0] else ''
+        instr_sistemas = ('\n\nEste proyecto tiene UN solo sistema de riego: responde el array '
+                          '"sistemas" con exactamente 1 objeto.')
+    else:
+        nombres = " y ".join(s or f"Sistema {i+1}" for i, s in enumerate(sistemas))
+        etiqueta = ''
+        instr_sistemas = (
+            f"\n\nEste proyecto tiene {n} SISTEMAS DE RIEGO DISTINTOS ({nombres}), cada uno con "
+            f"su propia memoria de cálculo. Los consultores habitualmente presentan el cálculo de "
+            f"cada sistema en un bloque separado, con su propio encabezado o título. Identifica "
+            f"cada bloque y extrae la metodología de CADA sistema POR SEPARADO — NO mezcles la "
+            f"fórmula de un sistema con la del otro. Responde el array \"sistemas\" con "
+            f"EXACTAMENTE {n} objetos, en este orden: "
+            + ", ".join(f"{i+1}º {s or 'sin nombre'}" for i, s in enumerate(sistemas))
+            + ". Si un concepto solo aparece desarrollado para uno de los sistemas, déjalo en "
+              "null para el otro en vez de repetir la misma fórmula en ambos.")
+
+    prompt = f"""Estás auditando la memoria de cálculo de un proyecto de riego{etiqueta}.
 
 Para CADA uno de estos conceptos, busca en el expediente si el consultor MUESTRA explícitamente
 la fórmula o el desarrollo del cálculo (no solo el número final) — cita el texto tal como aparece
 (fórmula + valores sustituidos) y el resultado con su unidad:
 
 {lista_conceptos}
+{instr_sistemas}
 
 REGLA ESTRICTA — tres casos posibles:
 - El expediente muestra fórmula + desarrollo: rellena "formula" y "resultado".
 - El expediente declara solo el resultado sin mostrar cómo se obtuvo: "formula"=null, "resultado"=<el valor declarado con su unidad>.
-- El concepto no aparece, no aplica al sistema (ej. AD/Dn/Fr en Goteo), o es imposible determinarlo: "formula"=null, "resultado"=null.
+- El concepto no aparece, no aplica al sistema (ej. AD/Dn/Fr en Goteo y Microaspersión, que son de riego diario), o es imposible determinarlo: "formula"=null, "resultado"=null.
 NUNCA reconstruyas ni inventes una fórmula que el consultor no escribió.
 
 Responde SOLO este JSON, sin texto adicional:
-{{"conceptos": {{
-{", ".join(f'"{k}": {{"formula": string|null, "resultado": string|null}}' for k, _ in CONCEPTOS_METODOLOGIA)}
-}}}}
+{{"sistemas": [{{"conceptos": {{{forma_conceptos}}}}}]}}
 
 EXPEDIENTE:
 {texto}"""
@@ -3784,19 +3856,30 @@ EXPEDIENTE:
         ) as stream:
             return stream.get_final_message()
     try:
-        response = await asyncio.to_thread(_stream_final, 6000)
+        response = await asyncio.to_thread(_stream_final, 6000 * n)
         content = _texto_respuesta(response)
         if not content.strip() and response.stop_reason == "max_tokens":
             print("⚠️ extraer_metodologia_consultor: respuesta vacía por max_tokens — reintentando con más cupo…")
-            response = await asyncio.to_thread(_stream_final, 14000)
+            response = await asyncio.to_thread(_stream_final, 14000 * n)
             content = _texto_respuesta(response)
-        _log_uso("metodología del consultor", response, MODELO_SONNET_TEXTO)
+        _log_uso(f"5 · Memoria de cálculo · metodología del consultor ({n} sistema{'s' if n > 1 else ''})",
+                 response, MODELO_SONNET_TEXTO)
         data = _extraer_json_tolerante(content)
-        conceptos = data.get("conceptos")
-        return conceptos if isinstance(conceptos, dict) else {}
+        crudos = data.get("sistemas")
+        if not isinstance(crudos, list):
+            # Tolerancia al formato de UN solo sistema sin envolver ({"conceptos": {...}}), que es
+            # lo que devolvía esta misma función antes del cambio y lo que el modelo puede seguir
+            # produciendo si el proyecto tiene un solo sistema.
+            crudos = [data] if isinstance(data.get("conceptos"), dict) else []
+        salida = []
+        for i in range(n):
+            item = crudos[i] if i < len(crudos) and isinstance(crudos[i], dict) else {}
+            conceptos = item.get("conceptos")
+            salida.append(conceptos if isinstance(conceptos, dict) else {})
+        return salida
     except Exception as e:
         print(f"⚠️ extraer_metodologia_consultor: {e}")
-        return {}
+        return [{} for _ in sistemas]
 
 
 async def extraer_metodologia_fv(docs_fv: list) -> dict:
@@ -3841,7 +3924,7 @@ EXPEDIENTE FV:
         if not content.strip() and response.stop_reason == "max_tokens":
             response = await asyncio.to_thread(_stream, 8000)
             content  = _texto_respuesta(response)
-        _log_uso("metodología FV del consultor", response, MODELO_SONNET_TEXTO)
+        _log_uso("5 · Memoria de cálculo · metodología fotovoltaica", response, MODELO_SONNET_TEXTO)
         data = _extraer_json_tolerante(content)
         conceptos = data.get("conceptos")
         return conceptos if isinstance(conceptos, dict) else {}
@@ -3881,7 +3964,7 @@ sin repetir la palabra "{etiqueta}" al inicio. Ve directo al punto técnico."""
     try:
         response = await asyncio.to_thread(_stream, 300)
         texto = _texto_respuesta(response).strip()
-        _log_uso(f"evaluación consultor: {etiqueta}", response, MODELO_HAIKU)
+        _log_uso(f"6 · Evaluación del Consultor · {etiqueta}", response, MODELO_HAIKU)
         return _limitar_texto(texto, 250)
     except Exception as e:
         print(f"⚠️ sintetizar_evaluacion_item ({etiqueta}): {e}")
@@ -4005,7 +4088,7 @@ Responde SOLO este JSON, sin texto adicional:
         print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
         return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
 
-    _log_uso(f"subsanación '{nombre_item}'", response, MODELO_SONNET_TEXTO)
+    _log_uso(f"9 · Respuesta del consultor · '{nombre_item}'", response, MODELO_SONNET_TEXTO)
     content = _texto_respuesta(response)
     data = _extraer_json_tolerante(content)
     rec = data.get("recomendacion", "")

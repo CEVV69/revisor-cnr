@@ -85,6 +85,20 @@ def _get_pg():
     return _pg_conn
 
 
+def _errores_conexion_pg() -> tuple:
+    """Clases de excepción de psycopg2 que significan "la conexión murió". Devuelve una tupla
+    VACÍA si psycopg2 no está instalado — caso del modo JSON local en una máquina de desarrollo
+    sin el driver: `except ()` no captura nada, así que la función decorada corre igual, solo que
+    sin reintento (que en ese modo no tiene sentido de todas formas). Antes el `import psycopg2`
+    estaba en el cuerpo del decorador y se ejecutaba ANTES que la función, así que hasta los
+    métodos que empiezan con `if not self._use_pg: return` reventaban con ModuleNotFoundError."""
+    try:
+        import psycopg2
+    except ModuleNotFoundError:
+        return ()
+    return (psycopg2.OperationalError, psycopg2.InterfaceError)
+
+
 def _reintenta_si_cae(fn):
     """Reintenta UNA vez con conexión nueva si la consulta falla porque la conexión guardada
     estaba muerta.
@@ -102,11 +116,10 @@ def _reintenta_si_cae(fn):
     @functools.wraps(fn)
     def envoltorio(*args, **kwargs):
         global _pg_conn
-        import psycopg2
         with _pg_lock:               # ver la nota de _pg_lock, arriba
             try:
                 return fn(*args, **kwargs)
-            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            except _errores_conexion_pg() as e:
                 print(f"⚠️ Conexión PostgreSQL caída en {fn.__name__} ({e}) — reconectando y reintentando…")
                 try:
                     if _pg_conn is not None and not _pg_conn.closed:
@@ -433,23 +446,100 @@ class Database:
 
     # ── Concursos ─────────────────────────────────────────────────────────────
 
+    # En PostgreSQL cada concurso vive bajo su propia clave "concurso:{id}", mismo patrón que los
+    # proyectos y por el mismo motivo (ago-2026). Antes TODOS los concursos iban en un solo blob
+    # bajo la clave "concursos", y como cada concurso arrastra su `bases_texto` (hasta 85.000
+    # caracteres) y su `feedback` (hasta 200 entradas), leer UN concurso significaba transferir y
+    # deserializar los de todos — en CADA carga de página de un proyecto (`_render_proyecto` lo
+    # pide para saber si el concurso tiene bases). Con un solo concurso cargado se notaba poco;
+    # con dos o tres el costo se multiplica linealmente sobre la ruta más caliente de la app.
+    # `migrar_concursos()` (startup en main.py) traslada el blob legacy una vez, idempotente.
+    # En modo JSON local se conserva el archivo único de siempre (disco local, datos chicos).
+
+    def migrar_concursos(self):
+        """Migra el blob legacy 'concursos' a una clave por concurso (solo PostgreSQL).
+        Idempotente: si algo falla a la mitad, al próximo arranque reintenta y sobrescribe."""
+        if not self._use_pg:
+            return
+        legacy = _pg_load("concursos")
+        if not legacy:
+            return
+        for cid, concurso in legacy.items():
+            _pg_save(f"concurso:{cid}", concurso)
+        _pg_delete("concursos")
+        print(f"✅ Migrados {len(legacy)} concurso(s) del blob legacy a claves separadas")
+
     def get_concurso(self, concurso_id: str) -> dict:
-        concursos = self._load("concursos", CONCURSOS_FILE)
-        return concursos.get(concurso_id)
+        if self._use_pg:
+            # `_pg_load` devuelve {} si la clave no existe; acá hay que distinguir "no existe"
+            # (None — main.py lo usa para ofrecer crearlo) de "existe pero vacío".
+            return _pg_load(f"concurso:{concurso_id}") or None
+        return _json_load(CONCURSOS_FILE).get(concurso_id)
+
+    def get_concurso_campos(self, concurso_id: str, campos: list) -> dict:
+        """Como get_concurso(), pero trae SOLO los `campos` pedidos. Para la carga de página de
+        un proyecto, que solo necesita saber si el concurso tiene bases y cuáles son sus
+        documentos obligatorios — no los 85.000 caracteres del texto de las bases ni su historial
+        de feedback. `campos` son nombres FIJOS del código, nunca datos de un request (ver la
+        advertencia de _pg_load_prefix_campos). Devuelve None si el concurso no existe."""
+        if not self._use_pg:
+            c = _json_load(CONCURSOS_FILE).get(concurso_id)
+            return {k: c.get(k) for k in campos} if c else None
+        return _pg_load_campos(f"concurso:{concurso_id}", campos)
+
+    @_reintenta_si_cae
+    def resumen_concurso(self, concurso_id: str) -> dict:
+        """Lo MÍNIMO del concurso que necesita la carga de página de un proyecto: si existe, si
+        tiene bases cargadas y su lista de documentos obligatorios. Devuelve `tiene_bases` como
+        booleano calculado en Postgres — el texto de las bases puede pesar 85.000 caracteres y
+        acá solo hace falta saber si está, no leerlo. Nunca devuelve None: `{"existe": False, ...}`
+        si el concurso no está creado todavía."""
+        vacio = {"existe": False, "tiene_bases": False,
+                 "documentos_obligatorios": [], "documentos_obligatorios_revisado": False}
+        if not self._use_pg:
+            c = _json_load(CONCURSOS_FILE).get(concurso_id)
+            if not c:
+                return vacio
+            return {"existe": True, "tiene_bases": bool((c.get("bases_texto") or "").strip()),
+                    "documentos_obligatorios": c.get("documentos_obligatorios") or [],
+                    "documentos_obligatorios_revisado": bool(c.get("documentos_obligatorios_revisado"))}
+        conn = _get_pg()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COALESCE(LENGTH(BTRIM(v ->> 'bases_texto')), 0) > 0,
+                       v -> 'documentos_obligatorios',
+                       COALESCE((v ->> 'documentos_obligatorios_revisado')::boolean, FALSE)
+                FROM (SELECT value::jsonb AS v FROM storage WHERE key = %s) t
+            """, (f"concurso:{concurso_id}",))
+            row = cur.fetchone()
+            if not row:
+                return vacio
+            return {"existe": True, "tiene_bases": bool(row[0]),
+                    "documentos_obligatorios": row[1] or [],
+                    "documentos_obligatorios_revisado": bool(row[2])}
 
     def get_all_concursos(self) -> list:
-        concursos = self._load("concursos", CONCURSOS_FILE)
-        return sorted(concursos.values(), key=lambda c: c.get("id", ""))
+        if self._use_pg:
+            todos = _pg_load_prefix("concurso:")
+        else:
+            todos = list(_json_load(CONCURSOS_FILE).values())
+        return sorted(todos, key=lambda c: c.get("id", ""))
 
     def save_concurso(self, concurso: dict):
-        concursos = self._load("concursos", CONCURSOS_FILE)
+        if self._use_pg:
+            _pg_save(f"concurso:{concurso['id']}", concurso)
+            return
+        concursos = _json_load(CONCURSOS_FILE)
         concursos[concurso["id"]] = concurso
-        self._save("concursos", CONCURSOS_FILE, concursos)
+        _json_save(CONCURSOS_FILE, concursos)
 
     def delete_concurso(self, concurso_id: str):
-        concursos = self._load("concursos", CONCURSOS_FILE)
+        if self._use_pg:
+            _pg_delete(f"concurso:{concurso_id}")
+            return
+        concursos = _json_load(CONCURSOS_FILE)
         concursos.pop(concurso_id, None)
-        self._save("concursos", CONCURSOS_FILE, concursos)
+        _json_save(CONCURSOS_FILE, concursos)
 
     def add_feedback_concurso(self, concurso_id: str, feedback_entry: dict):
         """Añade una entrada de feedback al historial del concurso (máx. 200)."""

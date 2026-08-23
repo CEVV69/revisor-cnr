@@ -225,7 +225,7 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
 
     ETc = ETo × Kc, siempre. Después hay DOS modelos según el sistema de riego:
 
-    · Aspersión / Carrete / Microaspersión (por turnos, con agotamiento — `alta_frecuencia=False`):
+    · Aspersión / Carrete (por turnos, con agotamiento — `alta_frecuencia=False`):
         AD     = (CC − PMP)/100 × Da × Prof(m) × 1000   [mm — agua disponible del suelo]
         Dn     = AD × fa                                 [mm — lámina neta de riego]
         Fr     = Dn / ETc  →  Fr_adj = redondeo al entero más cercano (mín. 1) [días — frecuencia
@@ -237,10 +237,11 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
         Dn_adj = ETc × Fr_adj
         Db     = Dn_adj / Ef                             [mm — demanda bruta]
 
-    · Goteo (riego localizado de ALTA FRECUENCIA — `alta_frecuencia=True`): se riega a diario
-        reponiendo la ETc del día, así que la demanda bruta sale DIRECTO de la ETc, sin pasar
-        por el factor de agotamiento (Fr = 1). Es el modelo `calcGA` del Diseñador de Riego —
-        por eso goteo no tiene campo "criterio de riego":
+    · Goteo / Microaspersión (riego localizado de ALTA FRECUENCIA — `alta_frecuencia=True`): se
+        riega a diario reponiendo la ETc del día, así que la demanda bruta sale DIRECTO de la
+        ETc, sin pasar por el factor de agotamiento (Fr = 1). Es el modelo `calcGA` del Diseñador
+        de Riego — por eso estos dos sistemas no tienen campo "criterio de riego" ni usan la
+        textura del suelo (CC/PMP/Da/Prof. radicular):
         Db = ETc / Ef,  Fr_adj = 1,  Dn = Dn_adj = ETc
 
     `factor_agotamiento_pct` se ignora cuando `alta_frecuencia=True` (puede venir None). AD se

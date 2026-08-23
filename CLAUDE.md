@@ -38,31 +38,29 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Diseñador de Riego v123 — confirmado funcionando** (ago-2026): el usuario probó v121 y
-   reportó "resultados esperados". Quedaban 2 filas mudas sin resultado NI aviso de dato
-   faltante (N° de posturas, Caudal de diseño/operación vs. declarado) — mismo origen que el
-   viento ausente de la sesión anterior, ahora declaradas explícitamente. Mensajes "Falta: ..."
-   con color propio (`.calc-falta`, ámbar) para distinguirlos de un resultado normal y de una
-   alerta de diferencia (rojo). v123 agrega el campo `c-alfa` (Ángulo Sector Cañón) que faltaba
-   en el Diseñador — ya mapeado en `exportar_disenador.py`. Archivo reemplazado, enlace
-   actualizado. Detalle en `docs/historial_sesiones.md`.
+1. **Auditoría general (ago-2026) — 4 correcciones aplicadas, sin probar en la app todavía:**
+   · **Microaspersión es de ALTA FRECUENCIA**, igual que Goteo (Db directo de ETc, sin AD/Dn/Fr
+     ni textura de suelo). El checklist siempre lo dijo pero el motor solo eximía a Goteo, así que
+     un proyecto de microaspersión bien presentado perdía en silencio TODO el bloque de
+     verificación. Criterio único: `SISTEMAS_ALTA_FRECUENCIA` (main.py), expuesto como global de
+     Jinja; réplicas en `analyzer.alta_frec` y `esAltaFrecuencia` (calculos.html).
+   · **Concursos separados por clave** `concurso:{id}` (antes un blob único con TODOS: cada carga
+     de página traía las bases completas de todos los concursos). `db.resumen_concurso()` para la
+     carga de página; `_render_proyecto` ya no bloquea el event loop.
+   · **Metodología del consultor: UNA sola llamada para los N sistemas** (antes una por sistema
+     con el mismo expediente — la mitad del costo era desperdicio).
+   · Etiquetas de `_log_uso` numeradas por orden de trabajo (1 Resumen → 9 Subsanación, + Admin);
+     dos estaban intercambiadas. `modelo` pasó a ser obligatorio en `_log_uso`.
 
 2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
    ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
    de usar AD/Dn/Fr en Goteo/Micro, truncamiento de capas, superficie segura con demanda diaria,
    caudal de operación vs. de fuente, singulares ≈20%, variación de presión ≤20%, y del Carrete
    turbina/fuelle y regulador si Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
-   Origen: prompt del Claude del Diseñador — detalle de qué se descartó en `docs/`.
 
 3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
    intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
-   paridad total (probar con 2 sistemas).
-
-4. **Evaluación del Consultor** (nueva): sección al final de `/items` (editable) y de la Ficha de
-   Revisión (solo lectura) — admisibilidad (Sí/No) + veredicto Diseño/Superficie/Presupuesto/
-   Planos, cada uno con lista desplegable y observación ≤250 caracteres. "Sugerir con IA" llena
-   solo campos vacíos: estado por regla determinística, texto por síntesis Haiku (ver
-   `EVALUACION_CONSULTOR_CAMPOS` en `main.py`). Nunca probado.
+   paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada).
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
