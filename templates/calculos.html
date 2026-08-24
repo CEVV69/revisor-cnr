@@ -31,7 +31,7 @@
     gap:0.6rem 0.9rem; margin-bottom:0.9rem; }
   .agro-grid > div { display:flex; flex-direction:column; justify-content:flex-end; }
   .agro-grid label { display:block; font-size:0.78rem; color:var(--text-2); margin-bottom:0.2rem; }
-  .agro-grid input { width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border);
+  .agro-grid input, .agro-grid select { width:100%; padding:0.4rem 0.5rem; border-radius:6px; border:1px solid var(--border);
     background:var(--surface); color:var(--text); font-family:inherit; font-size:0.86rem; box-sizing:border-box; }
 
   .calc-resultados-tbl { width:100%; border-collapse:collapse; font-size:0.84rem; margin-bottom:0.8rem; }
@@ -46,8 +46,9 @@
     background:var(--surface); color:var(--text); font-family:inherit; font-size:0.82rem;
     box-sizing:border-box; }
   .calc-nota { display:block; font-size:0.78rem; font-weight:400; margin-top:0.15rem; }
-  .agro-grid > div.sistema-riego-campo { display:none; }
+  .sistema-riego-campo { display:none; }
   .agro-grid > div.sistema-riego-campo.activo { display:flex; }
+  .campo-scall.sistema-riego-campo.activo { display:inline-block; }
   tr.fila-acumulador { display:none; }
   tr.fila-acumulador.activa { display:table-row; }
   tr.fila-agotamiento { display:none; }
@@ -194,9 +195,11 @@
             <option value="subterranea" {{ 'selected' if agro.tipo_fuente_agua == 'subterranea' }}>Aguas subterráneas</option>
           </select>
         </div>
-        <div class="sistema-riego-campo campo-scall"><label>&nbsp;</label><a href="/static/scall_diseno_v21.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Cálculo Scall</a></div>
       </div>
-      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
+      <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:0.8rem; margin:-0.4rem 0 0.9rem; flex-wrap:wrap;">
+        <p class="text-muted" style="font-size:0.78rem; margin:0;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
+        <a href="/static/scall_diseno_v21.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm sistema-riego-campo campo-scall" style="flex-shrink:0;">Cálculo Scall</a>
+      </div>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
       <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Lo declarado por el consultor se edita en la columna del medio.</p>
