@@ -188,7 +188,7 @@
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
-        <div><label>Tipo de fuente <span title="Solo en aguas superficiales, ITT-03 §1 exime del acumulador si el caudal de operación supera al disponible en menos de 20%.">ⓘ</span></label>
+        <div style="grid-column:span 2;"><label>Tipo de fuente <span title="Solo en aguas superficiales, ITT-03 §1 exime del acumulador si el caudal de operación supera al disponible en menos de 20%.">ⓘ</span></label>
           <select id="{{ p }}tipo_fuente_agua" name="{{ p }}tipo_fuente_agua">
             <option value="" {{ 'selected' if not agro.tipo_fuente_agua }}>—</option>
             <option value="superficial" {{ 'selected' if agro.tipo_fuente_agua == 'superficial' }}>Aguas superficiales</option>
