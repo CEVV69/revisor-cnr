@@ -1,3 +1,49 @@
+## Sesión ago-2026 — Catálogo de tuberías: agregado PVC/PE 75mm
+
+El usuario pidió agregar 3 tuberías al catálogo del Chequeo Hidráulico (`TUBOS_CATALOGO` en
+`calculos_riego.py`, único punto de verdad — se renderiza server-side en el `<select>` de
+`calculos.html` vía `main.py`, sin duplicado en JS ni en las Memorias): PVC C6 75mm, PVC C10
+75mm, PE 75mm. El catálogo ya tenía 63mm y 90mm para ambos materiales pero saltaba 75mm.
+
+**Intento de conseguir la ficha técnica real — bloqueado por red.** Mismo criterio que las
+entradas 32/40/50mm de una sesión anterior (comentario "No inventado: dato de fabricante real"):
+se intentó bajar la Ficha Técnica de Tigre Chile (la misma fuente ya citada en el código) y
+varias alternativas (globalriego.cl, tigre.cl, studocu, centralriego.cl, icofesa.com, agru.cl,
+scribd). El entorno de esta sesión bloqueó el acceso a TODOS esos dominios
+(`EGRESS_BLOCKED` — parece una lista blanca muy acotada, no una lista negra); el único que no
+fue bloqueado por el proxy (un bucket S3 de Tigre) devolvió 403 del propio servidor. No se pudo
+confirmar el dato contra una ficha técnica citable esta sesión.
+
+**PVC 75mm — resuelto igual, sin necesitar la ficha, por consistencia interna del catálogo ya
+verificado.** Se recalculó el SDR (Standard Dimension Ratio = dext/e) de las filas 63mm y 90mm ya
+presentes: Clase 6 da SDR33,16 y SDR33,33 — calza con la serie estándar real SDR33; Clase 10 da
+SDR21,0 exacto y SDR20,93 — calza con SDR21 exacto. Ambas clases están dentro de la MISMA serie
+en los dos diámetros ya verificados, así que aplicar la misma fórmula a 75mm no es adivinar un
+número — es extender la serie que el propio catálogo ya demuestra seguir: PN6 e=75/33=2,3mm
+(Ø int. 70,4mm), PN10 e=75/21=3,6mm (Ø int. 67,8mm). Agregadas como "PVC 75mm PN6"/"PVC 75mm
+PN10", mismo formato de nombre que las filas vecinas (el "C6"/"C10" que usó el usuario es la
+misma Clase/PN chilena, ya así nombrada en todo el catálogo).
+
+**PE 75mm — NO se pudo resolver igual, y se le preguntó al usuario en vez de adivinar.** A
+diferencia del PVC, las filas PE del catálogo NO siguen una serie SDR consistente: "PE 63mm
+SDR13.6" calcula en realidad SDR≈21 con sus propios números (dext=63, dint=57 → e=3,0mm →
+SDR=21, no 13,6), y "PE 63mm SDR7.4" calcula SDR≈11,9 — ambas etiquetas no calzan con su propia
+fórmula, señal de que son productos reales sueltos de fichas distintas, no una serie derivable.
+Se encontró por búsqueda web un valor de mercado para 75mm PN10 HDPE (e=5,6mm, Ø int. 63,8mm)
+que matemáticamente SÍ calza con SDR13.6 exacto, pero solo desde una página de producto sin
+respaldo de ficha técnica — mismo estándar de "no inventar" que ya rige este catálogo. Se le
+preguntó al usuario con `AskUserQuestion` (3 alternativas: usar ese valor encontrado / que él
+diera el dato real / dejar PE 75mm pendiente). Contestó con datos propios para AMBAS clases —
+"PN10 (SDR17): el espesor es de aproximadamente 4,5mm. PN16 (SDR11): el espesor es de
+aproximadamente 6,8mm" — que además calzan con la fórmula e=D/SDR (75/17=4,41; 75/11=6,82).
+Como el catálogo ya trae 2 clases de PE en 63mm (SDR13.6/PN10 y SDR7.4/PN16), se agregaron
+también las 2 clases acá, mismo criterio: "PE 75mm SDR17 PN10 (Ø66)" (Ø int. 75−2×4,5=66mm) y
+"PE 75mm SDR11 PN16 (Ø61.4)" (Ø int. 75−2×6,8=61,4mm).
+
+Catálogo queda con 29 tuberías (antes 25). Verificado que compila, que el Jinja del `<select>`
+parsea, y que no hay ningún otro punto en la app (Memorias, export al Diseñador) que duplique
+esta tabla y necesite el mismo dato aparte.
+
 ## Sesión ago-2026 — v121 confirmado OK; 2 filas mudas corregidas; color "Falta"; anchos tabla; v123+c-alfa
 
 El usuario probó v121 en la app: "funciona bien, con resultados esperados" — primera confirmación

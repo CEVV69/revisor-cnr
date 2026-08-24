@@ -36,6 +36,16 @@ VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdi
 # Diseñador): dint = dext − 2×e_mín, con e_mín de la Ficha Técnica "Tubería Hidráulica de PVC"
 # de Tigre Chile (Tabla 2, norma NCh 399/2011) — 32mm: PN6 e=1,5mm, PN10 e=1,9mm; 40mm: PN6
 # e=1,5mm, PN10 e=1,9mm; 50mm: PN6 e=1,6mm, PN10 e=2,4mm. No inventado: dato de fabricante real.
+#
+# PVC 75mm (ago-2026, pedido por el usuario): sin acceso a la ficha técnica en esta sesión (red
+# bloqueada). Derivado en cambio de la propia serie SDR que ya cumplen EXACTO los datos de 63mm y
+# 90mm ya presentes en este catálogo: Clase 6 = SDR33 (63mm→SDR33,16; 90mm→SDR33,33) y
+# Clase 10 = SDR21 (63mm→SDR21,0 exacto; 90mm→SDR20,93). Aplicando esa misma serie a 75mm:
+# PN6 e=75/33=2,3mm; PN10 e=75/21=3,6mm — mismo redondeo a 0,1mm que el resto de la tabla.
+#
+# PE 75mm (ago-2026): e_mín entregado directo por el usuario — PN10/SDR17 e≈4,5mm, PN16/SDR11
+# e≈6,8mm (ambos calzan con la fórmula e=D/SDR: 75/17=4,41; 75/11=6,82). Mismo criterio de las
+# demás filas PE del catálogo, que traen 2 clases por diámetro cuando el revisor las necesita.
 TUBOS_CATALOGO = [
     {"nombre": 'Aluminio 2"',  "dext": 50,    "dint": 48,    "c": 140, "material": "aluminio"},
     {"nombre": 'Aluminio 3"',  "dext": 76.2,  "dint": 74.2,  "c": 140, "material": "aluminio"},
@@ -49,6 +59,8 @@ TUBOS_CATALOGO = [
     {"nombre": "PVC 50mm PN10",  "dext": 50,  "dint": 45.2,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 63mm PN6",   "dext": 63,  "dint": 59.2,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 63mm PN10",  "dext": 63,  "dint": 57,    "c": 150, "material": "pvc"},
+    {"nombre": "PVC 75mm PN6",   "dext": 75,  "dint": 70.4,  "c": 150, "material": "pvc"},
+    {"nombre": "PVC 75mm PN10",  "dext": 75,  "dint": 67.8,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 90mm PN6",   "dext": 90,  "dint": 84.6,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 90mm PN10",  "dext": 90,  "dint": 81.4,  "c": 150, "material": "pvc"},
     {"nombre": "PVC 110mm PN6",  "dext": 110, "dint": 103.6, "c": 150, "material": "pvc"},
@@ -60,6 +72,8 @@ TUBOS_CATALOGO = [
     {"nombre": "PE 50mm SDR13.6 PN10 (Ø46.4)", "dext": 50, "dint": 46.4, "c": 120, "material": "pe"},
     {"nombre": "PE 63mm SDR13.6 PN10 (Ø57)",   "dext": 63, "dint": 57,   "c": 120, "material": "pe"},
     {"nombre": "PE 63mm SDR7.4 PN16 (Ø52.4)",  "dext": 63, "dint": 52.4, "c": 120, "material": "pe"},
+    {"nombre": "PE 75mm SDR17 PN10 (Ø66)",     "dext": 75, "dint": 66,   "c": 120, "material": "pe"},
+    {"nombre": "PE 75mm SDR11 PN16 (Ø61.4)",   "dext": 75, "dint": 61.4, "c": 120, "material": "pe"},
     {"nombre": "PE 90mm SDR13.6 PN10 (Ø81.4)", "dext": 90, "dint": 81.4, "c": 120, "material": "pe"},
     {"nombre": "Polietileno 16mm lat.", "dext": 16, "dint": 14, "c": 120, "material": "pe"},
 ]

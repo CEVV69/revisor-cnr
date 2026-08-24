@@ -62,6 +62,11 @@ sin que él reporte primero. Detalle en `docs/`.
    intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
    paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada).
 
+4. **Catálogo de tuberías — 4 filas 75mm agregadas** (ago-2026): PVC 75mm PN6/PN10 derivadas de
+   la serie SDR33/SDR21 que ya cumplen exacto los datos de 63/90mm del catálogo (sin acceso a
+   ficha técnica esta sesión, red bloqueada); PE 75mm SDR17/PN10 y SDR11/PN16 con el espesor que
+   entregó el usuario. Detalle de la derivación en `docs/`.
+
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
 predio, que solo vive dentro de `static/fotovoltaico_riego_v15.html`.
