@@ -77,6 +77,29 @@ numéricas directas de `verificacion_diseno_riego()` contra los números de las 
 reales y contra casos sintéticos del camino multi-día y la excepción del 20% — todos calzan.
 Sin probar todavía en la app real (pendiente que el usuario lo haga y reporte).
 
+**Evaluación de las 3 observaciones reales pegadas por el usuario (post-fix, antes de re-probar
+en la app):**
+1. **Confusión Dn/Db (demanda diaria vs. lámina del ciclo) — correcta.** La cadena AD→Dn→Fr→Db
+   ya estaba bien calculada antes de esta sesión; el fix de hoy (fila "Db diario" propia) la hace
+   más robusta/sistemática, no corrige un error de cálculo previo. Debería seguir saliendo.
+2. **Caudal de postura vs. caudal de fuente/motobomba — criterio válido, cifras sospechosas.**
+   El caudal de aspersor citado (0,00924 l/s ≈ 0,033 m³/hr) es 10-60× menor que un aspersor real
+   típico (0,3-2 m³/hr) — coincide con el patrón exacto del Bug 2 (extracción sin conversión de
+   unidades) recién corregido. Además la aritmética de la observación no cuadra (10×0,00924=
+   0,0924, no 0,026 que cita el texto). Recomendado: re-extraer datos agronómicos de este
+   proyecto y comparar el caudal de aspersor que sale ahora.
+3. **Balance diario deficitario — conclusión central INCORRECTA, causada por el bug ciclo-vs-día
+   ya corregido.** El "431.144 L/día" citado es en realidad el volumen de TODO el ciclo (Fr=8
+   días), no de un día — comparado (mal) contra 1 día de fuente. El balance real en 24h: 53.896
+   L/día requeridos vs. 319.680 L/día que aporta la fuente — sobra caudal, no hay déficit de
+   derecho de agua. Esa frase no debería volver a aparecer así. Lo que SÍ sigue siendo válido y
+   distinto: el tiempo total de las 4 posturas (83,56 hr) excede las 15 hr/día disponibles — un
+   problema real de capacidad operativa, no de derecho de agua; con el fix de reparto multi-día
+   la app ahora debería poder decir además cuántos días toma el ciclo completo.
+
+El usuario va a re-correr la revisión de diseño agronómico e hidráulico de este mismo proyecto
+para comparar las observaciones "post-fix" contra esta evaluación.
+
 ## Sesión ago-2026 — Catálogo de tuberías: agregado PVC/PE 75mm
 
 El usuario pidió agregar 3 tuberías al catálogo del Chequeo Hidráulico (`TUBOS_CATALOGO` en

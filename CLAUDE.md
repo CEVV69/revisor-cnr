@@ -38,15 +38,17 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Normativa + 4 bugs reportados en vivo (ago-2026) — implementado, sin probar en la app
-   todavía:** excepción 20%/aguas superficiales del acumulador (nuevo campo `tipo_fuente_agua`)
-   ahora DETERMINÍSTICA, no solo texto; corregido el bug ciclo-vs-día del Balance diario
-   (comparaba 1 ciclo completo contra 1 día de fuente); Aspersión/Carrete reparten posturas en
-   varios días reales (`dias_necesarios` vs. Fr); "Precipitación EFECTIVA" (VA/PP calculada)
-   alimenta el Diseño Base en vez del dato declarado a mano; fila "Db diario" separada de "Db"
-   del ciclo, con detección automática de esa confusión; extracción de `caudal_aspersor_m3h` con
-   conversión de unidades explícita; salvaguarda anti-alucinación de citas en `SYSTEM_PROMPT`.
-   Validado contra las 3 observaciones reales que pegó el usuario. Detalle en `docs/`.
+1. **Normativa + 4 bugs reportados en vivo (ago-2026) — implementado, EL USUARIO ESTÁ
+   RE-CORRIENDO la revisión de diseño agronómico e hidráulico del mismo proyecto de Aspersión
+   para comparar observaciones "post-fix":** excepción 20%/aguas superficiales del acumulador
+   ahora DETERMINÍSTICA (`tipo_fuente_agua`); corregido el bug ciclo-vs-día del Balance diario;
+   Aspersión/Carrete reparten posturas en varios días reales (`dias_necesarios` vs. Fr);
+   "Precipitación EFECTIVA" alimenta el Diseño Base en vez del dato declarado a mano; fila "Db
+   diario" separada de "Db" del ciclo; extracción de `caudal_aspersor_m3h` con conversión de
+   unidades; salvaguarda anti-alucinación en `SYSTEM_PROMPT`. Evaluación propia de las 3
+   observaciones reales pre-fix (1 correcta, 1 con cifras sospechosas de mala extracción, 1 con
+   conclusión central errada por el bug ciclo-vs-día) en `docs/` — comparar contra lo que
+   reporte el usuario al re-correr.
 
 2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
    ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
