@@ -301,6 +301,15 @@ Antes de marcar cualquier error de cálculo, interpreta los números con esta co
 NUNCA marques como error un número correctamente escrito en notación chilena.
 
 ═══════════════════════════════════════════════════════
+CITAS NORMATIVAS — NUNCA INVENTAR
+═══════════════════════════════════════════════════════
+NUNCA cites un artículo, sección o numeral específico de una norma (ej. "ITT-03 §1",
+"Art. 15° del Reglamento") salvo que ese texto esté verificado en la normativa CNR que se te
+entregó arriba. Si el criterio es válido pero no puedes verificar la referencia exacta,
+formula la observación sin número de artículo/sección (ej. "según ITT-03, diseño agronómico"
+en vez de inventar un numeral). Citar mal una referencia es peor que no citar ninguna.
+
+═══════════════════════════════════════════════════════
 CHECKLIST POR TIPO DE DOCUMENTO
 ═══════════════════════════════════════════════════════
 REVISIÓN TÉCNICA — CRITERIO DE INGENIERO:
@@ -515,7 +524,9 @@ disponible y caudal, potencia del equipo de bombeo y Cuadro de Carga Dinámica T
 dos últimos NO se recalculan automáticamente en la app, verifica que estén presentes y sean
 coherentes con el diseño.
 Si el caudal de diseño de un sector supera el caudal continuo disponible, confirma que se declare
-un acumulador (excepción: aguas superficiales con diferencia <20%). Si se incluyen equipos de
+un acumulador (excepción: aguas superficiales con diferencia <20%) — este chequeo ya viene
+recalculado más abajo en "Acumulador requerido (ITT-03 §1)" cuando el expediente trae los datos
+base; úsalo en vez de estimarlo tú mismo. Si se incluyen equipos de
 capacidad mayor a la necesidad hídrica, exige declaración jurada del solicitante aceptando los
 costos operacionales. En aducciones californianas, exige el detalle de sus componentes (red,
 válvulas, cámaras reguladoras, campanas) y los cálculos que lo fundamenten. En aspersión
@@ -1373,7 +1384,10 @@ cañón, según el sistema — en mca; si el documento la da en bar o kg/cm², c
 microaspersores; en Aspersión el caudal del aspersor va en "caudal_aspersor_m3h" y en Carrete
 el del cañón en "caudal_canon_m3h", NO los repitas acá)),
 además de los datos base del diseño de riego: superficie de riego del proyecto, caudal
-disponible (fuente/derecho de agua), precipitación (tasa de aplicación) del sistema de riego,
+disponible (fuente/derecho de agua), TIPO DE FUENTE del derecho de agua — "superficial" (río,
+canal, estero, embalse, vertiente) o "subterranea" (pozo, noria, drenes) según lo declare el
+estudio hidrológico o los antecedentes legales del derecho de aprovechamiento; usa null si el
+expediente no lo deja explícito, precipitación (tasa de aplicación) del sistema de riego,
 horas disponibles de riego al día, volumen de un ACUMULADOR/estanque/tranque regulador si el
 proyecto declara uno (para aumentar el caudal instantáneo disponible respecto al de la fuente),
 y lo que el consultor declara como resultado: caudal de diseño del sistema, tiempo de riego por
@@ -1386,9 +1400,16 @@ plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores 
 plantación del cultivo); si es Aspersión/Carrete, espaciamiento entre aspersores y entre
 laterales (NO el marco de plantación — en aspersión/carrete no aplica). Si el sistema es
 Aspersión o Carrete, extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr).
-Si el sistema es Aspersión, extrae también el N° de aspersores por postura y el caudal de un
-aspersor individual (m³/hr, dato de catálogo/ficha técnica del aspersor) — para verificar el
-caudal de trabajo que exige cada postura.
+Si el sistema es Aspersión, extrae también el N° de aspersores por postura y el caudal de UN
+SOLO aspersor individual (dato de catálogo/ficha técnica del aspersor — NUNCA el caudal total
+de la red ni el de la fuente/motobomba, que son órdenes de magnitud mayores). Repórtalo en
+"caudal_aspersor_m3h" SIEMPRE en m³/hr — conviértelo si el documento lo da en otra unidad:
+si viene en l/hr, divide por 1.000; si viene en l/s, multiplica por 3,6; si viene en l/min,
+multiplica por 0,06. Presta atención especial a esta conversión — es un error real y frecuente
+en la extracción: un caudal de aspersor típico es del orden de 0,3-2 m³/hr (algunas décimas a
+pocas unidades), NUNCA varios l/s ni decenas de m³/hr — si el valor que encontraste está muy
+fuera de ese rango, revisa si tomaste el caudal de la RED completa en vez del de un aspersor
+individual, o si necesitas convertir la unidad.
 Si el sistema es CARRETE (cañón viajero), extrae ADEMÁS los datos distintivos de su diseño
 operacional (metodología INIA-Carillanca): caudal de descarga del cañón según catálogo (m³/hr),
 margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
@@ -1430,6 +1451,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "factor_agotamiento_pct": number|null, "eficiencia_pct": number|null,
 "presion_emisor_mca": number|null, "caudal_emisor_lhr": number|null,
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
+"tipo_fuente_agua": "superficial"|"subterranea"|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
 "volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
 "n_aspersores_postura": number|null, "caudal_aspersor_m3h": number|null,
@@ -1932,7 +1954,12 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             f"AD (agua disponible) = {r['ad_mm']} mm",
             f"Dn (lámina neta) recalculada = {r['dn_mm']} mm",
             f"Fr (frecuencia de riego) recalculada = {r['fr_adj_dias']} días",
-            f"Db (demanda bruta) recalculada = {r['db_mm']} mm/día",
+            f"Db (demanda bruta) recalculada — CICLO de {r['fr_adj_dias']} días = {r['db_mm']} mm "
+            f"(NO es una cifra diaria)",
+            f"Db diario recalculada — SIN pasar por Fr = ETc/Ef = {r.get('db_diario_mm')} mm/día "
+            f"(base de 24 horas, distinta de la Db del ciclo de arriba — también conocida como "
+            f"\"DA\" o \"Etp/Ef\" en algunas planillas CNR; NO la confundas con la Db del ciclo, "
+            f"son dos magnitudes con base temporal distinta)",
         ]
     comparaciones = []
     if not alta_frec and declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_adj_mm"], declarado["dn_mm"]):
@@ -1940,7 +1967,17 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     if not alta_frec and declarado.get("fr_dias") is not None and declarado["fr_dias"] != r["fr_adj_dias"]:
         comparaciones.append(f"Fr declarada = {declarado['fr_dias']} días — no coincide con el recálculo ({r['fr_adj_dias']} días).")
     if declarado.get("db_mm") is not None and _diferencia_relevante(r["db_mm"], declarado["db_mm"]):
-        comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
+        db_diario_r = r.get("db_diario_mm")
+        if (not alta_frec and db_diario_r and
+                not _diferencia_relevante(db_diario_r, declarado["db_mm"])):
+            comparaciones.append(
+                f"Db declarada = {declarado['db_mm']} mm NO coincide con la Db del ciclo "
+                f"recalculada ({r['db_mm']} mm) — PERO SÍ coincide con la Db DIARIA recalculada "
+                f"({db_diario_r} mm/día). El consultor probablemente confundió la demanda diaria "
+                f"(ETc/Ef, sin Fr) con la lámina bruta del ciclo (ETc×Fr/Ef) — señala explícitamente "
+                f"esta confusión metodológica, citando ambos valores.")
+        else:
+            comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
     texto += ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico, misma fórmula normativa del "
             "Diseñador de Riego — no es una estimación de la IA, es un recálculo exacto a partir "
             f"de los datos base que declara el expediente):\n" + "\n".join(f"- {l}" for l in lineas))
@@ -1971,22 +2008,41 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     # a ser el N° que usan Caudal de operación/Tiempo total/Balance/Volumen del estanque de abajo
     # — reemplaza por completo al N° de sectores por caudal (que solo aplica a Goteo/
     # Microaspersión, sistemas sin posiciones fijas de emisor).
-    n_posturas_ext = None
+    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = None
     if datos.get("sistema_riego") == "Aspersión" and postura:
         n_posturas_ext = postura.get("n_posturas")
+        posturas_dia_ext = postura.get("posturas_dia")
+        dias_necesarios_ext = postura.get("dias_necesarios")
     elif datos.get("sistema_riego") == "Carrete" and carrete:
         n_posturas_ext = carrete.get("n_posturas")
+        posturas_dia_ext = carrete.get("posturas_dia")
+        dias_necesarios_ext = carrete.get("dias_necesarios")
 
     volumen_acum = datos.get("volumen_acumulador_m3")
+    tipo_fuente_agua = datos.get("tipo_fuente_agua")
+    es_fuente_superficial = tipo_fuente_agua == "superficial" if tipo_fuente_agua in ("superficial", "subterranea") else None
+    # Precipitación EFECTIVA (ago-2026, bug real): igual criterio que Dn/Fr/Db — en Aspersión/
+    # Carrete usa el equivalente físico YA calculado desde el marco de emisores/cañón (VA/PP),
+    # más confiable que la "Precipitación del sistema" tipeada a mano, y lo alimenta al Diseño
+    # Base en vez del valor declarado (que solo se compara, no se usa para calcular).
+    precip_declarada = datos.get("precipitacion_sistema_mmhr")
+    precip_efectiva = precip_declarada
+    if datos.get("sistema_riego") == "Aspersión" and postura and postura.get("va_mmhr"):
+        precip_efectiva = postura["va_mmhr"]
+    elif datos.get("sistema_riego") == "Carrete" and carrete and carrete.get("pluviometria_mmhr"):
+        precip_efectiva = carrete["pluviometria_mmhr"]
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         db_diario_mm_dia=r.get("db_diario_mm"),
         superficie_ha=datos.get("superficie_riego_ha"),
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
-        precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
+        precipitacion_mmhr=precip_efectiva,
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         volumen_acumulador_m3=volumen_acum,
         n_posturas_ext=n_posturas_ext,
+        posturas_dia_ext=posturas_dia_ext,
+        dias_necesarios_ext=dias_necesarios_ext,
+        es_fuente_superficial=es_fuente_superficial,
     )
     if diseno:
         lineas_diseno = [f"Demanda (base DIARIA, Db/Ef sin Fr) = {diseno['demanda_ls_ha']} l/s/ha"]
@@ -2001,8 +2057,14 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"toda la superficie con esta demanda.")
             lineas_diseno.append(linea)
         if "tiempo_riego_hr" in diseno:
-            linea = (f"Tiempo de riego = Db / Precipitación del sistema declarada "
-                      f"({datos.get('precipitacion_sistema_mmhr')} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")
+            if precip_efectiva != precip_declarada:
+                linea = (f"Tiempo de riego = Db / Precipitación EFECTIVA — se usa la VA/PP YA "
+                          f"calculada ({precip_efectiva} mm/hr, más confiable que la "
+                          f"\"Precipitación del sistema\" declarada de "
+                          f"{precip_declarada} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")
+            else:
+                linea = (f"Tiempo de riego = Db / Precipitación del sistema declarada "
+                          f"({precip_declarada} mm/hr) = {diseno['tiempo_riego_hr']} hr/día")
             declarado_triego = declarado.get("tiempo_riego_hr")
             if declarado_triego is not None and _diferencia_relevante(diseno["tiempo_riego_hr"], declarado_triego, 15):
                 linea += f" — declarado = {declarado_triego} hr/día, no coincide con el recálculo."
@@ -2060,8 +2122,22 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                   f"coincide con el recálculo.")
                 lineas_diseno.append(linea_op)
             if "tiempo_total_dia_hr" in diseno:
-                linea_tiempo = (f"Tiempo total para regar {articulo_pl} {diseno['n_sectores']} {palabra_pl} = "
-                                 f"N° {palabra_pl} × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
+                if "dias_necesarios" in diseno:
+                    linea_tiempo = (f"Tiempo ocupado en UN día real (con las posturas/día que "
+                                     f"rinden las horas disponibles) = {diseno['tiempo_total_dia_hr']} "
+                                     f"hr/día — completar {articulo_pl} {diseno['n_sectores']} "
+                                     f"{palabra_pl} toma {diseno['dias_necesarios']} día(s)")
+                    fr_declarada = r.get("fr_adj_dias")
+                    if fr_declarada and diseno["dias_necesarios"] > fr_declarada:
+                        linea_tiempo += (f" — MÁS días que la frecuencia de riego (Fr={fr_declarada} "
+                                          f"días) que el propio diseño usa: no alcanza a regar toda "
+                                          f"la superficie a tiempo. Genera una observación citando "
+                                          f"estos números.")
+                    elif fr_declarada:
+                        linea_tiempo += f" — dentro de la frecuencia de riego (Fr={fr_declarada} días)."
+                else:
+                    linea_tiempo = (f"Tiempo total para regar {articulo_pl} {diseno['n_sectores']} {palabra_pl} = "
+                                     f"N° {palabra_pl} × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
                 if "cabe_en_horas_disponibles" in diseno:
                     if diseno["cabe_en_horas_disponibles"]:
                         linea_tiempo += f" — cabe en las {datos.get('horas_disponibles_dia')} hr/día disponibles declaradas."
@@ -2071,9 +2147,32 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                           f"caudal (ej. con acumulador), la superficie, o distribuir "
                                           f"el riego en más días.")
                 lineas_diseno.append(linea_tiempo)
+            if "acumulador_requerido" in diseno:
+                linea_acum = "Acumulador requerido (ITT-03 §1): "
+                if not diseno["acumulador_requerido"]:
+                    if "diferencia_caudal_operacion_pct" in diseno:
+                        linea_acum += (f"NO requerido — la diferencia entre el caudal de operación "
+                                        f"y el disponible ({diseno['diferencia_caudal_operacion_pct']}%) "
+                                        f"está exenta por ser aguas superficiales con diferencia <20%.")
+                    else:
+                        linea_acum += "no requerido — el caudal de operación no supera al disponible."
+                elif volumen_acum:
+                    linea_acum += (f"requerido (diferencia {diseno.get('diferencia_caudal_operacion_pct')}%) "
+                                    f"y el proyecto SÍ declara un acumulador — ver dimensionamiento abajo.")
+                else:
+                    linea_acum += (f"requerido (el caudal de operación supera al disponible en "
+                                    f"{diseno.get('diferencia_caudal_operacion_pct')}%) y el proyecto NO "
+                                    f"declara un acumulador.")
+                    if not tipo_fuente_agua:
+                        linea_acum += (" El expediente no deja explícito el tipo de fuente (superficial/"
+                                        "subterránea) — si es superficial y la diferencia fuera <20%, "
+                                        "aplicaría la excepción de ITT-03 §1; no lo asumas, señala la "
+                                        "falta de acumulador Y la falta de este dato.")
+                    linea_acum += " Genera una observación citando estos números."
+                lineas_diseno.append(linea_acum)
             if "v_requerido_dia_l" in diseno and "v_fuente_dia_l" in diseno:
-                linea_bal = (f"Balance diario de volumen (NO depende del N° de {palabra_pl}): "
-                             f"V. requerido = Q requerido × Tiempo de riego × 3.600 = "
+                linea_bal = (f"Balance diario de volumen, EN BASE A 24 HORAS (ITT-03 §1): "
+                             f"V. requerido = Db diario × Superficie × 10.000 = "
                              f"{diseno['v_requerido_dia_l']} L/día — V. que aporta la fuente en "
                              f"24 hr = {diseno['v_fuente_dia_l']} L/día")
                 if diseno.get("balance_diario_ok"):
@@ -2086,8 +2185,11 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 lineas_diseno.append(linea_bal)
                 if "volumen_minimo_estanque_l" in diseno:
                     volumen_acum_l = round((volumen_acum or 0) * 1000)
-                    linea_vmin = (f"Volumen mínimo de acumulador que exige este diseño = "
-                                  f"V. requerido − Q fuente × Tiempo total × 3.600 = "
+                    linea_vmin = (f"Volumen mínimo de acumulador que exige este diseño (volumen de "
+                                  f"UN CICLO completo — Q requerido × Tiempo de riego × 3.600 = "
+                                  f"{diseno.get('v_ciclo_l')} L — menos lo que aporta la fuente "
+                                  f"durante el riego de un día; DISTINTO del balance diario de "
+                                  f"arriba, que es sobre 24 horas completas) = "
                                   f"{diseno['volumen_minimo_estanque_l']} L — volumen declarado "
                                   f"= {volumen_acum_l} L")
                     if diseno.get("acumulador_ok"):
@@ -2141,14 +2243,15 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                   "total/Balance/Volumen del estanque de acá abajo también son específicos de "
                   "cada sistema, no una referencia genérica. Nota: en Aspersión/Carrete, el "
                   "Tiempo de riego y el Caudal de operación de este bloque parten de la "
-                  "Precipitación del sistema DECLARADA — si difiere de la VA/pluviometría "
-                  "calculada arriba, estos dos números pueden no coincidir exactamente con Q_postura/"
-                  "Q_diseño del cañón; no es un error, son dos cálculos con distinto dato base):\n"
+                  "Precipitación EFECTIVA — la VA/PP YA calculada desde el marco de emisores/"
+                  "cañón cuando está disponible (más confiable que un valor tipeado a mano), y "
+                  "solo cae a la Precipitación del sistema declarada si no se pudo calcular):\n"
                   + "\n".join(f"- {l}" for l in lineas_diseno) +
                   "\n\nSi hay una discrepancia relevante, si el diseño no cabe en las horas "
-                  "disponibles, o si el balance diario o el volumen del acumulador no alcanzan, "
-                  "genera una observación citando los números exactos. Si todo cuadra, no lo "
-                  "menciones como observación.")
+                  "disponibles, si el ciclo tarda más días que Fr, si se requiere un acumulador "
+                  "que el proyecto no declara, o si el balance diario o el volumen del acumulador "
+                  "no alcanzan, genera una observación citando los números exactos. Si todo "
+                  "cuadra, no lo menciones como observación.")
 
     # Caudal de trabajo por postura vs. caudal disponible — parte diferida del bloque de arriba
     # (ver el comentario en ese punto). NO se compara si hay acumulador declarado: el modelo de
@@ -3755,13 +3858,16 @@ CONCEPTOS_METODOLOGIA = [
     ("ad", "AD — agua disponible del suelo (no aplica en Goteo, riego de alta frecuencia)"),
     ("dn", "Dn — lámina neta (no aplica en Goteo)"),
     ("fr", "Fr — frecuencia de riego (no aplica en Goteo)"),
-    ("db", "Db — demanda bruta (también puede llamarse \"Lámina Bruta a reponer\", LB, etc.)"),
+    ("db", "Db — demanda bruta DEL CICLO (también puede llamarse \"Lámina Bruta a reponer\", LB, etc.) — NO confundir con la demanda bruta diaria"),
+    ("db_diario", "Db diario — demanda bruta DIARIA (ETc/Ef, sin Fr; también \"DA\", \"Etp/Ef\" en algunas planillas CNR) — base de 24 horas, distinta de la Db del ciclo"),
     ("demanda_ls_ha", "Demanda en l/s/ha o módulo de riego"),
     ("superficie_segura", "Superficie de riego segura o factible según el caudal disponible"),
     ("tiempo_riego", "Tiempo de riego por sector o postura"),
     ("n_sectores", "N° de sectores o posturas de riego"),
     ("caudal_operacion", "Caudal de diseño de la red / caudal de operación"),
-    ("balance_diario", "Balance entre lo que entrega la fuente y lo que exige el diseño"),
+    ("acumulador_requerido", "Si el diseño requiere o no un acumulador/estanque (caudal de operación vs. disponible)"),
+    ("balance_diario", "Balance entre lo que entrega la fuente y lo que exige el diseño en 24 horas"),
+    ("dias_necesarios", "Días para completar el ciclo de posturas/sectores vs. la frecuencia de riego"),
     ("volumen_estanque", "Volumen requerido o declarado del acumulador/estanque"),
     ("amt_bombeo", "Altura Manométrica Total y/o caudal de diseño del equipo de bombeo"),
     ("hidraulico_general", "Método usado para calcular pérdida de carga y velocidad en tuberías"),

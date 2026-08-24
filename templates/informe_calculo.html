@@ -158,6 +158,7 @@
   <tr><td class="label">Precipitación del sistema</td><td class="valor">{{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }}</td></tr>
   <tr><td class="label">Horas disponibles al día</td><td class="valor">{{ val(agro.horas_disponibles_dia, ' hr') }}</td></tr>
   <tr><td class="label">Volumen acumulador (estanque/tranque)</td><td class="valor">{{ val(agro.volumen_acumulador_m3, ' m³') }}</td></tr>
+  <tr><td class="label">Tipo de fuente</td><td class="valor{{ '' if agro.tipo_fuente_agua else ' vacio' }}">{{ {'superficial': 'Aguas superficiales', 'subterranea': 'Aguas subterráneas'}.get(agro.tipo_fuente_agua, 'No declarado') }}</td></tr>
 </table>
 
 <!-- ══════════ 2. CADENA AGRONÓMICA ══════════ -->
@@ -217,11 +218,15 @@
   <div class="explica">Lámina neta ajustada al Fr entero — un dato DISTINTO de Dn (arriba): es la que efectivamente alimenta la demanda bruta (Db) más abajo, precisamente porque Fr se redondeó a un número entero de días.</div>
 </div>
 {% call paso('db') %}
-  <div class="formula">Db = (ETc × Fr_adj) / Eficiencia = ({{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }}) / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm/día') }}</strong></div>
-  <div class="explica">Demanda bruta — lo que hay que aplicar en cada riego, considerando la eficiencia real del sistema.</div>
+  <div class="formula">Db (ciclo de {{ val(calc.fr_adj_dias) }} días) = (ETc × Fr_adj) / Eficiencia = ({{ val(calc.etc_mm_dia) }} × {{ val(calc.fr_adj_dias) }}) / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_mm, ' mm') }}</strong></div>
+  <div class="explica">Demanda bruta del CICLO de riego (Fr días) — lo que hay que aplicar en cada riego, considerando la eficiencia real del sistema. Distinta de la Db diario de abajo: NO se dividen entre sí, son dos magnitudes con base temporal distinta (ciclo vs. día).</div>
   {% if agro.declarado and agro.declarado.db_mm is not none %}
-  <div class="compara">Declarado: {{ num(agro.declarado.db_mm) }} mm/día — {% if calc.db_mm and (calc.db_mm - agro.declarado.db_mm) | abs / calc.db_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  <div class="compara">Declarado: {{ num(agro.declarado.db_mm) }} mm — {% if calc.db_mm and (calc.db_mm - agro.declarado.db_mm) | abs / calc.db_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% if calc.db_diario_mm and (calc.db_diario_mm - agro.declarado.db_mm) | abs / calc.db_diario_mm * 100 <= 10 %} Coincide en cambio con la Db DIARIA (ver abajo) — posible confusión metodológica entre ambas magnitudes.{% endif %}{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
+{% endcall %}
+{% call paso('db_diario') %}
+  <div class="formula">Db diario = ETc / Eficiencia = {{ val(calc.etc_mm_dia) }} / ({{ val(agro.eficiencia_pct) }}/100) = <strong>{{ val(calc.db_diario_mm, ' mm/día') }}</strong></div>
+  <div class="explica">Demanda bruta DIARIA, SIN pasar por Fr — base de 24 horas (ITT-03 §1) que alimenta la Superficie de riego segura y el Balance diario de volumen más abajo. NO es la misma magnitud que la Db del ciclo de arriba (esta es diaria, esa es por Fr días) — no deben confundirse ni compararse entre sí como si fueran el mismo dato.</div>
 {% endcall %}
 {% endif %}
 
@@ -342,8 +347,8 @@
 
 {% if calc.tiempo_riego_hr is not none %}
 {% call paso('tiempo_riego') %}
-  <div class="formula">Tiempo de riego = Db / Precipitación del sistema = {{ val(calc.db_mm) }} / {{ val(agro.precipitacion_sistema_mmhr) }} = <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong></div>
-  <div class="explica">Tiempo diario de riego por sector, independiente del área total.</div>
+  <div class="formula">Tiempo de riego = Db / Precipitación {% if calc.precipitacion_efectiva_origen and 'calculada' in calc.precipitacion_efectiva_origen %}EFECTIVA{% else %}del sistema declarada{% endif %} = {{ val(calc.db_mm) }} / {{ val(calc.precipitacion_efectiva_mmhr, ' mm/hr') }} = <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong></div>
+  <div class="explica">Tiempo diario de riego por sector, independiente del área total.{% if calc.precipitacion_efectiva_origen and 'calculada' in calc.precipitacion_efectiva_origen %} Usa la {{ calc.precipitacion_efectiva_origen }} desde el marco de emisores/cañón — más confiable que la Precipitación del sistema tipeada a mano ({{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }}).{% endif %}</div>
   {% if agro.declarado and agro.declarado.tiempo_riego_hr is not none %}
   <div class="compara">Declarado: {{ num(agro.declarado.tiempo_riego_hr) }} hr — {% if calc.tiempo_riego_hr and (calc.tiempo_riego_hr - agro.declarado.tiempo_riego_hr) | abs / calc.tiempo_riego_hr * 100 > 10 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
@@ -377,18 +382,36 @@
 {% endcall %}
 {% endif %}
 
+{% if calc.acumulador_requerido is defined %}
+{% call paso('acumulador_requerido') %}
+  <div class="formula">Diferencia caudal operación vs. disponible = {{ val(calc.diferencia_caudal_operacion_pct, '%') }}</div>
+  <div class="explica">ITT-03 §1: si el caudal de operación del sector/postura de mayor gasto supera el caudal continuo disponible, se requiere un acumulador — salvo, en aguas superficiales, si la diferencia es menor a un 20%.</div>
+  <div class="compara">{% if not calc.acumulador_requerido %}<span class="ok">{% if calc.diferencia_caudal_operacion_pct is not none %}Exento — aguas superficiales, diferencia &lt;20%.{% else %}No requerido — caudal de operación dentro del disponible.{% endif %}</span>{% elif agro.volumen_acumulador_m3 %}<span class="ok">Requerido y declarado — ver dimensionamiento abajo.</span>{% else %}<span class="alerta">Requerido según ITT-03 §1 y el proyecto NO declara un acumulador.{% if not agro.tipo_fuente_agua %} (No se declaró el tipo de fuente — si es superficial y la diferencia es &lt;20%, aplicaría la excepción.){% endif %}</span>{% endif %}</div>
+{% endcall %}
+{% endif %}
+
 {% if calc.balance_diario_ok is defined %}
 {% call paso('balance_diario') %}
-  <div class="formula">Volumen requerido/día = Q requerido × Tiempo de riego × 3.600 = <strong>{{ val(calc.v_requerido_dia_l, ' L') }}</strong> · Volumen que repone la fuente/día = Caudal fuente × 86.400 = <strong>{{ val(calc.v_fuente_dia_l, ' L') }}</strong></div>
-  <div class="explica">Balance diario de volumen — condición de fondo: si la fuente no repone en 24 horas el volumen que exige el diseño, NINGÚN acumulador lo resuelve (habría que reducir superficie o aumentar el derecho de agua).</div>
+  <div class="formula">Volumen requerido/día = Db diario × Superficie × 10.000 = <strong>{{ val(calc.v_requerido_dia_l, ' L') }}</strong> · Volumen que repone la fuente/día = Caudal fuente × 86.400 = <strong>{{ val(calc.v_fuente_dia_l, ' L') }}</strong></div>
+  <div class="explica">Balance diario de volumen, EN BASE A 24 HORAS (ITT-03 §1) — condición de fondo: si la fuente no repone en 24 horas el volumen que exige el diseño, NINGÚN acumulador lo resuelve (habría que reducir superficie o aumentar el derecho de agua).</div>
   <div class="compara">{% if calc.balance_diario_ok %}<span class="ok">OK — la fuente repone lo suficiente en 24 horas.</span>{% else %}<span class="alerta">La fuente NO repone el volumen diario que exige el diseño.</span>{% endif %}</div>
+{% endcall %}
+{% endif %}
+
+{% if calc.dias_necesarios is not none %}
+{% call paso('dias_necesarios') %}
+  <div class="formula">Días para completar el ciclo = ⌈N° {% if calc.postura_check %}posturas{% else %}sectores{% endif %} / Posturas por día⌉ = <strong>{{ calc.dias_necesarios }} día{{ '' if calc.dias_necesarios == 1 else 's' }}</strong> · Frecuencia de riego (Fr) declarada por el diseño = <strong>{{ calc.fr_adj_dias }} día{{ '' if calc.fr_adj_dias == 1 else 's' }}</strong></div>
+  <div class="explica">En Aspersión/Carrete no todas las posturas caben en un solo día — este cotejo verifica que el ciclo completo (todas las posturas/sectores) se complete DENTRO de la frecuencia de riego que el propio diseño usa.</div>
+  {% if calc.ciclo_riego_ok is defined %}
+  <div class="compara">{% if calc.ciclo_riego_ok %}<span class="ok">OK — el ciclo se completa dentro de Fr.</span>{% else %}<span class="alerta">El ciclo tarda MÁS días que Fr — el diseño no alcanza a regar toda la superficie a tiempo.</span>{% endif %}</div>
+  {% endif %}
 {% endcall %}
 {% endif %}
 
 {% if calc.volumen_minimo_estanque_l is not none %}
 {% call paso('volumen_estanque') %}
-  <div class="formula">Volumen mínimo del estanque = Volumen requerido/día − Caudal fuente × (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
-  <div class="explica">Volumen mínimo que debe tener el acumulador para sostener el diseño, dado lo que la fuente ya aporta en el día.</div>
+  <div class="formula">Volumen mínimo del estanque = Volumen de un ciclo (Q requerido × Tiempo de riego × 3.600 = {{ val(calc.v_ciclo_l, ' L') }}) − Caudal fuente × (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
+  <div class="explica">Volumen mínimo que debe tener el acumulador para sostener el diseño, dado lo que la fuente ya aporta durante el riego de un día — distinto del balance diario de arriba, que es sobre 24 horas completas.</div>
   <div class="compara">Volumen declarado: {{ val(agro.volumen_acumulador_m3, ' m³') }} — {% if calc.acumulador_ok %}<span class="ok">alcanza.</span>{% else %}<span class="alerta">NO alcanza el volumen mínimo requerido.</span>{% endif %}</div>
 {% endcall %}
 {% if calc.delta_q_estanque_ls is not none %}

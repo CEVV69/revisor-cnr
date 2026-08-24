@@ -1731,6 +1731,16 @@ def _es_alta_frecuencia(datos: dict) -> bool:
     return (datos or {}).get("sistema_riego") in SISTEMAS_ALTA_FRECUENCIA
 
 
+def _es_fuente_superficial(tipo_fuente_agua):
+    """None si no se declaró/extrajo el tipo de fuente (la excepción del 20% de ITT-03 §1 no se
+    puede evaluar sin este dato — verificacion_diseno_riego simplemente no la aplica). True/False
+    solo cuando el expediente lo deja explícito (derecho de aguas superficiales vs. subterráneas
+    — ver `tipo_fuente_agua` en `_extraer_datos_agronomicos`, analyzer.py)."""
+    if tipo_fuente_agua not in ("superficial", "subterranea"):
+        return None
+    return tipo_fuente_agua == "superficial"
+
+
 def _agronomico_calculo(datos: dict):
     alta_frec = _es_alta_frecuencia(datos)
     # Desglose de Humedad Aprovechable por capas de suelo (Diseñador de Riego) — solo Aspersión y
@@ -1820,24 +1830,67 @@ def _agronomico_calculo(datos: dict):
         ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
     if capas_calc:
         r["capas_suelo_calc"] = capas_calc
+    # Recalcula Postura de Aspersión con la cadena agronómica completa (db_mm) ANTES de
+    # verificacion_diseno_riego, para que posturas_dia/dias_necesarios ya estén disponibles.
+    if postura_check and postura_check.get("va_mmhr"):
+        postura_check = calculos_riego.postura_aspersion(
+            caudal_aspersor_m3h=datos.get("caudal_aspersor_m3h"),
+            espaciamiento_aspersores_m=datos.get("espaciamiento_aspersores_m"),
+            espaciamiento_laterales_m=datos.get("espaciamiento_laterales_m"),
+            n_aspersores=datos.get("n_aspersores_postura"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            vib_mmhr=datos.get("vib_mmhr"),
+            db_mm=r["db_mm"], horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+        ) or postura_check
     # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
     # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
-    # verificacion_diseno_riego).
-    n_posturas_ext = None
+    # verificacion_diseno_riego). posturas_dia/dias_necesarios también se traspasan, para que
+    # Tiempo total del día refleje UN día real y no el ciclo completo (ago-2026).
+    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = None
     if datos.get("sistema_riego") == "Aspersión" and postura_check:
         n_posturas_ext = postura_check.get("n_posturas")
+        posturas_dia_ext = postura_check.get("posturas_dia")
+        dias_necesarios_ext = postura_check.get("dias_necesarios")
     elif datos.get("sistema_riego") == "Carrete" and carrete_check:
         n_posturas_ext = carrete_check.get("n_posturas")
+        posturas_dia_ext = carrete_check.get("posturas_dia")
+        dias_necesarios_ext = carrete_check.get("dias_necesarios")
+    # Precipitación EFECTIVA (ago-2026, bug real): "Precipitación del sistema" era un dato
+    # declarado a mano que alimentaba directo el Tiempo de riego/Caudal de operación/Diseño
+    # Base, aunque en Aspersión/Carrete la app YA calcula el equivalente físico desde el marco
+    # de emisores/cañón (VA/PP arriba) — más confiable que un valor tipeado por el consultor, que
+    # puede estar mal transcrito. Usa el CALCULADO cuando existe (misma lógica que Dn/Fr/Db: la
+    # cadena de la app manda, lo declarado solo se compara); cae al declarado si no se pudo
+    # calcular (falta el marco de emisores/cañón) o en Goteo/Microaspersión (sin equivalente
+    # físico calculado acá).
+    precip_efectiva = datos.get("precipitacion_sistema_mmhr")
+    precip_origen = "declarada"
+    if datos.get("sistema_riego") == "Aspersión" and postura_check and postura_check.get("va_mmhr"):
+        precip_efectiva = postura_check["va_mmhr"]
+        precip_origen = "calculada (VA)"
+    elif datos.get("sistema_riego") == "Carrete" and carrete_check and carrete_check.get("pluviometria_mmhr"):
+        precip_efectiva = carrete_check["pluviometria_mmhr"]
+        precip_origen = "calculada (PP)"
+    if precip_efectiva is not None:
+        r["precipitacion_efectiva_mmhr"] = precip_efectiva
+        r["precipitacion_efectiva_origen"] = precip_origen
     r.update(calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         db_diario_mm_dia=r.get("db_diario_mm"),
         superficie_ha=datos.get("superficie_riego_ha"),
         caudal_disponible_ls=datos.get("caudal_disponible_ls"),
-        precipitacion_mmhr=datos.get("precipitacion_sistema_mmhr"),
+        precipitacion_mmhr=precip_efectiva,
         horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         volumen_acumulador_m3=datos.get("volumen_acumulador_m3"),
         n_posturas_ext=n_posturas_ext,
+        posturas_dia_ext=posturas_dia_ext,
+        dias_necesarios_ext=dias_necesarios_ext,
+        es_fuente_superficial=_es_fuente_superficial(datos.get("tipo_fuente_agua")),
     ))
+    # Validación de ciclo: si el diseño tarda más días en completar las posturas/sectores que
+    # la frecuencia de riego (Fr) que el propio diseño usa, no alcanza a regar a tiempo.
+    if r.get("dias_necesarios") is not None and r.get("fr_adj_dias"):
+        r["ciclo_riego_ok"] = r["dias_necesarios"] <= r["fr_adj_dias"]
     if kc_dt05:
         r["kc_dt05"] = kc_dt05
     if eficiencia_check:
@@ -1845,16 +1898,6 @@ def _agronomico_calculo(datos: dict):
     if vib_check:
         r["vib_check"] = vib_check
     if postura_check:
-        if postura_check.get("va_mmhr"):
-            postura_check = calculos_riego.postura_aspersion(
-                caudal_aspersor_m3h=datos.get("caudal_aspersor_m3h"),
-                espaciamiento_aspersores_m=datos.get("espaciamiento_aspersores_m"),
-                espaciamiento_laterales_m=datos.get("espaciamiento_laterales_m"),
-                n_aspersores=datos.get("n_aspersores_postura"),
-                superficie_ha=datos.get("superficie_riego_ha"),
-                vib_mmhr=datos.get("vib_mmhr"),
-                db_mm=r["db_mm"], horas_disponibles_dia=datos.get("horas_disponibles_dia"),
-            ) or postura_check
         r["postura_check"] = postura_check
     if carrete_check:
         r["carrete_check"] = carrete_check
@@ -2036,7 +2079,7 @@ def _fecha_disenador() -> str:
 _CAMPOS_AGRO_INFORME = (
     "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
     "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr",
-    "superficie_riego_ha", "caudal_disponible_ls", "precipitacion_sistema_mmhr",
+    "superficie_riego_ha", "caudal_disponible_ls", "tipo_fuente_agua", "precipitacion_sistema_mmhr",
     "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
     "caudal_aspersor_m3h", "caudal_canon_m3h",
     "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
@@ -2052,6 +2095,8 @@ _CAMPOS_CALC_INFORME = (
     "tiempo_total_dia_hr", "caudal_operacion_ls", "v_requerido_dia_l", "v_fuente_dia_l",
     "volumen_minimo_estanque_l", "acumulador_ok", "delta_q_estanque_ls", "autonomia_estanque_hr",
     "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
+    "dias_necesarios", "diferencia_caudal_operacion_pct", "v_ciclo_l",
+    "precipitacion_efectiva_mmhr", "precipitacion_efectiva_origen",
 )
 _CAMPOS_TRAMO_INFORME = (
     "nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
@@ -2089,6 +2134,11 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
       "VIB no cumple".
     • `angulo_sector_fuera_rango` de `carrete_check` — mismo caso: su ausencia significa "dentro
       de rango o no declarado", no "fuera de rango".
+    • `acumulador_requerido` (ago-2026) — mismo caso: solo se calcula si hay caudal de operación
+      Y caudal disponible; su ausencia es "no se pudo evaluar", no "no requerido".
+    • `ciclo_riego_ok` (ago-2026) — mismo caso: solo se calcula si hay `dias_necesarios` Y `Fr`
+      (Aspersión/Carrete con horas disponibles declaradas); su ausencia es "no se pudo evaluar
+      el ciclo", no "el ciclo no calza".
     • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
       por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
     """
@@ -2582,6 +2632,8 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
         datos = {c: _num_form(form, p + c) for c in campos}
         datos["cultivo"] = (form.get(p + "cultivo") or "").strip() or None
         datos["sistema_riego"] = (form.get(p + "sistema_riego") or "").strip() or None
+        tipo_fuente = (form.get(p + "tipo_fuente_agua") or "").strip() or None
+        datos["tipo_fuente_agua"] = tipo_fuente if tipo_fuente in ("superficial", "subterranea") else None
         capas = []
         for j in range(N_CAPAS_SUELO):
             cp = f"{p}capa{j}_"

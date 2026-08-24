@@ -1,3 +1,82 @@
+## Sesión ago-2026 — Normativa ITT-03 + 4 bugs reportados en vivo (Aspersión)
+
+El usuario subió `prompt_fix_revisor_cnr.md` (4 bugs que la Diseñador-Riego-Claude encontró
+comparando el Chequeo de Revisor contra el flujo del Diseñador con un proyecto real). Se
+verificó cada uno contra el código corriendo (no solo leyéndolo), se preguntó al usuario sobre
+el modelo de acumulador, y se verificaron todas las conclusiones contra los documentos CNR
+REALES en Google Drive (no solo el `normativa/` distilado del repo) — surgieron correcciones
+importantes. El usuario aprobó todo con "Si implementa esa mejora y las que hablamos antes" y
+pegó 3 observaciones reales generadas por la app en un proyecto de Aspersión, como insumo de
+validación.
+
+**Hallazgo clave en Drive:** el `normativa/ITT-03_Diseno_Obras.txt` distilado le faltaba
+COMPLETO el numeral "1. Diseño agronómico" del ITT-03 real (el archivo solo tenía el numeral
+2, "Cálculos hidráulicos", bajo el título "1. DISEÑO HIDRÁULICO" — un desplazamiento de
+numeración, no una alucinación de la cita "ITT-03 §1" que se había sospechado). Se agregó una
+sección "1. DISEÑO AGRONÓMICO" nueva con el texto verbatim verificado: *"La superficie física
+del proyecto no podrá ser mayor a la superficie posible de ser regada con el agua disponible
+con 85% de seguridad según el diseño agronómico EN 24 HORAS. [...] se deberá considerar un
+acumulador [...] Solo en el caso de aguas superficiales, no se exigirá el acumulador siempre
+que la diferencia [...] sea inferior a un 20%."* — y se renumeraron las secciones existentes.
+
+**Modelo de acumulador "por ventana de tiempo" — descartado tras verificar ITT-01.** El usuario
+explicó conceptualmente un modelo de continuidad (ΔQ=máx(0,Q_operación−Q_fuente), V_aporte,
+V_recarga dependiente del tipo de derecho: permanente recarga siempre, eventual/turnos solo
+cuando hay agua) — se le propuso implementarlo, pero al leer el ITT-01 real la regla oficial
+resultó mucho más simple: un factor ×0,5 fijo sobre el caudal disponible para derechos
+eventuales, aplicado en la demostración del Q85% (una etapa anterior y separada de este
+acumulador). Se le informó la corrección al usuario en vez de mantener en silencio la propuesta
+ya invalidada, y se implementó SOLO la regla documentada (la excepción del 20%), no el modelo
+de ventana de tiempo.
+
+**Implementado** (`calculos_riego.verificacion_diseno_riego`, docstring extendido con el
+detalle de cada punto):
+1. **Excepción 20%/aguas superficiales** — nuevo parámetro `es_fuente_superficial`, nuevas
+   claves `acumulador_requerido`/`diferencia_caudal_operacion_pct`. Nuevo dato declarado
+   `tipo_fuente_agua` ("superficial"/"subterranea") en extracción (`analyzer.py`), formulario
+   (`calculos.html`), guardado (`main.py`) y ambas Memorias — NO se exporta al Diseñador (no
+   tiene campo equivalente real, ver docstring de `exportar_disenador.py`).
+2. **Bug ciclo-vs-día (recién encontrado, no estaba en el prompt original):** "Balance diario de
+   volumen" comparaba `Q_requerido×Tiempo_riego` (que en Aspersión/Carrete es el volumen de UN
+   CICLO completo, Fr días) contra 1 día de fuente — comparación inválida que el propio texto
+   "L/día" ocultaba (confirmado con la Observación 3 del usuario: "requiere 431.144 L/día"
+   resultó ser el volumen del ciclo completo de 8 días, no de un día). Ahora usa
+   `Db_diario × Superficie × 10.000` (misma base de 24h que la superficie segura) — el volumen
+   de ciclo se conserva, correctamente, solo como base de `volumen_minimo_estanque_l` (nueva
+   clave `v_ciclo_l` expuesta para que la Memoria muestre la fórmula real).
+3. **Bug 3 — posturas todo en un día:** `tiempo_total_dia_hr` asumía que todas las posturas de
+   Aspersión/Carrete cabían en un solo día. Ahora usa `posturas_dia`/`dias_necesarios` (ya
+   calculados por `postura_aspersion()`/`diseno_carrete()`) cuando están disponibles; nueva
+   validación `dias_necesarios ≤ Fr` (`ciclo_riego_ok`). Sin ese dato (u horas disponibles no
+   declaradas), cae al comportamiento anterior — validado con la Observación 3: con solo 15 hr
+   disponibles y una postura de 20,89 hr, ni siquiera cabe UNA postura al día (posturas_dia=0),
+   así que el fallback "83,56 hr, no cabe" sigue siendo la alarma correcta, no un bug.
+4. **Bug 4 — precipitación declarada vs. calculada:** "Precipitación del sistema" era un dato
+   tipeado a mano que alimentaba Tiempo de riego/Diseño Base, aunque la app YA calcula el
+   equivalente físico (VA en Aspersión, PP en Carrete) desde el marco de emisores/cañón. Ahora
+   la "Precipitación EFECTIVA" (calculada cuando existe, declarada si no) alimenta la cadena —
+   mismo criterio que Dn/Fr/Db, donde la cadena de la app manda y lo declarado solo se compara.
+5. **Bug 1 — Db diario sin fila propia:** `db_diario_mm` (ETc/Ef, sin Fr) se calculaba pero
+   nunca se mostraba — un consultor que declara Db = ETc/Ef (confundiendo la demanda DIARIA con
+   la lámina bruta del CICLO) nunca quedaba en evidencia. Nueva fila "Db diario" en las 3 capas
+   (Chequeo, ambas Memorias); detección automática: si lo declarado coincide con Db diario pero
+   no con Db del ciclo, se señala la confusión explícitamente citando ambos valores — validado
+   exacto contra la Observación 1 del usuario (declaró Db=6,27mm, que es ETc/Ef=4,7/0,75=6,267,
+   NO el Db del ciclo real de 50,13mm).
+6. **Bug 2 — extracción de `caudal_aspersor_m3h`:** sin guía de conversión de unidades (a
+   diferencia de `caudal_diseno_ls`, que sí la tenía) — instrucción nueva con conversión
+   explícita (l/hr→÷1.000, l/s→×3,6, l/min→×0,06) y rango de sanity-check (0,3-2 m³/hr típico,
+   nunca varios l/s). La validación cruzada `caudal_postura vs. caudal declarado/disponible` YA
+   existía en el código (`analyzer.py`, narrativa de Aspersión) — no hubo que construirla.
+7. **Salvaguarda anti-alucinación:** nueva sección en `SYSTEM_PROMPT` (`analyzer.py`) — nunca
+   citar artículo/sección de norma salvo verificado en la normativa entregada.
+
+Todo verificado con `py_compile`, parseo Jinja2 de las 3 plantillas tocadas, `node --check` del
+bloque JS de `calculos.html`, e importación completa de `main.py`. Se corrieron pruebas
+numéricas directas de `verificacion_diseno_riego()` contra los números de las 3 observaciones
+reales y contra casos sintéticos del camino multi-día y la excepción del 20% — todos calzan.
+Sin probar todavía en la app real (pendiente que el usuario lo haga y reporte).
+
 ## Sesión ago-2026 — Catálogo de tuberías: agregado PVC/PE 75mm
 
 El usuario pidió agregar 3 tuberías al catálogo del Chequeo Hidráulico (`TUBOS_CATALOGO` en

@@ -38,34 +38,27 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Auditoría general (ago-2026) — 4 correcciones aplicadas, sin probar en la app todavía:**
-   · **Microaspersión es de ALTA FRECUENCIA**, igual que Goteo (Db directo de ETc, sin AD/Dn/Fr
-     ni textura de suelo). El checklist siempre lo dijo pero el motor solo eximía a Goteo, así que
-     un proyecto de microaspersión bien presentado perdía en silencio TODO el bloque de
-     verificación. Criterio único: `SISTEMAS_ALTA_FRECUENCIA` (main.py), expuesto como global de
-     Jinja; réplicas en `analyzer.alta_frec` y `esAltaFrecuencia` (calculos.html).
-   · **Concursos separados por clave** `concurso:{id}` (antes un blob único con TODOS: cada carga
-     de página traía las bases completas de todos los concursos). `db.resumen_concurso()` para la
-     carga de página; `_render_proyecto` ya no bloquea el event loop.
-   · **Metodología del consultor: UNA sola llamada para los N sistemas** (antes una por sistema
-     con el mismo expediente — la mitad del costo era desperdicio).
-   · Etiquetas de `_log_uso` numeradas por orden de trabajo (1 Resumen → 9 Subsanación, + Admin);
-     dos estaban intercambiadas. `modelo` pasó a ser obligatorio en `_log_uso`.
+1. **Normativa + 4 bugs reportados en vivo (ago-2026) — implementado, sin probar en la app
+   todavía:** excepción 20%/aguas superficiales del acumulador (nuevo campo `tipo_fuente_agua`)
+   ahora DETERMINÍSTICA, no solo texto; corregido el bug ciclo-vs-día del Balance diario
+   (comparaba 1 ciclo completo contra 1 día de fuente); Aspersión/Carrete reparten posturas en
+   varios días reales (`dias_necesarios` vs. Fr); "Precipitación EFECTIVA" (VA/PP calculada)
+   alimenta el Diseño Base en vez del dato declarado a mano; fila "Db diario" separada de "Db"
+   del ciclo, con detección automática de esa confusión; extracción de `caudal_aspersor_m3h` con
+   conversión de unidades explícita; salvaguarda anti-alucinación de citas en `SYSTEM_PROMPT`.
+   Validado contra las 3 observaciones reales que pegó el usuario. Detalle en `docs/`.
 
 2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
    ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
-   de usar AD/Dn/Fr en Goteo/Micro, truncamiento de capas, superficie segura con demanda diaria,
-   caudal de operación vs. de fuente, singulares ≈20%, variación de presión ≤20%, y del Carrete
-   turbina/fuelle y regulador si Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
+   de usar AD/Dn/Fr en Goteo/Micro, truncamiento de capas, caudal de operación vs. de fuente,
+   singulares ≈20%, variación de presión ≤20%, y del Carrete turbina/fuelle y regulador si
+   Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
 
 3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
    intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
-   paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada).
-
-4. **Catálogo de tuberías — 4 filas 75mm agregadas** (ago-2026): PVC 75mm PN6/PN10 derivadas de
-   la serie SDR33/SDR21 que ya cumplen exacto los datos de 63/90mm del catálogo (sin acceso a
-   ficha técnica esta sesión, red bloqueada); PE 75mm SDR17/PN10 y SDR11/PN16 con el espesor que
-   entregó el usuario. Detalle de la derivación en `docs/`.
+   paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada). El modelo
+   de acumulador "por ventana de tiempo" (ΔQ/V_aporte/V_recarga) diseñado con el usuario quedó
+   DESCARTADO al verificar ITT-01 (regla oficial más simple, ya vigente) — detalle en `docs/`.
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del

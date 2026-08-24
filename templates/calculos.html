@@ -187,6 +187,13 @@
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
+        <div><label>Tipo de fuente <span title="Solo en aguas superficiales, ITT-03 §1 exime del acumulador si el caudal de operación supera al disponible en menos de 20%.">ⓘ</span></label>
+          <select id="{{ p }}tipo_fuente_agua" name="{{ p }}tipo_fuente_agua">
+            <option value="" {{ 'selected' if not agro.tipo_fuente_agua }}>—</option>
+            <option value="superficial" {{ 'selected' if agro.tipo_fuente_agua == 'superficial' }}>Aguas superficiales</option>
+            <option value="subterranea" {{ 'selected' if agro.tipo_fuente_agua == 'subterranea' }}>Aguas subterráneas</option>
+          </select>
+        </div>
         <div class="sistema-riego-campo campo-scall"><label>&nbsp;</label><a href="/static/scall_diseno_v21.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Cálculo Scall</a></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
@@ -307,11 +314,18 @@
             </td>
           </tr>
           <tr>
-            <td class="col-concepto">Db — demanda bruta (mm/día)</td>
+            <td class="col-concepto">Db — demanda bruta del ciclo (mm)</td>
             <td><input type="number" step="0.01" id="{{ p }}decl_db" name="{{ p }}decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-db-calc">—</span>
               <span id="{{ p }}agro-db-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="col-concepto" colspan="2">Db diario — ETc/Ef, SIN pasar por Fr (mm/día)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-dbdiario-calc">—</span>
+              <span id="{{ p }}agro-dbdiario-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr>
@@ -346,10 +360,24 @@
             </td>
           </tr>
           <tr>
-            <td class="col-concepto" colspan="2">Balance diario de volumen (fuente vs. requerido)</td>
+            <td class="col-concepto" colspan="2">Balance diario de volumen — 24 horas (fuente vs. requerido)</td>
             <td class="col-calc">
               <span id="{{ p }}agro-balance-calc">—</span>
               <span id="{{ p }}agro-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="col-concepto" colspan="2">Acumulador requerido (ITT-03 §1)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-acumreq-calc">—</span>
+              <span id="{{ p }}agro-acumreq-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr id="{{ p }}agro-dias-row" style="display:none;">
+            <td class="col-concepto" colspan="2">Días para completar el ciclo vs. frecuencia de riego</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-dias-calc">—</span>
+              <span id="{{ p }}agro-dias-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr class="fila-acumulador{{ ' activa' if agro.volumen_acumulador_m3 else '' }}">
@@ -898,6 +926,11 @@
     // operación/Tiempo total/Balance/Volumen del estanque más abajo (se completa en el bloque de
     // Aspersión o de Carrete, ambos independientes de la cadena, antes de llegar acá).
     var nPosturasReal = null;
+    // Posturas/día real (Aspersión/Carrete) — se completa en el bloque de cada sistema, ANTES
+    // del bloque de N° de sectores/tiempo total más abajo, que lo usa para no asumir que todas
+    // las posturas caben en un solo día (ago-2026, mismo fix que verificacion_diseno_riego()).
+    var posturasDiaReal = null;
+    var tipoFuente = strVal(p + "tipo_fuente_agua");
     // Nota de "no coincide con lo declarado" del N° de posturas — se arma como STRING acá (no se
     // escribe al DOM todavía) porque `nota()` con texto vacío solo oculta el <span>, NO limpia su
     // textContent — leer el DOM más abajo para "agregar" la alerta de horas encima quedaría
@@ -1162,6 +1195,7 @@
       if (tPostura !== null && horas !== null) {
         var tCambio = tiempoCambioCar !== null ? tiempoCambioCar : 1.5;
         var posturasDiaCar = Math.max(0, Math.floor(horas / (tPostura + tCambio)));
+        if (sistema === "Carrete" && posturasDiaCar > 0) posturasDiaReal = posturasDiaCar;
         var txtPostDia = String(posturasDiaCar) + " postura" + (posturasDiaCar === 1 ? "" : "s") + "/día (cambio " + fmt(tCambio, 1) + " hr)";
         if (posturasDiaCar > 0 && nPosturas !== null) {
           txtPostDia += " · " + Math.ceil(nPosturas / posturasDiaCar) + " días necesarios";
@@ -1206,11 +1240,14 @@
     else base = [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-dnadj-calc", "agro-fr-calc", "agro-db-calc",
-       "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
-       "agro-balance-calc", "agro-vmin-calc", "agro-deltaq-calc", "agro-autonomia-calc",
-       "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
-      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-sup-nota", "agro-triego-nota",
-       "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
+       "agro-dbdiario-calc", "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
+       "agro-balance-calc", "agro-acumreq-calc", "agro-vmin-calc", "agro-deltaq-calc",
+       "agro-autonomia-calc", "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
+      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-dbdiario-nota", "agro-sup-nota", "agro-triego-nota",
+       "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-acumreq-nota",
+       "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
+      var diasRowReset = document.getElementById(p + "agro-dias-row");
+      if (diasRowReset) diasRowReset.style.display = "none";
       setText(p + "agro-hint", esAltaFrecuencia
         ? "Completa Kc, ETo y Eficiencia para ver el recálculo."
         : esAspersionOCarrete && (document.getElementById(p + "capas_chk") || {}).checked
@@ -1225,6 +1262,11 @@
       : (cc !== null && pmp !== null && da !== null && prof !== null)
       ? (cc - pmp) / 100 * da * (prof / 100) * 1000 : null;
     var dn, fr, frAdj, dnAdj, db;
+    // Db diario — ETc/Ef, SIN pasar por Fr (base diaria, distinta de Db del ciclo más abajo).
+    // En alta frecuencia coinciden (Fr=1); en Aspersión/Carrete/gravitacional NO — Db diario
+    // solo alimenta la Superficie de riego segura y el Balance diario (24 horas), nunca el
+    // Tiempo de riego ni el Diseño Base (esos siguen con Db del ciclo).
+    var dbDiario = ef ? etc / (ef / 100) : 0;
     if (esAltaFrecuencia) {
       // Goteo/Microaspersión: riego diario, Db directo de la ETc, sin factor de agotamiento (Fr=1).
       frAdj = 1;
@@ -1247,10 +1289,22 @@
     setText(p + "agro-dn-calc", esAltaFrecuencia ? "—" : fmt(dn, 3) + " mm");
     setText(p + "agro-dnadj-calc", esAltaFrecuencia ? "—" : fmt(dnAdj, 3) + " mm");
     setText(p + "agro-fr-calc", esAltaFrecuencia ? "1 (riego diario)" : frAdj + " días");
-    setText(p + "agro-db-calc", fmt(db, 3) + " mm/día");
+    setText(p + "agro-db-calc", fmt(db, 3) + " mm" + (esAltaFrecuencia ? "/día" : " (ciclo de " + frAdj + " día" + (frAdj === 1 ? "" : "s") + ")"));
     nota(p + "agro-dn-nota", (!esAltaFrecuencia && diferenciaRelevante(dn, declDn, 10)) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
     nota(p + "agro-fr-nota", (!esAltaFrecuencia && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
+
+    // Db diario — fila propia (ago-2026, bug real): antes solo alimentaba la Superficie de riego
+    // segura/Balance diario sin mostrarse nunca, así que un consultor que declara Db = ETc/Ef
+    // (confundiendo la demanda DIARIA con la lámina bruta del CICLO) nunca quedaba en evidencia —
+    // "diferenciaRelevante(db, declDb, 10)" arriba comparaba contra el Db del ciclo y a veces ni
+    // siquiera disparaba, porque el declarado SÍ coincidía... con el diario, no con el del ciclo.
+    setText(p + "agro-dbdiario-calc", fmt(dbDiario, 3) + " mm/día");
+    if (!esAltaFrecuencia && declDb !== null && dbDiario && !diferenciaRelevante(dbDiario, declDb, 10) && diferenciaRelevante(db, declDb, 10)) {
+      nota(p + "agro-dbdiario-nota", "Lo declarado como Db (" + fmt(declDb, 2) + " mm) coincide con la demanda DIARIA (ETc/Ef, sin Fr), no con la demanda bruta del ciclo (" + fmt(db, 2) + " mm) — el consultor puede estar confundiendo ambas magnitudes (ver AD→Dn→Fr→Db).");
+    } else {
+      nota(p + "agro-dbdiario-nota", "");
+    }
 
     // Tiempo por postura y posturas/día (Aspersión) — necesitan Db, recién disponible acá.
     var tiempoPosturaAsp = null;
@@ -1259,6 +1313,7 @@
       var txtTpost = "T. postura = Db/VA = " + fmt(tiempoPosturaAsp, 2) + " hr";
       if (horas !== null) {
         var posturasDia = Math.floor(horas / (tiempoPosturaAsp + 0.5));
+        if (sistema === "Aspersión" && posturasDia > 0) posturasDiaReal = posturasDia;
         txtTpost += " · Posturas/día = " + posturasDia + " (traslado 0,5 hr)";
         if (posturasDia > 0 && nPosturasAsp !== null) {
           txtTpost += " · Días necesarios = " + Math.ceil(nPosturasAsp / posturasDia);
@@ -1267,9 +1322,18 @@
       setText(p + "agro-tpost-calc", txtTpost);
     }
 
+    // Precipitación EFECTIVA (ago-2026, bug real): en Aspersión/Carrete usa el equivalente físico
+    // YA calculado desde el marco de emisores/cañón (VA/PP arriba, más confiable que un valor
+    // tipeado a mano) para alimentar Tiempo de riego/Caudal de operación/Diseño Base — mismo
+    // criterio que Dn/Fr/Db (la cadena de la app manda, lo declarado solo se compara). Cae a la
+    // Precipitación del sistema declarada si no se pudo calcular, o en Goteo/Microaspersión.
+    var precipEfectiva = precip;
+    if (sistema === "Aspersión" && vaAsp !== null) precipEfectiva = vaAsp;
+    else if (sistema === "Carrete" && ppCalc !== null) precipEfectiva = ppCalc;
+
     // Tiempo de riego (por sector, independiente del área total) — se calcula ACÁ porque lo
     // necesitan tanto el acumulador (Q_estanque) como el N° de sectores más abajo.
-    var tiempoRiego = precip !== null ? (db / precip) : null;
+    var tiempoRiego = precipEfectiva !== null ? (db / precipEfectiva) : null;
     var volAcum = numVal(p + "volumen_acumulador_m3");
 
     // Filas "(con acumulador)" — solo tienen sentido si el proyecto declara un estanque/tranque
@@ -1290,10 +1354,10 @@
 
     // Superficie de riego segura — SOLO con el caudal de la FUENTE (v104: el acumulador ya no
     // se suma acá, ver el bloque de N° de sectores más abajo). Usa Db "diario" (ETc/Ef, SIN
-    // pasar por Fr) — misma distinción que hace el Diseñador de Riego (calcAA/calcCA,
-    // "SIEMPRE con demanda DIARIA, no con Db de Fr días"): esta verificación es de balance
-    // diario, no de ciclo de riego. En Goteo ambos valores ya coinciden (Fr=1 ahí).
-    var dbDiario = ef ? etc / (ef / 100) : 0;
+    // pasar por Fr, ya calculado arriba junto al resto de la cadena) — misma distinción que hace
+    // el Diseñador de Riego (calcAA/calcCA, "SIEMPRE con demanda DIARIA, no con Db de Fr días"):
+    // esta verificación es de balance diario, no de ciclo de riego. En Goteo ambos valores ya
+    // coinciden (Fr=1 ahí).
     var demanda = dbDiario / 8.64;
     if (caudalDisp !== null && demanda) {
       var supSegura = caudalDisp / demanda;
@@ -1312,13 +1376,17 @@
     // total/Balance/Volumen del estanque) usa la MISMA fórmula de siempre — solo cambia de dónde
     // sale N, por eso esos resultados difieren de antes para Aspersión/Carrete.
     var qRequerido = null, nSectores = null, tiempoTotalDia = null, caudalEstanque = null;
+    var diasNecesarios = null;
     var palabraPl = esPosturas ? "posturas" : "sectores";
     var articuloPl = esPosturas ? "las" : "los";
-    if (precip !== null) {
-      setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr");
+    if (precipEfectiva !== null) {
+      var origenPrecip = precipEfectiva !== precip
+        ? (sistema === "Aspersión" ? " (con VA calculada, " + fmt(precipEfectiva, 2) + " mm/hr)" : " (con PP calculada, " + fmt(precipEfectiva, 2) + " mm/hr)")
+        : "";
+      setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr" + origenPrecip);
       nota(p + "agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");
       if (sup !== null && tiempoRiego) {
-        qRequerido = precip * sup * 10000 / 3600;
+        qRequerido = precipEfectiva * sup * 10000 / 3600;
         if (esPosturas) {
           nSectores = nPosturasReal;
         } else {
@@ -1326,7 +1394,16 @@
           nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
         }
         if (nSectores !== null) {
-          tiempoTotalDia = nSectores * tiempoRiego;
+          // Tiempo total del día: en Aspersión/Carrete NO son todas las posturas en un solo
+          // día — usa las posturas/día reales (ya limitadas por horas disponibles) y reporta
+          // cuántos días toma completar el ciclo. Sin ese dato (o en Goteo/Microaspersión),
+          // cae al comportamiento anterior (todo en un día).
+          if (esPosturas && posturasDiaReal) {
+            tiempoTotalDia = Math.min(nSectores, posturasDiaReal) * tiempoRiego;
+            diasNecesarios = Math.ceil(nSectores / posturasDiaReal);
+          } else {
+            tiempoTotalDia = nSectores * tiempoRiego;
+          }
           var excedeMsg = (horas !== null && tiempoTotalDia > horas)
             ? "El riego de " + articuloPl + " " + nSectores + " " + palabraPl + " (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles."
             : "";
@@ -1360,35 +1437,94 @@
     // Caudal de diseño (operación de la red): el que circula por la tubería mientras opera UN
     // sector — Q_requerido / N° sectores. Es lo que el consultor debería usar para dimensionar
     // diámetros/pérdidas de carga, distinto del caudal de la fuente.
+    var caudalOperacion = null;
     if (qRequerido !== null && nSectores) {
-      var caudalOperacion = qRequerido / nSectores;
+      caudalOperacion = qRequerido / nSectores;
       setText(p + "agro-qdiseno-calc", fmt(caudalOperacion, 3) + " l/s");
       nota(p + "agro-qdiseno-nota", diferenciaRelevante(caudalOperacion, declQdiseno, 10)
         ? "No coincide con lo declarado (" + fmt(declQdiseno, 2) + " l/s)." : "");
     } else {
       // Declara por qué no se pudo calcular, en vez de un guión mudo (ago-2026).
       var motivoQOp = null;
-      if (precip === null) motivoQOp = "precipitación del sistema";
+      if (precipEfectiva === null) motivoQOp = "precipitación del sistema";
       else if (sup === null) motivoQOp = "superficie de riego";
       else if (esPosturas && nSectores === null) motivoQOp = "N° de " + palabraPl + " (ver fila anterior)";
       setText(p + "agro-qdiseno-calc", motivoQOp ? "Falta: " + motivoQOp + "." : "—");
       nota(p + "agro-qdiseno-nota", "");
     }
 
-    // Balance diario de volumen — NO depende del N° de sectores (Q_sector×T_total =
-    // Q_requerido×T_riego siempre): si la fuente no repone en 24 hr lo que exige el diseño,
-    // ningún acumulador lo resuelve.
-    if (qRequerido !== null && tiempoRiego) {
-      var vDia = qRequerido * tiempoRiego * 3600;
+    // Acumulador REQUERIDO (ITT-03 §1) — obligatorio si el caudal de operación del sector de
+    // mayor gasto supera el caudal continuo disponible, salvo que la fuente sea de aguas
+    // SUPERFICIALES y la diferencia sea menor a un 20%. Distinto de "Volumen mínimo del
+    // estanque" de abajo, que solo se evalúa si YA se declaró un volumen de acumulador.
+    if (caudalOperacion !== null && caudalDisp !== null) {
+      var excedeCaudal = caudalOperacion > caudalDisp;
+      if (!excedeCaudal) {
+        setText(p + "agro-acumreq-calc", "No requerido — caudal de operación dentro del disponible.");
+        nota(p + "agro-acumreq-nota", "");
+      } else {
+        var diffPct = (caudalOperacion - caudalDisp) / caudalDisp * 100;
+        var excepcion20 = tipoFuente === "superficial" && diffPct < 20;
+        setText(p + "agro-acumreq-calc", "Caudal de operación supera al disponible en " + fmt(diffPct, 1) + "%"
+          + (excepcion20 ? " — exento (aguas superficiales, diferencia <20%)." : "."));
+        if (excepcion20) {
+          nota(p + "agro-acumreq-nota", "");
+        } else if (volAcum === null) {
+          nota(p + "agro-acumreq-nota", tipoFuente
+            ? "Requiere acumulador según ITT-03 §1 y el proyecto no declara uno."
+            : "Requiere acumulador según ITT-03 §1 (salvo que la fuente sea superficial y la diferencia sea <20% — declara el tipo de fuente para evaluar la excepción); el proyecto no declara uno.");
+        } else {
+          nota(p + "agro-acumreq-nota", "");
+        }
+      }
+    } else {
+      setText(p + "agro-acumreq-calc", "—");
+      nota(p + "agro-acumreq-nota", "");
+    }
+
+    // Días para completar el ciclo (Aspersión/Carrete) vs. frecuencia de riego (Fr): si el
+    // ciclo tarda más días que Fr, el diseño no alcanza a regar a tiempo.
+    var diasRow = document.getElementById(p + "agro-dias-row");
+    if (esPosturas && diasNecesarios !== null && !esAltaFrecuencia && frAdj) {
+      diasRow.style.display = "";
+      setText(p + "agro-dias-calc", diasNecesarios + " día" + (diasNecesarios === 1 ? "" : "s") + " — frecuencia de riego (Fr) = " + frAdj + " día" + (frAdj === 1 ? "" : "s"));
+      nota(p + "agro-dias-nota", diasNecesarios > frAdj
+        ? "El ciclo completo tarda más días que la frecuencia de riego — el diseño no alcanza a regar toda la superficie a tiempo." : "");
+    } else {
+      diasRow.style.display = "none";
+    }
+
+    // Balance diario de volumen — EN BASE A 24 HORAS (ITT-03 §1): usa Db "diario" (ETc/Ef, SIN
+    // pasar por Fr) × superficie, igual base que la Superficie de riego segura de arriba.
+    // Independiente del N° de sectores/precipitación (antes se calculaba con Q_requerido×
+    // T_riego, que en Aspersión/Carrete es el volumen de UN CICLO completo — Fr días — no de un
+    // día; ese volumen de ciclo se sigue usando, correctamente, en el volumen mínimo del
+    // estanque de abajo).
+    if (demanda && sup !== null) {
+      var vDiaReq = dbDiario * sup * 10000;
       if (caudalDisp !== null) {
         var vFuenteDia = caudalDisp * 24 * 3600;
-        var balanceOk = vDia <= vFuenteDia;
-        setText(p + "agro-balance-calc", "V. requerido = " + fmt(vDia, 0) + " L/día — V. fuente = " + fmt(vFuenteDia, 0) + " L/día");
-        nota(p + "agro-balance-nota", balanceOk ? "" : "La fuente no repone lo que exige el diseño — ningún acumulador resuelve esto (reducir superficie o aumentar el derecho de agua).");
+        var balanceOk = vDiaReq <= vFuenteDia;
+        setText(p + "agro-balance-calc", "V. requerido = " + fmt(vDiaReq, 0) + " L/día — V. fuente = " + fmt(vFuenteDia, 0) + " L/día");
+        nota(p + "agro-balance-nota", balanceOk ? "" : "La fuente no repone lo que exige el diseño en 24 horas — ningún acumulador resuelve esto (reducir superficie o aumentar el derecho de agua).");
+      } else {
+        setText(p + "agro-balance-calc", "—");
+        nota(p + "agro-balance-nota", "");
+      }
+    } else {
+      setText(p + "agro-balance-calc", "—");
+      nota(p + "agro-balance-nota", "");
+    }
 
+    // Volumen mínimo del estanque — volumen de UN CICLO completo (Q_requerido×Tiempo_riego)
+    // menos lo que la fuente aporta durante el riego de un día; distinto del balance diario de
+    // arriba (ver docstring de verificacion_diseno_riego en calculos_riego.py).
+    if (qRequerido !== null && tiempoRiego) {
+      var vCiclo = qRequerido * tiempoRiego * 3600;
+      if (caudalDisp !== null) {
         // Volumen mínimo del estanque — solo si hay acumulador declarado.
         if (volAcum !== null && tiempoTotalDia !== null) {
-          var vMin = Math.max(0, vDia - caudalDisp * tiempoTotalDia * 3600);
+          var vMin = Math.max(0, vCiclo - caudalDisp * tiempoTotalDia * 3600);
           var volAcumL = volAcum * 1000;
           setText(p + "agro-vmin-calc", "Mínimo = " + fmt(vMin, 0) + " L — declarado = " + fmt(volAcumL, 0) + " L");
           nota(p + "agro-vmin-nota", volAcumL >= vMin ? "" : "El volumen declarado no alcanza el mínimo requerido.");
@@ -1413,8 +1549,6 @@
           setText(p + "agro-tllenado-calc", "—");
         }
       } else {
-        setText(p + "agro-balance-calc", "—");
-        nota(p + "agro-balance-nota", "");
         setText(p + "agro-vmin-calc", "—");
         nota(p + "agro-vmin-nota", "");
         setText(p + "agro-deltaq-calc", "—");
@@ -1422,8 +1556,6 @@
         setText(p + "agro-tllenado-calc", "—");
       }
     } else {
-      setText(p + "agro-balance-calc", "—");
-      nota(p + "agro-balance-nota", "");
       setText(p + "agro-vmin-calc", "—");
       nota(p + "agro-vmin-nota", "");
       setText(p + "agro-deltaq-calc", "—");

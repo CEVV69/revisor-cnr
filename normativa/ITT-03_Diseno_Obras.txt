@@ -3,7 +3,25 @@ CRITERIOS DE REVISIÓN — ITT-03 DISEÑO DE OBRAS DE TECNIFICACIÓN (Ley 18.450
 El diseño debe demostrar que el sistema FUNCIONA hidráulicamente y es coherente con la demanda
 del cálculo de superficies (ITT-02) y el caudal disponible (ITT-01).
 
-1. DISEÑO HIDRÁULICO — debe presentar
+1. DISEÑO AGRONÓMICO — debe presentar (riego localizado y aspersión móvil/semimóvil)
+- Cuadro resumen por sector/bloque con: cultivo, ETo (mm/día), Kc en máxima demanda, demandas
+  netas y brutas (mm/día), tipo de riego presurizado y emisores, marco de plantación, marco/
+  espaciamiento de emisores, caudal del emisor (l/hr), precipitación del equipo (mm/hr), N° de
+  laterales por hilera, N° de sectores/bloques, tiempo de riego por sector y total (horas),
+  superficie (ha) y caudal por sector/bloque (l/s o m3/hr).
+- Kc según DT-05 (www.cnr.gob.cl); valores distintos requieren respaldo de estudios, de
+  preferencia locales, de instituciones reconocidas.
+- SUPERFICIE SEGURA (regla dura, ITT-03 §1): la superficie física del proyecto no puede ser
+  mayor a la superficie regable con el agua disponible con 85% de seguridad según el diseño
+  agronómico EN 24 HORAS.
+- ACUMULADOR: si se consideran tiempos de riego inferiores y por eso el caudal de operación de
+  los sectores resulta superior al caudal continuo disponible (85% seguridad), se debe
+  considerar un acumulador que asegure la disponibilidad del caudal de operación. Excepción:
+  en aguas superficiales NO se exige acumulador si la diferencia entre el caudal continuo
+  disponible y el caudal instantáneo del sector de mayor gasto es inferior a un 20%.
+- Centro de control fijo (incluye pozos e impulsiones): obligatorio prever medidor volumétrico.
+
+2. DISEÑO HIDRÁULICO — debe presentar
 - Características de la red de tuberías: nodos, longitud por tramo, diámetro y presión.
 - Cálculo de pérdidas de carga.
 - Determinación de presión requerida, presión disponible y caudal.
@@ -11,7 +29,7 @@ del cálculo de superficies (ITT-02) y el caudal disponible (ITT-01).
   cambios de diámetro claramente marcados (también en los planos).
 - Datos de los emisores: marco/espaciamiento (m) y caudal del emisor (l/hr).
 
-2. MÉTODO DE RIEGO
+3. MÉTODO DE RIEGO
 - Goteo/microaspersión: espaciamiento y caudal de emisores, diámetro y espesor de la línea.
 - Aspersión móvil/semimóvil no automatizada: el tiempo de riego diario máximo debe considerar
   la capacidad operativa de la mano de obra para los cambios de postura.
@@ -22,7 +40,7 @@ del cálculo de superficies (ITT-02) y el caudal disponible (ITT-01).
   riego y plano topográfico. En californiano, ubicar en plano cámaras, válvulas alfalfa/beta,
   cámaras reguladoras o rompecarga, campanas de distribución, zanja de limpieza, etc.
 
-3. EQUIPOS Y COMPONENTES
+4. EQUIPOS Y COMPONENTES
 - Centros de control fijos, pozos e impulsiones: OBLIGATORIO proveer e instalar medidores
   volumétricos que registren el agua utilizada en riego.
 - Adjuntar catálogos legibles al menos de bombas, filtros, emisores y máquinas de riego.
@@ -30,10 +48,13 @@ del cálculo de superficies (ITT-02) y el caudal disponible (ITT-01).
 - Selección del filtro: la presión a la entrada debe estar en el rango recomendado por el
   fabricante, para asegurar limpieza y funcionamiento correctos.
 
-4. MOVIMIENTO DE TIERRA
+5. MOVIMIENTO DE TIERRA
 - Se acepta un volumen máximo de hasta 450 m³ en promedio por hectárea efectivamente nivelada.
 
 QUÉ OBSERVAR
+- Superficie física mayor a la superficie regable en 24 horas con 85% de seguridad, sin
+  acumulador que la respalde (salvo excepción de aguas superficiales con diferencia <20%).
+  Debe justificar / observación mayor.
 - Falta de cálculo de pérdidas de carga, o presión disponible < requerida (el sistema no
   funciona). Debe justificar / observación mayor.
 - Caudal de diseño que no coincide con la demanda del ITT-02, o incoherencia entre planos y

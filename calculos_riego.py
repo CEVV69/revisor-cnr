@@ -305,7 +305,10 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               horas_disponibles_dia: float = None,
                               volumen_acumulador_m3: float = None,
                               db_diario_mm_dia: float = None,
-                              n_posturas_ext: int = None) -> dict:
+                              n_posturas_ext: int = None,
+                              posturas_dia_ext: int = None,
+                              dias_necesarios_ext: int = None,
+                              es_fuente_superficial: bool = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -391,7 +394,37 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     las MISMAS fórmulas de siempre, solo que con este N en vez del N° de sectores por caudal — por
     eso los resultados de esos cálculos cambian para Aspersión/Carrete respecto a antes de este
     parámetro. Sin `n_posturas_ext` (Goteo/Microaspersión, comportamiento de siempre), N° de
-    sectores se sigue calculando por caudal, con la reducción por acumulador incluida."""
+    sectores se sigue calculando por caudal, con la reducción por acumulador incluida.
+
+    **`posturas_dia_ext`/`dias_necesarios_ext` (ago-2026) — corrige que Aspersión/Carrete
+    regaban "todas las posturas en un día".** `postura_aspersion()`/`diseno_carrete()` ya
+    calculan cuántas posturas caben por día según las horas disponibles (`posturas_dia`) y
+    cuántos días toma el ciclo completo (`dias_necesarios`) — se reciben acá tal cual (no se
+    recalculan, para no duplicar el criterio de tiempo de traslado). Con estos datos,
+    `tiempo_total_dia_hr` pasa a ser el tiempo ocupado en UN día real (posturas/día × tiempo de
+    riego), no el ciclo completo, y se agrega `dias_necesarios` al resultado. El llamador debe
+    comparar `dias_necesarios` contra la frecuencia de riego (Fr) declarada/calculada — si el
+    ciclo tarda más días que Fr, el diseño no alcanza a regar a tiempo (dato que esta función no
+    tiene, se arma en el llamador). Sin estos parámetros (Goteo/Microaspersión, o Aspersión/
+    Carrete sin horas disponibles declaradas), cae al comportamiento anterior (todo en un día).
+
+    **Acumulador REQUERIDO — `acumulador_requerido` (ago-2026, ITT-03 §1):** distinto de
+    `acumulador_ok` (que solo se calcula si el consultor YA declaró un volumen de estanque). Acá
+    se determina si el diseño NECESITA uno: obligatorio cuando el caudal de operación del sector
+    de mayor gasto supera el caudal continuo disponible — salvo que la fuente sea de aguas
+    SUPERFICIALES (`es_fuente_superficial=True`) y la diferencia sea menor a un 20%
+    (`diferencia_caudal_operacion_pct`), caso en que la excepción de ITT-03 exime del
+    acumulador. Si el proyecto no declaró volumen de acumulador y `acumulador_requerido` es
+    True, el llamador debe observarlo como falta de antecedente, no como error de cálculo.
+
+    **Balance diario de volumen — corregido a base de 24 horas (ago-2026):** antes se comparaba
+    el volumen de UN CICLO completo (Q_requerido×Tiempo_riego, que en Aspersión/Carrete son Fr
+    días de agua) contra 1 día de la fuente — comparación inválida que el propio texto "L/día"
+    ocultaba. Ahora usa Db_diario (ETc/Ef, ya disponible arriba) × superficie, la MISMA base de
+    24 horas que la superficie segura — así ambos comparten el mismo criterio ITT-03. El volumen
+    de un ciclo completo sigue existiendo, correctamente, como base del volumen mínimo del
+    acumulador (`volumen_minimo_estanque_l`) — ese es un cálculo distinto, sobre cuánto debe
+    aportar el estanque DURANTE el riego de un día, no sobre el balance de 24 horas."""
     r = {}
     if not db_mm_dia:
         return r
@@ -403,6 +436,20 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     # suma acá, ver docstring).
     if caudal_disponible_ls and demanda_ls_ha:
         r["superficie_segura_ha"] = round(caudal_disponible_ls / demanda_ls_ha, 4)
+
+    # Balance diario de volumen — EN BASE A 24 HORAS (ITT-03 §1), con Db_diario (ETc/Ef, sin Fr)
+    # y no con el Db del ciclo. Independiente de precipitación/tiempo de riego: solo necesita
+    # superficie y caudal de la fuente, igual que la superficie segura de arriba.
+    # (ago-2026 — corrige bug: antes esta cifra se calculaba con Q_requerido×Tiempo_riego, que
+    # es el volumen de UN CICLO completo (Fr días) para Aspersión/Carrete, no de UN día; el
+    # texto "L/día" resultante confundía al consultor. Ese volumen de ciclo sigue existiendo
+    # más abajo, correctamente, como base del volumen mínimo del acumulador.)
+    if superficie_ha and caudal_disponible_ls:
+        v_dia_requerido_l = db_diario * superficie_ha * 10000
+        r["v_requerido_dia_l"] = round(v_dia_requerido_l, 0)
+        v_fuente_dia_l = caudal_disponible_ls * 24 * 3600
+        r["v_fuente_dia_l"] = round(v_fuente_dia_l, 0)
+        r["balance_diario_ok"] = v_dia_requerido_l <= v_fuente_dia_l
 
     tiempo_riego = None
     if precipitacion_mmhr:
@@ -428,7 +475,16 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
             else:
                 n_sectores = 1
         r["n_sectores"] = n_sectores
-        tiempo_total_dia = n_sectores * tiempo_riego
+
+        # Tiempo total del día — para Aspersión/Carrete (posturas), NO son todas las posturas
+        # en un solo día: usa las posturas/día reales (ya limitadas por horas disponibles en
+        # postura_aspersion()/diseno_carrete()) y reporta cuántos días toma el ciclo completo.
+        if n_posturas_ext is not None and posturas_dia_ext:
+            tiempo_total_dia = min(n_sectores, posturas_dia_ext) * tiempo_riego
+            r["dias_necesarios"] = (dias_necesarios_ext if dias_necesarios_ext is not None
+                                     else math.ceil(n_sectores / posturas_dia_ext))
+        else:
+            tiempo_total_dia = n_sectores * tiempo_riego
         r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
         if horas_disponibles_dia:
             r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
@@ -436,30 +492,39 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         caudal_operacion_ls = q_requerido_total_ls / n_sectores
         r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
 
-        # Balance diario de volumen — NO depende del N° de sectores (Q_sector×T_total =
-        # Q_requerido×Tiempo_riego siempre, ver docstring).
-        v_dia_l = q_requerido_total_ls * tiempo_riego * 3600
-        r["v_requerido_dia_l"] = round(v_dia_l, 0)
+        # Acumulador REQUERIDO (ITT-03 §1): obligatorio si el caudal de operación del sector de
+        # mayor gasto supera el caudal continuo disponible — salvo, en aguas superficiales, si
+        # la diferencia es menor a un 20%.
         if caudal_disponible_ls:
-            v_fuente_dia_l = caudal_disponible_ls * 24 * 3600
-            r["v_fuente_dia_l"] = round(v_fuente_dia_l, 0)
-            r["balance_diario_ok"] = v_dia_l <= v_fuente_dia_l
+            excede = caudal_operacion_ls > caudal_disponible_ls
+            if excede:
+                diff_pct = (caudal_operacion_ls - caudal_disponible_ls) / caudal_disponible_ls
+                r["diferencia_caudal_operacion_pct"] = round(diff_pct * 100, 1)
+                excepcion = es_fuente_superficial is True and diff_pct < 0.20
+                r["acumulador_requerido"] = not excepcion
+            else:
+                r["acumulador_requerido"] = False
 
-            if vol_litros:
-                v_min_l = max(0.0, v_dia_l - caudal_disponible_ls * tiempo_total_dia * 3600)
-                r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
-                r["acumulador_ok"] = vol_litros >= v_min_l
+        # Volumen del acumulador: dimensionado sobre el volumen de UN CICLO completo por las
+        # posturas/sectores del día (Q_requerido×Tiempo_riego) menos lo que la fuente aporta
+        # mientras dura ese riego — ver docstring. Distinto del balance diario de arriba.
+        v_ciclo_l = q_requerido_total_ls * tiempo_riego * 3600
+        r["v_ciclo_l"] = round(v_ciclo_l, 0)
+        if caudal_disponible_ls and vol_litros:
+            v_min_l = max(0.0, v_ciclo_l - caudal_disponible_ls * tiempo_total_dia * 3600)
+            r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
+            r["acumulador_ok"] = vol_litros >= v_min_l
 
-                # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`) — el
-                # mismo chequeo de volumen mínimo de arriba, expresado en unidades de tiempo (más
-                # intuitivo para el revisor: "cuántas horas aguanta" en vez de solo litros).
-                # Equivalencia algebraica exacta: autonomía ≥ Tiempo total ⟺ Vol ≥ Volumen mínimo
-                # (ambas expresan la misma desigualdad, solo reordenada).
-                delta_q_ls = caudal_operacion_ls - caudal_disponible_ls
-                r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
-                if delta_q_ls > 0:
-                    r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
-                r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_disponible_ls * 3600), 2)
+            # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`) — el
+            # mismo chequeo de volumen mínimo de arriba, expresado en unidades de tiempo (más
+            # intuitivo para el revisor: "cuántas horas aguanta" en vez de solo litros).
+            # Equivalencia algebraica exacta: autonomía ≥ Tiempo total ⟺ Vol ≥ Volumen mínimo
+            # (ambas expresan la misma desigualdad, solo reordenada).
+            delta_q_ls = caudal_operacion_ls - caudal_disponible_ls
+            r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
+            if delta_q_ls > 0:
+                r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
+            r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_disponible_ls * 3600), 2)
 
     return r
 
