@@ -50,13 +50,16 @@ sin que él reporte primero. Detalle en `docs/`.
    conclusión central errada por el bug ciclo-vs-día) en `docs/` — comparar contra lo que
    reporte el usuario al re-correr.
 
-2. **Criterios de revisión por método de riego** (ago-2026): el checklist de `diseno_hidraulico`
-   ganó un bloque con lo que la app NO recalcula — datos mínimos por sistema, error metodológico
-   de usar AD/Dn/Fr en Goteo/Micro, truncamiento de capas, caudal de operación vs. de fuente,
-   singulares ≈20%, variación de presión ≤20%, y del Carrete turbina/fuelle y regulador si
-   Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
+2. **Menú "Apps" (ago-2026, sin probar todavía):** botón único al final de `.proj-nav`
+   (`_apps_menu.html`, incluido en proyecto/calculos/respuestas) reemplaza los botones sueltos que
+   abrían cada app hermana por separado — agregada 4ª app, `embalses_diseno_v7.html` (Diseño de
+   Pequeños Embalses). Agregar apps nuevas: solo editar `_apps_menu.html`.
 
-3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
+3. **Criterios de revisión por método de riego** (ago-2026): `diseno_hidraulico` ganó un bloque
+   de checklist con lo que la app NO recalcula (datos mínimos por sistema, tolerancias, Carrete
+   turbina/regulador) — detalle en `docs/`. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
+
+4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
    intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
    paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada). El modelo
    de acumulador "por ventana de tiempo" (ΔQ/V_aporte/V_recarga) diseñado con el usuario quedó
@@ -95,11 +98,12 @@ analyzer.py      Claude API: analizar_item(), chatear_item(), consultar_expedien
 calculos_riego.py Cálculos determinísticos hidráulicos/agronómicos
 database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLock.
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.
-templates/       Jinja2. proyecto.html (tabla docs), items.html (panel ítems),
-                 calculos.html (chequeo), ficha.html (informe PDF), respuestas.html
-static/          Apps hermanas standalone (HTML único, sin build): disenador_riego_v123.html
-                 (diseño, exporta/importa vía localStorage+JSON) y fotovoltaico_riego_v15.html
-                 (chequeo FV con perfil solar horario — otra metodología, no la de Revisor CNR)
+templates/       Jinja2. proyecto.html (resumen/documentos/items, un template con `pagina`),
+                 calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
+                 _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
+static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
+                 disenador_riego_v123.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
+                 (otra metodología, no la de Revisor CNR), embalses_diseno_v7.html
 ```
 
 ### Modelo de datos

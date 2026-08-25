@@ -1,3 +1,19 @@
+## Sesión ago-2026 — Criterios de revisión por método de riego (detalle, comprimido en CLAUDE.md)
+
+El checklist de `diseno_hidraulico` (`ITEMS_SEP` en `analyzer.py`) ganó un bloque
+"CRITERIOS DE VERIFICACIÓN POR MÉTODO DE RIEGO" con lo que la app NO recalcula
+automáticamente pero el revisor SÍ debe exigir en la memoria: datos mínimos por sistema (Goteo/
+Micro: espaciamiento+caudal de emisores, diámetro/espesor de línea; Aspersión móvil/semimóvil:
+tiempo de riego diario considerando mano de obra para cambios de postura; Aspersión/
+gravitacional con aducción californiana: frecuencia de riego fundamentada en CC/PMP/Da/Prof.
+efectiva/Textura); el error metodológico de usar la cadena AD→Dn→Fr en Goteo/Microaspersión (son
+de alta frecuencia, Db sale directo de ETc/Ef); truncamiento de capas de suelo a la profundidad
+radicular; caudal de operación vs. caudal de la fuente; pérdidas singulares del orden de 20% de
+las de fricción; variación de presión dentro de un sector ≤20% (Goteo/Micro) o ≤±10% (Aspersión,
+uniformidad de riego); y en el Carrete, turbina/fuelle de accionamiento y regulador de presión
+obligatorio si Hmáx/Hmín>1,20. `diseno_fotovoltaico` sumó el tope de dimensionamiento on-grid
+≤100% de la potencia contratada/consumo, salvo justificación técnica explícita.
+
 ## Sesión ago-2026 — Normativa ITT-03 + 4 bugs reportados en vivo (Aspersión)
 
 El usuario subió `prompt_fix_revisor_cnr.md` (4 bugs que la Diseñador-Riego-Claude encontró
