@@ -208,6 +208,22 @@
     .costo-api-pie { font-size: 0.7rem; color: var(--text-3); margin-top: 0.5rem;
       border-top: 1px solid var(--border); padding-top: 0.4rem; }
 
+    /* Menú "Apps" (apps hermanas: Diseñador de Riego, Scall, Fotovoltaico, Mini Embalses) en la
+       barra de navegación del proyecto (.proj-nav) — mismo patrón <details> que .costo-api,
+       sin JS. margin-left:auto lo empuja al extremo derecho de la barra. */
+    .apps-menu { position: relative; margin-left: auto; align-self: center; }
+    .apps-menu > summary { list-style: none; cursor: pointer; font-size: 0.92rem; font-weight: 600;
+      color: var(--text-2); padding: 0.4rem 0.7rem; border-radius: 8px; white-space: nowrap; }
+    .apps-menu > summary::-webkit-details-marker { display: none; }
+    .apps-menu > summary:hover { color: var(--text); background: rgba(128,128,128,0.09); }
+    .apps-menu[open] > summary { color: var(--blue); }
+    .apps-menu-panel { position: absolute; right: 0; top: 115%; z-index: 200; min-width: 220px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: var(--shadow); overflow: hidden; }
+    .apps-menu-item { display: block; padding: 0.5rem 0.9rem; font-size: 0.83rem;
+      color: var(--text); text-decoration: none; white-space: nowrap; }
+    .apps-menu-item:hover { background: rgba(128,128,128,0.09); }
+
     /* Utils */
     .text-muted { color: var(--text-2); font-size: 0.81rem; }
     .text-sm    { font-size: 0.81rem; }

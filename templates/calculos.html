@@ -46,9 +46,8 @@
     background:var(--surface); color:var(--text); font-family:inherit; font-size:0.82rem;
     box-sizing:border-box; }
   .calc-nota { display:block; font-size:0.78rem; font-weight:400; margin-top:0.15rem; }
-  .sistema-riego-campo { display:none; }
+  .agro-grid > div.sistema-riego-campo { display:none; }
   .agro-grid > div.sistema-riego-campo.activo { display:flex; }
-  .campo-scall.sistema-riego-campo.activo { display:inline-block; }
   tr.fila-acumulador { display:none; }
   tr.fila-acumulador.activa { display:table-row; }
   tr.fila-agotamiento { display:none; }
@@ -67,6 +66,7 @@
   <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">Revisión por Ítems SEP</a>
   <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab activa">Chequeo de Cálculos</a>
   <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas</a>
+  {% include "_apps_menu.html" %}
 </nav>
 
 <div class="card" style="border-left:4px solid #2b6cb0;">
@@ -83,7 +83,6 @@
       <noscript><button type="submit" class="btn btn-outline btn-sm">Aplicar</button></noscript>
     </form>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-      <a href="/static/disenador_riego_v123.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Abrir Diseñador de Riego</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-disenador" class="btn btn-outline btn-sm" title="Exporta agronómico, hidráulico y fotovoltaico de todos los sistemas">Exportar para el Diseñador (.json)</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/informe" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Memoria de cálculo completa</a>
     </div>
@@ -196,13 +195,7 @@
           </select>
         </div>
       </div>
-      <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:0.8rem; margin:-0.4rem 0 0.9rem; flex-wrap:wrap;">
-        <p class="text-muted" style="font-size:0.78rem; margin:0;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
-        <div style="display:flex; flex-direction:column; gap:0.4rem; flex-shrink:0;">
-          <a href="/static/scall_diseno_v21.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm sistema-riego-campo campo-scall">Cálculo Scall</a>
-          <a href="/static/embalses_diseno_v7.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Diseño de Pequeños Embalses</a>
-        </div>
-      </div>
+      <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Vacío = sin acumulador. Reduce el N° de sectores y se verifica que su volumen alcance; no se suma al caudal para la Superficie de riego segura.</p>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
       <p class="text-muted" style="font-size:0.78rem; margin:0 0 0.5rem;">Lo declarado por el consultor se edita en la columna del medio.</p>
@@ -547,7 +540,6 @@
       <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
     </form>
     <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
-      <a href="/static/fotovoltaico_riego_v15.html" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="Abre el Revisor Fotovoltaico de Riego (app independiente)">Revisor Fotovoltaico</a>
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-revisor-fv" class="btn btn-outline btn-sm" title="Exporta los datos FV al formato del Revisor Fotovoltaico (.json)">Exportar al Revisor FV (.json)</a>
       <a href="https://solar.minenergia.cl/inicio" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Explorador Solar</a>
     </div>
@@ -917,10 +909,6 @@
     wrap.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
     wrap.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
     wrap.querySelectorAll(".campo-carrete").forEach(function(el) { el.classList.toggle("activo", mostrarCarrete); el.style.display = mostrarCarrete ? "" : "none"; });
-    // Botón "Cálculo Scall" — Goteo/Microaspersión/Aspersión (no Carrete, que no usa el mismo
-    // modelo de acumulador). Mismo criterio "mostrar si es ambiguo" que el resto: visible salvo
-    // que el sistema declarado sea específicamente Carrete.
-    wrap.querySelectorAll(".campo-scall").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo || mostrarAspersion); });
     // En Aspersión/Carrete el diseño real es por POSTURAS (geométrico, no depende del caudal
     // disponible) — el consultor casi siempre declara ese número rotulado "N° de sectores" en el
     // expediente, pero corresponde comparar contra el N° de posturas real de cada sistema (ver
