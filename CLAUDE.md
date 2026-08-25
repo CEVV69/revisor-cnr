@@ -50,7 +50,7 @@ sin que él reporte primero. Detalle en `docs/`.
    conclusión central errada por el bug ciclo-vs-día) en `docs/` — comparar contra lo que
    reporte el usuario al re-correr.
 
-2. **Menú "Apps" (ago-2026, sin probar todavía):** botón único al final de `.proj-nav`
+2. **Menú "Apps" (ago-2026, probado y OK):** botón único al final de `.proj-nav`
    (`_apps_menu.html`, incluido en proyecto/calculos/respuestas) reemplaza los botones sueltos que
    abrían cada app hermana por separado — agregada 4ª app, `embalses_diseno_v7.html` (Diseño de
    Pequeños Embalses). Agregar apps nuevas: solo editar `_apps_menu.html`.

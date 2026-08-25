@@ -1,3 +1,44 @@
+## Sesión ago-2026 — App "Diseño de Pequeños Embalses" + menú "Apps" (probado, OK)
+
+El usuario subió `DisenoPequenosEmbalsesv7.html` (app hermana standalone, mismo patrón que
+Diseñador de Riego/Scall/Fotovoltaico) y pidió un botón en el Chequeo para abrirla. Se guardó
+como `static/embalses_diseno_v7.html`.
+
+Sobre dónde poner el botón, el usuario preguntó por una idea mejor: una franja/desplegable único
+para las apps complementarias, visible desde Chequeo, Respuestas y el Revisor por Ítems, sin
+agregar espacio vertical. Se le dio la opinión (recomendación + trade-off, sin implementar hasta
+confirmar) y el usuario aprobó explícitamente el diseño: un botón "Apps ▾" al final de la misma
+franja de pestañas (Resumen/Documentos/Ítems/Chequeo/Respuestas), que despliega Diseñador Riego,
+Scall, Fotovoltaico y Mini Embalses — eliminando los botones sueltos que abrían cada app hoy.
+
+**Implementado:**
+- `templates/_apps_menu.html` — partial nuevo, `<details>/<summary>` con las 4 apps, SIN
+  JavaScript propio (mismo patrón que `.costo-api`, el contador de costo de API — ya probado en
+  la app). Único punto de mantención: agregar/quitar una app es editar solo este archivo.
+- CSS `.apps-menu*` en `base.html` (junto a `.costo-api*`, mismo criterio de reutilizar el patrón
+  visual ya validado).
+- Incluido al final de `<nav class="proj-nav">` en las 3 plantillas que la tienen duplicada
+  (`proyecto.html` — cubre Resumen/Documentos/Ítems con un solo template y el parámetro `pagina`,
+  `calculos.html`, `respuestas.html`) — no hay un partial compartido para `.proj-nav` en sí, así
+  que quedó triplicada la inclusión, pero el contenido del menú (la lista de apps) vive en un
+  solo lugar.
+- `margin-left:auto` en `.apps-menu` empuja el botón al extremo derecho de la franja sin tocar el
+  `gap` entre pestañas — no se "juntan" los ítems existentes, pedido explícito del usuario.
+- Eliminados los botones sueltos "Abrir Diseñador de Riego", "Cálculo Scall", "Diseño de Pequeños
+  Embalses" y "Revisor Fotovoltaico" de `calculos.html` (quedan ahí solo los que EXPORTAN datos
+  hacia esas apps — "Exportar para el Diseñador (.json)", "Exportar al Revisor FV (.json)" —, que
+  no son parte del menú de apps). Limpiado el JS/CSS muerto de `.campo-scall` (toggle de
+  visibilidad por sistema de riego que ya no aplica, al no vivir más el botón dentro de la grilla
+  `.agro-grid`).
+
+**Iteración de layout previa (mismo hilo):** antes de llegar al menú, se probaron 2 pasos
+intermedios que el usuario fue corrigiendo en vivo — (1) sacar el botón "Cálculo Scall" de la
+fila donde compartía ancho con el nuevo campo "Tipo de fuente" (que quedaba cortado, "Aguas
+Super...") no alcanzó, porque mover el botón no cambia cuántas columnas reparte la grilla
+`auto-fill` entre los campos restantes; (2) el fix real fue `grid-column:span 2` en el campo
+Tipo de fuente. Confirmado por el usuario ("Todo bien ahora en la apariencia") antes de pasar al
+tema de Embalses/menú Apps.
+
 ## Sesión ago-2026 — Criterios de revisión por método de riego (detalle, comprimido en CLAUDE.md)
 
 El checklist de `diseno_hidraulico` (`ITEMS_SEP` en `analyzer.py`) ganó un bloque
