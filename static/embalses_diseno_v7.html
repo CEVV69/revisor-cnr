@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diseño de Pequeños Embalses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0b2545; --blue:#1e6091; --ice:#eef4fa; --frost:#f7fafc;
+  --line:#d7e2ec; --ink:#14243b; --muted:#5b7086; --white:#ffffff;
+  --ok:#1a7f4e; --warn:#b8860b; --bad:#c0392b; --orange:#c9701a;
+  --radius:10px; --shadow:0 2px 10px rgba(11,37,69,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --navy:#0b2030; --blue:#4a9bd1; --ice:#152233; --frost:#101b28;
+    --line:#26394d; --ink:#e7eef6; --muted:#93a6ba; --white:#182636;
+    --ok:#3ecf8e; --warn:#e0b34d; --bad:#e5695a; --orange:#e2984a;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--frost);color:var(--ink);font-family:'Nunito',sans-serif;font-size:14px;}
+.topbar{height:58px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 18px;gap:14px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+.topbar .title{font-weight:800;font-size:16px;letter-spacing:.2px;}
+.topbar .sub{font-size:11.5px;opacity:.75;font-family:'DM Mono',monospace;}
+.tb-btn{background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.tb-btn:hover{background:rgba(255,255,255,.24);}
+.tb-actions{margin-left:auto;display:flex;gap:6px;}
+.tabbar{background:var(--white);border-bottom:1px solid var(--line);position:sticky;top:58px;z-index:40;box-shadow:0 1px 4px rgba(11,37,69,.05);}
+.tabs{display:flex;gap:6px;max-width:1180px;margin:0 auto;padding:9px 14px;overflow-x:auto;}
+.tab{padding:7px 15px;border-radius:20px;background:transparent;color:var(--muted);cursor:pointer;font-weight:700;font-size:12.8px;user-select:none;white-space:nowrap;transition:background .12s,color .12s;}
+.tab:hover{background:var(--ice);color:var(--navy);}
+.tab.active{background:var(--navy);color:#fff;}
+.wrap{max-width:1180px;margin:0 auto;padding:10px 14px 40px;}
+.panel{display:none;}
+.panel.active{display:block;}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;box-shadow:var(--shadow);}
+.card h2{margin:0 0 6px;font-size:13.5px;color:var(--navy);border-bottom:2px solid var(--ice);padding-bottom:4px;}
+.card h3{margin:8px 0 4px;font-size:12px;color:var(--blue);text-transform:uppercase;letter-spacing:.4px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px;}
+@media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr;}}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:2px 0;border-bottom:1px dashed var(--line);}
+.row:last-child{border-bottom:none;}
+.row label{font-size:12.8px;color:var(--ink);max-width:66%;}
+.row .hint{display:block;font-size:10.8px;color:var(--muted);font-weight:400;}
+input[type=number],input[type=text],select{
+  font-family:'DM Mono',monospace;font-size:13px;border:1px solid var(--line);border-radius:6px;
+  padding:6px 8px;background:var(--white);color:var(--ink);width:130px;text-align:right;
+}
+select{text-align:left;width:180px;font-family:'Nunito',sans-serif;}
+input[type=number]::placeholder{color:var(--orange);font-weight:600;}
+input.nocalc{color:var(--muted);}
+input.result{background:var(--ice);border-color:var(--line);color:var(--navy);font-weight:700;cursor:default;}
+input.result.blue{background:#eaf3fb;}
+input.result.green{background:#eafaf1;}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:var(--ice);color:var(--blue);border-radius:20px;padding:4px 11px;font-size:11.5px;font-weight:700;cursor:pointer;}
+.chip:hover{background:var(--blue);color:#fff;}
+.alert{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-top:3px;display:inline-block;}
+.alert.bad{background:#fdecea;color:var(--bad);}
+.alert.warn{background:#fff6e5;color:var(--warn);}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
+@media(max-width:760px){.types{grid-template-columns:1fr;}}
+.typecard{border:2px solid var(--line);border-radius:var(--radius);padding:7px 8px;cursor:pointer;text-align:center;background:var(--white);}
+.typecard.sel{border-color:var(--blue);background:var(--ice);}
+.typecard .lbl{font-size:12.5px;font-weight:800;color:var(--navy);}
+.typecard .desc{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.3;}
+.fixedrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.fixedrow .tag{font-size:11.5px;padding:5px 10px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{border:1px solid var(--line);padding:5px 7px;text-align:right;}
+th{background:var(--ice);color:var(--navy);text-align:center;font-size:11.5px;}
+td.desc{text-align:left;}
+td.center{text-align:center;}
+tr.grp td{background:var(--ice);font-weight:800;text-align:left;color:var(--navy);}
+tfoot td{background:var(--ice);font-weight:800;color:var(--navy);}
+.pu-input{width:100px;text-align:right;font-family:'DM Mono',monospace;border:1px solid var(--line);border-radius:5px;padding:3px 5px;background:var(--white);color:var(--ink);}
+.footer-note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;}
+.ytlink{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-weight:700;text-decoration:none;font-size:12px;}
+.bn-eq{display:flex;gap:8px;}
+.bn-eq button{flex:1;background:var(--ice);border:1px solid var(--line);color:var(--navy);font-weight:700;padding:8px;border-radius:8px;cursor:pointer;font-size:12.5px;}
+.bn-eq button:hover{background:var(--blue);color:#fff;}
+.pendiente{background:#fff6e5;border:1px dashed var(--warn);border-radius:8px;padding:8px 10px;font-size:11.5px;color:var(--warn);margin-top:8px;}
+.diagwrap{background:var(--ice);border-radius:var(--radius);padding:10px;}
+.basefill{fill:var(--ice);}
+.small{font-size:11px;color:var(--muted);}
+.tag{display:inline-block;background:var(--ice);border:1px solid var(--line);color:var(--blue);border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:700;}
+.pricehead{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line);}
+.pricehead.head{font-size:10.5px;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line);}
+.pricehead label{font-size:12.2px;}
+.pricehead input{width:100%;}
+.reporthint{font-size:11px;color:var(--muted);margin:6px 0 0;}
+#reportView{display:none;}
+@media print{
+  @page{size:letter;margin:12mm 12mm;}
+  .topbar,.tabbar,.wrap{display:none !important;}
+  #reportView{display:block !important;}
+  html,body{background:#fff;margin:0;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  #reportView .diagwrap{background:transparent !important;padding:0 !important;}
+  #reportView .basefill{fill:#ffffff !important;}
+  #reportView tr{page-break-inside:avoid;}
+  #reportView .rep-h2{page-break-after:avoid;margin:22px 0 8px;}
+  #reportView .rep-grid{margin-bottom:2px;}
+  #reportView .rep-page-break{page-break-before:always;}
+}
+
+.rep-h1{font-size:18px;font-weight:800;color:var(--navy);margin:0 0 2px;}
+.rep-h2{font-size:13.5px;font-weight:800;color:var(--navy);background:var(--ice);padding:6px 10px;border-radius:6px;margin:16px 0 8px;}
+.rep-meta{font-size:11px;color:var(--muted);margin-bottom:14px;}
+.rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:12px;margin-bottom:6px;}
+.rep-grid div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding:2px 0;}
+.rep-page-break{page-break-before:always;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">💧 Diseño de Pequeños Embalses</div>
+  <div class="sub">CNR · DT-18</div>
+  <div class="tb-actions">
+    <button class="tb-btn" onclick="guardarProyecto()">💾 Guardar</button>
+    <button class="tb-btn" onclick="document.getElementById('fileLoad').click()">📂 Cargar</button>
+    <input type="file" id="fileLoad" accept="application/json,.json" style="display:none" onchange="cargarProyecto(this)">
+  </div>
+</div>
+<div class="tabbar"><div class="tabs" id="tabs"></div></div>
+<div class="wrap" id="app"></div>
+<div id="reportView"></div>
+
+<script>
+/* ===================== CONSTANTES FIJAS (CNR) ===================== */
+const TALUD_TXT = 'V:H 1:1,5';
+const ANCHO_COR = 2;      // Ancho coronamiento (m) - fijo
+const REVANCHA  = 0.3;    // Revancha (m) - fijo
+const UF_BASE   = 24063.5;
+const VOL_OPTS  = [100,200,300,400,500,600,700,800,900,1000];
+const ALT_OPTS  = [1,1.5,2,2.5];
+const LARGO_OPTS= [5,10,15,20,25];
+const YT_URL = 'https://youtu.be/_FExUpzFkOM?si=JaO67Dd_O7j2u0hK';
+
+/* ===================== FORMATO CHILENO ===================== */
+function fmt(n,dec=2){
+  if(n===null||n===undefined||isNaN(n)) return '';
+  return n.toLocaleString('es-CL',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function fmt0(n){ return fmt(n,0); }
+function parseDecimalFlex(v){
+  if(typeof v==='number') return v;
+  if(!v) return NaN;
+  let s = String(v).trim().replace(/\s/g,'');
+  const hasComma = s.includes(','), hasDot = s.includes('.');
+  if(hasComma && hasDot){
+    if(s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g,'').replace(',','.');
+    else s = s.replace(/,/g,'');
+  } else if(hasComma){ s = s.replace(',','.'); }
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+
+/* ===================== ESTADO ===================== */
+const DEFAULT_PRECIOS = {
+  altura:500, acceso:'Plano', uf:40873.77, transporte:150, ufFecha:'31-08-2026',
+  manoObra:{capatazMin:20142,capatazMax:21535,jornalMin:10187,jornalMax:10187},
+  maquinaria:{retroMin:16000,retroMax:17029,placaMin:15000,placaMax:19556,
+    tolvaMin:145000,tolvaMax:160000,rodilloMin:37000,rodilloMax:50000,
+    aguaMin:47501,aguaMax:50000,estanqueMin:8500,estanqueMax:9500},
+  fijos:{emprestitoMin:4850,emprestitoMax:5130,geoMin:2480,geoMax:2750,cercoMin:9750,cercoMax:10200}
+};
+const RENDS = { // [min,max] base (antes de factor altura), unidad indicada
+  excMaquina:[9,12,'hr'], excMano:[2,2.5,'dia'], seleccion:[9.5,12,'hr'],
+  compactacion:[56,70,'hr'], transporte:[82,102,'dia'], manejo:[163,204,'dia'],
+  relleno:[15,20,'dia']
+};
+
+let S = {
+  d:{ caudal:10, tturno:24, tipo:'100% Muro', geomembrana:'Si', profExc:1.5,
+      volumen:900, alturaSel:2, largoCalc:15, largoDis:15, anchoDis:30 },
+  precios: JSON.parse(JSON.stringify(DEFAULT_PRECIOS)),
+  presupuesto: {} // overrides manuales de P.U. por item id
+};
+let RAW = {}; // eco del texto tal como se está tecleando (evita perder "," "." mientras se escribe)
+
+function loadState(){
+  RAW = {};
+  try{
+    const raw = localStorage.getItem('embalse_cnr_v1');
+    if(raw){
+      const obj = JSON.parse(raw);
+      if(obj.d) Object.assign(S.d, obj.d);
+      if(obj.precios) S.precios = obj.precios;
+      if(obj.presupuesto) S.presupuesto = obj.presupuesto;
+    }
+  }catch(e){ console.warn('No se pudo cargar estado guardado', e); }
+}
+function saveState(){
+  try{ localStorage.setItem('embalse_cnr_v1', JSON.stringify(S)); }catch(e){}
+}
+
+function guardarProyecto(){
+  const nombre = prompt('Nombre del proyecto (se usará en el nombre del archivo):', S.d.nombreProyecto||'');
+  if(nombre===null) return;
+  const safe = (nombre.trim()||'SinNombre').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'_');
+  S.d.nombreProyecto = nombre.trim();
+  saveState();
+  const data = { formato:'riego-cnr-embalse', version:1, fecha:new Date().toISOString(),
+    d:S.d, precios:S.precios, presupuesto:S.presupuesto };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `MiniEmbalse_${safe}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function cargarProyecto(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const obj = JSON.parse(e.target.result);
+      if(obj.d) Object.assign(S.d, obj.d);
+      if(obj.precios) S.precios = obj.precios;
+      if(obj.presupuesto) S.presupuesto = obj.presupuesto;
+      RAW = {};
+      saveState(); render();
+      alert('Proyecto cargado correctamente.');
+    }catch(err){ alert('No se pudo leer el archivo: '+err.message); }
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+/* ===================== MOTOR DISEÑO ===================== */
+function calcDiseno(){
+  const d = S.d;
+  const volDisponible = d.tturno*3600*d.caudal/1000;
+  const h = d.alturaSel - REVANCHA; // NAM
+  const acRoot = Math.sqrt(d.volumen/h - 2.25*h*h) - 1.5*h;
+  const areaBaseNecesaria = Math.floor(acRoot*acRoot);
+  const anchoRecom = areaBaseNecesaria/d.largoCalc;
+
+  const largoTopeMuro = d.largoDis + 3*d.alturaSel;   // D30
+  const anchoTopeMuro = d.anchoDis + 3*d.alturaSel;   // D31
+
+  let alturaMuro;
+  if(d.tipo==='Excavación y Muro') alturaMuro = d.alturaSel - d.profExc;
+  else if(d.tipo==='100% Excavado') alturaMuro = null; // "Sin Muro"
+  else alturaMuro = d.alturaSel;
+
+  const areaBaseReal = d.largoDis*d.anchoDis;              // D34
+  const areaNAM = (d.largoDis+3*h)*(d.anchoDis+3*h);       // D35
+  const areaTopeMuro = largoTopeMuro*anchoTopeMuro;        // D36
+  const volumenDiseno = ((areaBaseReal+areaNAM)/2)*h;      // D37
+  const largoCerco = largoTopeMuro+5;                      // D38
+  const anchoCerco = anchoTopeMuro+5;                      // D39
+
+  const AC48 = 2*(largoTopeMuro+3) + 2*(anchoTopeMuro+3);  // perímetro al eje
+  const AC50 = ANCHO_COR*d.alturaSel + 1.5*d.alturaSel*d.alturaSel; // área muro (100% Muro)
+
+  let excavacion=0, relleno=0;
+  if(d.tipo==='Excavación y Muro'){
+    const AD53 = 3*d.profExc + d.anchoDis;
+    const AE53 = 3*d.profExc + d.largoDis;
+    const AF53 = AD53*AE53;
+    excavacion = ((AF53+areaBaseReal)/2)*d.profExc;
+    const AB56 = d.alturaSel - d.profExc;
+    const AC55 = ANCHO_COR*AB56 + 1.5*AB56*AB56;
+    relleno = AC55*AC48;
+  } else if(d.tipo==='100% Excavado'){
+    excavacion = ((areaBaseReal+areaTopeMuro)/2)*d.alturaSel;
+    relleno = 0;
+  } else { // 100% Muro
+    excavacion = 0;
+    relleno = AC48*AC50;
+  }
+
+  const tteBotadero = excavacion - relleno;          // AC65
+  const emprestito  = tteBotadero<0 ? -tteBotadero : 0; // AC67
+
+  // Geomembrana
+  let areaGeomembrana=0, zanjaAnclaje=0;
+  if(d.geomembrana==='Si'){
+    const AC60 = Math.sqrt(d.alturaSel*d.alturaSel + (1.5*d.alturaSel)*(1.5*d.alturaSel)) + 2;
+    const perimBase = 2*d.largoDis + 2*d.anchoDis;
+    areaGeomembrana = ((AC48+perimBase)/2)*AC60 + areaBaseReal;
+    zanjaAnclaje = AC48*0.25;
+  }
+
+  return {
+    volDisponible, h, areaBaseNecesaria, anchoRecom, largoTopeMuro, anchoTopeMuro,
+    alturaMuro, areaBaseReal, areaNAM, areaTopeMuro, volumenDiseno, largoCerco, anchoCerco,
+    excavacion, relleno, tteBotadero, emprestito, areaGeomembrana, zanjaAnclaje,
+    alertVolumen: d.volumen > volDisponible*1.2,
+    alertProf: d.tipo!=='100% Excavado' && d.profExc>=d.alturaSel,
+    alertLargo: d.largoDis>d.largoCalc*1.15 ? 'exceso' : (d.largoDis<d.largoCalc ? 'menor' : null),
+    alertAncho: d.anchoDis>anchoRecom*1.15 ? 'exceso' : (d.anchoDis<anchoRecom ? 'menor' : null)
+  };
+}
+
+/* ===================== CUBICACIÓN ===================== */
+function calcCubicacion(){
+  const R = calcDiseno();
+  const d = S.d;
+  const F17 = d.tipo==='100% Muro' ? R.relleno : R.emprestito;
+  const F12 = F17>0 ? (R.relleno-F17) : R.relleno;
+  const tteBot = R.tteBotadero<0 ? 0 : R.tteBotadero;
+  return {
+    R,
+    excMaquina: R.excavacion,
+    seleccion: F12,
+    colocacion: R.relleno,
+    compactacion: R.relleno,
+    tteBotadero: tteBot,
+    manejoBotadero: tteBot,
+    emprestito: F17,
+    excManoZanja: d.geomembrana==='Si' ? R.zanjaAnclaje : 0,
+    geomembranaM2: d.geomembrana==='Si' ? R.areaGeomembrana : 0,
+    rellenoZanja: d.geomembrana==='Si' ? R.zanjaAnclaje : 0,
+    cercoM: 2*(R.largoCerco+R.anchoCerco)
+  };
+}
+
+/* ===================== MOTOR DE PRECIOS APU DT-18 ===================== */
+function alturaFactor(altura){
+  return altura<=1000 ? 1 : (110-0.01*altura)/100;
+}
+function accesoFactor(acceso){
+  if(acceso==='Ladera Media') return 1.02;
+  if(acceso==='Difícil Acceso') return 1.05*1.02;
+  return 1;
+}
+function adjYield(base, factor){ return Math.round(base*factor*10)/10; }
+
+// Fórmulas de costo unitario (replican exactamente Mov. Tierras $min/$max)
+function fExcMaquina(rend,jornal,capataz,retro){
+  const c1=retro/rend, c2=jornal/(rend*8.5), c3=capataz/(rend*2*8.5);
+  return c1+c2+c3+0.57*(c2+c3);
+}
+function fExcMano(rend,jornal,capataz){
+  const c1=jornal/rend, recargo=0.10*c1, c3=capataz/(rend*12);
+  return c1+recargo+c3+0.57*(c1+c3);
+}
+function fSeleccion(rend,jornal,capataz,retro){
+  const c1=retro/rend, e76=rend*8.5, c2=jornal/e76, e78=e76/0.75, c3=capataz/e78;
+  return c1+c2+c3+0.57*(c2+c3);
+}
+function fColocacionTolva(rend,jornal,capataz,tolva){
+  const c1=tolva/(8*rend), e100=rend*8.5/0.5, c2=jornal/e100, e102=e100*0.5/0.75, c3=capataz/e102;
+  const recargo=0.10*c2;
+  return c1+c2+c3+recargo+0.57*(c3+c2);
+}
+function fCompactacion(rend,jornal,capataz,rodillo,agua){
+  const c1=rodillo/rend, e126=rend*8.5, c2=agua/e126, e129=e126, c3=jornal/e129;
+  const e130=e129/7, c4=jornal/e130, recargo=0.10*(c3+c4), c5=capataz/e129;
+  return c1+c2+c3+c4+recargo+c5+0.57*(c5+c4+c3);
+}
+function fTransporteTipo(rend,jornal,capataz,tolva){ // usado en transporte y manejo botadero
+  const c1=tolva/rend, c2=jornal/rend, c3=capataz/(rend*3);
+  return c1+c2+c3+0.57*(c3+c2);
+}
+function fRellenoComun(rend,jornal,capataz,placa,estanque){
+  const e156=rend/1.5, c1=jornal/e156, recargo1=0.10*c1;
+  const e159=rend*1.2, c2=placa/e159, e161=e159*5, c3=estanque/e161;
+  const e162=e159, c4=jornal/e162, recargo2=0.10*c4;
+  const e164=e162*3, c5=capataz/e164;
+  return c1+recargo1+c2+c3+c4+recargo2+c5+0.57*(c5+c4+c1);
+}
+
+function calcPreciosAPU(){
+  const p = S.precios;
+  const f = alturaFactor(p.altura);
+  const acc = accesoFactor(p.acceso);
+  const ufScale = p.uf/UF_BASE;
+  const mo = p.manoObra, mq = p.maquinaria;
+
+  function runItem(key, formulaFn, extraArgsMin, extraArgsMax){
+    const [bmin,bmax] = RENDS[key];
+    const adjMax = adjYield(bmax,f); // mejor rendimiento -> escenario precio MIN
+    const adjMin = adjYield(bmin,f); // peor rendimiento -> escenario precio MAX
+    const pMin = formulaFn(adjMax, ...extraArgsMin);
+    const pMax = formulaFn(adjMin, ...extraArgsMax);
+    const min = pMin*ufScale*acc, max = pMax*ufScale*acc;
+    return {min, max, prom:(min+max)/2};
+  }
+
+  const excMaquina = runItem('excMaquina', fExcMaquina,
+    [mo.jornalMin, mo.capatazMin, mq.retroMin], [mo.jornalMax, mo.capatazMax, mq.retroMax]);
+  const excMano = (()=>{
+    const [bmin,bmax]=RENDS.excMano;
+    const adjMax=adjYield(bmax,f), adjMin=adjYield(bmin,f);
+    const pMin=fExcMano(adjMax, mo.jornalMin, mo.capatazMin);
+    const pMax=fExcMano(adjMin, mo.jornalMax, mo.capatazMax);
+    const min=pMin*ufScale*acc, max=pMax*ufScale*acc;
+    return {min,max,prom:(min+max)/2};
+  })();
+  const seleccion = runItem('seleccion', fSeleccion,
+    [mo.jornalMin, mo.capatazMin, mq.retroMin], [mo.jornalMax, mo.capatazMax, mq.retroMax]);
+  const compactacionR = runItem('compactacion', fCompactacion,
+    [mo.jornalMin, mo.capatazMin, mq.rodilloMin, mq.aguaMin],
+    [mo.jornalMax, mo.capatazMax, mq.rodilloMax, mq.aguaMax]);
+  const transp = runItem('transporte', fTransporteTipo,
+    [mo.jornalMin, mo.capatazMin, mq.tolvaMin], [mo.jornalMax, mo.capatazMax, mq.tolvaMax]);
+  const manejo = runItem('manejo', fTransporteTipo,
+    [mo.jornalMin, mo.capatazMin, mq.tolvaMin], [mo.jornalMax, mo.capatazMax, mq.tolvaMax]);
+  const rellenoC = runItem('relleno', fRellenoComun,
+    [mo.jornalMin, mo.capatazMin, mq.placaMin, mq.estanqueMin],
+    [mo.jornalMax, mo.capatazMax, mq.placaMax, mq.estanqueMax]);
+
+  // colocación camión tolva: rendimientos fijos (no dependen del factor altura)
+  const colMinP = fColocacionTolva(16, mo.jornalMin, mo.capatazMin, mq.tolvaMin);
+  const colMaxP = fColocacionTolva(11, mo.jornalMax, mo.capatazMax, mq.tolvaMax);
+  const colocacion = { min: colMinP*ufScale*acc, max: colMaxP*ufScale*acc };
+  colocacion.prom = (colocacion.min+colocacion.max)/2;
+
+  // ítems de precio fijo (no dependen de UF/altura/acceso, editables directamente)
+  const fj = p.fijos;
+  const emprestito = { min:fj.emprestitoMin, max:fj.emprestitoMax, prom:(fj.emprestitoMin+fj.emprestitoMax)/2 };
+  const geomembrana = { min:fj.geoMin, max:fj.geoMax, prom:(fj.geoMin+fj.geoMax)/2 };
+  const cerco = { min:fj.cercoMin, max:fj.cercoMax, prom:(fj.cercoMin+fj.cercoMax)/2 };
+
+  return { excMaquina, excMano, seleccion, colocacion, compactacionR, transp, manejo, rellenoC,
+           emprestito, geomembrana, cerco };
+}
+
+/* ===================== PRESUPUESTO ===================== */
+function precioItem(id, promDefault){
+  if(S.presupuesto[id]!==undefined && S.presupuesto[id]!==null && S.presupuesto[id]!=='') {
+    return parseDecimalFlex(S.presupuesto[id]);
+  }
+  return promDefault;
+}
+function calcPresupuesto(){
+  const C = calcCubicacion();
+  const P = calcPreciosAPU();
+  const rows = [
+    {id:'excMaquina', item:'1.1', desc:'Excavación con Máquina', unidad:'m³', cant:C.excMaquina, pu:P.excMaquina.prom},
+    {id:'seleccion',  item:'1.2', desc:'Selección de Material y acopio para terraplenes', unidad:'m³', cant:C.seleccion, pu:P.seleccion.prom},
+    {id:'colocacion', item:'1.3', desc:'Colocación de Material con camión tolva (material excavado en poza)', unidad:'m³', cant:C.colocacion, pu:P.colocacion.prom},
+    {id:'compactacion',item:'1.4', desc:'Compactación rodillada de terraplenes por capas controladas', unidad:'m³', cant:C.compactacion, pu:P.compactacionR.prom},
+    {id:'tteBotadero', item:'1.5', desc:'Transporte a Botadero (5 km)', unidad:'m³', cant:C.tteBotadero, pu:P.transp.prom},
+    {id:'manejoBotadero',item:'1.6', desc:'Manejo de Excedentes / Botadero', unidad:'m³', cant:C.manejoBotadero, pu:P.manejo.prom},
+    {id:'emprestito', item:'1.7', desc:'Material de Empréstito', unidad:'m³', cant:C.emprestito, pu:P.emprestito.prom},
+    {id:'excManoZanja',item:'2.1', desc:'Excavación a Mano (zanja de anclaje)', unidad:'m³', cant:C.excManoZanja, pu:P.excMano.prom},
+    {id:'geomembrana', item:'2.2', desc:'Instalación de Geomembrana', unidad:'m²', cant:C.geomembranaM2, pu:P.geomembrana.prom},
+    {id:'rellenoZanja',item:'2.3', desc:'Relleno Común (zanja de anclaje)', unidad:'m³', cant:C.rellenoZanja, pu:P.rellenoC.prom},
+    {id:'cerco',      item:'3.1', desc:'Cerco Perimetral', unidad:'m', cant:C.cercoM, pu:P.cerco.prom},
+  ];
+  let total=0;
+  rows.forEach(r=>{
+    r.puFinal = precioItem(r.id, r.pu);
+    r.total = (r.cant>0) ? r.cant*r.puFinal : 0;
+    total += r.total;
+  });
+  return {rows, total};
+}
+
+/* ===================== RENDER ===================== */
+const TABS = [
+  {id:'diseno', label:'Diseño'},
+  {id:'cubicacion', label:'Cubicación'},
+  {id:'presupuesto', label:'Presupuesto'},
+  {id:'precios', label:'Precios DT-18'},
+  {id:'informe', label:'Informe'}
+];
+let activeTab='diseno';
+
+function setTab(id){ activeTab=id; render(); }
+
+function renderTabs(){
+  document.getElementById('tabs').innerHTML = TABS.map(t=>
+    `<div class="tab ${t.id===activeTab?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`
+  ).join('');
+}
+
+const TIPO_DESC = {
+  '100% Excavado': 'La poza se forma excavando el terreno natural, sin muro.',
+  'Excavación y Muro': 'Excavación parcial + muro de tierra que aprovecha el material excavado.',
+  '100% Muro': 'Sin excavación: solo muro de tierra aprovechando la topografía natural.'
+};
+
+function diagramaSVG(R){
+  const d=S.d;
+  const Ltop = R.largoTopeMuro, Atop = R.anchoTopeMuro;   // exterior (coronamiento)
+  const swap = Atop > Ltop; // el lado más largo siempre queda horizontal
+  const L = swap ? Atop : Ltop;
+  const A = swap ? Ltop : Atop;
+  const bl = swap ? d.anchoDis : d.largoDis;   // horizontal interior
+  const ba = swap ? d.largoDis : d.anchoDis;   // vertical interior
+  const labelH = swap ? 'Ancho' : 'Largo';
+  const labelV = swap ? 'Largo' : 'Ancho';
+  const VBW=470, VBH=250;
+  const padTop=30, padBottom=34, padLeft=54, padRight=34;
+  const availW = VBW-padLeft-padRight, availH = VBH-padTop-padBottom;
+  const scale = Math.min(availW/Math.max(L,0.1), availH/Math.max(A,0.1));
+  const W = L*scale, H = A*scale;
+  const w = bl*scale, h2 = ba*scale;
+  const ox = padLeft + (availW-W)/2, oy = padTop + (availH-H)/2;
+  const bw=(W-w)/2, bh=(H-h2)/2;
+  const dimTop = oy-12, dimLeft = ox-12;
+  return `<svg viewBox="0 0 ${VBW} ${VBH}" style="width:100%;height:auto;display:block;max-height:250px" preserveAspectRatio="xMidYMid meet">
+    <rect x="${ox}" y="${oy}" width="${W}" height="${H}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <rect class="basefill" x="${ox+bw}" y="${oy+bh}" width="${w}" height="${h2}" stroke="var(--blue)" stroke-width="2.5"/>
+    <line x1="${ox}" y1="${dimTop}" x2="${ox+W}" y2="${dimTop}" stroke="var(--muted)" stroke-width="1"/>
+    <line x1="${ox}" y1="${dimTop-4}" x2="${ox}" y2="${dimTop+4}" stroke="var(--muted)" stroke-width="1"/>
+    <line x1="${ox+W}" y1="${dimTop-4}" x2="${ox+W}" y2="${dimTop+4}" stroke="var(--muted)" stroke-width="1"/>
+    <text x="${ox+W/2}" y="${dimTop-6}" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="DM Mono">Coronamiento ${fmt(L,1)} m</text>
+    <line x1="${dimLeft}" y1="${oy}" x2="${dimLeft}" y2="${oy+H}" stroke="var(--muted)" stroke-width="1"/>
+    <text x="${dimLeft-6}" y="${oy+H/2}" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="DM Mono" transform="rotate(-90 ${dimLeft-6} ${oy+H/2})">Coronamiento ${fmt(A,1)} m</text>
+    <text x="${ox+bw+w/2}" y="${oy+bh+h2+16}" text-anchor="middle" font-size="10.5" fill="var(--navy)" font-family="DM Mono" font-weight="700">${labelH} Base ${fmt(bl,1)} m</text>
+    <text x="${ox+bw+w+16}" y="${oy+bh+h2/2}" text-anchor="middle" font-size="10.5" fill="var(--navy)" font-family="DM Mono" font-weight="700" transform="rotate(-90 ${ox+bw+w+16} ${oy+bh+h2/2})">${labelV} Base ${fmt(ba,1)} m</text>
+  </svg>`;
+}
+
+function alertHtml(cond, txt, cls='bad'){
+  return cond ? `<span class="alert ${cls}">${txt}</span>` : '';
+}
+
+function setD(key, val, isNumber=true){
+  RAW[key] = val;
+  S.d[key] = isNumber ? parseDecimalFlex(val) : val;
+  saveState(); render();
+}
+function setDirect(key, val){
+  delete RAW[key];
+  S.d[key] = val;
+  saveState(); render();
+}
+function rawOr(key, fallback){
+  return RAW[key]!==undefined ? RAW[key] : fallback;
+}
+
+function renderDiseno(){
+  const R = calcDiseno();
+  const d = S.d;
+  const tipos = ['100% Excavado','Excavación y Muro','100% Muro'];
+  return `
+  <div class="card">
+    <h2>Diseño de Pequeños Embalses</h2>
+    <div class="grid2">
+      <div>
+        <h3>Hidrología</h3>
+        <div class="row"><label>Caudal de diseño (l/s)</label>
+          <input type="text" inputmode="decimal" data-key="caudal" placeholder="Ingrese" value="${rawOr('caudal',d.caudal)}" oninput="setD('caudal',this.value)"></div>
+        <div class="row"><label>Tiempo turno (hrs)
+          <span class="hint">Use los accesos rápidos o ingrese libremente cualquier valor intermedio</span></label>
+          <input type="text" inputmode="decimal" data-key="tturno" placeholder="Ingrese" value="${rawOr('tturno',d.tturno)}" oninput="setD('tturno',this.value)"></div>
+        <div class="btnrow" style="margin:6px 0 4px;">
+          <span class="chip" onclick="setDirect('tturno',14)">14 h (nocturno)</span>
+          <span class="chip" onclick="setDirect('tturno',24)">24 h</span>
+          <span class="chip" onclick="setDirect('tturno',36)">36 h (fin de semana)</span>
+        </div>
+        <div class="row"><label>Volumen disponible (m³)</label>
+          <input class="result" readonly value="${fmt(R.volDisponible,1)}"></div>
+        ${alertHtml(R.alertVolumen,'Volumen excesivo, ajustar')}
+      </div>
+      <div>
+        <h3>Datos fijos (impuestos por CNR)</h3>
+        <div class="fixedrow">
+          <span class="tag">Talud ${TALUD_TXT}</span>
+          <span class="tag">Ancho coronamiento ${fmt(ANCHO_COR,1)} m</span>
+          <span class="tag">Revancha ${fmt(REVANCHA,1)} m</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Tipo de Embalse</h3>
+    <div class="types">
+      ${tipos.map(t=>`<div class="typecard ${d.tipo===t?'sel':''}" onclick="S.d.tipo='${t}';saveState();render()">
+        <div class="lbl">${t}</div><div class="desc">${TIPO_DESC[t]}</div></div>`).join('')}
+    </div>
+    <div class="grid2">
+      <div class="row"><label>Revestido Geomembrana</label>
+        <select onchange="setD('geomembrana',this.value,false)">
+          ${['Si','No'].map(o=>`<option ${d.geomembrana===o?'selected':''}>${o}</option>`).join('')}
+        </select></div>
+      ${d.tipo==='Excavación y Muro' ? `<div class="row"><label>Profundidad de excavación (m)</label>
+        <input type="text" inputmode="decimal" data-key="profExc" placeholder="Ingrese" value="${rawOr('profExc',d.profExc)}" oninput="setD('profExc',this.value)"></div>` : ''}
+    </div>
+    ${alertHtml(R.alertProf,'Profundidad mayor a la altura, corregir')}
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Resultados por Cálculo</h2>
+      <div class="row"><label>Volumen</label>
+        <select onchange="setD('volumen',this.value)">${VOL_OPTS.map(v=>`<option ${d.volumen==v?'selected':''} value="${v}">${v}</option>`).join('')}</select></div>
+      <div class="row"><label>Altura</label>
+        <select onchange="setD('alturaSel',this.value)">${ALT_OPTS.map(v=>`<option ${d.alturaSel==v?'selected':''} value="${v}">${fmt(v,1)}</option>`).join('')}</select></div>
+      <div class="row"><label>Largo (seleccione)</label>
+        <select onchange="setD('largoCalc',this.value)">${LARGO_OPTS.map(v=>`<option ${d.largoCalc==v?'selected':''} value="${v}">${v}</option>`).join('')}</select></div>
+      <div class="row"><label>Nivel de Aguas Máximas (NAM)</label><input class="result blue" readonly value="${fmt(R.h,2)}"></div>
+      <div class="row"><label>Área Base necesaria (m²)</label><input class="result blue" readonly value="${fmt0(R.areaBaseNecesaria)}"></div>
+      <div class="row"><label>Ancho recomendado (m)</label><input class="result blue" readonly value="${fmt(R.anchoRecom,2)}"></div>
+    </div>
+
+    <div class="card">
+      <h2>Dimensiones diseño (ingrese largo y ancho)</h2>
+      <div class="small" style="margin-bottom:6px;">*Deben ser cercanos a los valores por cálculo</div>
+      <div class="row"><label>Largo Base (m)</label>
+        <input type="text" inputmode="decimal" data-key="largoDis" placeholder="Ingrese" value="${rawOr('largoDis',d.largoDis)}" oninput="setD('largoDis',this.value)"></div>
+      ${alertHtml(R.alertLargo==='exceso','Medida excesiva, ajustar a cálculo')}${alertHtml(R.alertLargo==='menor','Menor a cálculo, corregir')}
+      <div class="row"><label>Ancho Base (m)</label>
+        <input type="text" inputmode="decimal" data-key="anchoDis" placeholder="Ingrese" value="${rawOr('anchoDis',d.anchoDis)}" oninput="setD('anchoDis',this.value)"></div>
+      ${alertHtml(R.alertAncho==='exceso','Medida excesiva, ajustar a cálculo')}${alertHtml(R.alertAncho==='menor','Menor a cálculo, corregir')}
+      <div class="row"><label>Largo al tope del muro (m)</label><input class="result green" readonly value="${fmt(R.largoTopeMuro,2)}"></div>
+      <div class="row"><label>Ancho al tope del Muro (m)</label><input class="result green" readonly value="${fmt(R.anchoTopeMuro,2)}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Resultados por Diseño</h2>
+    <div class="grid3">
+      <div>
+        <div class="row"><label>Altura de Muro (m)</label><input class="result green" readonly value="${R.alturaMuro===null?'Sin Muro':fmt(R.alturaMuro,2)}"></div>
+        <div class="row"><label>Área Base Real (m²)</label><input class="result green" readonly value="${fmt(R.areaBaseReal,1)}"></div>
+        <div class="row"><label>Área NAM (m²)</label><input class="result green" readonly value="${fmt(R.areaNAM,1)}"></div>
+        <div class="row"><label>Área al tope del Muro (m²)</label><input class="result green" readonly value="${fmt(R.areaTopeMuro,1)}"></div>
+      </div>
+      <div>
+        <div class="row"><label>Volumen diseño (m³)</label><input class="result green" readonly value="${fmt(R.volumenDiseno,1)}"></div>
+        <div class="row"><label>Largo Cerco Perimetral (m)</label><input class="result green" readonly value="${fmt(R.largoCerco,1)}"></div>
+        <div class="row"><label>Ancho Cerco Perimetral (m)</label><input class="result green" readonly value="${fmt(R.anchoCerco,1)}"></div>
+      </div>
+      <div>
+        <div class="row"><label>Excavación (m³)</label><input class="result green" readonly value="${fmt(R.excavacion,1)}"></div>
+        <div class="row"><label>Relleno (m³)</label><input class="result green" readonly value="${fmt(R.relleno,1)}"></div>
+        <div class="row"><label>Material de Empréstito (m³)</label><input class="result green" readonly value="${fmt(R.emprestito,1)}"></div>
+      </div>
+    </div>
+    ${d.geomembrana==='Si' ? `<h3>Geomembrana</h3><div class="fixedrow">
+      <span class="tag">Zanja de Anclaje: ${fmt(R.zanjaAnclaje,1)} m³</span>
+      <span class="tag">Área Geomembrana: ${fmt(R.areaGeomembrana,1)} m²</span>
+    </div>` : ''}
+  </div>
+
+  <div class="card">
+    <h2>Esquema en planta (auto-generado)</h2>
+    <div class="diagwrap">${diagramaSVG(R)}</div>
+    <div class="footer-note">Aplica para embalses de hasta 1.000 m³. Basado en la planilla de diseño de pequeños embalses CNR.
+      <br><a class="ytlink" href="${YT_URL}" target="_blank">▶ Video: cómo usar la planilla original</a>
+    </div>
+  </div>`;
+}
+
+function renderCubicacion(){
+  const C = calcCubicacion();
+  const d = S.d;
+  const rows = [
+    ['1','MOVIMIENTO DE TIERRAS','','',null,true],
+    ['1.1','Excavación con Máquina','m³',C.excMaquina],
+    ['1.2','Selección de Material y acopio para terraplenes','m³',C.seleccion],
+    ['1.3','Colocación de Material con camión tolva','m³',C.colocacion],
+    ['1.4','Compactación rodillada de terraplenes por capas controladas','m³',C.compactacion],
+    ['1.5','Transporte a Botadero (5 km)','m³',C.tteBotadero],
+    ['1.6','Manejo de Excedentes / Botadero','m³',C.manejoBotadero],
+    ['1.7','Material de Empréstito','m³',C.emprestito],
+    ['2','IMPERMEABILIZACIÓN','','',null,true],
+    ['2.1','Excavación a Mano (zanja de anclaje)','m³',C.excManoZanja],
+    ['2.2','Instalación de Geomembrana','m²',C.geomembranaM2],
+    ['2.3','Relleno Común (zanja de anclaje)','m³',C.rellenoZanja],
+    ['3','CIERRE PERIMETRAL','','',null,true],
+    ['3.1','Cerco perimetral','m',C.cercoM],
+  ];
+  // Oculta ítems sin cantidad; oculta también el encabezado de grupo si ningún ítem del grupo tiene datos
+  const withVisibility = rows.map((r,i)=>({r, visible: r[5] ? null : (r[3]>0)}));
+  for(let i=0;i<withVisibility.length;i++){
+    if(withVisibility[i].r[5]){
+      let any=false;
+      for(let j=i+1;j<withVisibility.length && !withVisibility[j].r[5];j++){ if(withVisibility[j].visible) any=true; }
+      withVisibility[i].visible = any;
+    }
+  }
+  const visibleRows = withVisibility.filter(x=>x.visible).map(x=>x.r);
+  return `<div class="card">
+    <h2>Cubicación</h2>
+    <div class="small" style="margin-bottom:8px;">Tipo de embalse: <span class="tag">${d.tipo}</span> · Geomembrana: <span class="tag">${d.geomembrana}</span></div>
+    <table><thead><tr><th>Ítem</th><th style="text-align:left">Designación</th><th>Unidad</th><th>Cantidad</th></tr></thead>
+    <tbody>${visibleRows.map(r=>{
+      if(r[5]) return `<tr class="grp"><td>${r[0]}</td><td colspan="3">${r[1]}</td></tr>`;
+      return `<tr><td class="center">${r[0]}</td><td class="desc">${r[1]}</td><td class="center">${r[2]}</td><td>${fmt(r[3],2)}</td></tr>`;
+    }).join('')}</tbody></table>
+    ${visibleRows.length===0 ? '<div class="small">Sin cantidades calculadas todavía.</div>' : ''}
+  </div>`;
+}
+
+function renderPresupuesto(){
+  const {rows,total} = calcPresupuesto();
+  const groups = [
+    {ids:['excMaquina','seleccion','colocacion','compactacion','tteBotadero','manejoBotadero','emprestito'], label:'1 · MOVIMIENTO DE TIERRAS'},
+    {ids:['excManoZanja','geomembrana','rellenoZanja'], label:'2 · IMPERMEABILIZACIÓN CON GEOMEMBRANA'},
+    {ids:['cerco'], label:'3 · CIERRE PERIMETRAL'},
+  ];
+  const byId = Object.fromEntries(rows.map(r=>[r.id,r]));
+  const bodyHtml = groups.map(g=>{
+    const grpRow = `<tr class="grp"><td colspan="6">${g.label}</td></tr>`;
+    const itemRows = g.ids.map(id=>{
+      const r = byId[id]; if(!r) return '';
+      return `<tr>
+        <td class="center">${r.item}</td><td class="desc">${r.desc}</td><td class="center">${r.unidad}</td>
+        <td>${fmt(r.cant,2)}</td>
+        <td><input class="pu-input" data-key="pres-${r.id}" value="${rawOr('pres-'+r.id,fmt0(r.puFinal))}" oninput="setPresupuesto('${r.id}',this.value)"></td>
+        <td>${fmt0(r.total)}</td>
+      </tr>`;
+    }).join('');
+    return grpRow+itemRows;
+  }).join('');
+  return `<div class="card">
+    <h2>Presupuesto Detallado de las Obras</h2>
+    <table><thead><tr><th>Ítem</th><th style="text-align:left">Designación</th><th>Unidad</th><th>Cantidad</th><th>P.U. ($)</th><th>Total ($)</th></tr></thead>
+    <tbody>${bodyHtml}</tbody>
+    <tfoot><tr><td colspan="5" style="text-align:right">COSTO DIRECTO</td><td>${fmt0(total)}</td></tr></tfoot>
+    </table>
+    <div class="footer-note">Los P.U. se pueden editar manualmente por ítem. Por defecto se usa el precio promedio calculado en la pestaña "Precios DT-18".
+    <br>Nota: a diferencia de la planilla original (que por un error de rango de suma excluye el cerco perimetral del Costo Directo), aquí el total sí incluye todos los ítems cubicados.</div>
+  </div>`;
+}
+
+function setP(path, val){
+  RAW['p-'+path] = val;
+  const parts = path.split('.');
+  let obj = S.precios;
+  for(let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = parseDecimalFlex(val);
+  saveState(); render();
+}
+function setPresupuesto(id, val){
+  RAW['pres-'+id] = val;
+  S.presupuesto[id] = val;
+  saveState(); render();
+}
+function resetPrecios(){
+  if(confirm('¿Restablecer todos los precios base del DT-18 a los valores originales?')){
+    S.precios = JSON.parse(JSON.stringify(DEFAULT_PRECIOS));
+    S.presupuesto = {};
+    RAW = {};
+    saveState(); render();
+  }
+}
+
+function priceField(label,pathMin,pathMax,valMin,valMax){
+  return `<div class="pricehead">
+    <label>${label}</label>
+    <input class="pu-input" data-key="p-${pathMin}" value="${rawOr('p-'+pathMin,valMin)}" oninput="setP('${pathMin}',this.value)">
+    <input class="pu-input" data-key="p-${pathMax}" value="${rawOr('p-'+pathMax,valMax)}" oninput="setP('${pathMax}',this.value)">
+  </div>`;
+}
+
+function renderPrecios(){
+  const p = S.precios;
+  const P = calcPreciosAPU();
+  const items = [
+    ['Excavación con Máquina','m³',P.excMaquina,true],
+    ['Excavación a Mano (terreno Semi-Duro)','m³',P.excMano,true],
+    ['Selección de Material y acopio','m³',P.seleccion,true],
+    ['Colocación con camión tolva','m³',P.colocacion,true],
+    ['Compactación rodillada','m³',P.compactacionR,true],
+    ['Transporte a Botadero (5 km)','m³',P.transp,true],
+    ['Manejo de Excedentes/Botadero','m³',P.manejo,true],
+    ['Relleno Común (compactación simple)','m³',P.rellenoC,true],
+    ['Material de Empréstito','m³',P.emprestito,false],
+    ['Instalación de Geomembrana','m²',P.geomembrana,false],
+    ['Cierre Perimetral','m',P.cerco,false],
+  ];
+  const f = alturaFactor(p.altura), acc = accesoFactor(p.acceso);
+  return `<div class="card">
+    <h2>Análisis de Precios Unitarios — DT-18</h2>
+    <div class="grid3">
+      <div class="row"><label>Altura (msnm)<span class="hint">Solo afecta rendimientos sobre 1.000 msnm</span></label>
+        <input type="text" inputmode="decimal" data-key="p-altura" value="${rawOr('p-altura',p.altura)}" oninput="setP('altura',this.value)"></div>
+      <div class="row"><label>Acceso<span class="hint">Plano ×1,00 · Ladera Media ×1,02 · Difícil Acceso ×1,071</span></label>
+        <select onchange="setP('acceso',this.value)">
+        ${['Plano','Ladera Media','Difícil Acceso'].map(o=>`<option ${p.acceso===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="row"><label>UF<span class="hint">Referencia: ${p.ufFecha||'—'}</span></label>
+        <input type="text" inputmode="decimal" data-key="p-uf" value="${rawOr('p-uf',p.uf)}" oninput="setP('uf',this.value)"></div>
+    </div>
+    <div class="small" style="margin-top:2px">Factor altura actual: <b>${fmt(f,3)}</b> · Factor acceso actual: <b>×${fmt(acc,3)}</b> · Escala UF actual: <b>×${fmt(p.uf/UF_BASE,4)}</b> (los 3 ítems de precio fijo no se ven afectados por estos factores, ver más abajo).</div>
+    <h3>Precios promedio resultantes</h3>
+    <table><thead><tr><th style="text-align:left">Ítem</th><th>Unidad</th><th>Mín</th><th>Máx</th><th>Promedio</th></tr></thead>
+    <tbody>${items.map(it=>`<tr><td class="desc">${it[0]}${it[3]?'':' <span class="tag" style="font-size:9px">fijo</span>'}</td><td class="center">${it[1]}</td>
+      <td>${fmt0(it[2].min)}</td><td>${fmt0(it[2].max)}</td><td><b>${fmt0(it[2].prom)}</b></td></tr>`).join('')}
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Precios base — Mano de obra ($/día)</h3>
+    <div class="pricehead head"><span></span><span>Mínimo</span><span>Máximo</span></div>
+    ${priceField('Capataz','manoObra.capatazMin','manoObra.capatazMax',p.manoObra.capatazMin,p.manoObra.capatazMax)}
+    ${priceField('Jornal','manoObra.jornalMin','manoObra.jornalMax',p.manoObra.jornalMin,p.manoObra.jornalMax)}
+
+    <h3>Precios base — Maquinaria ($/día o $/hr según ítem)</h3>
+    <div class="pricehead head"><span></span><span>Mínimo</span><span>Máximo</span></div>
+    ${priceField('Retroexcavadora 4x4','maquinaria.retroMin','maquinaria.retroMax',p.maquinaria.retroMin,p.maquinaria.retroMax)}
+    ${priceField('Placa Compactadora','maquinaria.placaMin','maquinaria.placaMax',p.maquinaria.placaMin,p.maquinaria.placaMax)}
+    ${priceField('Camión Tolva 7m³ (día)','maquinaria.tolvaMin','maquinaria.tolvaMax',p.maquinaria.tolvaMin,p.maquinaria.tolvaMax)}
+    ${priceField('Rodillo Bomag','maquinaria.rodilloMin','maquinaria.rodilloMax',p.maquinaria.rodilloMin,p.maquinaria.rodilloMax)}
+    ${priceField('Camión Aljibe','maquinaria.aguaMin','maquinaria.aguaMax',p.maquinaria.aguaMin,p.maquinaria.aguaMax)}
+    ${priceField('Estanque 9000 lts','maquinaria.estanqueMin','maquinaria.estanqueMax',p.maquinaria.estanqueMin,p.maquinaria.estanqueMax)}
+
+    <h3>Ítems de precio fijo (no dependen de altura/acceso/UF)</h3>
+    <div class="pricehead head"><span></span><span>Mínimo</span><span>Máximo</span></div>
+    ${priceField('Material de Empréstito','fijos.emprestitoMin','fijos.emprestitoMax',p.fijos.emprestitoMin,p.fijos.emprestitoMax)}
+    ${priceField('Instalación Geomembrana','fijos.geoMin','fijos.geoMax',p.fijos.geoMin,p.fijos.geoMax)}
+    ${priceField('Cierre Perimetral','fijos.cercoMin','fijos.cercoMax',p.fijos.cercoMin,p.fijos.cercoMax)}
+
+    <div class="btnrow" style="margin-top:12px;"><button class="chip" style="padding:8px 14px" onclick="resetPrecios()">↺ Restablecer precios originales DT-18</button></div>
+  </div>`;
+}
+
+function renderInformeContent(){
+  const R = calcDiseno();
+  const d = S.d;
+  const {rows,total} = calcPresupuesto();
+  const cub = calcCubicacion();
+  const hoy = new Date().toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const cubRows = [
+    ['1.1','Excavación con Máquina','m³',cub.excMaquina],
+    ['1.2','Selección de Material y acopio','m³',cub.seleccion],
+    ['1.3','Colocación con camión tolva','m³',cub.colocacion],
+    ['1.4','Compactación rodillada','m³',cub.compactacion],
+    ['1.5','Transporte a Botadero (5 km)','m³',cub.tteBotadero],
+    ['1.6','Manejo de Excedentes/Botadero','m³',cub.manejoBotadero],
+    ['1.7','Material de Empréstito','m³',cub.emprestito],
+    ['2.1','Excavación a Mano (zanja anclaje)','m³',cub.excManoZanja],
+    ['2.2','Instalación de Geomembrana','m²',cub.geomembranaM2],
+    ['2.3','Relleno Común (zanja anclaje)','m³',cub.rellenoZanja],
+    ['3.1','Cerco Perimetral','m',cub.cercoM],
+  ].filter(r=>r[3]>0);
+
+  return `
+  <div class="rep-h1">Informe de Diseño — Pequeño Embalse</div>
+  <div class="rep-meta">Generado el ${hoy} · CNR — Comisión Nacional de Riego · Planilla DT-18</div>
+
+  <div class="rep-h2">1. Antecedentes de Diseño</div>
+  <div class="rep-grid">
+    <div><span>Caudal de diseño</span><b>${fmt(d.caudal,2)} l/s</b></div>
+    <div><span>Tiempo turno</span><b>${fmt(d.tturno,2)} hrs</b></div>
+    <div><span>Volumen disponible</span><b>${fmt(R.volDisponible,1)} m³</b></div>
+    <div><span>Tipo de embalse</span><b>${d.tipo}</b></div>
+    <div><span>Revestido geomembrana</span><b>${d.geomembrana}</b></div>
+    ${d.tipo==='Excavación y Muro'?`<div><span>Profundidad de excavación</span><b>${fmt(d.profExc,2)} m</b></div>`:''}
+    <div><span>Talud</span><b>${TALUD_TXT}</b></div>
+    <div><span>Ancho coronamiento</span><b>${fmt(ANCHO_COR,1)} m</b></div>
+    <div><span>Revancha</span><b>${fmt(REVANCHA,1)} m</b></div>
+  </div>
+
+  <div class="rep-h2">2. Resultados por Cálculo</div>
+  <div class="rep-grid">
+    <div><span>Volumen seleccionado</span><b>${fmt(d.volumen,0)} m³</b></div>
+    <div><span>Altura seleccionada</span><b>${fmt(d.alturaSel,2)} m</b></div>
+    <div><span>Nivel de Aguas Máximas (NAM)</span><b>${fmt(R.h,2)} m</b></div>
+    <div><span>Área base necesaria</span><b>${fmt0(R.areaBaseNecesaria)} m²</b></div>
+    <div><span>Largo (referencia cálculo)</span><b>${fmt(d.largoCalc,1)} m</b></div>
+    <div><span>Ancho recomendado</span><b>${fmt(R.anchoRecom,2)} m</b></div>
+  </div>
+
+  <div class="rep-h2">3. Dimensiones y Resultados de Diseño</div>
+  <div class="rep-grid">
+    <div><span>Largo Base</span><b>${fmt(d.largoDis,2)} m</b></div>
+    <div><span>Ancho Base</span><b>${fmt(d.anchoDis,2)} m</b></div>
+    <div><span>Largo al tope del muro</span><b>${fmt(R.largoTopeMuro,2)} m</b></div>
+    <div><span>Ancho al tope del muro</span><b>${fmt(R.anchoTopeMuro,2)} m</b></div>
+    <div><span>Altura de muro</span><b>${R.alturaMuro===null?'Sin Muro':fmt(R.alturaMuro,2)+' m'}</b></div>
+    <div><span>Área base real</span><b>${fmt(R.areaBaseReal,1)} m²</b></div>
+    <div><span>Área NAM</span><b>${fmt(R.areaNAM,1)} m²</b></div>
+    <div><span>Área al tope del muro</span><b>${fmt(R.areaTopeMuro,1)} m²</b></div>
+    <div><span>Volumen de diseño</span><b>${fmt(R.volumenDiseno,1)} m³</b></div>
+    <div><span>Excavación</span><b>${fmt(R.excavacion,1)} m³</b></div>
+    <div><span>Relleno</span><b>${fmt(R.relleno,1)} m³</b></div>
+    <div><span>Material de empréstito</span><b>${fmt(R.emprestito,1)} m³</b></div>
+    <div><span>Largo cerco perimetral</span><b>${fmt(R.largoCerco,1)} m</b></div>
+    <div><span>Ancho cerco perimetral</span><b>${fmt(R.anchoCerco,1)} m</b></div>
+    ${d.geomembrana==='Si'?`<div><span>Zanja de anclaje</span><b>${fmt(R.zanjaAnclaje,1)} m³</b></div>
+    <div><span>Área geomembrana</span><b>${fmt(R.areaGeomembrana,1)} m²</b></div>`:''}
+  </div>
+
+  <div class="rep-h2">4. Esquema en Planta</div>
+  <div class="diagwrap" style="max-width:520px;margin:0 auto;">${diagramaSVG(R)}</div>
+
+  <div class="rep-page-break">
+  <div class="rep-h2">5. Cubicación</div>
+  <table><thead><tr><th>Ítem</th><th style="text-align:left">Designación</th><th>Unidad</th><th>Cantidad</th></tr></thead>
+  <tbody>${cubRows.map(r=>`<tr><td class="center">${r[0]}</td><td class="desc">${r[1]}</td><td class="center">${r[2]}</td><td>${fmt(r[3],2)}</td></tr>`).join('')}</tbody></table>
+  </div>
+
+  <div class="rep-h2">6. Presupuesto</div>
+  <table><thead><tr><th>Ítem</th><th style="text-align:left">Designación</th><th>Unidad</th><th>Cantidad</th><th>P.U. ($)</th><th>Total ($)</th></tr></thead>
+  <tbody>${rows.filter(r=>r.cant>0).map(r=>`<tr><td class="center">${r.item}</td><td class="desc">${r.desc}</td><td class="center">${r.unidad}</td><td>${fmt(r.cant,2)}</td><td>${fmt0(r.puFinal)}</td><td>${fmt0(r.total)}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="5" style="text-align:right">COSTO DIRECTO</td><td>${fmt0(total)}</td></tr></tfoot></table>
+  `;
+}
+
+function renderInforme(){
+  document.getElementById('reportView').innerHTML = renderInformeContent();
+  return `<div class="card">
+    <h2>Informe de Diseño</h2>
+    <div class="small">Vista previa del informe. Use el botón para imprimir o guardar como PDF (se ocultará el resto de la interfaz).</div>
+    <div class="btnrow" style="margin:10px 0 14px;"><button class="chip" style="padding:9px 16px" onclick="window.print()">🖨 Imprimir / Guardar como PDF</button></div>
+    <div style="border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--frost);">${renderInformeContent()}</div>
+  </div>`;
+}
+
+function render(){
+  // preservar foco/cursor del input que se esté editando (evita perder el foco al re-renderizar)
+  const active = document.activeElement;
+  let fKey=null, fSelS=null, fSelE=null;
+  if(active && active.getAttribute && active.getAttribute('data-key')){
+    fKey = active.getAttribute('data-key');
+    if(typeof active.selectionStart === 'number'){ fSelS=active.selectionStart; fSelE=active.selectionEnd; }
+  }
+  renderTabs();
+  const app = document.getElementById('app');
+  if(activeTab==='diseno') app.innerHTML = renderDiseno();
+  else if(activeTab==='cubicacion') app.innerHTML = renderCubicacion();
+  else if(activeTab==='presupuesto') app.innerHTML = renderPresupuesto();
+  else if(activeTab==='precios') app.innerHTML = renderPrecios();
+  else if(activeTab==='informe') app.innerHTML = renderInforme();
+  else document.getElementById('reportView').innerHTML = renderInformeContent();
+  if(fKey){
+    const sel = '[data-key="'+fKey.replace(/"/g,'\\"')+'"]';
+    const el = document.querySelector(sel);
+    if(el){
+      el.focus();
+      if(fSelS!=null && el.setSelectionRange){ try{ el.setSelectionRange(fSelS,fSelE); }catch(e){} }
+    }
+  }
+}
+
+loadState();
+render();
+</script>
+</body>
+</html>
