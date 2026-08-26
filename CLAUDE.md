@@ -46,9 +46,7 @@ sin que él reporte primero. Detalle en `docs/`.
    "Precipitación EFECTIVA" alimenta el Diseño Base en vez del dato declarado a mano; fila "Db
    diario" separada de "Db" del ciclo; extracción de `caudal_aspersor_m3h` con conversión de
    unidades; salvaguarda anti-alucinación en `SYSTEM_PROMPT`. Evaluación propia de las 3
-   observaciones reales pre-fix (1 correcta, 1 con cifras sospechosas de mala extracción, 1 con
-   conclusión central errada por el bug ciclo-vs-día) en `docs/` — comparar contra lo que
-   reporte el usuario al re-correr.
+   observaciones reales pre-fix en `docs/` — comparar contra lo que reporte el usuario.
 
 2. **Menú "Apps" (ago-2026, probado y OK):** botón único al final de `.proj-nav`
    (`_apps_menu.html`, incluido en proyecto/calculos/respuestas) reemplaza los botones sueltos que
@@ -56,11 +54,16 @@ sin que él reporte primero. Detalle en `docs/`.
    (Pequeños Embalses) y `desarenador_diseno_v5.html` (Desarenador). Agregar apps nuevas: solo
    editar `_apps_menu.html`.
 
-3. **Criterios de revisión por método de riego** (ago-2026): `diseno_hidraulico` ganó un bloque
-   de checklist con lo que la app NO recalcula (datos mínimos por sistema, tolerancias, Carrete
-   turbina/regulador) — detalle en `docs/`. `diseno_fotovoltaico` sumó el tope on-grid ≤100%.
+3. **2 fixes puntuales (ago-2026, probados y OK):** "Nombre del proyecto" en Resumen ahora
+   también actualiza `proyecto["nombre"]` (antes guardaba solo en `resumen`, campo que nadie más
+   leía); Tab entre campos del Desglose de Humedad Aprovechable por capas de suelo (el rebuild
+   por `innerHTML` en cada cambio destruía el campo destino del foco) — detalle en `docs/`.
 
-4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
+4. **Criterios de revisión por método de riego** (ago-2026): `diseno_hidraulico` ganó un bloque
+   de checklist con lo que la app NO recalcula — detalle en `docs/`. `diseno_fotovoltaico` sumó
+   el tope on-grid ≤100%.
+
+5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
    intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
    paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada). El modelo
    de acumulador "por ventana de tiempo" (ΔQ/V_aporte/V_recarga) diseñado con el usuario quedó

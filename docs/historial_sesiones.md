@@ -1,3 +1,47 @@
+## Sesión ago-2026 — App Desarenador + Embalses v9 + 2 fixes puntuales (todo probado, OK)
+
+**App "Diseño de Desarenador" agregada al menú Apps.** El usuario subió `Desarenador_V5.html`
+(mismo patrón standalone que las otras apps hermanas — motor hidráulico Newton-Allen-Stokes para
+velocidad de sedimentación, geometría, armadura por familia de suelo/zona sísmica, cubicación y
+presupuesto con precios DT-18). Guardado como `static/desarenador_diseno_v5.html`, agregado como
+5ta entrada en `_apps_menu.html` — una sola línea, gracias al menú centralizado de la sesión
+anterior.
+
+**"Diseño de Pequeños Embalses" actualizado a v9.** El usuario subió una nueva versión que suma
+el chequeo de capacidad de embalsamiento vs. operación del sistema de riego (tiempos de riego,
+llenado y ciclos) — reemplaza v7 (no se guardan versiones anteriores, mismo criterio que el resto
+de las apps hermanas: `git rm` la vieja, se agrega la nueva, se actualiza el link en
+`_apps_menu.html` y la referencia en `CLAUDE.md`).
+
+**Fix 1 — "Nombre del proyecto" del Resumen no llegaba al listado.** El usuario preguntó si se
+podía hacer editable el nombre que aparece en el listado del dashboard, asumiendo que el campo
+"Nombre del proyecto" que ya edita en la ficha Resumen (`RESUMEN_SECCIONES` en `analyzer.py`, key
+`nombre_proyecto`) era ese mismo dato. Investigado: es un campo DISTINTO — guarda en
+`proyecto["resumen"]["nombre_proyecto"]`, mientras que el listado del dashboard y el `<h1>` de la
+página leen `proyecto["nombre"]` (fijado una sola vez al crear el proyecto). El campo de Resumen
+se autocompletaba desde `proyecto["nombre"]` al mostrarse (`"auto": "nombre"`), pero guardar NO
+escribía de vuelta — quedaban desconectados en un solo sentido. Corregido en
+`guardar_resumen()` (`main.py`): si `resumen["nombre_proyecto"]` no queda vacío al guardar,
+también actualiza `proyecto["nombre"]`. No se sobrescribe con vacío (evita borrar el nombre del
+listado si el revisor limpia el campo sin querer).
+
+**Fix 2 — Tab no avanzaba entre campos del Desglose de Humedad Aprovechable por capas de
+suelo.** Causa raíz en 2 capas: (1) cada cambio en un campo de capa reconstruye TODA la lista con
+`cont.innerHTML = ...` (`renderCapas()` en `calculos.html`) — eso destruye el `<input>` al que el
+navegador está por mover el foco justo cuando se aprieta Tab (dispara `change` antes de completar
+el salto nativo), y el foco queda sin destino. (2) Al arreglar eso interceptando el Tab a mano
+(computar el siguiente campo con un orden fijo `['desde','hasta','tex','cc','pmp','da']`,
+aplicar el cambio, reconstruir y enfocar el siguiente), quedaba un segundo bug más sutil: quitar
+del DOM el input original (dentro del rebuild) le dispara `blur` y, si el VALOR cambió respecto
+al inicial, también `change` — ese `onchange` inline tardío volvía a llamar `actualizarCapa` con
+el mismo valor y reconstruía la lista una SEGUNDA vez, destruyendo el campo que recién se había
+enfocado. Con el campo vacío ese segundo `change` no se disparaba (el valor no cambiaba de
+"" a ""), por eso el primer intento de fix "funcionaba sin datos pero no con datos tipeados" — el
+síntoma que reportó el usuario en vivo, clave para encontrar la causa real. Solución final: anular
+`t.onchange = null` ANTES de tocar el DOM, así el evento tardío no hace nada. Los bordes de la
+lista (última fila+columna al tabular hacia adelante, primera fila+columna con Shift+Tab) dejan
+pasar el Tab nativo sin problema, porque ese destino vive fuera del contenedor que se reconstruye.
+
 ## Sesión ago-2026 — App "Diseño de Pequeños Embalses" + menú "Apps" (probado, OK)
 
 El usuario subió `DisenoPequenosEmbalsesv7.html` (app hermana standalone, mismo patrón que
