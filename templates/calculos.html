@@ -808,6 +808,41 @@
     }
     renderCapas(p);
   };
+  // Tab entre campos de una capa — reconstruye toda la lista con innerHTML en cada cambio
+  // (arriba), y eso destruye el <input> al que el navegador estaba a punto de mover el foco justo
+  // cuando se aprieta Tab (dispara "change" antes de completar el salto): el foco queda en
+  // ningún lado y Tab "no hace nada" (bug real reportado por el usuario). Se intercepta el Tab
+  // ANTES de que el navegador intente su salto nativo, se aplica el cambio a mano (misma lógica
+  // de actualizarCapa) y se mueve el foco al siguiente campo ya reconstruido. Si no hay "siguiente"
+  // dentro de las capas (última fila, última columna, o primera fila con Shift+Tab), se deja
+  // pasar el Tab nativo — ese destino vive fuera de la lista reconstruida, no hay carrera.
+  var CAPA_ORDEN = ['desde', 'hasta', 'tex', 'cc', 'pmp', 'da'];
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Tab') return;
+    var t = e.target;
+    if (!t || !t.name) return;
+    var m = /^(.*)capa(\d+)_(\w+)$/.exec(t.name);
+    if (!m) return;
+    var p = m[1], i = parseInt(m[2], 10), campo = m[3];
+    var idx = CAPA_ORDEN.indexOf(campo);
+    if (idx === -1) return;
+    var forward = !e.shiftKey;
+    var destName = null;
+    if (forward && idx < CAPA_ORDEN.length - 1) {
+      destName = p + 'capa' + i + '_' + CAPA_ORDEN[idx + 1];
+    } else if (forward && estadoCapas[p] && estadoCapas[p][i + 1]) {
+      destName = p + 'capa' + (i + 1) + '_' + CAPA_ORDEN[0];
+    } else if (!forward && idx > 0) {
+      destName = p + 'capa' + i + '_' + CAPA_ORDEN[idx - 1];
+    } else if (!forward && i > 0) {
+      destName = p + 'capa' + (i - 1) + '_' + CAPA_ORDEN[CAPA_ORDEN.length - 1];
+    }
+    if (!destName) return;
+    e.preventDefault();
+    actualizarCapa(p, i, campo, t.value);
+    var el = document.querySelector('[name="' + destName + '"]');
+    if (el) el.focus();
+  });
   function renderCapas(p) {
     var cont = document.getElementById(p + "capas_list");
     if (!cont) return;
