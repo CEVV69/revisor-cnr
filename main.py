@@ -3155,6 +3155,14 @@ async def guardar_resumen(request: Request, proyecto_id: str):
     for k in RESUMEN_KEYS:
         resumen[k] = (form.get(k) or "").strip()
     proyecto["resumen"] = resumen
+    # "Nombre del proyecto" en esta ficha es el mismo dato, en el mismo formulario, que el nombre
+    # que muestran el listado del dashboard y el <h1> de la página (`proyecto["nombre"]`) — antes
+    # quedaban desconectados: el revisor editaba y guardaba acá creyendo que actualizaba el
+    # nombre visible en todos lados, pero solo persistía en `resumen`, que nadie más lee. No se
+    # sobrescribe con vacío (el revisor podría limpiar la ficha sin querer borrar el nombre del
+    # listado).
+    if resumen.get("nombre_proyecto"):
+        proyecto["nombre"] = resumen["nombre_proyecto"]
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen?resumen_ok=1",
                             status_code=302)
