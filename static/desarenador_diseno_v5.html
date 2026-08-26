@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diseño de Desarenador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0b2545; --blue:#1e6091; --ice:#eef4fa; --frost:#f7fafc;
+  --line:#d7e2ec; --ink:#14243b; --muted:#5b7086; --white:#ffffff;
+  --ok:#1a7f4e; --warn:#b8860b; --bad:#c0392b; --orange:#c9701a;
+  --radius:10px; --shadow:0 2px 10px rgba(11,37,69,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --navy:#0b2030; --blue:#4a9bd1; --ice:#152233; --frost:#101b28;
+    --line:#26394d; --ink:#e7eef6; --muted:#93a6ba; --white:#182636;
+    --ok:#3ecf8e; --warn:#e0b34d; --bad:#e5695a; --orange:#e2984a;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--frost);color:var(--ink);font-family:'Nunito',sans-serif;font-size:14px}
+.topbar{height:58px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 18px;gap:14px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+.topbar .title{font-weight:800;font-size:16px}
+.topbar .sub{font-size:11.5px;opacity:.75;font-family:'DM Mono',monospace}
+.topbar .sp{flex:1}
+.topbar button{background:rgba(255,255,255,.12);border:0;color:#fff;font-family:inherit;font-weight:700;font-size:12px;padding:7px 12px;border-radius:7px;cursor:pointer}
+.topbar button:hover{background:rgba(255,255,255,.22)}
+.tabbar{background:var(--white);border-bottom:1px solid var(--line);position:sticky;top:58px;z-index:49;box-shadow:0 1px 4px rgba(11,37,69,.05)}
+.tabs{display:flex;gap:6px;max-width:1180px;margin:0 auto;padding:9px 14px;overflow-x:auto}
+.tab{padding:7px 15px;border-radius:20px;background:transparent;color:var(--muted);cursor:pointer;font-weight:700;font-size:12.8px;user-select:none;white-space:nowrap;transition:background .12s,color .12s}
+.tab:hover{background:var(--ice);color:var(--navy)}
+.tab.on{background:var(--navy);color:#fff}
+@media (prefers-color-scheme: dark){.tab.on{background:var(--blue);color:#0b2030}}
+.wrap{max-width:1180px;margin:0 auto;padding:14px 12px 60px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);font-weight:800}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 22px}
+@media(max-width:820px){.g2,.g3{grid-template-columns:1fr}}
+.row{display:flex;align-items:center;gap:8px;margin:3px 0}
+.row label{flex:1;font-size:13px;color:var(--ink);line-height:1.15}
+.row.tight label{flex:0 0 auto}
+.hint.sm{font-size:10.5px;display:block;margin:1px 0 0 2px}
+.row .u{width:34px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+input,select{font-family:'Nunito',sans-serif;font-size:13px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--white);color:var(--ink);width:104px;text-align:right}
+select{width:196px;text-align:left}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+input.w140{width:168px}
+input.result{background:var(--ice);font-family:'DM Mono',monospace;font-weight:500;border-style:dashed}
+input::placeholder{color:var(--orange)}
+input.nocalc::placeholder{color:var(--muted)}
+.hint{font-size:11px;color:var(--muted);margin-left:4px}
+.al{border-radius:7px;padding:6px 9px;font-size:12px;margin:6px 0;font-weight:600}
+.al.b{background:rgba(192,57,43,.12);color:var(--bad)}
+.al.w{background:rgba(184,134,11,.14);color:var(--warn)}
+.al.o{background:rgba(26,127,78,.12);color:var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{background:var(--ice);color:var(--navy);text-align:left;padding:6px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
+@media (prefers-color-scheme: dark){th{color:var(--ink)}}
+td{padding:5px 8px;border-bottom:1px solid var(--line)}
+td.n{text-align:right;font-family:'DM Mono',monospace}
+tr.sec td{background:var(--ice);font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
+tr.tot td{font-weight:800;background:var(--ice);border-top:2px solid var(--blue)}
+.big{display:flex;align-items:baseline;gap:8px;background:var(--ice);border-radius:8px;padding:9px 12px;margin-top:8px}
+.big b{font-size:20px;font-family:'DM Mono',monospace;color:var(--navy)}
+@media (prefers-color-scheme: dark){.big b{color:var(--blue)}}
+svg .ln{stroke:var(--muted);stroke-width:.7;fill:none}
+svg .cot{stroke:var(--blue);stroke-width:.7;fill:none}
+svg text{font-family:'DM Mono',monospace;font-size:9px;fill:var(--ink)}
+svg .fillC{fill:var(--ice);stroke:var(--navy);stroke-width:1}
+svg .fillW{fill:rgba(74,155,209,.25);stroke:none}
+.ctr{text-align:center}
+.btn{background:var(--blue);color:#fff;border:0;padding:6px 14px;border-radius:8px;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer}
+/* ---------- INFORME ---------- */
+#reportView{display:none}
+@page{size:letter;margin:0}
+.inf-page{width:215.9mm;height:279.4mm;position:relative;background:#fff;margin:0 auto 6mm;box-shadow:0 0 8px rgba(0,0,0,.18);overflow:hidden}
+.inf-pg{position:absolute;top:13mm;left:15mm;right:13mm;bottom:11mm;color:#14243b;font-size:10pt;line-height:1.35}
+.inf-h{border-bottom:2px solid #0b2545;padding-bottom:3mm;margin-bottom:4mm}
+.inf-h .t{font-size:16.5pt;font-weight:800;color:#0b2545}
+
+.inf-h .s{font-size:9.5pt;color:#5b7086;font-family:'DM Mono',monospace}
+.inf-s{font-size:10.5pt;font-weight:800;color:#1e6091;text-transform:uppercase;letter-spacing:.5px;margin:4mm 0 1.5mm;border-bottom:1px solid #d7e2ec;padding-bottom:1mm}
+.inf-tbl{width:100%;border-collapse:collapse;font-size:9.5pt}
+.inf-tbl th{background:#eef4fa;color:#0b2545;padding:1.2mm 2mm;text-align:left;font-size:8.5pt;border-bottom:1px solid #d7e2ec}
+.inf-tbl td{padding:1.1mm 2mm;border-bottom:.5px solid #e6edf4;text-align:left;color:#14243b}
+.inf-tbl td.n{text-align:right;font-family:'DM Mono',monospace}
+.inf-tbl tr.tot td{font-weight:800;background:#eef4fa;border-top:1.2px solid #1e6091}
+.inf-2{display:grid;grid-template-columns:1fr 1fr;gap:0 8mm}
+.inf-kv{display:flex;justify-content:space-between;border-bottom:.5px dotted #ccd8e4;padding:.9mm 0;font-size:9.5pt}
+.inf-kv b{font-family:'DM Mono',monospace;font-weight:400;color:#0b2545}
+.inf-f{position:absolute;bottom:0;left:15mm;right:13mm;border-top:1px solid #d7e2ec;padding-top:1.5mm;font-size:8pt;color:#5b7086;display:flex;justify-content:space-between}
+.keep{page-break-inside:avoid}
+@media print{
+  body{background:#fff}
+  .topbar,.tabbar,.wrap{display:none!important}
+  #reportView{display:block!important}
+  .inf-page{margin:0;box-shadow:none;page-break-after:always}
+  .inf-page:last-child{page-break-after:auto}
+  #reportView,#reportView *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="title">🌀 Diseño de Desarenador</div>
+  <div class="sub">CEVV · Aguas de riego</div>
+  <div class="sp"></div>
+  <button onclick="guardar()">Guardar</button>
+  <button onclick="document.getElementById('fj').click()">Cargar</button>
+  <input type="file" id="fj" accept=".json" style="display:none" onchange="cargar(event)">
+</div>
+<div class="tabbar"><div class="tabs" id="tabs"></div></div>
+<div class="wrap" id="app"></div>
+<div id="reportView"></div>
+<script>
+const PT={"1000P":[[128468,131833,135198,138563,141927,145292,148657,152022,155387,158752,162117,165482,168847,172212,175577,178942,182307,185672,189037,192402,195767,199132,202497,205862,209227,212592,215957,219322,222687,226052],[16756,16788,16821,16853,16886,16919,16952,16985,17018,17048,17081,17114,17147,17180,17213,17246,17279,17312,17345,17373,17406,17439,17472,17505,17538,17571,17604,17637,17670,17703],[3927,3932,3938,3943,3949,3955,3961,3967,3973,3974,3980,3986,3992,3998,4000,4006,4012,4018,4024,4026,4032,4038,4044,4050,4052,4058,4064,4070,4076,4082],[4365,4373,4380,4388,4396,4404,4412,4420,4428,4436,4444,4452,4460,4468,4475,4483,4491,4499,4507,4514,4522,4530,4538,4546,4554,4562,4570,4578,4586,4594],[8894,8909,8924,8939,8954,8969,8984,8999,9014,9027,9042,9057,9072,9087,9101,9116,9131,9146,9161,9174,9189,9204,9219,9234,9248,9263,9278,9293,9308,9323]],"1000L":[[134525,137890,141255,144620,147985,151350,154715,158080,161445,164810,168175,171540,174905,178270,181635,185000,188365,191730,195095,198460,201825,205190,208555,211920,215285,218650,222015,225380,228745,232110],[16756,16788,16821,16853,16885,16917,16949,16981,17013,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4151,4156,4161,4167,4172,4177,4182,4187,4192,4198,4203,4208,4213,4218,4223,4228,4233,4238,4243,4250,4255,4260,4265,4270,4275,4280,4285,4290,4295,4300],[4589,4596,4604,4612,4620,4628,4636,4644,4652,4659,4667,4675,4683,4691,4699,4707,4715,4723,4731,4738,4746,4754,4762,4770,4778,4786,4794,4802,4810,4818],[9174,9189,9204,9218,9233,9248,9263,9278,9293,9307,9322,9337,9352,9367,9382,9397,9412,9427,9442,9454,9469,9484,9499,9514,9529,9544,9559,9574,9589,9604]],"1000D":[[142097,145462,148827,152192,155557,158922,162287,165652,169017,172382,175747,179112,182477,185842,189207,192572,195937,199302,202667,206031,209396,212761,216126,219491,222856,226221,229586,232951,236316,239681],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4431,4436,4441,4446,4451,4456,4461,4466,4471,4478,4483,4488,4493,4498,4503,4508,4513,4518,4523,4530,4535,4540,4545,4550,4555,4560,4565,4570,4575,4580],[4868,4876,4884,4892,4900,4908,4916,4924,4932,4939,4947,4955,4963,4971,4979,4987,4995,5003,5011,5018,5026,5034,5042,5050,5058,5066,5074,5082,5090,5098],[9524,9539,9554,9569,9584,9599,9614,9629,9644,9657,9672,9687,9702,9717,9732,9747,9762,9777,9792,9804,9819,9834,9849,9864,9879,9894,9909,9924,9939,9954]],"2000P":[[134525,137890,141255,144620,147985,151350,154715,158080,161445,164810,168175,171540,174905,178270,181635,185000,188365,191730,195095,198459,201824,205189,208554,211919,215284,218649,222014,225379,228744,232109],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4151,4156,4161,4166,4171,4176,4181,4186,4191,4198,4203,4208,4213,4218,4223,4228,4233,4238,4243,4250,4255,4260,4265,4270,4275,4280,4285,4290,4295,4300],[4589,4597,4605,4613,4621,4629,4637,4645,4653,4659,4667,4675,4683,4691,4699,4707,4715,4723,4731,4738,4746,4754,4762,4770,4778,4786,4794,4802,4810,4818],[9174,9189,9204,9219,9234,9249,9264,9279,9294,9307,9322,9337,9352,9367,9382,9397,9412,9427,9442,9454,9469,9484,9499,9514,9529,9544,9559,9574,9589,9604]],"2000L":[[141256,144621,147986,151351,154716,158081,161446,164811,168176,171540,174905,178270,181635,185000,188365,191730,195095,198460,201825,205190,208555,211920,215285,218650,222015,225380,228745,232110,235475,238840],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4400,4405,4410,4415,4420,4425,4430,4435,4440,4447,4452,4457,4462,4467,4472,4477,4482,4487,4492,4499,4504,4509,4514,4519,4524,4529,4534,4539,4544,4549],[4837,4845,4853,4861,4869,4877,4885,4893,4901,4908,4916,4924,4932,4940,4948,4956,4964,4972,4980,4987,4995,5003,5011,5019,5027,5035,5043,5051,5059,5067],[9485,9500,9515,9530,9545,9560,9575,9590,9605,9618,9633,9648,9663,9678,9693,9708,9723,9738,9753,9765,9780,9795,9810,9825,9840,9855,9870,9885,9900,9915]],"2000D":[[149669,153034,156399,159764,163129,166494,169859,173224,176589,179954,183319,186684,190049,193414,196779,200144,203509,206874,210239,213603,216968,220333,223698,227063,230428,233793,237158,240523,243888,247253],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4711,4716,4721,4726,4731,4736,4741,4746,4751,4758,4763,4768,4773,4778,4783,4788,4793,4798,4803,4810,4815,4820,4825,4830,4835,4840,4845,4850,4855,4860],[5148,5156,5164,5172,5180,5188,5196,5204,5212,5219,5227,5235,5243,5251,5259,5267,5275,5283,5291,5298,5306,5314,5322,5330,5338,5346,5354,5362,5370,5378],[9874,9889,9904,9919,9934,9949,9964,9979,9994,10006,10021,10036,10051,10066,10081,10096,10111,10126,10141,10154,10169,10184,10199,10214,10229,10244,10259,10274,10289,10304]],"3000P":[[142097,145462,148827,152192,155557,158922,162287,165652,169017,172382,175747,179112,182477,185842,189207,192572,195937,199302,202667,206031,209396,212761,216126,219491,222856,226221,229586,232951,236316,239681],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4431,4436,4441,4446,4451,4456,4461,4466,4471,4478,4483,4488,4493,4498,4503,4508,4513,4518,4523,4530,4535,4540,4545,4550,4555,4560,4565,4570,4575,4580],[4868,4876,4884,4892,4900,4908,4916,4924,4932,4939,4947,4955,4963,4971,4979,4987,4995,5003,5011,5018,5026,5034,5042,5050,5058,5066,5074,5082,5090,5098],[9524,9539,9554,9569,9584,9599,9614,9629,9644,9657,9672,9687,9702,9717,9732,9747,9762,9777,9792,9804,9819,9834,9849,9864,9879,9894,9909,9924,9939,9954]],"3000L":[[149669,153034,156399,159764,163129,166494,169859,173224,176589,179954,183319,186684,190049,193414,196779,200144,203509,206874,210239,213603,216968,220333,223698,227063,230428,233793,237158,240523,243888,247253],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[4711,4716,4721,4726,4731,4736,4741,4746,4751,4758,4763,4768,4773,4778,4783,4788,4793,4798,4803,4810,4815,4820,4825,4830,4835,4840,4845,4850,4855,4860],[5148,5156,5164,5172,5180,5188,5196,5204,5212,5219,5227,5235,5243,5251,5259,5267,5275,5283,5291,5298,5306,5314,5322,5330,5338,5346,5354,5362,5370,5378],[9874,9889,9904,9919,9934,9949,9964,9979,9994,10006,10021,10036,10051,10066,10081,10096,10111,10126,10141,10154,10169,10184,10199,10214,10229,10244,10259,10274,10289,10304]],"3000D":[[159134,162499,165864,169229,172594,175959,179324,182689,186054,189419,192784,196149,199514,202879,206244,209609,212974,216339,219704,223068,226433,229798,233163,236528,239893,243258,246623,249988,253353,256718],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[5060,5065,5070,5075,5080,5085,5090,5095,5100,5107,5112,5117,5122,5127,5132,5137,5142,5147,5152,5160,5165,5170,5175,5180,5185,5190,5195,5200,5205,5210],[5498,5506,5514,5522,5530,5538,5546,5554,5562,5569,5577,5585,5593,5601,5609,5617,5625,5633,5641,5648,5656,5664,5672,5680,5688,5696,5704,5712,5720,5728],[10311,10326,10341,10356,10371,10386,10401,10416,10431,10443,10458,10473,10488,10503,10518,10533,10548,10563,10578,10591,10606,10621,10636,10651,10666,10681,10696,10711,10726,10741]],"4000P":[[151833,155198,158563,161928,165293,168658,172023,175388,178753,182118,185483,188848,192213,195578,198943,202308,205673,209038,212403,215768,219133,222498,225863,229228,232593,235958,239323,242688,246053,249418],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17044,17076,17108,17140,17172,17204,17236,17268,17300,17332,17364,17396,17428,17460,17492,17524,17556,17588,17620,17652,17684],[4791,4796,4801,4806,4811,4816,4821,4826,4831,4836,4841,4846,4851,4856,4861,4866,4871,4876,4881,4886,4891,4896,4901,4906,4911,4916,4921,4926,4931,4936],[5228,5236,5244,5252,5260,5268,5276,5284,5292,5300,5308,5316,5324,5332,5340,5348,5356,5364,5372,5380,5388,5396,5404,5412,5420,5428,5436,5444,5452,5460],[9974,9989,10004,10019,10034,10049,10064,10079,10094,10109,10124,10139,10154,10169,10184,10199,10214,10229,10244,10259,10274,10289,10304,10319,10334,10349,10364,10379,10394,10409]],"4000L":[[160487,163852,167217,170582,173947,177312,180677,184042,187407,190771,194136,197501,200866,204231,207596,210961,214326,217691,221056,224420,227785,231150,234515,237880,241245,244610,247975,251340,254705,258070],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[5110,5115,5120,5125,5130,5135,5140,5145,5150,5157,5162,5167,5172,5177,5182,5187,5192,5197,5202,5209,5214,5219,5224,5229,5234,5239,5244,5249,5254,5259],[5548,5556,5564,5572,5580,5588,5596,5604,5612,5619,5627,5635,5643,5651,5659,5667,5675,5683,5691,5698,5706,5714,5722,5730,5738,5746,5754,5762,5770,5778],[10373,10388,10403,10418,10433,10448,10463,10478,10493,10506,10521,10536,10551,10566,10581,10596,10611,10626,10641,10653,10668,10683,10698,10713,10728,10743,10758,10773,10788,10803]],"4000D":[[171304,174669,178034,181399,184764,188129,191494,194859,198224,201588,204953,208318,211683,215048,218413,221778,225143,228508,231873,235238,238603,241968,245333,248698,252063,255428,258793,262158,265523,268888],[16756,16788,16820,16852,16884,16916,16948,16980,17012,17048,17080,17112,17144,17176,17208,17240,17272,17304,17336,17373,17405,17437,17469,17501,17533,17565,17597,17629,17661,17693],[5510,5515,5520,5525,5530,5535,5540,5545,5550,5557,5562,5567,5572,5577,5582,5587,5592,5597,5602,5609,5614,5619,5624,5629,5634,5639,5644,5649,5654,5659],[5948,5956,5964,5972,5980,5988,5996,6004,6012,6019,6027,6035,6043,6051,6059,6067,6075,6083,6091,6097,6105,6113,6121,6129,6137,6145,6153,6161,6169,6177],[10873,10888,10903,10918,10933,10948,10963,10978,10993,11006,11021,11036,11051,11066,11081,11096,11111,11126,11141,11153,11168,11183,11198,11213,11228,11243,11258,11273,11288,11303]]};
+/* ============ utilidades ============ */
+function parseDecimalFlex(t){
+  if(t===null||t===undefined)return NaN;
+  let s=String(t).trim(); if(!s)return NaN;
+  s=s.replace(/\s/g,'');
+  const lc=s.lastIndexOf(','), lp=s.lastIndexOf('.');
+  if(lc>-1&&lp>-1){ const d=Math.max(lc,lp);
+    s=s.slice(0,d).replace(/[.,]/g,'')+'.'+s.slice(d+1);
+  } else if(lc>-1){ s=s.replace(/,/g,'.'); }
+  const v=parseFloat(s); return isNaN(v)?NaN:v;
+}
+function fmt(v,d){ d=(d===undefined)?2:d;
+  if(v===null||v===undefined||isNaN(v)||!isFinite(v))return '—';
+  return Number(v).toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function money(v){ if(isNaN(v)||!isFinite(v))return '—';
+  return '$ '+Math.round(v).toLocaleString('es-CL'); }
+
+/* ============ estado ============ */
+const DEF={
+  nombre:'', Q:'', b:'', h:'', d:0.05, zona:1,
+  altura:1000, acceso:'P', km:70, mo:'1,05', ufBase:'24.063,50', uf:'40.873,77',
+  pb:{}
+};
+let S=JSON.parse(JSON.stringify(DEF));
+let TAB='diseno';
+const RAW={};
+
+/* ============ tablas ============ */
+const ZONAS=[[1,'Cordillera','0,20 g'],[2,'Valle central','0,30 g'],[3,'Costa','0,40 g']];
+const DPART=[0.002,0.005,0.02,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.7,0.8,1,2];
+const MALLAS=['C-92','C-111','C-139','C-158','C-221','C-257','C-295','C-335','C-378','C-443'];
+function familia(dm){ return (dm>=0.05)?'Arena':(dm>=0.005)?'Limo':'Arcilla'; }
+const ARM={
+  Arena:{0.5:['C-92','C-92','C-92'],1:['C-92','C-92','C-139'],1.5:['C-257','C-295','C-295'],
+         2:['C-295','C-378','Doble malla C-221'],2.5:['Doble malla C-257','Doble malla C-295','Doble malla C-295']},
+  Limo:{0.5:['C-92','C-92','C-92'],1:['C-111','C-139','C-139'],1.5:['C-257','C-335','C-378'],
+        2:['Doble malla C-221','Doble malla C-257','Doble malla C-295'],
+        2.5:['Doble malla C-335','Doble malla C-378','Doble malla C-443']},
+  Arcilla:{0.5:['C-92','C-92','C-92'],1:['C-111','C-139','C-158'],1.5:['C-295','C-378','C-378'],
+           2:['C-257','Doble malla C-295','Doble malla C-335'],
+           2.5:['Doble malla C-335','Doble malla C-443','Doble malla C-443']}
+};
+const OFF={'C-221':3147.271186440677,'C-295':297.2142857142857,'C-335':1755.7058111380145,
+           'C-378':2092.027239709443,'C-443':4586.815375302663};
+
+function factorUF(){
+  const ub=parseDecimalFlex(S.ufBase), u=parseDecimalFlex(S.uf);
+  if(isNaN(ub)||isNaN(u)||ub<=0||u<=0) return 1;
+  return u/ub;
+}
+/* precios de tabla DT-18 (sin actualizar por UF) segun altura/acceso/km */
+function baseTabla(){
+  const g=PT[String(S.altura)+S.acceso];
+  if(!g) return null;
+  let i=Math.max(0,Math.min(29,Math.round(S.km/10)-1));
+  const C92=g[2][i], C139=g[3][i], C257=g[4][i];
+  const o={horm:g[0][i], mold:g[1][i]};
+  o['C-92']=C92;
+  o['C-111']=(C139+C92)/2;
+  o['C-139']=C139;
+  o['C-221']=C139+OFF['C-221'];
+  o['C-158']=C139+(o['C-221']-C139)*(158-139)/(221-139);
+  o['C-257']=C257;
+  o['C-295']=C257+OFF['C-295'];
+  o['C-335']=C257+OFF['C-335'];
+  o['C-378']=C257+OFF['C-378'];
+  o['C-443']=C257+OFF['C-443'];
+  return o;
+}
+/* precio base efectivo: override manual si existe */
+function precioBase(k){
+  const bt=baseTabla(); if(!bt) return NaN;
+  const ov=S.pb?S.pb[k]:undefined;
+  if(ov!==undefined&&ov!==''&&ov!==null){ const v=parseDecimalFlex(ov); if(!isNaN(v)) return v; }
+  return bt[k];
+}
+/* precio aplicado = base x factor UF */
+function precioAp(k){ return precioBase(k)*factorUF(); }
+/* precio de la armadura adoptada (duplica si es doble malla) */
+function precioArm(nom){
+  if(!nom) return NaN;
+  const n=nom.replace('Doble malla ','');
+  const doble=nom.indexOf('Doble')===0?2:1;
+  return precioAp(n)*doble;
+}
+
+/* ============ motor hidráulico ============ */
+function coefs(Re){
+  return [ (24/Re)+(4/Math.pow(Re,1/3)),
+           (24/Re)*(1+0.15*Math.pow(Re,0.687)),
+           (24/Re)*Math.pow(1+(3/16)*Re,0.5),
+           24/Re ];
+}
+function calcular(){
+  const Q=parseDecimalFlex(S.Q), b=parseDecimalFlex(S.b), h=parseDecimalFlex(S.h);
+  const d=Number(S.d)/1000, nu=0.001011, rho=1000;
+  const r={Q:Q,b:b,h:h,ok:false,msg:[]};
+  if(isNaN(Q)||isNaN(b)||isNaN(h)||Q<=0||b<=0||h<=0) return r;
+  if(Q>2) r.msg.push(['b','El caudal de diseño debe ser ≤ 2 m³/s.']);
+  if(h>1.8) r.msg.push(['b','La profundidad no puede superar 1,8 m.']);
+
+  /* iteración Newton–Allen–Stokes (promedio Putnam/Schiller/Olson/Stokes) */
+  let Wo=1, Re=0, Cprom=0;
+  for(let i=0;i<30;i++){
+    Re=(rho*Wo*d)/nu;
+    const c=coefs(Re);
+    Cprom=(c[0]+c[1]+c[2]+c[3])/4;
+    Wo=Math.sqrt((4*9.81*d)*1.65/(3*Cprom));
+  }
+  r.Re=Re; r.Cd=Cprom; r.Wo=Wo;
+  r.u=Wo-0.152*Wo;                       // velocidad corregida
+  r.A=b*h; r.V=Q/r.A;
+  r.Lcalc=(h*r.V)/r.u;
+  r.L=Math.max(4,Math.ceil(r.Lcalc));
+
+  /* vertedero de pared gruesa */
+  const mo=parseDecimalFlex(S.mo)||1.05;
+  r.mo=mo;
+  r.hv=Math.round(Math.pow(Q/((b*mo)*4.4427188),1/1.5)*10)/10;
+  r.rev=(h<=1)?0.2:0.3;
+  r.hvr=r.hv+r.rev;
+  r.hf=h+r.hvr;
+
+  /* espesor de muros y radier */
+  r.e=(r.hf<=0.5)?0.10:(r.hf<=1.5)?0.13:(r.hf<=2)?0.17:0.21;
+
+  /* armadura */
+  const dm=Number(S.d);
+  r.suelo=familia(dm);
+  const brk=[0.5,1,1.5,2,2.5].find(x=>r.hf<=x);
+  r.brk=brk;
+  if(brk===undefined){ r.msg.push(['b','Altura final '+fmt(r.hf,2)+' m fuera de tabla (máx. 2,5 m). Reduzca profundidad.']); }
+  else r.arm=ARM[r.suelo][brk][Number(S.zona)-1];
+
+  /* cubicación */
+  r.qHorm=(r.e*r.hf*r.L*2 + r.e*b*r.L)*1.2;
+  r.qMold=((r.hf*2)+(r.hf+r.e)*2)*r.L*1.2;
+  r.qMalla=((r.hf+r.e/2)*2+(b+r.e))*r.L*1.3;
+
+  /* precios */
+  const bt=baseTabla();
+  r.bt=bt;
+  if(bt){
+    r.pHorm=precioAp('horm'); r.pMold=precioAp('mold'); r.pMalla=precioArm(r.arm);
+    r.tHorm=r.qHorm*r.pHorm; r.tMold=r.qMold*r.pMold; r.tMalla=r.qMalla*r.pMalla;
+    r.CD=(r.tHorm||0)+(r.tMold||0)+(r.tMalla||0);
+  }
+  if(r.arm==='C-158') r.msg.push(['w','C-158 no tiene precio en la tabla DT-18; se interpola entre C-139 y C-221.']);
+  if(r.hv===0) r.msg.push(['w','hv redondeado a 0,0 m (caudal bajo); rige sólo la revancha de '+fmt(r.rev,1)+' m.']);
+  r.ok=true;
+  return r;
+}
+
+/* ============ inputs ============ */
+function ip(key,ph,cls){
+  const raw=RAW[key], v=(raw!==undefined)?raw:(S[key]===''||S[key]===null?'':S[key]);
+  return '<input type="text" inputmode="decimal" data-key="'+key+'" class="'+(cls||'')+'" '+
+         'placeholder="'+(ph||'')+'" value="'+String(v).replace(/"/g,'&quot;')+'" oninput="onIn(this)">';
+}
+function onIn(el){
+  const k=el.dataset.key; RAW[k]=el.value; S[k]=el.value; render();
+}
+function set(k,v){ S[k]=v; delete RAW[k]; render(); }
+function ro(v){ return '<input class="result" readonly value="'+v+'">'; }
+
+/* ============ render ============ */
+function render(){
+  const ae=document.activeElement;
+  const fk=ae&&ae.dataset?ae.dataset.key:null;
+  const ss=fk?ae.selectionStart:null, se=fk?ae.selectionEnd:null;
+  const r=calcular();
+  document.getElementById('tabs').innerHTML=
+    [['diseno','Diseño'],['presupuesto','Presupuesto'],['precios','Precios DT-18'],['informe','Informe']]
+    .map(t=>'<div class="tab'+(TAB===t[0]?' on':'')+'" onclick="TAB=\''+t[0]+'\';render()">'+t[1]+'</div>').join('');
+  const app=document.getElementById('app');
+  app.innerHTML = TAB==='diseno'?vDiseno(r) : TAB==='presupuesto'?vPresu(r) : TAB==='precios'?vPrecios(r) : vInfTab(r);
+  document.getElementById('reportView').innerHTML = r.ok?informe(r):'';
+  if(fk){ const n=app.querySelector('[data-key="'+fk+'"]');
+    if(n){ n.focus(); try{n.setSelectionRange(ss,se);}catch(e){} } }
+}
+
+function alerts(r){ return (r.msg||[]).map(m=>'<div class="al '+m[0]+'">'+m[1]+'</div>').join(''); }
+
+function vDiseno(r){
+  let H='<div class="card"><h3>Proyecto</h3><div class="row tight"><label>Código o nombre del proyecto</label>'+
+    '<input type="text" class="nocalc" style="width:320px;text-align:left" value="'+(S.nombre||'')+'" oninput="S.nombre=this.value">'+
+    '</div></div>';
+
+  H+='<div class="card"><h3>Datos de entrada</h3><div class="g2"><div>'+
+    '<div class="row"><label>Caudal de diseño Q</label>'+ip('Q','0,100')+'<span class="u">m³/s</span></div>'+
+    '<div class="row"><label>Ancho del desarenador b</label>'+ip('b','2,0')+'<span class="u">m</span></div>'+
+    '<div class="row"><label>Profundidad de agua h</label>'+ip('h','1,0')+'<span class="u">m</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Tamaño de partícula a retener</label><select onchange="set(\'d\',this.value)">'+
+      DPART.map(x=>'<option value="'+x+'"'+(Number(S.d)===x?' selected':'')+'>'+fmt(x,3)+' mm · '+familia(x)+'</option>').join('')+
+      '</select><span class="u">mm</span></div>'+
+    '<div class="row"><label>Zona sísmica</label><select onchange="set(\'zona\',this.value)">'+
+      ZONAS.map(z=>'<option value="'+z[0]+'"'+(Number(S.zona)===z[0]?' selected':'')+'>Zona '+z[0]+' · '+z[1]+' · '+z[2]+'</option>').join('')+
+      '</select><span class="u"></span></div>'+
+    '<div class="row"><label>Coef. de gasto del vertedero m₀</label>'+ip('mo','1,05','w140')+'<span class="u"></span></div>'+
+    '</div></div>'+
+    '<div class="hint">Q ≤ 2 m³/s · h ≤ 1,8 m · partícula máx. recomendada en riego 0,5 mm · zonificación sísmica NCh 433 / NCh 2369</div>'+
+    '</div>';
+
+  if(!r.ok) return H+'<div class="card"><div class="al w">Ingrese caudal, ancho y profundidad para calcular.</div></div>';
+
+  H+=alerts(r);
+
+  H+='<div class="card"><h3>Sedimentación</h3><div class="g3"><div>'+
+    '<div class="row"><label>Número de Reynolds</label>'+ro(fmt(r.Re,3))+'<span class="u">—</span></div>'+
+    '<div class="row"><label>Coef. de arrastre Cd (promedio)</label>'+ro(fmt(r.Cd,2))+'<span class="u">—</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Velocidad de sedimentación W₀</label>'+ro(fmt(r.Wo*100,4))+'<span class="u">cm/s</span></div>'+
+    '<div class="row"><label>Velocidad corregida u = 0,848·W₀</label>'+ro(fmt(r.u*100,4))+'<span class="u">cm/s</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Sección de escurrimiento A</label>'+ro(fmt(r.A,3))+'<span class="u">m²</span></div>'+
+    '<div class="row"><label>Velocidad horizontal V</label>'+ro(fmt(r.V,4))+'<span class="u">m/s</span></div>'+
+    '</div></div>'+
+    '<div class="hint">Iteración Newton–Allen–Stokes; Cd = promedio de Putnam, Schiller, Olson y Stokes</div></div>';
+
+  H+='<div class="card"><h3>Geometría del desarenador</h3><div class="g3"><div>'+
+    '<div class="row"><label>Longitud calculada L = h·V/u</label>'+ro(fmt(r.Lcalc,2))+'<span class="u">m</span></div>'+
+    '<div class="row"><label>Longitud adoptada</label>'+ro(fmt(r.L,0))+'<span class="u">m</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Altura sobre vertedero hv</label>'+ro(fmt(r.hv,2))+'<span class="u">m</span></div>'+
+    '<div class="row"><label>Revancha</label>'+ro(fmt(r.rev,2))+'<span class="u">m</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Altura de muros hf = h + hv + rev</label>'+ro(fmt(r.hf,2))+'<span class="u">m</span></div>'+
+    '<div class="row"><label>Espesor de muros y radier</label>'+ro(fmt(r.e,2))+'<span class="u">m</span></div>'+
+    '<div class="row"><label>Altura total muro + radier</label>'+ro(fmt(r.hf+r.e,2))+'<span class="u">m</span></div>'+
+    '</div></div>'+
+    '<div class="hint">Largo mínimo 4 m · entrega sobre vertedero de pared gruesa · hormigón G-20</div>'+
+    '<div class="ctr">'+esquema(r)+'</div></div>';
+
+  H+='<div class="card"><h3>Armadura</h3><div class="g3"><div>'+
+    '<div class="row"><label>Familia de suelo</label>'+ro(r.suelo)+'<span class="u"></span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Rango de altura</label>'+ro('≤ '+fmt(r.brk,1)+' m')+'<span class="u"></span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Malla adoptada</label>'+ro(r.arm||'—')+'<span class="u"></span></div>'+
+    '</div></div>'+
+    '<div class="hint">La familia de suelo la define el tamaño de partícula: ≥ 0,050 mm Arena · 0,005 a 0,020 mm Limo · 0,002 mm Arcilla</div></div>';
+
+  H+='<div class="card"><h3>Cubicación</h3><table><thead><tr><th>Partida</th><th style="text-align:right">Cantidad</th><th>Un.</th><th>Fórmula</th></tr></thead><tbody>'+
+    '<tr><td>Hormigón G-20 (muros + radier)</td><td class="n">'+fmt(r.qHorm,2)+'</td><td>m³</td><td class="hint">(e·hf·L·2 + e·b·L) × 1,20</td></tr>'+
+    '<tr><td>Moldaje</td><td class="n">'+fmt(r.qMold,2)+'</td><td>m²</td><td class="hint">(hf·2 + (hf+e)·2) · L × 1,20</td></tr>'+
+    '<tr><td>Malla ACMA '+(r.arm||'')+'</td><td class="n">'+fmt(r.qMalla,2)+'</td><td>m²</td><td class="hint">((hf+e/2)·2 + (b+e)) · L × 1,30</td></tr>'+
+    '</tbody></table><div class="hint">Incluye pérdidas: 20% hormigón y moldaje, 30% malla</div></div>';
+  return H;
+}
+
+function esquema(r){
+  const b=r.b,hf=r.hf,h=r.h,e=r.e,L=r.L;
+  const wt=b+2*e, ht=hf+e;
+  const mL=62,mR=66,mT=24,mB=38;
+  let sc=Math.min(160/ht, 410/wt);
+  const W=Math.round(mL+wt*sc+mR), Hh=Math.round(mT+ht*sc+mB);
+  const x0=mL,y0=mT, px=v=>x0+v*sc, py=v=>y0+v*sc;
+  let s='<svg viewBox="0 0 '+W+' '+Hh+'" style="width:100%;max-width:'+(W*1.15)+'px;margin-top:8px">';
+  s+='<path class="fillC" d="M'+px(0)+' '+py(0)+' h'+(e*sc)+' v'+(hf*sc)+' h'+(b*sc)+' v'+(-hf*sc)+' h'+(e*sc)+
+     ' v'+((hf+e)*sc)+' h'+(-wt*sc)+' Z"/>';
+  s+='<rect class="fillW" x="'+px(e)+'" y="'+py(hf-h)+'" width="'+(b*sc)+'" height="'+(h*sc)+'"/>';
+  s+='<line class="cot" x1="'+px(e)+'" y1="'+py(hf-h)+'" x2="'+px(e+b)+'" y2="'+py(hf-h)+'"/>';
+  s+='<text x="'+px(e+b/2)+'" y="'+(py(hf-h)-3)+'" text-anchor="middle">N.A.  h = '+fmt(h,2)+' m</text>';
+  const yb=py(hf+e)+13;
+  s+='<line class="cot" x1="'+px(e)+'" y1="'+yb+'" x2="'+px(e+b)+'" y2="'+yb+'"/>';
+  s+='<text x="'+px(e+b/2)+'" y="'+(yb+10)+'" text-anchor="middle">b = '+fmt(b,2)+' m</text>';
+  const xl=px(0)-11;
+  s+='<line class="cot" x1="'+xl+'" y1="'+py(0)+'" x2="'+xl+'" y2="'+py(hf+e)+'"/>';
+  s+='<text x="'+(xl-3)+'" y="'+py((hf+e)/2)+'" text-anchor="end">hf+e</text>';
+  s+='<text x="'+(xl-3)+'" y="'+(py((hf+e)/2)+9)+'" text-anchor="end">'+fmt(hf+e,2)+' m</text>';
+  const xr=px(wt)+11;
+  s+='<line class="cot" x1="'+xr+'" y1="'+py(hf-h)+'" x2="'+xr+'" y2="'+py(0)+'"/>';
+  s+='<text x="'+(xr+3)+'" y="'+py((hf-h)/2+0.02)+'">hv+rev</text>';
+  s+='<text x="'+(xr+3)+'" y="'+(py((hf-h)/2)+9)+'">'+fmt(r.hvr,2)+' m</text>';
+  s+='<text x="'+px(wt/2)+'" y="'+(mT-7)+'" text-anchor="middle">Seccion transversal   e = '+fmt(e,2)+' m   L = '+fmt(L,0)+' m</text>';
+  s+='</svg>';
+  return s;
+}
+
+/* ============ presupuesto ============ */
+const ACCN={P:'Plano',L:'Ladera media',D:'Difícil acceso'};
+function vPresu(r){
+  if(!r.ok||!r.bt) return '<div class="card"><div class="al w">Complete el diseño para generar el presupuesto.</div></div>';
+  let H=alerts(r);
+  H+='<div class="card"><h3>Presupuesto — obra de hormigón armado</h3>'+
+    '<table><thead><tr><th>Partida</th><th>Un.</th><th style="text-align:right">Cantidad</th>'+
+    '<th style="text-align:right">P. unitario</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
+    fila('Hormigón G-20','m³',r.qHorm,r.pHorm,r.tHorm)+
+    fila('Moldaje (1 uso)','m²',r.qMold,r.pMold,r.tMold)+
+    fila('Malla ACMA '+(r.arm||''),'m²',r.qMalla,r.pMalla,r.tMalla)+
+    '<tr class="tot"><td colspan="4">COSTO DIRECTO</td><td class="n">'+money(r.CD)+'</td></tr>'+
+    '</tbody></table>'+
+    '<div class="big"><span>Valor aproximado del desarenador proyectado</span><b>'+money(r.CD)+'</b></div>'+
+    '<div class="hint">Precios DT-18 · '+fmt(S.altura,0)+' msnm · '+ACCN[S.acceso]+' · '+S.km+' km · factor UF '+fmt(factorUF(),4)+
+    ' — modificables en la pestaña «Precios DT-18»</div></div>';
+  return H;
+}
+function fila(n,u,q,p,t){
+  return '<tr><td>'+n+'</td><td>'+u+'</td><td class="n">'+fmt(q,2)+'</td><td class="n">'+money(p)+'</td><td class="n">'+money(t)+'</td></tr>';
+}
+
+/* ============ precios DT-18 ============ */
+function vPrecios(r){
+  const ALT=[1000,2000,3000,4000], ACC=[['P','Plano'],['L','Ladera media'],['D','Difícil acceso']];
+  let H='<div class="card"><h3>Parámetros de precios</h3><div class="g3"><div>'+
+    '<div class="row"><label>Altura de emplazamiento</label><select onchange="set(\'altura\',this.value)">'+
+      ALT.map(a=>'<option value="'+a+'"'+(Number(S.altura)===a?' selected':'')+'>'+fmt(a,0)+' msnm</option>').join('')+
+      '</select><span class="u"></span></div>'+
+    '<div class="row"><label>UF base de la tabla</label>'+ip('ufBase','24.063,50','w140')+'<span class="u">$</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Tipo de acceso</label><select onchange="set(\'acceso\',this.value)">'+
+      ACC.map(a=>'<option value="'+a[0]+'"'+(S.acceso===a[0]?' selected':'')+'>'+a[1]+'</option>').join('')+
+      '</select><span class="u"></span></div>'+
+    '<div class="row"><label>UF del proyecto</label>'+ip('uf','40.873,77','w140')+'<span class="u">$</span></div>'+
+    '</div><div>'+
+    '<div class="row"><label>Distancia de transporte</label><select onchange="set(\'km\',this.value)">'+
+      Array.from({length:30},(_,i)=>(i+1)*10).map(k=>'<option value="'+k+'"'+(Number(S.km)===k?' selected':'')+'>'+k+' km</option>').join('')+
+      '</select><span class="u"></span></div>'+
+    '<div class="row"><label>Factor de actualización UF</label>'+ro(fmt(factorUF(),4))+'<span class="u">—</span></div>'+
+    '</div></div>'+
+    '<div class="hint">UF al 31-08-2026 = $ 40.873,77 · verifique la UF vigente y la UF base de la edición DT-18 utilizada</div></div>';
+
+  const bt=baseTabla();
+  if(!bt) return H;
+  const arm=r.ok?(r.arm||''):'';
+  const armN=arm.replace('Doble malla ','');
+  const rowP=(k,nom,un)=>{
+    const mod=(S.pb&&S.pb[k]!==undefined&&S.pb[k]!==''&&S.pb[k]!==null);
+    const sel=(k===armN)?' style="background:var(--ice);font-weight:700"':'';
+    return '<tr'+sel+'><td>'+nom+(k===armN?' ◄ adoptada':'')+'</td><td>'+un+'</td>'+
+      '<td class="n">'+money(bt[k])+'</td>'+
+      '<td class="n" style="padding:2px 8px"><input type="text" inputmode="decimal" data-key="pb:'+k+'" class="w140" '+
+        'placeholder="'+fmt(bt[k],0)+'" value="'+(mod?String(S.pb[k]):'')+'" oninput="onPb(this)"></td>'+
+      '<td class="n">'+money(precioAp(k))+'</td></tr>';
+  };
+  H+='<div class="card"><h3>Precios unitarios DT-18</h3>'+
+    '<table><thead><tr><th>Ítem</th><th>Un.</th><th style="text-align:right">Tabla DT-18</th>'+
+    '<th style="text-align:right">Editar precio base</th><th style="text-align:right">Aplicado (× UF)</th></tr></thead><tbody>'+
+    '<tr class="sec"><td colspan="5">Hormigón y moldaje</td></tr>'+
+    rowP('horm','Hormigón G-20','m³')+
+    rowP('mold','Moldaje (1 uso)','m²')+
+    '<tr class="sec"><td colspan="5">Malla ACMA</td></tr>'+
+    MALLAS.map(m=>rowP(m,'Malla '+m,'m²')).join('')+
+    '</tbody></table>'+
+    '<div class="row" style="margin-top:8px"><label class="hint">Deje el campo vacío para usar el precio de la tabla DT-18. La malla doble se cobra al doble del precio unitario.</label>'+
+    '<button class="btn" onclick="resetPb()">Restablecer precios</button></div></div>';
+  return H;
+}
+function onPb(el){
+  const k=el.dataset.key.slice(3);
+  if(!S.pb) S.pb={};
+  if(el.value==='') delete S.pb[k]; else S.pb[k]=el.value;
+  RAW[el.dataset.key]=el.value;
+  render();
+}
+function resetPb(){ S.pb={}; Object.keys(RAW).forEach(k=>{if(k.indexOf('pb:')===0)delete RAW[k];}); render(); }
+
+/* ============ informe ============ */
+function vInfTab(r){
+  if(!r.ok) return '<div class="card"><div class="al w">Complete el diseño para generar el informe.</div></div>';
+  return '<div class="card"><h3>Informe</h3>'+
+    '<div class="row"><label>Documento de 2 páginas, tamaño carta, listo para imprimir o exportar a PDF.</label>'+
+    '<button onclick="window.print()" style="background:var(--blue);color:#fff;border:0;padding:8px 16px;border-radius:8px;font-family:inherit;font-weight:700;cursor:pointer">Imprimir / PDF</button></div>'+
+    '<div class="hint">En el diálogo de impresión seleccione «Tamaño carta» y active «Gráficos de fondo».</div></div>'+
+    '<div class="card" style="padding:0;overflow:auto">'+informe(r).replace(/class="inf-page"/g,'class="inf-page" style="transform:scale(.86);transform-origin:top center"')+'</div>';
+}
+
+function kv(k,v){ return '<div class="inf-kv"><span>'+k+'</span><b>'+v+'</b></div>'; }
+
+function informe(r){
+  const hoy=new Date().toLocaleDateString('es-CL');
+  const nom=S.nombre||'Sin identificación';
+  const foot=n=>'<div class="inf-f"><span>Diseño de Desarenador · CEVV</span><span>'+nom+'</span><span>Página '+n+' de 2</span></div>';
+  let p1='<div class="inf-page"><div class="inf-pg">'+
+    '<div class="inf-h"><div class="t">Diseño de Desarenador para Aguas de Riego</div>'+
+    '<div class="s">'+nom+' · '+hoy+'</div></div>'+
+    '<div class="inf-s">1. Antecedentes de diseño</div><div class="inf-2"><div>'+
+      kv('Caudal de diseño Q','&nbsp;'+fmt(r.Q,3)+' m³/s')+
+      kv('Ancho adoptado b','&nbsp;'+fmt(r.b,2)+' m')+
+      kv('Profundidad de agua h','&nbsp;'+fmt(r.h,2)+' m')+
+    '</div><div>'+
+      kv('Partícula a retener','&nbsp;'+fmt(Number(S.d),3)+' mm ('+r.suelo+')')+
+      kv('Zona sísmica','&nbsp;Zona '+S.zona+' · '+ZONAS[Number(S.zona)-1][1])+
+      kv('Coef. gasto vertedero m₀','&nbsp;'+fmt(r.mo,2))+
+    '</div></div>'+
+    '<div class="inf-s">2. Velocidad de sedimentación</div><div class="inf-2"><div>'+
+      kv('Número de Reynolds','&nbsp;'+fmt(r.Re,3))+
+      kv('Coef. de arrastre Cd','&nbsp;'+fmt(r.Cd,2))+
+      kv('Velocidad W₀','&nbsp;'+fmt(r.Wo*100,4)+' cm/s')+
+    '</div><div>'+
+      kv('Velocidad corregida u','&nbsp;'+fmt(r.u*100,4)+' cm/s')+
+      kv('Sección de escurrimiento A','&nbsp;'+fmt(r.A,3)+' m²')+
+      kv('Velocidad horizontal V','&nbsp;'+fmt(r.V,4)+' m/s')+
+    '</div></div>'+
+    '<div style="font-size:8.5pt;color:#5b7086;margin-top:1mm">Iteración Newton–Allen–Stokes; Cd corresponde al promedio de las expresiones de Putnam, Schiller, Olson y Stokes. Velocidad corregida u = W₀ − 0,152·W₀.</div>'+
+    '<div class="inf-s">3. Dimensionamiento</div><div class="inf-2"><div>'+
+      kv('Longitud calculada','&nbsp;'+fmt(r.Lcalc,2)+' m')+
+      kv('Longitud adoptada L','&nbsp;'+fmt(r.L,0)+' m')+
+      kv('Altura sobre vertedero hv','&nbsp;'+fmt(r.hv,2)+' m')+
+    '</div><div>'+
+      kv('Revancha','&nbsp;'+fmt(r.rev,2)+' m')+
+      kv('Altura de muros hf','&nbsp;'+fmt(r.hf,2)+' m')+
+      kv('Espesor muros y radier e','&nbsp;'+fmt(r.e,2)+' m')+
+    '</div></div>'+
+    '<div style="text-align:center;margin-top:2mm">'+esquema(r)+'</div>'+
+    '<div class="inf-s">4. Armadura</div>'+
+    '<div class="inf-2"><div>'+kv('Hormigón','&nbsp;G-20')+kv('Familia de suelo','&nbsp;'+r.suelo)+
+    '</div><div>'+kv('Rango de altura','&nbsp;≤ '+fmt(r.brk,1)+' m')+kv('Malla ACMA','&nbsp;'+(r.arm||'—'))+'</div></div>'+
+    foot(1)+'</div></div>';
+
+  let p2='<div class="inf-page"><div class="inf-pg">'+
+    '<div class="inf-h"><div class="t">Cubicación y Presupuesto</div><div class="s">'+nom+' · '+hoy+'</div></div>'+
+    '<div class="keep"><div class="inf-s">5. Cubicación</div>'+
+    '<table class="inf-tbl"><thead><tr><th>Partida</th><th>Un.</th><th style="text-align:right">Cantidad</th><th>Expresión</th></tr></thead><tbody>'+
+    '<tr><td>Hormigón G-20 (muros + radier)</td><td>m³</td><td class="n">'+fmt(r.qHorm,2)+'</td><td>(e·hf·L·2 + e·b·L) × 1,20</td></tr>'+
+    '<tr><td>Moldaje (1 uso)</td><td>m²</td><td class="n">'+fmt(r.qMold,2)+'</td><td>(hf·2 + (hf+e)·2) · L × 1,20</td></tr>'+
+    '<tr><td>Malla ACMA '+(r.arm||'')+'</td><td>m²</td><td class="n">'+fmt(r.qMalla,2)+'</td><td>((hf+e/2)·2 + (b+e)) · L × 1,30</td></tr>'+
+    '</tbody></table></div>'+
+    '<div class="keep"><div class="inf-s">6. Condiciones de obra</div><div class="inf-2"><div>'+
+      kv('Altura de emplazamiento','&nbsp;'+fmt(S.altura,0)+' msnm')+
+      kv('Tipo de acceso','&nbsp;'+ACCN[S.acceso])+
+    '</div><div>'+
+      kv('Distancia de transporte','&nbsp;'+S.km+' km')+
+      kv('Precios de referencia','&nbsp;DT-18 · UF '+fmt(parseDecimalFlex(S.uf),2))+
+    '</div></div></div>'+
+    '<div class="keep"><div class="inf-s">7. Presupuesto</div>'+
+    '<table class="inf-tbl"><thead><tr><th>Partida</th><th>Un.</th><th style="text-align:right">Cant.</th>'+
+    '<th style="text-align:right">P. unitario</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
+    ifila('Hormigón G-20','m³',r.qHorm,r.pHorm,r.tHorm)+
+    ifila('Moldaje (1 uso)','m²',r.qMold,r.pMold,r.tMold)+
+    ifila('Malla ACMA '+(r.arm||''),'m²',r.qMalla,r.pMalla,r.tMalla)+
+    '<tr class="tot"><td colspan="4">COSTO DIRECTO</td><td class="n">'+money(r.CD)+'</td></tr>'+
+    '</tbody></table></div>'+
+    '<div style="font-size:8.5pt;color:#5b7086;margin-top:2mm">Valor aproximado del desarenador proyectado. Precios unitarios según DT-18, ajustados por altura de emplazamiento, tipo de acceso, distancia de transporte y actualizados por UF. Las cantidades incluyen pérdidas de 20% en hormigón y moldaje, y 30% en malla ACMA. No incluye obras de arte de ingreso, salida, canal de rebalse ni compuerta de purga.</div>'+
+    foot(2)+'</div></div>';
+  return p1+p2;
+}
+function ifila(n,u,q,p,t){
+  return '<tr><td>'+n+'</td><td>'+u+'</td><td class="n">'+fmt(q,2)+'</td><td class="n">'+money(p)+'</td><td class="n">'+money(t)+'</td></tr>';
+}
+
+/* ============ persistencia ============ */
+function guardar(){
+  const blob=new Blob([JSON.stringify({formato:'desarenador-cnr',version:1,datos:S},null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Desarenador_'+((S.nombre||'proyecto').replace(/[^\w\-]+/g,'_'))+'.json';
+  a.click();
+}
+function cargar(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=e=>{ try{
+      const j=JSON.parse(e.target.result);
+      const d=j.datos||j;
+      Object.keys(DEF).forEach(k=>{ if(d[k]!==undefined) S[k]=d[k]; });
+      Object.keys(RAW).forEach(k=>delete RAW[k]);
+      render();
+    }catch(err){ alert('Archivo no válido'); } };
+  rd.readAsText(f); ev.target.value='';
+}
+
+render();
+</script></body></html>
