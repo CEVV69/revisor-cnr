@@ -180,7 +180,9 @@ let S = {
   d:{ caudal:10, tturno:24, tipo:'100% Muro', geomembrana:'Si', profExc:1.5,
       volumen:900, alturaSel:2, largoCalc:15, largoDis:15, anchoDis:30 },
   precios: JSON.parse(JSON.stringify(DEFAULT_PRECIOS)),
-  presupuesto: {} // overrides manuales de P.U. por item id
+  presupuesto: {}, // overrides manuales de P.U. por item id
+  chequeo: { freqTurno:1, tipoSistema:'alta', caudalSistema:5, horasDia:2,
+             horasPostura:8, horasCiclo:16, frRiego:7 }
 };
 let RAW = {}; // eco del texto tal como se está tecleando (evita perder "," "." mientras se escribe)
 
@@ -193,6 +195,7 @@ function loadState(){
       if(obj.d) Object.assign(S.d, obj.d);
       if(obj.precios) S.precios = obj.precios;
       if(obj.presupuesto) S.presupuesto = obj.presupuesto;
+      if(obj.chequeo) Object.assign(S.chequeo, obj.chequeo);
     }
   }catch(e){ console.warn('No se pudo cargar estado guardado', e); }
 }
@@ -207,7 +210,7 @@ function guardarProyecto(){
   S.d.nombreProyecto = nombre.trim();
   saveState();
   const data = { formato:'riego-cnr-embalse', version:1, fecha:new Date().toISOString(),
-    d:S.d, precios:S.precios, presupuesto:S.presupuesto };
+    d:S.d, precios:S.precios, presupuesto:S.presupuesto, chequeo:S.chequeo };
   const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -225,6 +228,7 @@ function cargarProyecto(input){
       if(obj.d) Object.assign(S.d, obj.d);
       if(obj.precios) S.precios = obj.precios;
       if(obj.presupuesto) S.presupuesto = obj.presupuesto;
+      if(obj.chequeo) Object.assign(S.chequeo, obj.chequeo);
       RAW = {};
       saveState(); render();
       alert('Proyecto cargado correctamente.');
@@ -458,13 +462,54 @@ function calcPresupuesto(){
   return {rows, total};
 }
 
+/* ===================== CHEQUEO SISTEMA DE RIEGO ===================== */
+function calcChequeo(){
+  const R = calcDiseno();
+  const d = S.d;
+  const c = S.chequeo;
+  const volDiseno = R.volumenDiseno;           // capacidad física construida (m³)
+  const volAporteTurno = R.volDisponible;      // lo que la fuente llena en UN turno (m³)
+  const tasaDiaria = c.freqTurno>0 ? volAporteTurno/c.freqTurno : 0; // aporte promedio de la fuente por día (m³/día)
+
+  const esAlta = c.tipoSistema==='alta';
+  let volEvento, demandaDiariaProm, autonomiaUnidadTxt, autonomiaCant;
+
+  if(esAlta){
+    volEvento = c.caudalSistema*c.horasDia*3.6;          // m³ por día de riego
+    demandaDiariaProm = volEvento;                        // ya es diario
+  } else {
+    volEvento = c.caudalSistema*c.horasPostura*3.6;       // m³ por postura (evento más grande)
+    const volCiclo = c.caudalSistema*c.horasCiclo*3.6;    // m³ consumidos en un ciclo de Fr días
+    demandaDiariaProm = c.frRiego>0 ? volCiclo/c.frRiego : 0;
+  }
+
+  const horasContinuas = c.caudalSistema>0 ? volDiseno/(c.caudalSistema*3.6) : 0; // autonomía en horas de riego continuo
+  if(esAlta){
+    autonomiaCant = c.horasDia>0 ? horasContinuas/c.horasDia : 0;
+    autonomiaUnidadTxt = 'días de riego';
+  } else {
+    autonomiaCant = c.horasCiclo>0 ? horasContinuas/c.horasCiclo : 0;
+    autonomiaUnidadTxt = 'ciclos de Fr completos';
+  }
+
+  return {
+    volDiseno, volAporteTurno, tasaDiaria,
+    volEvento, demandaDiariaProm, horasContinuas, autonomiaCant, autonomiaUnidadTxt,
+    capacidadOk: volEvento <= volDiseno,
+    balanceOk: tasaDiaria >= demandaDiariaProm,
+    margenCapacidad: volDiseno>0 ? (volDiseno-volEvento)/volDiseno*100 : 0,
+    margenBalance: demandaDiariaProm>0 ? (tasaDiaria-demandaDiariaProm)/demandaDiariaProm*100 : 0
+  };
+}
+
 /* ===================== RENDER ===================== */
 const TABS = [
   {id:'diseno', label:'Diseño'},
   {id:'cubicacion', label:'Cubicación'},
   {id:'presupuesto', label:'Presupuesto'},
   {id:'precios', label:'Precios DT-18'},
-  {id:'informe', label:'Informe'}
+  {id:'informe', label:'Informe'},
+  {id:'chequeo', label:'Chequeo Riego'}
 ];
 let activeTab='diseno';
 
@@ -531,6 +576,11 @@ function setDirect(key, val){
 }
 function rawOr(key, fallback){
   return RAW[key]!==undefined ? RAW[key] : fallback;
+}
+function setC(key, val, isNumber=true){
+  RAW['c-'+key] = val;
+  S.chequeo[key] = isNumber ? parseDecimalFlex(val) : val;
+  saveState(); render();
 }
 
 function renderDiseno(){
@@ -905,6 +955,82 @@ function renderInforme(){
   </div>`;
 }
 
+function verdictTag(ok, txtOk, txtBad){
+  return ok ? `<span class="alert" style="background:#eafaf1;color:var(--ok)">✓ ${txtOk}</span>`
+            : `<span class="alert bad">✗ ${txtBad}</span>`;
+}
+
+function renderChequeo(){
+  const c = S.chequeo;
+  const Ck = calcChequeo();
+  const esAlta = c.tipoSistema==='alta';
+  return `<div class="card">
+    <h2>Chequeo: Embalse vs. Sistema de Riego</h2>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Datos del embalse (desde Diseño)</h3>
+    <div class="fixedrow">
+      <span class="tag">Volumen de diseño: ${fmt(Ck.volDiseno,1)} m³</span>
+      <span class="tag">Caudal fuente: ${fmt(S.d.caudal,2)} l/s</span>
+      <span class="tag">Tiempo turno: ${fmt(S.d.tturno,1)} h</span>
+      <span class="tag">Aporte por turno: ${fmt(Ck.volAporteTurno,1)} m³</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Frecuencia real del turno de acumulación</h3>
+    <div class="row"><label>Cada cuántos días se dispone del turno para llenar</label>
+      <input type="text" inputmode="decimal" data-key="c-freqTurno" placeholder="Ingrese" value="${rawOr('c-freqTurno',c.freqTurno)}" oninput="setC('freqTurno',this.value)"></div>
+    <div class="fixedrow" style="margin-top:6px;"><span class="tag">Tasa de reposición: ${fmt(Ck.tasaDiaria,2)} m³/día</span></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Sistema de riego</h3>
+    <div class="row"><label>Tipo de sistema</label>
+      <select onchange="setC('tipoSistema',this.value,false)">
+        <option value="alta" ${esAlta?'selected':''}>Goteo / Microaspersión (alta frecuencia, diario)</option>
+        <option value="posturas" ${!esAlta?'selected':''}>Aspersión / Carrete (por posturas, con Fr)</option>
+      </select></div>
+    <div class="row"><label>Caudal del sistema (l/s)</label>
+      <input type="text" inputmode="decimal" data-key="c-caudalSistema" placeholder="Ingrese" value="${rawOr('c-caudalSistema',c.caudalSistema)}" oninput="setC('caudalSistema',this.value)"></div>
+    ${esAlta ? `
+    <div class="row"><label>Horas de riego por día</label>
+      <input type="text" inputmode="decimal" data-key="c-horasDia" placeholder="Ingrese" value="${rawOr('c-horasDia',c.horasDia)}" oninput="setC('horasDia',this.value)"></div>
+    ` : `
+    <div class="row"><label>Horas de riego por postura</label>
+      <input type="text" inputmode="decimal" data-key="c-horasPostura" placeholder="Ingrese" value="${rawOr('c-horasPostura',c.horasPostura)}" oninput="setC('horasPostura',this.value)"></div>
+    <div class="row"><label>Horas totales de riego por ciclo</label>
+      <input type="text" inputmode="decimal" data-key="c-horasCiclo" placeholder="Ingrese" value="${rawOr('c-horasCiclo',c.horasCiclo)}" oninput="setC('horasCiclo',this.value)"></div>
+    <div class="row"><label>Frecuencia de Riego, Fr (días)</label>
+      <input type="text" inputmode="decimal" data-key="c-frRiego" placeholder="Ingrese" value="${rawOr('c-frRiego',c.frRiego)}" oninput="setC('frRiego',this.value)"></div>
+    `}
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Resultados</h3>
+    <div class="grid3">
+      <div>
+        <div class="small" style="margin-bottom:4px;">1. Capacidad de ${esAlta?'un día de riego':'una postura'}</div>
+        <div>${fmt(Ck.volEvento,1)} m³ requeridos vs. ${fmt(Ck.volDiseno,1)} m³ disponibles</div>
+        ${verdictTag(Ck.capacidadOk,'Alcanza','No alcanza — se vacía a mitad de riego')}
+        <div class="small">Margen: ${fmt(Ck.margenCapacidad,0)}%</div>
+      </div>
+      <div>
+        <div class="small" style="margin-bottom:4px;">2. Autonomía del volumen total</div>
+        <div>${fmt(Ck.horasContinuas,1)} horas de riego continuo</div>
+        <div>≈ ${fmt(Ck.autonomiaCant,2)} ${Ck.autonomiaUnidadTxt}</div>
+      </div>
+      <div>
+        <div class="small" style="margin-bottom:4px;">3. Balance de reposición (sostenibilidad)</div>
+        <div>Fuente: ${fmt(Ck.tasaDiaria,2)} m³/día vs. Demanda: ${fmt(Ck.demandaDiariaProm,2)} m³/día</div>
+        ${verdictTag(Ck.balanceOk,'Se sostiene en el tiempo','La fuente no repone lo consumido — se vaciará')}
+        <div class="small">Margen: ${fmt(Ck.margenBalance,0)}%</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function render(){
   // preservar foco/cursor del input que se esté editando (evita perder el foco al re-renderizar)
   const active = document.activeElement;
@@ -920,6 +1046,7 @@ function render(){
   else if(activeTab==='presupuesto') app.innerHTML = renderPresupuesto();
   else if(activeTab==='precios') app.innerHTML = renderPrecios();
   else if(activeTab==='informe') app.innerHTML = renderInforme();
+  else if(activeTab==='chequeo') app.innerHTML = renderChequeo();
   else document.getElementById('reportView').innerHTML = renderInformeContent();
   if(fKey){
     const sel = '[data-key="'+fKey.replace(/"/g,'\\"')+'"]';

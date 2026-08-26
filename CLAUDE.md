@@ -52,7 +52,7 @@ sin que él reporte primero. Detalle en `docs/`.
 
 2. **Menú "Apps" (ago-2026, probado y OK):** botón único al final de `.proj-nav`
    (`_apps_menu.html`, incluido en proyecto/calculos/respuestas) reemplaza los botones sueltos que
-   abrían cada app hermana por separado — ahora 5 apps: sumadas `embalses_diseno_v7.html`
+   abrían cada app hermana por separado — ahora 5 apps: sumadas `embalses_diseno_v9.html`
    (Pequeños Embalses) y `desarenador_diseno_v5.html` (Desarenador). Agregar apps nuevas: solo
    editar `_apps_menu.html`.
 
@@ -104,7 +104,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
                  disenador_riego_v123.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
-                 (otra metodología, no la de Revisor CNR), embalses_diseno_v7.html,
+                 (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html
 ```
 
