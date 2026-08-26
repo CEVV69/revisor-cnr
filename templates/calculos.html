@@ -839,6 +839,13 @@
     }
     if (!destName) return;
     e.preventDefault();
+    // Al quitar `t` del DOM (dentro de actualizarCapa->renderCapas) el navegador le dispara blur
+    // — y con un valor distinto del inicial, TAMBIÉN change, que volvería a llamar a este mismo
+    // "onchange" con el mismo valor y reconstruiría la lista UNA SEGUNDA VEZ, destruyendo el
+    // campo que recién se enfocó abajo (bug real reportado: con el campo vacío ese change no se
+    // disparaba —el valor no cambiaba— así que "andaba"; con datos tipeados sí, y volvía a fallar).
+    // Se anula el handler ANTES de tocar el DOM para que ese change tardío no haga nada.
+    t.onchange = null;
     actualizarCapa(p, i, campo, t.value);
     var el = document.querySelector('[name="' + destName + '"]');
     if (el) el.focus();
