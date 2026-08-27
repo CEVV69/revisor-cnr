@@ -2249,6 +2249,7 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
         "CONCEPTOS_METODOLOGIA": CONCEPTOS_METODOLOGIA,
         "CONCEPTOS_METODOLOGIA_FV": CONCEPTOS_METODOLOGIA_FV,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
+        "costo_api": _costo_para_vista(proyecto),
     })
 
 
@@ -2313,6 +2314,7 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
         "fv": fv, "fv_calc": fv_calc,
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
         "mc": mc, "mc_fecha": (mc_guardado or {}).get("fecha"),
+        "costo_api": _costo_para_vista(proyecto),
     })
 
 

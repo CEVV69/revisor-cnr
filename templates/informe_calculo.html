@@ -8,7 +8,8 @@
     @page { margin: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
 
-    .no-print { text-align: right; margin-bottom: 1rem; }
+    .no-print { display: flex; align-items: center; justify-content: flex-end; gap: 0.8rem; margin-bottom: 1rem; }
+    .no-print-costo { margin-right: auto; font-size: 11px; color: #5b7086; }
     .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
                  border-radius: 4px; cursor: pointer; font-size: 13px; }
     .btn-print:hover { background: #2c5282; }
@@ -65,6 +66,9 @@
 <body>
 
 <div class="no-print">
+  {% if costo_api %}
+  <span class="no-print-costo" title="Costo estimado de la API de Claude en este proyecto">Costo API del proyecto: US$ {{ costo_api.total_usd | usd }}</span>
+  {% endif %}
   <button class="btn-print" onclick="window.print()">Imprimir</button>
 </div>
 

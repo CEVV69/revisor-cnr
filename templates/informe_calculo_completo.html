@@ -74,6 +74,9 @@
     </button>
   </form>
   {% if mc_fecha %}<span class="mc-nota">Última comparación: {{ mc_fecha }}</span>{% endif %}
+  {% if costo_api %}
+  <span class="mc-nota" style="margin-left:auto;" title="Costo estimado de la API de Claude en este proyecto">Costo API del proyecto: US$ {{ costo_api.total_usd | usd }}</span>
+  {% endif %}
 </div>
 
 {# ── Encabezado ── #}
