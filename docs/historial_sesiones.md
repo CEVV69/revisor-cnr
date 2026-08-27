@@ -1,3 +1,33 @@
+## Sesión ago-2026 — Costo de API ausente en las Memorias de Cálculo (sin confirmar aún)
+
+El usuario hizo "Comparar con la metodología del consultor" en la Memoria de Cálculo Completa
+(`informe_calculo_completo.html`) y notó que el contador de gasto de API no reflejó esa acción.
+
+Investigado el flujo completo antes de tocar nada: `extraer_metodologia_completa_route` (main.py)
+sí abre el acumulador (`analyzer.iniciar_costo()`), corre `extraer_metodologia_consultor` +
+`extraer_metodologia_fv` en paralelo con `asyncio.gather` (ambas funciones SÍ llaman `_log_uso`
+tras su respuesta de la API), y sí cierra con `_registrar_costo(proyecto, "chequeo", acc_costo)` +
+`db.save_proyecto(proyecto)` — el mecanismo de acumulador (`contextvars.ContextVar`, ver
+`analyzer._costo_acumulado`) está diseñado justamente para sobrevivir `asyncio.gather`/
+`to_thread` (cada Task hijo copia el contexto pero comparte el mismo dict). Todo el pipeline de
+REGISTRO estaba correcto.
+
+La causa real: `informe_calculo.html` e `informe_calculo_completo.html` son páginas standalone
+(no usan `{% extends "base.html" %}`, tienen su propio `<html><head>` completo, pensadas para
+imprimir/exportar a PDF) — nunca incluyeron `_costo_api.html` (el widget vive solo en
+`proyecto.html`/`calculos.html`/`respuestas.html`, las páginas con `.proj-nav`) NI recibían
+`costo_api` en el contexto de sus rutas GET (`informe_calculo_completo`, `informe_calculo` en
+main.py). El costo se registraba bien en `proyecto["costo_api"]`, simplemente no había forma de
+verlo en esa página.
+
+**Fix:** agregado `"costo_api": _costo_para_vista(proyecto)` al contexto de ambas rutas, y una
+línea de texto simple (no el widget `<details>` completo de `_costo_api.html`, que depende de CSS
+de `base.html` que estas páginas no cargan) en la barra `.no-print` de ambos templates: "Costo API
+del proyecto: US$ X,XX". Usa el filtro Jinja `usd` (registrado globalmente en
+`templates.env.filters`, disponible aunque la plantilla no extienda `base.html`).
+
+Sin confirmar todavía que el usuario lo vea correctamente al recargar.
+
 ## Sesión ago-2026 — App Desarenador + Embalses v9 + 2 fixes puntuales (todo probado, OK)
 
 **App "Diseño de Desarenador" agregada al menú Apps.** El usuario subió `Desarenador_V5.html`

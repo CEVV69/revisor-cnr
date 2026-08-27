@@ -54,10 +54,13 @@ sin que él reporte primero. Detalle en `docs/`.
    (Pequeños Embalses) y `desarenador_diseno_v5.html` (Desarenador). Agregar apps nuevas: solo
    editar `_apps_menu.html`.
 
-3. **2 fixes puntuales (ago-2026, probados y OK):** "Nombre del proyecto" en Resumen ahora
-   también actualiza `proyecto["nombre"]` (antes guardaba solo en `resumen`, campo que nadie más
-   leía); Tab entre campos del Desglose de Humedad Aprovechable por capas de suelo (el rebuild
-   por `innerHTML` en cada cambio destruía el campo destino del foco) — detalle en `docs/`.
+3. **3 fixes puntuales (ago-2026):** "Nombre del proyecto" en Resumen ahora también actualiza
+   `proyecto["nombre"]` (probado, OK); Tab entre campos del Desglose de Humedad Aprovechable por
+   capas de suelo (probado, OK) — ambos con detalle en `docs/`. **Sin confirmar todavía:**
+   `informe_calculo.html`/`informe_calculo_completo.html` (Memoria de Cálculo) no mostraban el
+   costo de API — no es que no se registrara, esas 2 páginas standalone nunca incluían el widget
+   ni recibían `costo_api` en el contexto; se agregó una línea de costo total en su barra
+   "no-print".
 
 4. **Criterios de revisión por método de riego** (ago-2026): `diseno_hidraulico` ganó un bloque
    de checklist con lo que la app NO recalcula — detalle en `docs/`. `diseno_fotovoltaico` sumó
