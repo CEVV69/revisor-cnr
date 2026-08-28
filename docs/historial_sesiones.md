@@ -2928,3 +2928,65 @@ conversión a l/hr no estándar para aspersores). Pendiente que el usuario lo ll
 
 ---
 
+## Diseñador de Riego v123 → v125 (ago-2026)
+
+El usuario preguntó, con muy buen criterio, si el Diseñador de Riego cometía los mismos errores
+de fondo que se venían corrigiendo en Revisor (división vs. reconstrucción, posturas/ciclo, Da
+sin control de unidad). Se investigó el código de `static/disenador_riego_v123.html` y se
+confirmaron DOS bugs reales, análogos a los de Revisor pero más graves — viven en el DISEÑO
+mismo, no solo en su verificación:
+
+1. **Sin control de unidad de Da** en `_calcCapasGenerico()` (línea ~2419, compartida por
+   Aspersión y Carrete) — mismo riesgo de AD ×1000 que se encontró y corrigió en Revisor.
+2. **Aspersión sin chequeo de días necesarios** en `calcAspP()` (línea ~2226) — Carrete (`calcCA()`,
+   línea ~2534) ya tenía `diasNec`/aviso cuando `nPostDia<1` (ni una postura cabe en un día);
+   Aspersión no, y encima rotulaba `mcard('Posturas Tot.', nPost, '= Fr días')` asumiendo sin
+   verificar que 1 postura = 1 día.
+
+Se entregó un prompt preciso en el chat (ubicaciones exactas, mismo patrón que el prompt anterior
+del Cuadro 1) para que el usuario lo lleve a la sesión que mantiene el Diseñador.
+
+**El usuario volvió con `disenador_riego_v125.html` ya corregido.** Se verificó el diff completo
+contra la v123 (vía `git show HEAD:static/disenador_riego_v123.html`, 178 líneas de diff) antes
+de aceptarlo:
+
+- ✅ **Bug 1 corregido:** nueva función `_checkDaPlausible(da)` (`if(da>5) return {da:da/1000,
+  alerta:true,...}`), aplicada en `_calcCapasGenerico()` (Aspersión Y Carrete) Y en `calcMA()`
+  (Microaspersión — el usuario/dev revisó por su cuenta si aplicaba ahí también, y sí). Nunca
+  corrige en silencio: siempre deja un aviso `⚠ Da declarada (...) parece estar en kg/m³, no
+  g/cc` junto al resultado de la capa afectada. Mismo umbral (`da>5`) y misma fórmula
+  (`da/1000`) que `_normalizar_da()` de Revisor — sin coordinación explícita, llegaron al mismo
+  criterio por ser la única interpretación físicamente plausible.
+- ✅ **Bug 2 corregido:** `calcAspP()` ahora calcula `diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null`
+  (idéntico a Carrete), lo agrega a `R.ASP`, agrega la misma alerta `nPostDia<1`, y separa el
+  mcard en "N° Posturas" + "Días Necesarios" (antes "Posturas Tot. = Fr días", la etiqueta
+  engañosa que asumía sin verificar).
+- 🎁 **2 fixes no pedidos, encontrados y corregidos por el dev de esa sesión:**
+  - El INFORME (`buildInfHtml()`) recalculaba Fr_adj con `Math.floor` en línea, una fórmula
+    STALE/duplicada que ya no coincidía con el criterio de redondeo (`Math.round`) que el resto
+    de la app usa desde hace tiempo — el informe podía mostrar un Fr distinto al que realmente
+    usó el diseño. Corregido leyendo `_ag_inf.frAdj` (el valor ya calculado) en vez de
+    recalcular. Mismo texto del informe actualizado ("redondeo(Fr real) → entero más cercano" en
+    vez de "⌊Fr real⌋ → entero inferior").
+  - El catálogo `EMISORES` (usado también para cañón/aspersor al elegir un modelo) está en
+    l/hr, pero se copiaba directo a los campos `c-desc`/`a-qasp`, que están en m³/hr — corregido
+    con conversión `/1000` al setear esos campos desde el catálogo.
+  - De paso, el informe ahora distingue en su texto si el AD viene de capas (`Σ Ha_capa`) o de
+    capa única, en vez de mostrar siempre la fórmula de capa única aunque el cálculo real usara
+    capas — mismo tipo de inconsistencia de display que se corrigió en las Memorias de Revisor.
+
+**El bug del Cuadro 1 "l/hr" (prompt anterior, sesión previa) NO está corregido en este diff** —
+verificado con grep, no aparece ningún cambio en `renderSectores()`/`buildInfHtml()` alrededor
+del header `Q emisor<br><small>l/hr</small>`. Sigue pendiente, hay que confirmar con el usuario
+si ese prompt se le entregó al mismo dev o si falta llevarlo.
+
+**Cambio mecánico en este repo:** `git mv` (detectado automático por `git rm` + `git add`) de
+`static/disenador_riego_v123.html` → `static/disenador_riego_v125.html`; actualizado el link en
+`templates/_apps_menu.html` y las menciones de nombre de archivo en comentarios/docstrings de
+`calculos_riego.py`, `exportar_disenador.py` y `CLAUDE.md` (2 lugares: listado de `static/` y la
+Regla 10 sobre confirmar IDs de export). No se tocó `exportar_disenador.py` en su lógica — se
+comparó el diff completo y ningún `id`/`class`/`name` de campo cambió entre v123 y v125, solo
+lógica interna y textos de display, así que el mapeo de exportación sigue siendo válido.
+
+---
+

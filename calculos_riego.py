@@ -25,7 +25,7 @@ VELOCIDAD_MIN_RECOMENDADA = 0.5   # m/s — bajo esto, riesgo de sedimentación
 VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdidas excesivas
 
 # Catálogo de tuberías comerciales — MISMOS datos que usa el Diseñador de Riego (array `TUBOS`
-# por defecto en static/disenador_riego_v123.html), portado tal cual para que el Chequeo
+# por defecto en static/disenador_riego_v125.html), portado tal cual para que el Chequeo
 # Hidráulico use el diámetro INTERIOR real en Hazen-Williams en vez del diámetro comercial/
 # exterior que suele venir en la memoria. El espesor de pared NO es un único valor por
 # diámetro+material — depende también de la clase de presión (PN/SDR), por eso esto es un

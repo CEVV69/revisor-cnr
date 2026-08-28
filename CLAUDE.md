@@ -46,7 +46,9 @@ sin que él reporte primero. Detalle en `docs/`.
    caso de extracción de caudal agregado (÷N sin ×3,6) resistió 2 rondas de prompt — se
    abandona esa mejora puntual, el chequeo de coherencia ya lo caza igual. **PENDIENTE del
    usuario:** llevar a la sesión del Diseñador de Riego el fix de un bug real ahí (Cuadro 1 ITT-
-   03 rotula "l/hr" un valor que en Aspersión es m³/hr) — prompt ya entregado en el chat.
+   03 rotula "l/hr" un valor que en Aspersión es m³/hr) — prompt ya entregado en el chat,
+   **AÚN sin corregir** (`static/disenador_riego_v125.html`, era v123 — sí trae ya corregidos
+   Da fuera de rango y Aspersión sin días-necesarios, los otros 2 bugs de esta misma auditoría).
    Detalle y validación numérica completa en `docs/`.
 
 2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
@@ -97,7 +99,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v123.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
+                 disenador_riego_v125.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html
 ```
@@ -148,5 +150,5 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v123.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v125.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.
