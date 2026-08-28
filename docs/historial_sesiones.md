@@ -2886,3 +2886,45 @@ de interpretación** (acá solo hay UN valor físicamente posible):
 
 ---
 
+## Cierre del arco de auditoría: se abandona el caso de extracción de caudal agregado + bug encontrado en el Diseñador de Riego (ago-2026)
+
+**Se refuerza el prompt de extracción (commit 846e94e)** con el mismo patrón de "dos pasos
+explícitos numerados" para el caso "Caudal de Operación agregado + N° aspersores, sin caudal
+individual" — el usuario volvió a re-extraer y **el resultado siguió siendo el mismo (0,33
+m³/hr en vez de 1,188)**: la IA divide el agregado por N° de aspersores pero sigue sin aplicar
+el ×3,6 final. Confirmado en la Memoria real re-generada: el chequeo `posible_inversion_unidad`
+sí lo detectó y diagnosticó correctamente igual (mismo patrón que el caso original de inversión
+de unidad — 0,33 es exactamente el valor SIN convertir, así que cae en la misma detección).
+
+**Decisión del usuario, compartida:** dejar de insistir en este caso puntual de extracción. Ya
+van dos rondas de prompt cada vez más explícito sin resultado, y el chequeo de coherencia
+determinístico sigue funcionando como red de seguridad — el review no queda ciego ni silencioso
+aunque la extracción falle en este caso específico, solo arrastra alertas en cascada (VA/tiempo
+por postura/ciclo) que el revisor puede identificar como consecuencia del mismo error ya
+señalado. Costo/beneficio de seguir puliendo el prompt ya no compensa frente a la diversidad real
+de formatos con que los consultores entregan sus memorias (excel con fórmulas, PDF con
+fórmulas+resultados, solo resultados finales, o mínimos indispensables) — ese es un problema de
+variabilidad documental que ningún prompt de extracción resuelve por completo.
+
+**Bug real encontrado en el Diseñador de Riego (`static/disenador_riego_v123.html`, APP
+HERMANA — no se toca desde este repo) — investigado a raíz del mismo caso:** la tabla "Cuadro 1
+— Resumen Diseño por Sector (ITT-03 CNR)" (aparece en `renderSectores()` línea ~3661 y dentro de
+`buildInfHtml()` línea ~4803) tiene la columna "Q emisor" con encabezado hardcodeado "l/hr" —
+correcto para Goteo/Microaspersión (`R.GE.qem`/`R.ME.qem`, del catálogo `EMISORES`, genuinamente
+l/hr), pero **incorrecto para Aspersión**: `R.ASP.qem` (armado en `calcAspP()` línea ~2241) es
+un alias directo de `qAsp`, el caudal del aspersor en **m³/hr** (confirmado contra la sección
+"Diseño del Aspersor" del mismo informe, línea ~4625, que sí rotula "m³/hr" correctamente para
+el mismo dato). Efecto: en un proyecto Aspersión, el Cuadro 1 oficial ITT-03 muestra "Q emisor:
+1,188 l/hr" cuando en realidad son 1,188 m³/hr — 1.000 veces distinto de lo que dice la etiqueta.
+Carrete tiene su propio branch de tabla con headers propios y correctos ("Q cañón / m³/hr"), no
+está afectado.
+
+**No se corrigió en esta sesión** (vive en el código del Diseñador de Riego, fuera de este
+repo/proyecto) — se le entregó al usuario en el chat un prompt preciso, listo para copiar a la
+sesión que mantiene esa app, con la ubicación exacta (archivo, funciones, líneas aproximadas),
+el diagnóstico completo, y la corrección recomendada (header condicional por sistema, mismo
+patrón que ya usa el branch `sys==='car'` un poco más arriba en el mismo archivo — no forzar una
+conversión a l/hr no estándar para aspersores). Pendiente que el usuario lo lleve a esa sesión.
+
+---
+

@@ -40,14 +40,14 @@ sin que él reporte primero. Detalle en `docs/`.
 
 1. **Auditoría técnica del motor de Aspersión (ago-2026), varias rondas de fixes — EL USUARIO
    ESTÁ RE-CORRIENDO la revisión del mismo proyecto para comparar observaciones "post-fix":**
-   coherencia de unidades del aspersor; fix ciclo-vs-día; `caudal_operacion_ls` por
-   reconstrucción de equipo (N×Q); detectores de confusión ETc↔Dn y agregado-vs-individual;
-   redacción del acumulador; checklist de inconsistencia documental. **Último hallazgo, el más
-   grave:** Da (densidad aparente) en kg/m³ sin convertir inflaba el AD ×1000 en cascada —
-   nueva `_normalizar_da()` con umbral físico; de paso se encontró que `analyzer.py` (texto que
-   arma la IA) NUNCA tenía el fallback a `capas_suelo` que sí tiene `main.py` — cualquier
-   proyecto con desglose por capas se quedaba SIN verificación agronómica en la revisión por
-   ítems. Detalle y validación numérica completa en `docs/`.
+   unidades del aspersor, ciclo-vs-día, `caudal_operacion_ls` por N×Q, confusión ETc↔Dn y
+   agregado-vs-individual, acumulador, inconsistencia documental, y el más grave — Da en kg/m³
+   sin convertir inflaba AD ×1000 (+ gap de `capas_suelo` en `analyzer.py`). **CERRADO:** el
+   caso de extracción de caudal agregado (÷N sin ×3,6) resistió 2 rondas de prompt — se
+   abandona esa mejora puntual, el chequeo de coherencia ya lo caza igual. **PENDIENTE del
+   usuario:** llevar a la sesión del Diseñador de Riego el fix de un bug real ahí (Cuadro 1 ITT-
+   03 rotula "l/hr" un valor que en Aspersión es m³/hr) — prompt ya entregado en el chat.
+   Detalle y validación numérica completa en `docs/`.
 
 2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
