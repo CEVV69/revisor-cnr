@@ -1433,14 +1433,22 @@ veces solo trae una tabla con "Caudal de Operación" (o "Caudal de diseño") jun
 Aspersores", donde ese caudal es el de TODOS los aspersores de la postura funcionando a la vez
 (lo mismo que en esta app se llama caudal de diseño/caudal de operación de la postura), NO el de
 uno solo. Si encuentras esa combinación — un caudal agregado + un N° de aspersores, pero SIN una
-cifra explícita de caudal por aspersor individual — DIVIDE el caudal agregado por el N° de
-aspersores (convirtiendo antes a m³/hr según las reglas de arriba) para obtener
-"caudal_aspersor_m3h"; NUNCA copies el caudal agregado directo en ese campo, es una magnitud
-distinta (postura completa, no un aspersor) y típicamente 5-15 veces mayor que el caudal
-individual real. Ejemplo: "Caudal de Operación: 3,3 l/s" + "N° de Aspersores: 10" →
-caudal_aspersor_m3h = (3,3/10) × 3,6 = 1,188, NO 3,3 ni 11,88. El caudal agregado en sí (3,3 l/s
-en el ejemplo) igual repórtalo en el campo de caudal de diseño del sistema — es el dato que se
-compara más abajo contra el recálculo N°_aspersores × caudal_aspersor_m3h.
+cifra explícita de caudal por aspersor individual — calcula "caudal_aspersor_m3h" en DOS PASOS
+SEPARADOS, EN ESTE ORDEN, y verifica que aplicaste los dos (un error común es hacer solo el paso
+1 y olvidar el paso 2, dejando el resultado en la unidad original en vez de m³/hr):
+PASO 1 — divide el caudal agregado por el N° de aspersores (caudal individual, en la unidad
+ORIGINAL del documento, todavía sin convertir).
+PASO 2 — convierte ese resultado del Paso 1 a m³/hr con las reglas de arriba (si el caudal
+agregado venía en l/s, ×3,6; si venía en l/hr, ÷1.000; si venía en l/min, ×0,06).
+NUNCA copies el caudal agregado directo en "caudal_aspersor_m3h" (es una magnitud distinta —
+postura completa, no un aspersor — típicamente 5-15 veces mayor que el individual), y NUNCA
+reportes solo el resultado del Paso 1 sin el Paso 2 (típicamente 3-4 veces menor que el valor en
+m³/hr correcto). Ejemplo completo: "Caudal de Operación: 3,3 l/s" + "N° de Aspersores: 10" →
+Paso 1: 3,3 / 10 = 0,33 l/s (individual, AÚN EN l/s — este NO es el valor final, sigue en la
+unidad original) → Paso 2: 0,33 × 3,6 = 1,188 m³/hr (ESTE es el valor final para
+"caudal_aspersor_m3h"). El caudal agregado en sí (3,3 l/s en el ejemplo) igual repórtalo en el
+campo de caudal de diseño del sistema — es el dato que se compara más abajo contra el recálculo
+N°_aspersores × caudal_aspersor_m3h.
 La densidad aparente ("da") SIEMPRE en g/cm³ (equivalente a g/cc, la unidad habitual en fichas de
 suelo) — conviértela si el documento la da en otra unidad: si viene en kg/m³, divide por 1.000
 (kg/m³ es 1.000 veces g/cm³, unidades técnicamente equivalentes en magnitud pero con esa escala
