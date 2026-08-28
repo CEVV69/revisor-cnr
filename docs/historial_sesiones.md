@@ -2819,3 +2819,70 @@ se acerca al declarado — el chequeo existente no lo detectaba.
 
 ---
 
+## Bug real y grave: Da (densidad aparente) en kg/m³ sin convertir + gap de capas en analyzer.py
+
+El usuario subió la Memoria de Cálculo Completa real generada tras los fixes anteriores, pidiendo
+evaluar su efectividad. Los 7+2 fixes previos se confirmaron TODOS funcionando correctamente en
+el documento real (Q_postura=3,3 l/s coincide exacto, caudal de operación por N×Q coincide,
+ciclo-vs-Fr ya no compara contra un solo día, redacción del acumulador suavizada, detectores
+ETc↔Dn y Db↔Db-diario disparando bien) — pero apareció un bug nuevo, grave, no relacionado:
+
+**AD = 79.745,48 mm en vez de ~79,7 mm** (mismo síntoma que el usuario había reportado antes como
+"typo mío" — resultó ser un bug real). Causa raíz encontrada en la tabla de capas de la Memoria:
+la Capa 1 declaraba **Da = 981,35 g/cc** — físicamente imposible (ningún suelo real supera ~2,2
+g/cc) — casi con certeza 981,35 **kg/m³** sin convertir (=0,98135 g/cc, un valor normal). El error
+se arrastraba en cascada: Fr=8.484 días, Db=53.166 mm, T.postura=9.666 hr, y generaba al menos
+una observación FALSA contra un valor del consultor (9,12 hr/postura) que en realidad era
+correcto.
+
+**Fix — coherencia física de Da, mismo principio que el caudal del aspersor pero SIN ambigüedad
+de interpretación** (acá solo hay UN valor físicamente posible):
+- `calculos_riego.py` — `_normalizar_da(da)` (nueva, `DA_MAX_PLAUSIBLE=5.0` g/cm³): si Da supera
+  el umbral, la corrige (÷1.000) y avisa. Integrada en `ad_por_capas()` (por capa — cada capa
+  guarda `da_usada` y, si corresponde, `posible_unidad_da_kgm3`; el total también lo hereda) Y en
+  `cadena_agronomica()` (capa única). Verificado con los datos reales exactos del documento:
+  `ad_por_capas([...Da=981.35...], prof_radicular_cm=30)` → `ad_total_mm=79.75` (antes 79745.48),
+  `posible_unidad_da_kgm3=True`.
+- **Hallazgo colateral, igual de importante:** `analyzer.py` — `_bloque_verificacion_agronomica_
+  sistema()` (la función que arma el texto agronómico que RECIBE LA IA para generar
+  observaciones en la revisión por ítems) NUNCA tuvo el fallback a `capas_suelo` que
+  `_agronomico_calculo()` en `main.py` sí tiene — exigía `cc_pct`/`pmp_pct`/`da`/
+  `prof_radicular_cm` SIEMPRE para Aspersión/Carrete, incluso cuando el proyecto usa el desglose
+  por capas (que deja esos 4 campos en None a propósito). Efecto: para CUALQUIER proyecto
+  Aspersión/Carrete con desglose por capas, el bloque de verificación agronómica completo se
+  descartaba en silencio — la IA nunca veía AD/Dn/Fr/Db recalculados ni ninguna comparación
+  contra lo declarado, para ese sistema. Corregido con el mismo patrón de `main.py`: calcula
+  `capas_calc` primero, y si hay capas válidas, la `base` de campos exigidos cae a solo
+  `kc`/`eto_dia_mm`/`factor_agotamiento_pct`/`eficiencia_pct` (usando `ad_mm_override`). Se
+  agregó además el aviso de Da explícito para la IA (dos variantes: por capas y capa única).
+  Verificado con los datos reales completos del proyecto: la cadena ahora da exactamente lo
+  esperado (AD=79,75mm, Fr=8 días, Dn_adj=37,6mm, T.postura=9,12hr, 4 posturas×9,12≈36,46hr,
+  Caudal de operación=3,3 l/s — reproduce EXACTO el ejemplo numérico original del usuario) y el
+  volumen mínimo del acumulador ahora muestra correctamente un déficit real (309.731 L
+  necesarios vs. 107.000 L declarados — antes, con el bug, daba 0 L necesarios, un FALSO
+  NEGATIVO que ocultaba un problema real de dimensionamiento).
+- `main.py` — `posible_unidad_da_kgm3`/`da_usada` documentados en la lista de campos NO
+  normalizados (semántica `is defined`, mismo criterio que `posible_inversion_unidad`).
+- `templates/calculos.html` (JS) — `normalizarDa()` nueva, misma lógica y umbral, aplicada en
+  `calcAdCapas()` y en el cálculo de AD de capa única; nueva fila de nota `agro-ad-nota`
+  (la fila de AD no tenía `<span>` de nota antes).
+- Ambas Memorias — nueva columna "Da usada" en la tabla de capas (fila resaltada si hubo
+  corrección), aviso explícito arriba de la tabla, y aviso equivalente en el caso de capa única.
+  De paso se corrigió en `informe_calculo_completo.html` que la fórmula de AD de capa única
+  (mostrada al lector, no el cálculo real) omitía el factor de conversión Prof(cm)→mm (÷100×1000)
+  — mostraba "× Prof" en vez de "× (Prof/100) × 1000"; `informe_calculo.html` ya la tenía bien.
+- `exportar_disenador.py` — sin cambio de comportamiento, pero se documentó explícitamente que
+  `da` se exporta TAL CUAL lo declaró el consultor (no el valor corregido de Revisor) — el export
+  es un traspaso de lo declarado al Diseñador de Riego, no la interpretación de Revisor.
+- El prompt de EXTRACCIÓN (`analyzer.py`) ganó guía de unidades para "da" (g/cm³, con ejemplo de
+  conversión desde kg/m³ y rango físico plausible 0,8-1,8), mismo patrón que ya existía para
+  `caudal_aspersor_m3h` — ataca la causa en el origen, no solo el síntoma en la verificación.
+- Validado con `py_compile` de los 5 módulos tocados, `get_template()` de los 3 templates vía la
+  app, `node --check` del `<script>` completo de `calculos.html`, y una prueba end-to-end con los
+  datos EXACTOS del documento real (`main._agronomico_calculo()` y
+  `analyzer._bloque_verificacion_agronomica_sistema()`) confirmando que toda la cadena reproduce
+  los números correctos y que el aviso de Da aparece con el diagnóstico y la cifra corregida
+  exactos.
+
+---
+

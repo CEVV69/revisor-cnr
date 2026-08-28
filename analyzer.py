@@ -1441,6 +1441,15 @@ individual real. Ejemplo: "Caudal de Operación: 3,3 l/s" + "N° de Aspersores: 
 caudal_aspersor_m3h = (3,3/10) × 3,6 = 1,188, NO 3,3 ni 11,88. El caudal agregado en sí (3,3 l/s
 en el ejemplo) igual repórtalo en el campo de caudal de diseño del sistema — es el dato que se
 compara más abajo contra el recálculo N°_aspersores × caudal_aspersor_m3h.
+La densidad aparente ("da") SIEMPRE en g/cm³ (equivalente a g/cc, la unidad habitual en fichas de
+suelo) — conviértela si el documento la da en otra unidad: si viene en kg/m³, divide por 1.000
+(kg/m³ es 1.000 veces g/cm³, unidades técnicamente equivalentes en magnitud pero con esa escala
+distinta). Presta atención especial a esta conversión: la densidad aparente de CUALQUIER suelo
+real está entre 0,8 y 1,8 g/cm³ (nunca menos de 0,1 ni más de 2,2) — un valor de cientos o miles
+(ej. 981) es kg/m³ sin convertir, no un suelo real. Mismo criterio si el documento trae un
+desglose de suelo POR CAPAS/horizontes en vez de un solo valor: reporta igual "da" con el de la
+capa superficial/más relevante (el desglose completo por capas se ingresa aparte, en el Chequeo
+de Cálculos, no en esta extracción).
 Si el sistema es CARRETE (cañón viajero), extrae ADEMÁS los datos distintivos de su diseño
 operacional (metodología INIA-Carillanca): caudal de descarga del cañón según catálogo (m³/hr),
 margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
@@ -2002,17 +2011,61 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     # dice no exigir) el `return` de más abajo descartaba TODO el bloque de verificación, dejando
     # sin superficie segura, N° de sectores, caudal de operación, balance ni estanque.
     alta_frec = datos.get("sistema_riego") in ("Goteo", "Microaspersión")
+    # Desglose de Humedad Aprovechable por capas de suelo (ago-2026, bug real: esta función NO
+    # tenía el fallback a capas que sí tiene `_agronomico_calculo()` en main.py — un proyecto
+    # Aspersión/Carrete que declara suelo por capas en vez de CC/PMP/Da/Prof. uniformes (ago-2026
+    # es la ÚNICA vía de entrada de esos datos ahí, ver docstring de `ad_por_capas`) hacía que
+    # `base` exigiera cc_pct/pmp_pct/da/prof_radicular_cm — todos None en ese caso — y el `return`
+    # de abajo descartaba TODO este bloque de verificación agronómica en silencio: la IA nunca
+    # veía AD/Dn/Fr/Db recalculados ni ninguna de las comparaciones contra lo declarado, para
+    # NINGÚN proyecto que use el desglose por capas. Mismo criterio que main.py: si hay
+    # `capas_suelo` válidas, reemplazan a CC/PMP/Da/Prof como fuente del AD.
+    capas_calc = None
+    if datos.get("sistema_riego") in ("Aspersión", "Carrete") and datos.get("capas_suelo"):
+        prof_default = 60 if datos.get("sistema_riego") == "Aspersión" else 30
+        prof_z = datos.get("prof_radicular_cm")
+        capas_calc = calculos_riego.ad_por_capas(
+            datos["capas_suelo"],
+            prof_radicular_cm=prof_z if prof_z not in (None, "") else prof_default,
+        ) or None
+    usa_capas = capas_calc is not None
     if alta_frec:
         base = ["kc", "eto_dia_mm", "eficiencia_pct"]
     else:
-        base = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-                "factor_agotamiento_pct", "eficiencia_pct"]
+        base = ["kc", "eto_dia_mm", "factor_agotamiento_pct", "eficiencia_pct"]
+        if not usa_capas:
+            base += ["cc_pct", "pmp_pct", "da", "prof_radicular_cm"]
     if any(datos.get(k) is None for k in base):
         return texto
     r = calculos_riego.cadena_agronomica(
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
-        datos["eficiencia_pct"], alta_frecuencia=alta_frec)
+        datos["eficiencia_pct"], alta_frecuencia=alta_frec,
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
+    if capas_calc and capas_calc.get("posible_unidad_da_kgm3"):
+        capas_malas = [c for c in capas_calc["capas"] if c.get("posible_unidad_da_kgm3")]
+        texto += (
+            f"\n\n⚠️ POSIBLE ERROR DE UNIDAD EN LA DENSIDAD APARENTE (Da) DE {len(capas_malas)} "
+            f"CAPA(S) DE SUELO (prueba de coherencia física, cálculo determinístico): "
+            + "; ".join(f"capa {c.get('desde_cm')}-{c.get('hasta_cm')}cm declara Da={c.get('da')} "
+                         f"g/cm³" for c in capas_malas)
+            + f". Ningún suelo real tiene una densidad aparente así de alta (máximo físicamente "
+              f"posible ≈2,2 g/cm³) — es casi seguro que ese valor viene en kg/m³ sin convertir "
+              f"(divídelo por 1.000: {capas_malas[0].get('da')} kg/m³ ≈ "
+              f"{capas_malas[0].get('da_usada')} g/cm³, un valor normal). El AD/Dn/Fr/Db "
+              f"recalculados de abajo YA USAN el valor corregido — genera una observación "
+              f"explicando este posible error de unidad en el expediente, citando la capa y "
+              f"ambos valores (declarado y corregido).")
+    elif r.get("posible_unidad_da_kgm3"):
+        texto += (
+            f"\n\n⚠️ POSIBLE ERROR DE UNIDAD EN LA DENSIDAD APARENTE (Da) DEL SUELO (prueba de "
+            f"coherencia física, cálculo determinístico): el expediente declara Da="
+            f"{datos.get('da')} g/cm³. Ningún suelo real tiene una densidad aparente así de alta "
+            f"(máximo físicamente posible ≈2,2 g/cm³) — es casi seguro que ese valor viene en "
+            f"kg/m³ sin convertir (divídelo por 1.000: {datos.get('da')} kg/m³ ≈ "
+            f"{r['da_usada']} g/cm³, un valor normal). El AD/Dn/Fr/Db recalculados de abajo YA "
+            f"USAN el valor corregido — genera una observación explicando este posible error de "
+            f"unidad en el expediente, citando ambos valores (declarado y corregido).")
     declarado = datos.get("declarado") or {}
     if alta_frec:
         lineas = [

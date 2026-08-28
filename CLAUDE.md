@@ -38,24 +38,23 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Auditoría técnica del motor de Aspersión + 7 fixes (ago-2026) — implementado, EL USUARIO
+1. **Auditoría técnica del motor de Aspersión (ago-2026), varias rondas de fixes — EL USUARIO
    ESTÁ RE-CORRIENDO la revisión del mismo proyecto para comparar observaciones "post-fix":**
-   coherencia de unidades del aspersor (detecta inversión l/s↔m³/hr); fix ciclo-vs-día cuando
-   ni una postura cabe en un día; `caudal_operacion_ls` en Aspersión/Carrete por reconstrucción
-   de equipo (N×Q) en vez de división; detector de confusión ETc↔Dn; fix Dn vs. Dn ajustada en
-   el texto IA; redacción suavizada de "acumulador no requerido"; checklist SEP exige declarar
-   "INCONSISTENCIA DOCUMENTAL" si un dato difiere entre documentos. **Follow-up mismo día** con
-   caso real del usuario: 2° patrón de error en caudal de aspersor (agregado de la postura
-   copiado en el campo individual, sin dividir por N° aspersores — distinto de la inversión de
-   unidad), corregido en verificación Y en el prompt de extracción; fix de `step` en el input
-   (rechazaba 3 decimales). Detalle y validación en `docs/`.
+   coherencia de unidades del aspersor; fix ciclo-vs-día; `caudal_operacion_ls` por
+   reconstrucción de equipo (N×Q); detectores de confusión ETc↔Dn y agregado-vs-individual;
+   redacción del acumulador; checklist de inconsistencia documental. **Último hallazgo, el más
+   grave:** Da (densidad aparente) en kg/m³ sin convertir inflaba el AD ×1000 en cascada —
+   nueva `_normalizar_da()` con umbral físico; de paso se encontró que `analyzer.py` (texto que
+   arma la IA) NUNCA tenía el fallback a `capas_suelo` que sí tiene `main.py` — cualquier
+   proyecto con desglose por capas se quedaba SIN verificación agronómica en la revisión por
+   ítems. Detalle y validación numérica completa en `docs/`.
 
 2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
 
 3. **3 fixes puntuales:** nombre del proyecto en Resumen↔listado (OK); Tab en capas de suelo
    (OK); costo de API en ambas Memorias standalone (**sin confirmar**). `diseno_hidraulico`/
-   `diseno_fotovoltaico` con checklist ampliado. Detalle en `docs/`.
+   `diseno_fotovoltaico` con checklist ampliado.
 
 4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con paridad total;

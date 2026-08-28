@@ -167,6 +167,32 @@ SUELO_DEFAULT_POR_TEXTURA = {
 }
 
 
+DA_MAX_PLAUSIBLE = 5.0    # g/cm³ — ningún suelo real supera ~2,2 g/cm³ (SUELO_DEFAULT_POR_TEXTURA
+                          # arriba va de 1,25 a 1,50); un valor por sobre este umbral es
+                          # físicamente imposible como g/cm³ y casi seguro viene en kg/m³ sin
+                          # convertir (mismo valor ×1000 — kg/m³ típico de un suelo real es
+                          # 1.000-1.800).
+
+
+def _normalizar_da(da: float) -> tuple:
+    """Corrige Da (densidad aparente) si viene en kg/m³ en vez de g/cm³ — ago-2026, caso real:
+    un expediente declaró/extrajo Da=981,35 para una capa de suelo (imposible como g/cm³, un
+    suelo real nunca supera ~2,2), que resultó ser 981,35 kg/m³ sin convertir (=0,98135 g/cm³,
+    valor perfectamente normal). Ningún chequeo de rango sobre el RESULTADO final (AD) lo
+    detectaba con suficiente anticipación — el número inflado (AD≈79.745mm) arrastraba Dn→Fr→Db
+    en cascada, generando cifras absurdas (Fr>8.000 días) y falsos "no coincide" contra valores
+    del consultor que en realidad eran correctos. Se corta en el ORIGEN, sobre el propio dato de
+    entrada, con el mismo principio de "prueba de coherencia" que la unidad del caudal del
+    aspersor — acá no hay ambigüedad de interpretación (un solo valor es físicamente posible).
+
+    Devuelve `(da_corregida, hubo_correccion)` — `da_corregida` es la que debe USARSE en el
+    cálculo; `hubo_correccion=True` implica que hay que avisarlo explícitamente, nunca corregir
+    en silencio (el llamador es responsable de propagar el aviso)."""
+    if da is not None and da > DA_MAX_PLAUSIBLE:
+        return da / 1000, True
+    return da, False
+
+
 def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
     """Agua Disponible (AD) total del suelo a partir de un desglose por capas — mismo criterio
     que el Diseñador de Riego (checkbox "Desglose de Humedad Aprovechable por capas de suelo",
@@ -186,16 +212,24 @@ def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
     `capas`: lista de {"desde_cm", "hasta_cm", "cc_pct", "pmp_pct", "da"}. Una capa con datos
     incompletos, Hasta≤Desde o CC≤PMP se descarta silenciosamente (mismo criterio de validación
     que el Diseñador — nunca calcula con una capa a medio llenar; esto es independiente del
-    truncamiento por z). Devuelve {} si no queda ninguna capa válida."""
+    truncamiento por z). Devuelve {} si no queda ninguna capa válida.
+
+    Cada capa pasa su Da por `_normalizar_da()` (ago-2026) antes de calcular Ha_capa — si alguna
+    capa tenía Da en kg/m³ sin convertir, `posible_unidad_da_kgm3=True` en el resultado (y en la
+    capa misma) para que el llamador lo avise explícito, en vez de arrastrar un AD inflado 1.000
+    veces en silencio."""
     validas = []
     ad_total = 0.0
     prof_total = 0.0
     max_hasta = 0.0
+    hubo_correccion_da = False
     for c in (capas or []):
         desde, hasta = c.get("desde_cm"), c.get("hasta_cm")
         cc, pmp, da = c.get("cc_pct"), c.get("pmp_pct"), c.get("da")
         if None in (desde, hasta, cc, pmp, da) or hasta <= desde or cc <= pmp:
             continue
+        da, da_corregida = _normalizar_da(da)
+        hubo_correccion_da = hubo_correccion_da or da_corregida
         if hasta > max_hasta:
             max_hasta = hasta
         if prof_radicular_cm is not None:
@@ -203,7 +237,10 @@ def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
         else:
             altura_ef = (hasta - desde) * 10
         ha_capa = (cc - pmp) / 100 * da * altura_ef if altura_ef > 0 else 0.0
-        validas.append({**c, "altura_mm": round(altura_ef, 1), "ha_capa_mm": round(ha_capa, 2)})
+        capa_r = {**c, "altura_mm": round(altura_ef, 1), "ha_capa_mm": round(ha_capa, 2), "da_usada": round(da, 3)}
+        if da_corregida:
+            capa_r["posible_unidad_da_kgm3"] = True
+        validas.append(capa_r)
         ad_total += ha_capa
         prof_total += altura_ef / 10
     if not validas:
@@ -212,6 +249,8 @@ def ad_por_capas(capas: list, prof_radicular_cm: float = None) -> dict:
     if prof_radicular_cm is not None:
         r["prof_radicular_cm"] = prof_radicular_cm
         r["capas_no_alcanzan_prof_radicular"] = max_hasta < prof_radicular_cm
+    if hubo_correccion_da:
+        r["posible_unidad_da_kgm3"] = True
     return r
 
 
@@ -263,12 +302,17 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
 
     `ad_mm_override`: si se pasa (típicamente el `ad_total_mm` de `ad_por_capas()`), reemplaza
     el cálculo de AD de capa única — Aspersión/Carrete con desglose de suelo por capas (v119
-    del Diseñador). CC/PMP/Da/Prof dejan de ser necesarios en ese caso.
-    """
+    del Diseñador). CC/PMP/Da/Prof dejan de ser necesarios en ese caso — y `_normalizar_da()` NO
+    se aplica acá (ya se aplicó dentro de `ad_por_capas()`, por capa, antes de sumar).
+
+    Da pasa por `_normalizar_da()` (ago-2026, ver docstring de esa función) — si venía en kg/m³
+    sin convertir, `posible_unidad_da_kgm3=True` en el resultado."""
     etc = eto_dia_mm * kc
+    posible_unidad_da_kgm3 = False
     if ad_mm_override is not None:
         ad = ad_mm_override
     elif None not in (cc_pct, pmp_pct, da, prof_cm):
+        da, posible_unidad_da_kgm3 = _normalizar_da(da)
         ad = (cc_pct - pmp_pct) / 100 * da * (prof_cm / 100) * 1000
     else:
         ad = None
@@ -291,12 +335,16 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     # real de agua por unidad de superficie. Aplica igual en alta frecuencia (donde db_mm YA es
     # ETc/Ef, así que db_diario_mm resulta idéntico a db_mm).
     db_diario = etc / (eficiencia_pct / 100) if eficiencia_pct else 0
-    return {
+    r = {
         "etc_mm_dia": round(etc, 3), "ad_mm": round(ad, 2) if ad is not None else None,
         "dn_mm": round(dn, 3), "fr_dias": round(fr, 2), "fr_adj_dias": fr_adj,
         "dn_adj_mm": round(dn_adj, 3), "db_mm": round(db, 3),
         "db_diario_mm": round(db_diario, 3),
     }
+    if posible_unidad_da_kgm3:
+        r["posible_unidad_da_kgm3"] = True
+        r["da_usada"] = round(da, 3)
+    return r
 
 
 def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,

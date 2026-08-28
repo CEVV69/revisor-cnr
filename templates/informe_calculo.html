@@ -191,16 +191,22 @@
   {% if calc.capas_suelo_calc.capas_no_alcanzan_prof_radicular %}
   <div class="compara"><span class="alerta">Las capas declaradas no alcanzan la profundidad radicular — falta información de suelo para esa profundidad.</span></div>
   {% endif %}
+  {% if calc.capas_suelo_calc.posible_unidad_da_kgm3 is defined and calc.capas_suelo_calc.posible_unidad_da_kgm3 %}
+  <div class="compara"><span class="alerta">Posible error de unidad en Da de una o más capas (ver columna "Da usada" abajo): un valor de densidad aparente por sobre ~2,2 g/cm³ es físicamente imposible para cualquier suelo real — probablemente viene en kg/m³ sin convertir. El recálculo de esta Memoria YA USA el valor corregido (÷1.000); genera una observación explicando este posible error de unidad en el expediente.</span></div>
+  {% endif %}
   <table class="tabla-tramos" style="margin-top:0.3rem;">
-    <tr><th>Capa</th><th>Textura</th><th>Desde (cm)</th><th>Hasta (cm)</th><th>Alt. efectiva (mm)</th><th>CC (%)</th><th>PMP (%)</th><th>Da (g/cc)</th><th>Ha capa (mm)</th></tr>
+    <tr><th>Capa</th><th>Textura</th><th>Desde (cm)</th><th>Hasta (cm)</th><th>Alt. efectiva (mm)</th><th>CC (%)</th><th>PMP (%)</th><th>Da declarada (g/cc)</th><th>Da usada (g/cc)</th><th>Ha capa (mm)</th></tr>
     {% for c in calc.capas_suelo_calc.capas %}
-    <tr><td>C{{ loop.index }}</td><td>{{ c.textura or '—' }}</td><td>{{ num(c.desde_cm) }}</td><td>{{ num(c.hasta_cm) }}</td><td>{{ num(c.altura_mm) }}</td><td>{{ num(c.cc_pct) }}</td><td>{{ num(c.pmp_pct) }}</td><td>{{ num(c.da) }}</td><td>{{ num(c.ha_capa_mm) }}</td></tr>
+    <tr{% if c.posible_unidad_da_kgm3 is defined and c.posible_unidad_da_kgm3 %} class="alerta"{% endif %}><td>C{{ loop.index }}</td><td>{{ c.textura or '—' }}</td><td>{{ num(c.desde_cm) }}</td><td>{{ num(c.hasta_cm) }}</td><td>{{ num(c.altura_mm) }}</td><td>{{ num(c.cc_pct) }}</td><td>{{ num(c.pmp_pct) }}</td><td>{{ num(c.da) }}</td><td>{{ num(c.da_usada) }}</td><td>{{ num(c.ha_capa_mm) }}</td></tr>
     {% endfor %}
-    <tr><td colspan="8" style="text-align:right; font-weight:bold;">AD total (profundidad efectiva {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
+    <tr><td colspan="9" style="text-align:right; font-weight:bold;">AD total (profundidad efectiva {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
   </table>
   {% else %}
   <div class="formula">AD = (CC − PMP)/100 × Da × Prof(m) × 1000 = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
   <div class="explica">Agua disponible del suelo — cuánta agua puede retener y ceder el suelo en la profundidad de raíces del cultivo.</div>
+  {% if calc.posible_unidad_da_kgm3 is defined and calc.posible_unidad_da_kgm3 %}
+  <div class="compara"><span class="alerta">Posible error de unidad en Da: {{ num(agro.da) }} g/cm³ es físicamente imposible para cualquier suelo real (máximo ≈2,2) — probablemente {{ num(agro.da) }} kg/m³ ≈ {{ num(calc.da_usada) }} g/cm³, un valor normal. El recálculo de arriba YA USA el valor corregido; genera una observación explicando este posible error de unidad en el expediente.</span></div>
+  {% endif %}
   {% endif %}
 {% endcall %}
 {% call paso('dn') %}

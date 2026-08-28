@@ -290,7 +290,10 @@
           </tr>
           <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto" colspan="2">AD — agua disponible (mm)</td>
-            <td class="col-calc" id="{{ p }}agro-ad">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-ad">—</span>
+              <span id="{{ p }}agro-ad-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
           </tr>
           <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto">Dn — lámina neta (mm)</td>
@@ -878,6 +881,14 @@
     }).join("");
     recalcAgroSistema(p);
   }
+  // Da (densidad aparente) fuera de rango físico plausible (>5 g/cm³) casi seguro viene en
+  // kg/m³ sin convertir — ago-2026, caso real: 981.35 en vez de 0.98135. Mismo criterio y mismo
+  // umbral que `_normalizar_da()`/`DA_MAX_PLAUSIBLE` en calculos_riego.py.
+  var DA_MAX_PLAUSIBLE = 5.0;
+  function normalizarDa(da) {
+    if (da > DA_MAX_PLAUSIBLE) return { da: da / 1000, corregida: true };
+    return { da: da, corregida: false };
+  }
   function calcAdCapas(p, prof, sistema) {
     if (!(document.getElementById(p + "capas_chk") || {}).checked) return null;
     var capas = estadoCapas[p] || [];
@@ -885,14 +896,16 @@
     // z (profundidad radicular, ago-2026 — Diseñador v121): trunca cada capa. Sin dato
     // declarado, cae al default del propio Diseñador (60 cm Aspersión, 30 cm Carrete).
     var z = (prof !== null && prof !== undefined) ? prof : (sistema === "Carrete" ? 30 : 60);
-    var adTotal = 0, profTotal = 0, huboValida = false, detalle = [];
+    var adTotal = 0, profTotal = 0, huboValida = false, detalle = [], capasDaMala = [];
     capas.forEach(function(c) {
       var desde = parseFloat(c.desde), hasta = parseFloat(c.hasta),
-          cc = parseFloat(c.cc), pmp = parseFloat(c.pmp), da = parseFloat(c.da);
-      if (!isFinite(desde) || !isFinite(hasta) || !isFinite(cc) || !isFinite(pmp) || !isFinite(da)) return;
+          cc = parseFloat(c.cc), pmp = parseFloat(c.pmp), daDecl = parseFloat(c.da);
+      if (!isFinite(desde) || !isFinite(hasta) || !isFinite(cc) || !isFinite(pmp) || !isFinite(daDecl)) return;
       if (hasta <= desde || cc <= pmp) return;
+      var daNorm = normalizarDa(daDecl);
+      if (daNorm.corregida) capasDaMala.push({ desde: desde, hasta: hasta, da: daDecl, daUsada: daNorm.da });
       var alturaEf = Math.max(0, Math.min(hasta, z) - desde) * 10;
-      var haCapa = alturaEf > 0 ? (cc - pmp) / 100 * da * alturaEf : 0;
+      var haCapa = alturaEf > 0 ? (cc - pmp) / 100 * daNorm.da * alturaEf : 0;
       adTotal += haCapa; profTotal += alturaEf / 10; huboValida = true;
       detalle.push("C" + (detalle.length + 1) + ": Alt.ef=" + fmt(alturaEf, 0) + "mm, Ha=" + fmt(haCapa, 2) + "mm");
     });
@@ -901,6 +914,10 @@
         ? "AD total = " + fmt(adTotal, 2) + " mm (truncada a z=" + fmt(z, 0) + " cm, prof. efectiva " + fmt(profTotal, 0) + " cm) — " + detalle.join(" · ")
         : "Complete al menos una capa (Desde < Hasta, CC > PMP) para calcular.";
     }
+    nota(p + "agro-ad-nota", capasDaMala.length
+      ? "Posible error de unidad en Da de " + capasDaMala.length + " capa(s): " +
+        capasDaMala.map(function(c) { return "capa " + c.desde + "-" + c.hasta + "cm declara Da=" + c.da + " g/cm³ (imposible, ningún suelo real supera ~2,2 g/cm³) — probablemente " + c.da + " kg/m³ ≈ " + fmt(c.daUsada, 3) + " g/cm³. Ya corregido en el recálculo."; }).join("; ")
+      : "");
     return huboValida ? adTotal : null;
   }
   // Espaciamiento entre franjas del carrete según viento — tabla INIA-Carillanca (Cuadro 1),
@@ -1294,7 +1311,7 @@
        "agro-dbdiario-calc", "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
        "agro-balance-calc", "agro-acumreq-calc", "agro-vmin-calc", "agro-deltaq-calc",
        "agro-autonomia-calc", "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
-      ["agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-dbdiario-nota", "agro-sup-nota", "agro-triego-nota",
+      ["agro-ad-nota", "agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-dbdiario-nota", "agro-sup-nota", "agro-triego-nota",
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-acumreq-nota",
        "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
       var diasRowReset = document.getElementById(p + "agro-dias-row");
@@ -1309,9 +1326,18 @@
     setText(p + "agro-hint", "");
 
     var etc = eto * kc;
-    var ad = usaCapas ? adCapas
-      : (cc !== null && pmp !== null && da !== null && prof !== null)
-      ? (cc - pmp) / 100 * da * (prof / 100) * 1000 : null;
+    var ad;
+    if (usaCapas) {
+      ad = adCapas;
+    } else if (cc !== null && pmp !== null && da !== null && prof !== null) {
+      var daNormSimple = normalizarDa(da);
+      ad = (cc - pmp) / 100 * daNormSimple.da * (prof / 100) * 1000;
+      nota(p + "agro-ad-nota", daNormSimple.corregida
+        ? "Posible error de unidad: Da=" + da + " g/cm³ es físicamente imposible (ningún suelo real supera ~2,2 g/cm³) — probablemente " + da + " kg/m³ ≈ " + fmt(daNormSimple.da, 3) + " g/cm³. Ya corregido en el recálculo."
+        : "");
+    } else {
+      ad = null;
+    }
     var dn, fr, frAdj, dnAdj, db;
     // Db diario — ETc/Ef, SIN pasar por Fr (base diaria, distinta de Db del ciclo más abajo).
     // En alta frecuencia coinciden (Fr=1); en Aspersión/Carrete/gravitacional NO — Db diario

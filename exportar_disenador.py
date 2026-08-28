@@ -183,6 +183,12 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
     # ÚNICO que conserva el modelo de capa única (confirmado contra el HTML fuente del Diseñador
     # v121, no adivinado). Emitirlos para asp/car/got metía claves muertas en el archivo. Prof.
     # radicular (`{p}-pr`) SÍ existe en los 4 — sigue siendo el z que trunca las capas.
+    # ago-2026: `da` (y el `da` de cada capa en __capasA/__capasC más abajo) se exporta TAL CUAL
+    # lo declaró el consultor, sin pasar por `_normalizar_da()` de calculos_riego.py (la
+    # corrección de unidad kg/m³→g/cm³ que Revisor aplica internamente para su propio AD/Dn/Fr/
+    # Db) — el export es un traspaso de lo declarado al Diseñador, no la interpretación de
+    # Revisor; si Revisor "corrigiera" el valor en silencio acá, el Diseñador mostraría un
+    # número que el consultor nunca escribió, sin ninguna señal de que cambió.
     if sys_code == "mic":
         put("cc", sistema_agro.get("cc_pct"))
         put("pmp", sistema_agro.get("pmp_pct"))

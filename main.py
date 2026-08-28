@@ -2169,6 +2169,13 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     • `posible_caudal_agregado_no_individual` de `postura_check` (ago-2026) — mismo caso: solo se
       calcula junto con `posible_inversion_unidad` (mismos tres datos), son mutuamente excluyentes
       (dos diagnósticos distintos del mismo síntoma); su ausencia tampoco es "no hay problema".
+    • `posible_unidad_da_kgm3` de `calc` (capa única, vía `cadena_agronomica()`) y de cada capa Y
+      del total en `calc.capas_suelo_calc` (desglose por capas, vía `ad_por_capas()`) — ago-2026,
+      mismo caso: solo se calcula si Da está fuera del rango físico plausible de un suelo real
+      (`DA_MAX_PLAUSIBLE` en `calculos_riego.py`); su ausencia es "Da normal", no "no se pudo
+      evaluar" — a diferencia de los otros casos de esta lista, PODRÍA parecer semánticamente
+      igual a False, pero se deja igual con `is defined` por consistencia con el resto de estos
+      diagnósticos de coherencia y para no arriesgar un futuro cambio de criterio.
     • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
       por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
     """
