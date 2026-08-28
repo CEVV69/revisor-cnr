@@ -1743,11 +1743,13 @@ function populateEmisores(){
       var p=this.id.split('-')[0];
       if(tid==='c-tipe'){
         // Carrete: el modelo/boquilla fija Descarga, Presión y Radio de alcance a la vez
-        var qC=document.getElementById('c-desc'); if(qC&&e.q!=null)qC.value=e.q;
+        // Catálogo de Emisores está en l/hr — Descarga del cañón (c-desc) es en m³/hr: convertir
+        var qC=document.getElementById('c-desc'); if(qC&&e.q!=null)qC.value=(e.q/1000).toFixed(3).replace(/\.?0+$/,'')||'0';
         var pC=document.getElementById('c-pb'); if(pC&&e.p_min!=null)pC.value=e.p_min;
         var rC=document.getElementById('c-radio'); if(rC&&e.radio!=null)rC.value=e.radio;
       } else if(tid==='a-tipe'){
-        var qA=document.getElementById('a-qasp'); if(qA&&e.q!=null)qA.value=e.q;
+        // Catálogo de Emisores está en l/hr — Caudal del aspersor (a-qasp) es en m³/hr: convertir
+        var qA=document.getElementById('a-qasp'); if(qA&&e.q!=null)qA.value=(e.q/1000).toFixed(3).replace(/\.?0+$/,'')||'0';
         var pA=document.getElementById('a-pres'); if(pA&&e.p_min!=null)pA.value=e.p_min;
         var rA=document.getElementById('a-radio'); if(rA&&e.radio!=null)rA.value=e.radio;
       } else {
@@ -2147,6 +2149,13 @@ function hw(Qls,Dmm,L,C){if(!Qls||!Dmm||!L)return 0;const Q=Qls/1000,D=Dmm/1000;
 function hwV(Qls,Dmm){return(!Qls||!Dmm)?0:(Qls/1000)/(Math.PI/4*Math.pow(Dmm/1000,2));}
 function mcard(lbl,val,unit,cls=''){return`<div class="met ${cls}"><div class="mlbl">${lbl}</div><div class="mval">${val}</div><div class="munit">${unit}</div></div>`;}
 function al(msg,t){return`<div class="al al-${t}">${msg}</div>`;}
+// Verificación de plausibilidad física de Da (densidad aparente). Ningún suelo real supera ~2,2 g/cc.
+// Si el consultor tipeó kg/m³ en vez de g/cc (ej. 981 en vez de 0,981), se corrige para el cálculo
+// pero SIEMPRE se avisa — nunca se corrige en silencio.
+function _checkDaPlausible(da){
+  if(da>5) return {da:da/1000, alerta:true, daOriginal:da};
+  return {da:da, alerta:false, daOriginal:da};
+}
 function fmt(n){return n?n.toLocaleString('es-CL'):'0';}
 
 // ═══════════════════════════════════════════════════
@@ -2233,12 +2242,13 @@ function calcAspP(){
   const qPos=nAsp*qAsp/3.6;  // m³/hr → l/s
   const trp=db/va;            // hr: tiempo para aplicar la Db
   const nPost=Math.ceil(supR/supPos);
-  const nPostDia=Math.floor(hrs/(trp+tras));
+  const nPostDia=Math.max(Math.floor(hrs/(trp+tras)),0);
+  const diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null;
   // El caudal de la postura puede superar al de la fuente si hay estanque regulador
   // que sostenga el ΔQ durante toda la operación (mismo criterio del Paso 2).
   const _acA=evalAcum('a',qPos,trp*nPost);
   const _qOkA = qPos<=qDisp || (_acA.on && _acA.ok);
-  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
+  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,diasNec,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
   calcAcum('a'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('a-llen').value=v('a-llat',120);
   document.getElementById('a-qlat').value=qPos.toFixed(2);
@@ -2262,7 +2272,7 @@ function calcAspP(){
       })()
     )}
     ${fbox('Velocidad de Aplicación (VA)',[
-      {eq:`VA = Q_asp [l/hr] / Marco [m²] = (${qAsp} m³/hr × 1000) / (${espA} × ${espL})`,res:`${fd(va,2)} mm/hr`},
+      {eq:`VA = (Q_asp[m³/hr] × 1000) / Marco[m²] = (${qAsp} × 1000) / (${espA} × ${espL})`,res:`${fd(va,2)} mm/hr`},
       {eq:`Verificación: VIB = ${vib} mm/hr > VA = ${fd(va,2)} mm/hr?`,res:vib>va?'✓ SÍ — OK':'✗ NO — revisar'},
       {note:'VIB = Velocidad Infiltración Básica del suelo. Debe ser mayor a VA para evitar escorrentía.'}
     ])}
@@ -2272,9 +2282,11 @@ function calcAspP(){
     ])}
     ${fbox('Tiempo por Postura y Número de Posturas',[
       {eq:`T_pos = Db / VA = ${fd(db,2)} mm / ${fd(va,2)} mm/hr`,res:`${fd(trp,2)} hr`},
-      {eq:`N_posturas = ⌈A_total / A_pos⌉ = ⌈${supR} / ${fd(supPos,3)}⌉`,res:`${nPost} posturas (= Fr)`},
-      {eq:`Posturas/día = ⌊Hrs / (T_pos + T_traslado)⌋ = ⌊${hrs} / (${fd(trp,2)} + ${tras})⌋`,res:`${nPostDia} posturas/día`}
+      {eq:`N_posturas = ⌈A_total / A_pos⌉ = ⌈${supR} / ${fd(supPos,3)}⌉`,res:`${nPost} posturas`},
+      {eq:`Posturas/día = ⌊Hrs / (T_pos + T_traslado)⌋ = ⌊${hrs} / (${fd(trp,2)} + ${tras})⌋`,res:`${nPostDia} postura${nPostDia===1?'':'s'}/día`},
+      {eq:`Días necesarios = ⌈N_posturas / Posturas_día⌉ = ⌈${nPost} / ${nPostDia}⌉`,res:diasNec!=null?`${diasNec} días`:'—'}
     ])}
+    ${nPostDia<1?al('⚠ Con '+fd(hrs,1)+' hr/día disponibles no alcanza para completar ni una postura ('+fd(trp+tras,2)+' hr necesarias). Aumente horas disponibles o reduzca el tiempo por postura.','w'):''}
     ${!R.ASP.vibOk?al(`⚠ VA (${fd(va,1)} mm/hr) supera VIB del suelo (${vib} mm/hr). Aumentar espaciamiento o reducir caudal.`,'w'):''}
     ${!R.ASP.qOk
         ? al(_acA.on
@@ -2289,8 +2301,9 @@ function calcAspP(){
       ${mcard('Sup./Postura',fd(supPos,3),'ha')}
       ${mcard('Q Postura',fd(qPos,3),'l/s  (='+fd(qPos*60,1)+' l/min)')}
       ${mcard('T/Postura',fd(trp,2),'hr')}
-      ${mcard('Posturas Tot.',nPost,'= Fr días','warn')}
+      ${mcard('N° Posturas',nPost,'posturas','warn')}
       ${mcard('Posturas/Día',nPostDia,'por día')}
+      ${mcard('Días Necesarios',diasNec!=null?diasNec:'—','días',diasNec!=null&&diasNec>1?'warn':'')}
     </div>
   </div>`;
 
@@ -2427,13 +2440,16 @@ function _calcCapasGenerico(pfx,cls){
     var cc=parseFloat(c.querySelector('.'+cls+'CC').value)||0;
     var pmp=parseFloat(c.querySelector('.'+cls+'PMP').value)||0;
     var da=parseFloat(c.querySelector('.'+cls+'Da').value)||0;
+    var _daChk=_checkDaPlausible(da);
+    da=_daChk.da;
     // Altura efectiva: se trunca a la profundidad radicular (z). Capas bajo z no aportan.
     var alturaEf=Math.max(0,Math.min(hasta,z)-desde)*10;
     var haCapa = alturaEf>0 ? ((cc-pmp)/100)*da*alturaEf : 0;
     if(hasta<=desde || cc<=pmp) ok=false;
     if(hasta>maxHasta) maxHasta=hasta;
     var r=c.querySelector('.'+cls+'Result');
-    if(r) r.innerHTML='Alt.ef.=MIN(Hasta,z)−Desde×10 (z='+fd(z,0)+'cm) = '+fd(alturaEf,0)+'mm &nbsp;|&nbsp; Ha_capa=((CC−PMP)/100)×Da×Alt.ef. = '+fd(haCapa,2)+' mm';
+    if(r) r.innerHTML='Alt.ef.=MIN(Hasta,z)−Desde×10 (z='+fd(z,0)+'cm) = '+fd(alturaEf,0)+'mm &nbsp;|&nbsp; Ha_capa=((CC−PMP)/100)×Da×Alt.ef. = '+fd(haCapa,2)+' mm'
+      +(_daChk.alerta?' &nbsp;<span style="color:var(--orange);font-weight:600">⚠ Da declarada ('+fd(_daChk.daOriginal,1)+') parece estar en kg/m³, no g/cc — se usó '+fd(da,3)+' g/cc para este cálculo. Verifique/corrija el dato.</span>':'');
     sumHa+=haCapa; sumProfEf+=alturaEf/10;
   });
   window['_capasHa'+pfx.toUpperCase()] = sumHa;
@@ -4451,36 +4467,57 @@ function buildDetalleHtml(sys) {
   //  SUELO
   // ══════════════════════════════
   const pfx = sys[0];
-  const cc   = v(pfx+'-cc',22), pmp = v(pfx+'-pmp',10);
-  const da   = v(pfx+'-da',1.4), pr  = v(pfx+'-pr',60);
+  const pr  = v(pfx+'-pr',60);
   const crit = sys==='asp'?v('a-crit',50):sys==='car'?v('c-crit',65):0;
-  if (cc && pmp && da && pr) {
-    const ha = (cc-pmp)*da*(pr/100)*10;
-    let suelo_content = tblParam([
-      ['Textura del suelo', sv(pfx+'-tex','—'), ''],
-      ['Serie de suelo', sv(pfx+'-serie','—'), ''],
-      ['C.C. (Capacidad de Campo)', fd(cc,1), '%'],
-      ['P.M.P. (Punto Marchitez)', fd(pmp,1), '%'],
-      ['Densidad Aparente (Da)', fd(da,3), 'g/cc'],
-      ['Profundidad Radicular', fd(pr,0), 'cm'],
-    ]);
+  const _esCapas = (sys==='asp'||sys==='car'); // desde v121, Asp/Car ya no tienen CC/PMP/Da únicos: solo capas
+  let cc=0,pmp=0,da=0,ha=0,nCapas=0;
+  if(_esCapas){
+    (sys==='asp'?calcCapasA:calcCapasC)(); // refresca con la Prof. Radicular (z) actual — única fuente real de AD
+    ha = window['_capasHa'+pfx.toUpperCase()]||0;
+    nCapas = document.querySelectorAll('#'+pfx+'-capas-list > .capa-wrap').length;
+  } else {
+    cc=v(pfx+'-cc',22); pmp=v(pfx+'-pmp',10); da=v(pfx+'-da',1.4);
+    ha=(cc-pmp)*da*(pr/100)*10;
+  }
+  if (_esCapas || (cc && pmp && da && pr)) {
+    let suelo_content = _esCapas
+      ? tblParam([
+        ['Serie de suelo', sv(pfx+'-serie','—'), ''],
+        ['Profundidad Radicular (z)', fd(pr,0), 'cm'],
+        ['N° de capas de suelo (desglose)', nCapas, ''],
+      ])
+      : tblParam([
+        ['Textura del suelo', sv(pfx+'-tex','—'), ''],
+        ['Serie de suelo', sv(pfx+'-serie','—'), ''],
+        ['C.C. (Capacidad de Campo)', fd(cc,1), '%'],
+        ['P.M.P. (Punto Marchitez)', fd(pmp,1), '%'],
+        ['Densidad Aparente (Da)', fd(da,3), 'g/cc'],
+        ['Profundidad Radicular', fd(pr,0), 'cm'],
+      ]);
     if (sys !== 'got') {
-      suelo_content += fline(
-        'Altura de Agua Aprovechable (HA)',
-        'HA = (CC − PMP) × Da × Prof(cm) / 100 × 10',
-        `(${fd(cc,1)} − ${fd(pmp,1)}) × ${fd(da,3)} × ${fd(pr,0)}/100 × 10`,
-        `${fd(ha,3)} mm`,
-        'Lámina máxima de agua disponible para la planta entre CC y PMP'
-      );
+      suelo_content += _esCapas
+        ? fline(
+          'Altura de Agua Aprovechable (HA)',
+          'HA = Σ Ha_capa (desglose por capas, cada una truncada a z)',
+          `${nCapas} capa${nCapas===1?'':'s'}, truncadas a z=${fd(pr,0)} cm`,
+          `${fd(ha,3)} mm`,
+          'Suma de la humedad aprovechable de cada capa de suelo — ver detalle de capas en el Paso de Suelo'
+        )
+        : fline(
+          'Altura de Agua Aprovechable (HA)',
+          'HA = (CC − PMP) × Da × Prof(cm) / 100 × 10',
+          `(${fd(cc,1)} − ${fd(pmp,1)}) × ${fd(da,3)} × ${fd(pr,0)}/100 × 10`,
+          `${fd(ha,3)} mm`,
+          'Lámina máxima de agua disponible para la planta entre CC y PMP'
+        );
     }
-    // ── M12/M13: AD, Dn, Fr en informe ────────────────────────────
-    const _crit_inf = sys==='asp'?v('a-crit',50):sys==='car'?v('c-crit',65):0;
+    // ── M12/M13: AD, Dn, Fr en informe — se leen de R.AA/R.CA/R.MA (ya calculados), no se recalculan aquí ────────────────────────────
     const _ag_inf = sys==='asp'?R.AA:sys==='car'?R.CA:sys==='mic'?R.MA:R.GA;
-    if (_ag_inf && _ag_inf.etc > 0) {
-      const _dn_inf = ha * (_crit_inf||50) / 100;
-      const _fr_inf = _dn_inf / _ag_inf.etc;
-      const _frAdj_inf = Math.max(1, Math.floor(_fr_inf));
-      const _fa_inf = (_crit_inf||50)/100;
+    if (sys !== 'got' && _ag_inf && _ag_inf.etc > 0 && _ag_inf.dn!=null) {
+      const _dn_inf = _ag_inf.dn;
+      const _fr_inf = _ag_inf.fr;
+      const _frAdj_inf = _ag_inf.frAdj;
+      const _fa_inf = (_ag_inf.crit||crit||50)/100;
       suelo_content += `<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-left:3px solid #3b82f6;border-radius:5px">
         <div style="font-size:.68rem;font-weight:700;color:var(--blue-mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Disponibilidad Hídrica del Suelo — ITT-03 §1</div>
         <table style="width:100%;border-collapse:collapse;font-size:.72rem">
@@ -4492,7 +4529,7 @@ function buildDetalleHtml(sys) {
           </tr>
           <tr>
             <td style="padding:5px 10px;border:1px solid #bfdbfe">Agua Disponible (AD)</td>
-            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">(CC−PMP)/100 × Da × Prof(m) × 1000</td>
+            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">${_esCapas?'Σ Ha_capa (capas truncadas a z)':'(CC−PMP)/100 × Da × Prof(m) × 1000'}</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center;font-weight:700">${fd(ha,1)}</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center">mm</td>
           </tr>
@@ -4516,12 +4553,12 @@ function buildDetalleHtml(sys) {
           </tr>
           <tr style="background:#dbeafe">
             <td style="padding:5px 10px;border:1px solid #bfdbfe;font-weight:700">Frecuencia ajustada (Fr)</td>
-            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">⌊Fr real⌋ → entero inferior</td>
+            <td style="padding:5px 10px;border:1px solid #bfdbfe;font-family:var(--mono);font-size:.68rem">redondeo(Fr real) → entero más cercano</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center;font-weight:700;color:#1d4ed8">${_frAdj_inf}</td>
             <td style="padding:5px 10px;border:1px solid #bfdbfe;text-align:center">días</td>
           </tr>
         </table>
-        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero inferior (Math.floor).</div>
+        <div style="font-size:.64rem;color:#6b7280;margin-top:5px;font-style:italic">Ref: ITT-03 §1 CNR 2017. Fr ajustada al entero más cercano (redondeo estándar, mínimo 1 día).</div>
       </div>`;
     }
     // Solo 3 meses: Dic(idx11), Ene(idx0), Feb(idx1)
@@ -4567,16 +4604,21 @@ function buildDetalleHtml(sys) {
         `${fd(ag.supSeg,4)} ha`, '');
     } else {
       const ef = sys==='asp'?v('a-ef',75):v('c-ef',75);
+      const _esCapasAgro = (sys==='asp'||sys==='car');
       agro = fline('ETo día crítico', 'ETo_día = ETo_mes / días_mes',
         `${fd(ag.etoM,1)} / ${ag.dias}`, `${fd(ag.etp,3)} mm/día`, `Mes crítico: ${ag.mesC}`)
       + fline('ETc', 'ETc = ETo_día × Kc',
         `${fd(ag.etp,3)} × ${ag.kc}`, `${fd(ag.etc,3)} mm/día`, '')
-      + fline('Altura Agua Aprovechable (HA)', 'HA = (CC−PMP) × Da × Prof/100 × 10',
-        `(${v(pfx+'-cc',22)}−${v(pfx+'-pmp',10)}) × ${v(pfx+'-da',1.4)} × ${v(pfx+'-pr',60)}/100 × 10`,
-        `${fd(ag.ha,3)} mm`, '')
+      + (_esCapasAgro
+        ? fline('Altura Agua Aprovechable (HA)', 'HA = Σ Ha_capa (desglose por capas, truncado a z)',
+            `ver detalle de capas en "Parámetros de Suelo"`,
+            `${fd(ag.ha,3)} mm`, '')
+        : fline('Altura Agua Aprovechable (HA)', 'HA = (CC−PMP) × Da × Prof/100 × 10',
+            `(${v(pfx+'-cc',22)}−${v(pfx+'-pmp',10)}) × ${v(pfx+'-da',1.4)} × ${v(pfx+'-pr',60)}/100 × 10`,
+            `${fd(ag.ha,3)} mm`, ''))
       + fline('Demanda Neta (Dn)', `Dn = HA × Criterio% / 100`,
         `${fd(ag.ha,3)} × ${crit}/100`, `${fd(ag.dn,3)} mm`, '')
-      + fline('Frecuencia de Riego', 'Fr = Dn / ETc',
+      + fline('Frecuencia de Riego', 'Fr = redondeo(Dn / ETc)',
         `${fd(ag.dn,3)} / ${fd(ag.etc,3)}`, `${fd(ag.fr,2)} días → ajustada: ${ag.frAdj} días`, '')
       + fline('Demanda Neta Ajustada', 'Dn_adj = ETc × Fr_adj',
         `${fd(ag.etc,3)} × ${ag.frAdj}`, `${fd(ag.dnAdj,3)} mm`, '')
@@ -4627,8 +4669,8 @@ function buildDetalleHtml(sys) {
       ['Espaciamiento entre aspersores', fd(asp.espA,0), 'm'],
       ['Espaciamiento entre laterales', fd(asp.espL,0), 'm'],
     ]);
-    a_content += fline('Velocidad de Aplicación (VA)', 'VA = Q_asp [l/hr] / Marco [m²]',
-      `(${fd(asp.qAsp,3)} m³/hr × 1000) / (${fd(asp.espA,0)} × ${fd(asp.espL,0)})`,
+    a_content += fline('Velocidad de Aplicación (VA)', 'VA = (Q_asp[m³/hr] × 1000) / Marco[m²]',
+      `(${fd(asp.qAsp,3)} × 1000) / (${fd(asp.espA,0)} × ${fd(asp.espL,0)})`,
       `${fd(asp.va,3)} mm/hr`, `VIB del suelo: ${v('a-vib',8.5)} mm/hr — Verificar VA < VIB`)
     + fline('Sup. por postura', 'A_pos = espA × espL × N_asp / 10.000',
       `${asp.espA} × ${asp.espL} × ${asp.nAsp} / 10.000`, `${fd(asp.supPos,3)} ha`, '')
@@ -6427,6 +6469,8 @@ function calcMA(){
   //  se mantiene AD/Dn/Fr solo como dato informativo adicional, ver tabla de dudas)
   var demLsHa=db/8.64, supSeg=qDisp/demLsHa;
   var cc=v('m-cc',22),pmp=v('m-pmp',10),da=v('m-da',1.4),pr=v('m-pr',60),crit=v('m-crit',50);
+  var _daChkM=_checkDaPlausible(da);
+  da=_daChkM.da;
   var ha=(cc-pmp)*da*(pr/100)*10;
   var dn=ha*crit/100;
   var fr=dn/etc;
@@ -6452,6 +6496,7 @@ function calcMA(){
       {eq:'Dn adj=ETc×Fr='+fd(etc,3)+'×'+frAdj,res:fd(dnAdj,3)+' mm'},
       {note:'CC='+cc+'% | PMP='+pmp+'% | Da='+da+' | Prof='+pr+' cm | fa='+fd(crit/100,2)+' — Microaspersión es riego localizado (igual que goteo); Db diario no depende de Fr.'}
     ])
+    +(_daChkM.alerta?al('⚠ Da declarada ('+fd(_daChkM.daOriginal,1)+') parece estar en kg/m³, no g/cc — se usó '+fd(da,3)+' g/cc para este cálculo. Verifique/corrija el dato.','w'):'')
     +fbox('Sup. de Riego Seguro',[
       {eq:'q=Db/8,64='+fd(db,4)+'/8,64',res:fd(demLsHa,4)+' l/s/ha'},
       {eq:'A=Q/q='+qDisp+'/'+fd(demLsHa,4),res:fd(supSeg,4)+' ha'}
