@@ -154,7 +154,7 @@
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_aspersores_m" name="{{ p }}espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
         <div class="campo-postura"><label>N° aspersores por postura</label><input type="number" step="1" id="{{ p }}n_aspersores_postura" name="{{ p }}n_aspersores_postura" value="{{ agro.n_aspersores_postura if agro.n_aspersores_postura is not none else '' }}"></div>
-        <div class="campo-postura"><label>Caudal del aspersor (m³/hr)</label><input type="number" step="0.01" id="{{ p }}caudal_aspersor_m3h" name="{{ p }}caudal_aspersor_m3h" value="{{ agro.caudal_aspersor_m3h if agro.caudal_aspersor_m3h is not none else '' }}"></div>
+        <div class="campo-postura"><label>Caudal del aspersor (m³/hr)</label><input type="number" step="any" id="{{ p }}caudal_aspersor_m3h" name="{{ p }}caudal_aspersor_m3h" value="{{ agro.caudal_aspersor_m3h if agro.caudal_aspersor_m3h is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Caudal cañón — catálogo (m³/hr)</label><input type="number" step="0.1" id="{{ p }}caudal_canon_m3h" name="{{ p }}caudal_canon_m3h" value="{{ agro.caudal_canon_m3h if agro.caudal_canon_m3h is not none else '' }}"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Margen sobredimensionamiento caudal (%)</label><input type="number" step="1" id="{{ p }}margen_sobredimensionamiento_pct" name="{{ p }}margen_sobredimensionamiento_pct" value="{{ agro.margen_sobredimensionamiento_pct if agro.margen_sobredimensionamiento_pct is not none else '' }}" placeholder="15"></div>
         <div class="sistema-riego-campo campo-carrete"><label>Radio de alcance del cañón (m)</label><input type="number" step="0.5" id="{{ p }}radio_alcance_m" name="{{ p }}radio_alcance_m" value="{{ agro.radio_alcance_m if agro.radio_alcance_m is not none else '' }}"></div>
@@ -1097,6 +1097,12 @@
         var qPosturaReinterpretado = nAspPostura * qAsp;
         if (!diferenciaRelevante(qPosturaReinterpretado, declQdiseno, 10)) {
           notaPostura = "Posible error de unidad: el caudal del aspersor (" + fmt(qAsp, 2) + ") no coincide con lo declarado interpretado como m³/hr (" + fmt(qPostura, 3) + " l/s), pero SÍ coincide si en realidad viene en l/s (" + fmt(qPosturaReinterpretado, 3) + " l/s ≈ " + fmt(declQdiseno, 2) + " l/s declarado).";
+        } else if (nAspPostura > 1 && !diferenciaRelevante(qAsp, declQdiseno, 10)) {
+          // Caudal AGREGADO copiado en el campo individual (ago-2026, caso real): el caudal del
+          // aspersor extraído coincide casi exacto con el caudal declarado de TODA la postura —
+          // un aspersor no puede tener el mismo caudal que los N juntos.
+          var qAspReconstruido = (declQdiseno / nAspPostura) * 3.6;
+          notaPostura = "Posible error de extracción: el caudal del aspersor (" + fmt(qAsp, 2) + " m³/hr) coincide casi exacto con el caudal de diseño declarado para TODA la postura (" + fmt(declQdiseno, 2) + " l/s) — con " + nAspPostura + " aspersores, un aspersor individual no puede tener el mismo caudal que los " + nAspPostura + " juntos. Probablemente el expediente solo daba el caudal agregado (sin valor individual) y se copió sin dividir por N° de aspersores. Caudal individual reconstruido = (caudal declarado / N° aspersores) × 3,6 = " + fmt(qAspReconstruido, 3) + " m³/hr.";
         } else {
           notaPostura = "No coincide con el caudal de diseño declarado (" + fmt(declQdiseno, 2) + " l/s).";
         }

@@ -689,7 +689,18 @@ def verificar_unidad_caudal_aspersor(caudal_aspersor_m3h: float, n_aspersores: f
     Devuelve {} si falta algún dato para la prueba. `posible_inversion_unidad=True` SOLO en el
     caso descrito arriba (literal mal, reinterpretado bien) — si ambas interpretaciones fallan,
     o ambas coinciden, o la literal ya coincide, no hay nada que reportar acá (deja el
-    diagnóstico al "no coincide" genérico de siempre, que sigue aplicando igual)."""
+    diagnóstico al "no coincide" genérico de siempre, que sigue aplicando igual).
+
+    `posible_caudal_agregado_no_individual=True` (ago-2026, caso real distinto del anterior):
+    cuando el expediente NO trae el caudal de un aspersor individual, solo un "Caudal de
+    Operación"/"Caudal de diseño" AGREGADO de toda la postura junto al N° de aspersores, la
+    extracción puede copiar ese número agregado directo en `caudal_aspersor_m3h` — sin convertir
+    unidad NI dividir por N°. Ninguna de las dos reconstrucciones de arriba lo detecta (para N>1,
+    ni N×Q_agregado/3,6 ni N×Q_agregado se acercan al propio Q_agregado declarado). Se detecta
+    comparando `caudal_aspersor_m3h` DIRECTO (sin transformar) contra `caudal_declarado_ls`: si
+    coinciden casi exactos y hay más de un aspersor, es el mismo número duplicado en dos campos
+    con significado distinto (uno individual, el otro toda la postura) — se reconstruye el valor
+    correcto como (`caudal_declarado_ls` / `n_aspersores`) × 3,6."""
     if not caudal_aspersor_m3h or not n_aspersores or not caudal_declarado_ls:
         return {}
     q_postura_literal_ls = n_aspersores * caudal_aspersor_m3h / 3.6
@@ -702,6 +713,9 @@ def verificar_unidad_caudal_aspersor(caudal_aspersor_m3h: float, n_aspersores: f
     }
     if not literal_ok and reinterpretado_ok:
         r["posible_inversion_unidad"] = True
+    elif n_aspersores > 1 and abs(caudal_aspersor_m3h - caudal_declarado_ls) / caudal_declarado_ls * 100 <= tolerancia_pct:
+        r["posible_caudal_agregado_no_individual"] = True
+        r["caudal_aspersor_reconstruido_m3h"] = round((caudal_declarado_ls / n_aspersores) * 3.6, 3)
     return r
 
 

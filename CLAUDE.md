@@ -44,19 +44,20 @@ sin que él reporte primero. Detalle en `docs/`.
    ni una postura cabe en un día; `caudal_operacion_ls` en Aspersión/Carrete por reconstrucción
    de equipo (N×Q) en vez de división; detector de confusión ETc↔Dn; fix Dn vs. Dn ajustada en
    el texto IA; redacción suavizada de "acumulador no requerido"; checklist SEP exige declarar
-   "INCONSISTENCIA DOCUMENTAL" si un dato difiere entre documentos. Detalle y validación en
-   `docs/`.
+   "INCONSISTENCIA DOCUMENTAL" si un dato difiere entre documentos. **Follow-up mismo día** con
+   caso real del usuario: 2° patrón de error en caudal de aspersor (agregado de la postura
+   copiado en el campo individual, sin dividir por N° aspersores — distinto de la inversión de
+   unidad), corregido en verificación Y en el prompt de extracción; fix de `step` en el input
+   (rechazaba 3 decimales). Detalle y validación en `docs/`.
 
 2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
-   apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`. Detalle en `docs/`.
+   apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
 
 3. **3 fixes puntuales:** nombre del proyecto en Resumen↔listado (OK); Tab en capas de suelo
-   (OK); costo de API en ambas Memorias standalone (**sin confirmar**). Detalle en `docs/`.
+   (OK); costo de API en ambas Memorias standalone (**sin confirmar**). `diseno_hidraulico`/
+   `diseno_fotovoltaico` con checklist ampliado. Detalle en `docs/`.
 
-4. **Criterios de revisión por método de riego:** `diseno_hidraulico`/`diseno_fotovoltaico` con
-   checklist ampliado. Detalle en `docs/`.
-
-5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con paridad total;
    Evaluación del Consultor (nunca probada).
 

@@ -2774,3 +2774,48 @@ Revisor, no parámetros de diseño del Diseñador — no se exportan, documentad
 
 ---
 
+## Follow-up mismo día: caso real del consultor + 2° patrón de error en el caudal del aspersor
+
+El usuario probó los 7 fixes en la app y reportó dos cosas del mismo caso real (proyecto con
+Aspersor "FUNNY", boquilla 5mm, 1,5bar, N°=10, Caudal de Operación=3,3 l/s, marco 12×18m):
+
+**1. Bug de UI menor:** el campo "Caudal del aspersor (m³/hr)" en `calculos.html` tenía
+`step="0.01"`, que rechaza valores de 3 decimales (ej. 1,188, el valor reconstruido
+correctamente en este caso) con el mensaje nativo del navegador "los valores válidos están entre
+1,18 y 1,19". Cambiado a `step="any"`, igual que otros campos que también reciben valores
+reconstruidos (`superficie_riego_ha`, `presion_emisor_mca`, caudal de tramos).
+
+**2. Segundo patrón de error real, distinto del "inversión de unidad" (tarea #9):** el
+expediente de este consultor NO da el caudal de un aspersor individual — solo trae una tabla con
+"Caudal de Operación: 3,3 l/s" (agregado de LOS 10 aspersores juntos) + "Número de Aspersores:
+10". La extracción copió el "3,3" directo en `caudal_aspersor_m3h` (sin dividir por 10 ni
+convertir la unidad), muy distinto del caso de inversión de unidad ya cubierto (ahí SÍ había un
+valor individual, solo con la unidad mal interpretada). Con estos números, ninguna de las dos
+reconstrucciones de `verificar_unidad_caudal_aspersor()` (literal N×Q/3,6, reinterpretada N×Q)
+se acerca al declarado — el chequeo existente no lo detectaba.
+
+**Fix, mismo patrón "aditivo" de siempre:**
+- `calculos_riego.py` — `verificar_unidad_caudal_aspersor()` gana un tercer diagnóstico,
+  `posible_caudal_agregado_no_individual`: compara `caudal_aspersor_m3h` DIRECTO (sin
+  transformar) contra `caudal_declarado_ls`; si coinciden casi exactos y hay más de un aspersor,
+  es el mismo número duplicado en dos campos de significado distinto. Reconstruye el valor
+  correcto como `caudal_aspersor_reconstruido_m3h = (caudal_declarado_ls / n_aspersores) × 3,6`.
+  Verificado con los números reales del usuario: `verificar_unidad_caudal_aspersor(3.3, 10, 3.3)`
+  → `{'posible_caudal_agregado_no_individual': True, 'caudal_aspersor_reconstruido_m3h': 1.188}`.
+- `main.py` — el nuevo campo booleano se deja FUERA de `_rellenar_none` (mismo criterio que
+  `posible_inversion_unidad`, semántica `is defined`); `caudal_aspersor_reconstruido_m3h` sí se
+  agrega a la lista de `postura_check` (semántica `is not none`, como sus pares numéricos).
+- `analyzer.py` — nuevo bloque de advertencia `elif unidad_check.get("posible_caudal_agregado_no_individual")`
+  en la narrativa IA, paralelo al de inversión de unidad; el mensaje "no coincide con el
+  recálculo" también referencia esta advertencia cuando corresponde. Además, la propia
+  instrucción de EXTRACCIÓN (`prompt` de datos agronómicos) gana un párrafo nuevo explicando
+  este patrón exacto con el mismo ejemplo numérico, para que la próxima vez la IA divida por N°
+  de aspersores en vez de copiar el agregado — ataca la causa en la extracción, no solo el
+  síntoma en la verificación.
+- `templates/calculos.html` (JS) y ambas Memorias — mismo diagnóstico y mensaje reflejados en el
+  Chequeo interactivo y en la Memoria de Cálculo, con el mismo texto explicativo.
+- Validado con `py_compile`, `get_template()` de los 3 templates vía la app, y `node --check`
+  del `<script>` completo de `calculos.html`.
+
+---
+

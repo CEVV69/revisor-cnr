@@ -1428,6 +1428,19 @@ en la extracción: un caudal de aspersor típico es del orden de 0,3-2 m³/hr (a
 pocas unidades), NUNCA varios l/s ni decenas de m³/hr — si el valor que encontraste está muy
 fuera de ese rango, revisa si tomaste el caudal de la RED completa en vez del de un aspersor
 individual, o si necesitas convertir la unidad.
+MUY FRECUENTE — el documento NO siempre da el caudal individual del aspersor directamente: a
+veces solo trae una tabla con "Caudal de Operación" (o "Caudal de diseño") junto al "N° de
+Aspersores", donde ese caudal es el de TODOS los aspersores de la postura funcionando a la vez
+(lo mismo que en esta app se llama caudal de diseño/caudal de operación de la postura), NO el de
+uno solo. Si encuentras esa combinación — un caudal agregado + un N° de aspersores, pero SIN una
+cifra explícita de caudal por aspersor individual — DIVIDE el caudal agregado por el N° de
+aspersores (convirtiendo antes a m³/hr según las reglas de arriba) para obtener
+"caudal_aspersor_m3h"; NUNCA copies el caudal agregado directo en ese campo, es una magnitud
+distinta (postura completa, no un aspersor) y típicamente 5-15 veces mayor que el caudal
+individual real. Ejemplo: "Caudal de Operación: 3,3 l/s" + "N° de Aspersores: 10" →
+caudal_aspersor_m3h = (3,3/10) × 3,6 = 1,188, NO 3,3 ni 11,88. El caudal agregado en sí (3,3 l/s
+en el ejemplo) igual repórtalo en el campo de caudal de diseño del sistema — es el dato que se
+compara más abajo contra el recálculo N°_aspersores × caudal_aspersor_m3h.
 Si el sistema es CARRETE (cañón viajero), extrae ADEMÁS los datos distintivos de su diseño
 operacional (metodología INIA-Carillanca): caudal de descarga del cañón según catálogo (m³/hr),
 margen de sobredimensionamiento del caudal si se declara (%, normalmente 15-20%), radio de
@@ -1803,6 +1816,23 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 f"observación explicando esta posible inversión de unidad, citando ambos números, "
                 f"y trata con cautela cualquier cálculo posterior que dependa de este dato "
                 f"(VA, tiempo de postura, días necesarios) — puede estar heredando el mismo error.")
+        elif unidad_check.get("posible_caudal_agregado_no_individual"):
+            texto += (
+                f"\n\n⚠️ POSIBLE ERROR DE EXTRACCIÓN EN EL CAUDAL DEL ASPERSOR (prueba de "
+                f"coherencia cruzada, cálculo determinístico): el caudal del aspersor extraído "
+                f"({q_asp} m³/hr) coincide casi exacto con el caudal de diseño/operación que "
+                f"declara el consultor para TODA la postura ({declarado_qdiseno} l/s) — mismo "
+                f"número, magnitudes distintas. Con {n_asp} aspersores por postura, un aspersor "
+                f"individual no puede tener el mismo caudal que los {n_asp} juntos: esto sugiere "
+                f"que el expediente solo daba el caudal AGREGADO de la postura (junto al N° de "
+                f"aspersores) sin un valor individual explícito, y la extracción copió ese "
+                f"agregado directo en el campo del aspersor individual, sin dividir por "
+                f"{n_asp} ni convertir la unidad. El caudal individual reconstruido correctamente "
+                f"= (caudal declarado / N° aspersores) × 3,6 = "
+                f"{unidad_check.get('caudal_aspersor_reconstruido_m3h')} m³/hr. Genera una "
+                f"observación explicando esta confusión (caudal agregado vs. individual), citando "
+                f"ambos números, y trata con cautela cualquier cálculo posterior que dependa del "
+                f"caudal del aspersor extraído (VA, tiempo de postura, días necesarios).")
         postura = calculos_riego.postura_aspersion(
             caudal_aspersor_m3h=q_asp, espaciamiento_aspersores_m=esp_asp,
             espaciamiento_laterales_m=esp_lat, n_aspersores=n_asp,
@@ -1819,6 +1849,8 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"con el recálculo." + (
                               " Ver la advertencia de posible inversión de unidad más arriba."
                               if unidad_check.get("posible_inversion_unidad")
+                              else " Ver la advertencia de posible caudal agregado más arriba."
+                              if unidad_check.get("posible_caudal_agregado_no_individual")
                               else " Genera una observación citando estos números."))
             if "va_mmhr" in postura:
                 texto += (f"\n- VA (velocidad de aplicación) = (Q_aspersor×1.000)/(Esp.asp×Esp.lat) "

@@ -2166,6 +2166,9 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     • `posible_inversion_unidad` de `postura_check` (ago-2026) — mismo caso: solo se calcula si
       hay caudal de aspersor, N° de aspersores Y un caudal declarado para comparar; su ausencia
       es "no se pudo evaluar", no "no hay inversión de unidad".
+    • `posible_caudal_agregado_no_individual` de `postura_check` (ago-2026) — mismo caso: solo se
+      calcula junto con `posible_inversion_unidad` (mismos tres datos), son mutuamente excluyentes
+      (dos diagnósticos distintos del mismo síntoma); su ausencia tampoco es "no hay problema".
     • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
       por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
     """
@@ -2178,7 +2181,7 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     if calc.get("postura_check"):
         _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios",
                                                 "q_postura_literal_ls", "q_postura_reinterpretado_ls",
-                                                "caudal_postura_ls"))
+                                                "caudal_postura_ls", "caudal_aspersor_reconstruido_m3h"))
     if calc.get("carrete_check"):
         # ago-2026: diseno_carrete() es ADITIVO (cada clave puede faltar si no llegó el dato que
         # necesita, típicamente la velocidad del viento) — hay que rellenar TODAS las que la
