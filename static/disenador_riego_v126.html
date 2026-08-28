@@ -3588,8 +3588,9 @@ function renderSectores(sys){
   var cultNom=ag&&ag.cultivo&&ag.cultivo!=='—'?ag.cultivo:(document.getElementById(pfx+'-cult')?document.getElementById(pfx+'-cult').value||'—':'—');
   var etc3=fd(ag.etc||0,3);
   var kc3=fd(ag.kc||0,3);
-  // Datos del emisor — correctos por sistema
-  var qem3=ge?fd(ge.qem||0,3):'—';
+  // Datos del emisor — correctos por sistema. Cuadro 1 ITT-03 exige columna fija en l/hr:
+  // para Aspersión, ge.qem (=a-qasp) está en m³/hr en el resto de la app — convertir solo aquí.
+  var qem3=ge?fd((sys==='asp'?(ge.qem||0)*1000:(ge.qem||0)),3):'—';
   var deh3=ge?fd(ge.deh||0,3):'—';
   var nlin=sys==='got'?(document.getElementById('g-nlin')?document.getElementById('g-nlin').value||1:1):1;
   var decp=sys==='got'||sys==='mic'?3:0;

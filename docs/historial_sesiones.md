@@ -2990,3 +2990,43 @@ lógica interna y textos de display, así que el mapeo de exportación sigue sie
 
 ---
 
+## Diseñador de Riego v125 → v126: se cierra el bug del Cuadro 1 (ago-2026)
+
+**Error de proceso detectado por el usuario:** el prompt del bug "Cuadro 1 rotula 'l/hr' un valor
+que en Aspersión es m³/hr" se había entregado en una sesión ANTERIOR a la del prompt de Da/días-
+necesarios — al armar ESE segundo prompt no se volvió a incluir el pendiente del primero, así que
+se perdió (no es que el otro Claude lo ignorara, nunca se lo pasaron). Corregido reconstruyendo
+el prompt con líneas exactas contra el archivo v125 real (no v123, que ya no correspondía) y
+agregada la Regla 11 a CLAUDE.md: revisar pendientes de rondas anteriores del mismo tema antes de
+armar un prompt de handoff nuevo, siempre incluirlos.
+
+**El usuario volvió con `disenador_riego_v126.html` ya corregido.** Diff contra v125: 3 líneas
+(1 línea de código + 2 de comentario), en `renderSectores()` — decidieron mantener el header
+"Q emisor / l/hr" FIJO (según el formato oficial del Cuadro 1 ITT-03 — opción que el prompt había
+dejado abierta a confirmar) y en cambio CONVERTIR el valor de Aspersión antes de mostrarlo:
+`qem3=ge?fd((sys==='asp'?(ge.qem||0)*1000:(ge.qem||0)),3):'—'` (m³/hr×1000→l/hr, solo para
+Aspersión). Solución más simple que la sugerida (header condicional) y igual de correcta.
+
+Un solo punto de cambio basta para las dos ubicaciones que originalmente se habían señalado
+(`renderSectores()` y el Cuadro 1 dentro de `buildInfHtml()`) porque **no son dos cálculos
+independientes**: `buildInfHtml()` lee `qem` desde `lsGet('dr_cuadro1_'+sys,[])`, el mismo array
+`saved` que `renderSectores()` construye/actualiza y persiste en localStorage — no lo recalcula
+por su cuenta. Corrigiendo el único punto donde se calcula `qem3`, ambas vistas quedan
+correctas. (Detalle menor, no perseguido: el loop que "refresca" filas YA guardadas en
+`renderSectores()` no toca `row.qem` — solo `cultivo`/`kc`/`pp`/`tRiego`/`sup`/`qSec` — así que
+una fila creada ANTES de este fix podría quedar con el valor viejo hasta que el usuario regenere
+el Cuadro, ej. agregando/quitando un sector. No es el bug reportado, es una limitación general de
+ese patrón de refresco parcial que aplica igual a otros campos.)
+
+**Con esto se cierran los 3 bugs del Diseñador de Riego encontrados en esta auditoría** (Da fuera
+de rango, Aspersión sin días-necesarios, Cuadro 1 l/hr) — los tres verificados presentes y
+corregidos, confirmado línea por línea contra el diff real en cada actualización (v123→v125→v126),
+nunca aceptado "de oídas".
+
+**Cambio mecánico en este repo:** mismo patrón que la actualización anterior — `git mv` de
+`static/disenador_riego_v125.html` → `static/disenador_riego_v126.html`, link en
+`_apps_menu.html`, comentarios en `calculos_riego.py`/`exportar_disenador.py`, y las 3 menciones
+en `CLAUDE.md`. Sin cambios en `exportar_disenador.py`: diff de 3 líneas, ningún campo tocado.
+
+---
+
