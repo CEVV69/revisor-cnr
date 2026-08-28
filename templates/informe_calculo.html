@@ -207,7 +207,7 @@
   <div class="formula">Dn = AD × Criterio de riego = {{ val(calc.ad_mm) }} × ({{ val(agro.factor_agotamiento_pct) }}/100) = <strong>{{ val(calc.dn_mm, ' mm') }}</strong></div>
   <div class="explica">Lámina neta — cuánta agua se repone en cada riego, sin agotar más allá del criterio definido. Es el dato que el Diseñador de Riego y el consultor rotulan "Dn"; NO ha pasado aún por el redondeo de Fr a un número entero de días (ver "Dn ajustada" más abajo).</div>
   {% if agro.declarado and agro.declarado.dn_mm is not none %}
-  <div class="compara">Declarado: {{ num(agro.declarado.dn_mm) }} mm — {% if calc.dn_mm and (calc.dn_mm - agro.declarado.dn_mm) | abs / calc.dn_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo ({{ num(calc.dn_mm) }} mm).</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  <div class="compara">Declarado: {{ num(agro.declarado.dn_mm) }} mm — {% if calc.dn_mm and (calc.dn_mm - agro.declarado.dn_mm) | abs / calc.dn_mm * 100 > 10 %}<span class="alerta">no coincide con el recálculo ({{ num(calc.dn_mm) }} mm).</span>{% if calc.etc_mm_dia and (calc.etc_mm_dia - agro.declarado.dn_mm) | abs / calc.etc_mm_dia * 100 <= 10 %} Coincide en cambio con la ETc ({{ num(calc.etc_mm_dia) }} mm/día) — posible confusión metodológica: el consultor puede estar usando la ETc directo como si fuera la Dn, sin descontar el agua disponible del suelo ni el criterio de agotamiento.{% endif %}{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
 {% endcall %}
 {% call paso('fr') %}
@@ -271,6 +271,12 @@
 {% endif %}
 
 {% if calc.postura_check %}
+<div class="paso">
+  <div class="formula">Q_postura = N° aspersores × Q_aspersor / 3,6 = {{ val(agro.n_aspersores_postura) }} × {{ val(agro.caudal_aspersor_m3h) }} / 3,6 = <strong>{{ val(calc.postura_check.caudal_postura_ls, ' l/s') }}</strong> (caudal simultáneo de la postura)</div>
+  {% if agro.declarado and agro.declarado.caudal_diseno_ls is not none %}
+  <div class="compara">Caudal de diseño declarado: {{ num(agro.declarado.caudal_diseno_ls) }} l/s — {% if calc.postura_check.caudal_postura_ls and (calc.postura_check.caudal_postura_ls - agro.declarado.caudal_diseno_ls) | abs / calc.postura_check.caudal_postura_ls * 100 > 10 %}<span class="alerta">no coincide con el recálculo.{% if calc.postura_check.posible_inversion_unidad is defined and calc.postura_check.posible_inversion_unidad %} Posible inversión de unidad: interpretado literalmente ({{ val(agro.caudal_aspersor_m3h) }} m³/hr) da {{ val(calc.postura_check.q_postura_literal_ls, ' l/s') }}, pero si el dato en realidad viene en l/s, N°×{{ val(agro.caudal_aspersor_m3h) }} = {{ val(calc.postura_check.q_postura_reinterpretado_ls, ' l/s') }} SÍ coincide con lo declarado.{% endif %}</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+</div>
 <div class="paso">
   <div class="formula">VA = Q_aspersor×1000 / (Esp.asp × Esp.lat) = {{ val(agro.caudal_aspersor_m3h) }}×1000 / ({{ val(agro.espaciamiento_aspersores_m) }} × {{ val(agro.espaciamiento_laterales_m) }}) = <strong>{{ val(calc.postura_check.va_mmhr, ' mm/hr') }}</strong></div>
   <div class="explica">Velocidad de aplicación de la postura de aspersores.</div>
@@ -375,8 +381,9 @@
 
 {% if calc.caudal_operacion_ls is not none %}
 {% call paso('caudal_operacion') %}
-  <div class="formula">Caudal de operación de la red = Q requerido / N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} = <strong>{{ val(calc.caudal_operacion_ls, ' l/s') }}</strong></div>
-  <div class="explica">Caudal que circula por la tubería mientras opera UN sector/postura — el que el consultor debería haber usado para dimensionar diámetros y pérdidas de carga (distinto del caudal de la fuente).</div>
+  {% set q_postura_equipo = (calc.postura_check and calc.postura_check.caudal_postura_ls is not none and calc.postura_check.caudal_postura_ls) or (calc.carrete_check and calc.carrete_check.q_diseno_ls is not none and calc.carrete_check.q_diseno_ls) %}
+  <div class="formula">Caudal de operación de la red = {% if q_postura_equipo %}N° aspersores × Q aspersor (geométrico/de equipo){% else %}Q requerido / N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %}{% endif %} = <strong>{{ val(calc.caudal_operacion_ls, ' l/s') }}</strong></div>
+  <div class="explica">Caudal que circula por la tubería mientras opera UN sector/postura — el que el consultor debería haber usado para dimensionar diámetros y pérdidas de carga (distinto del caudal de la fuente). {% if q_postura_equipo %}En Aspersión/Carrete lo fija el marco de aspersores o el cañón elegido, NO Q requerido dividido por N° de posturas (esa división solo corresponde a Goteo/Microaspersión, donde los sectores SÍ dependen del caudal).{% endif %}</div>
   {% if agro.declarado and agro.declarado.caudal_diseno_ls is not none %}
   <div class="compara">Caudal de diseño declarado: {{ num(agro.declarado.caudal_diseno_ls) }} l/s — {% if calc.caudal_operacion_ls and (calc.caudal_operacion_ls - agro.declarado.caudal_diseno_ls) | abs / calc.caudal_operacion_ls * 100 > 15 %}<span class="alerta">no coincide con el recálculo.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
   {% endif %}
@@ -390,7 +397,7 @@
 {% call paso('acumulador_requerido') %}
   <div class="formula">Diferencia caudal operación vs. disponible = {{ val(calc.diferencia_caudal_operacion_pct, '%') }}</div>
   <div class="explica">ITT-03 §1: si el caudal de operación del sector/postura de mayor gasto supera el caudal continuo disponible, se requiere un acumulador — salvo, en aguas superficiales, si la diferencia es menor a un 20%.</div>
-  <div class="compara">{% if not calc.acumulador_requerido %}<span class="ok">{% if calc.diferencia_caudal_operacion_pct is not none %}Exento — aguas superficiales, diferencia &lt;20%.{% else %}No requerido — caudal de operación dentro del disponible.{% endif %}</span>{% elif agro.volumen_acumulador_m3 %}<span class="ok">Requerido y declarado — ver dimensionamiento abajo.</span>{% else %}<span class="alerta">Requerido según ITT-03 §1 y el proyecto NO declara un acumulador.{% if not agro.tipo_fuente_agua %} (No se declaró el tipo de fuente — si es superficial y la diferencia es &lt;20%, aplicaría la excepción.){% endif %}</span>{% endif %}</div>
+  <div class="compara">{% if not calc.acumulador_requerido %}{% if calc.balance_diario_ok is defined and not calc.balance_diario_ok %}<span class="alerta">Caudal instantáneo no exige acumulador{% if calc.diferencia_caudal_operacion_pct is not none %} (exento — aguas superficiales, diferencia &lt;20%){% endif %} — OJO, el balance diario de volumen (ver abajo) SÍ muestra déficit: igual podría requerirse acumulación por esa vía.</span>{% else %}<span class="ok">{% if calc.diferencia_caudal_operacion_pct is not none %}Exento — aguas superficiales, diferencia &lt;20%. {% endif %}No se evidencia necesidad de acumulación por déficit de caudal instantáneo ni por déficit de volumen diario. Se requiere verificar la justificación específica del acumulador declarado.</span>{% endif %}{% elif agro.volumen_acumulador_m3 %}<span class="ok">Requerido y declarado — ver dimensionamiento abajo.</span>{% else %}<span class="alerta">Requerido según ITT-03 §1 y el proyecto NO declara un acumulador.{% if not agro.tipo_fuente_agua %} (No se declaró el tipo de fuente — si es superficial y la diferencia es &lt;20%, aplicaría la excepción.){% endif %}</span>{% endif %}</div>
 {% endcall %}
 {% endif %}
 
@@ -409,6 +416,12 @@
   {% if calc.ciclo_riego_ok is defined %}
   <div class="compara">{% if calc.ciclo_riego_ok %}<span class="ok">OK — el ciclo se completa dentro de Fr.</span>{% else %}<span class="alerta">El ciclo tarda MÁS días que Fr — el diseño no alcanza a regar toda la superficie a tiempo.</span>{% endif %}</div>
   {% endif %}
+{% endcall %}
+{% elif calc.cabe_en_ciclo_ok is defined %}
+{% call paso('dias_necesarios') %}
+  <div class="formula">Tiempo total del ciclo completo (N° {% if calc.postura_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) = <strong>{{ val(calc.tiempo_total_ciclo_hr, ' hr') }}</strong> · Horas disponibles del ciclo (horas/día × Fr={{ calc.fr_adj_dias }} día{{ '' if calc.fr_adj_dias == 1 else 's' }}) = <strong>{{ val(calc.horas_disponibles_ciclo_hr, ' hr') }}</strong></div>
+  <div class="explica">Ni una postura cabe en las horas disponibles de un día (posturas/día = 0) — no hay "día real" que comparar contra las horas disponibles diarias; este cotejo, en horas y sobre el ciclo completo, es el que corresponde en ese caso (nunca comparar el ciclo completo contra un solo día).</div>
+  <div class="compara">{% if calc.cabe_en_ciclo_ok %}<span class="ok">OK — el ciclo cabe dentro de las horas disponibles del ciclo.</span>{% else %}<span class="alerta">El ciclo EXCEDE las horas disponibles del ciclo — el diseño no es viable así.</span>{% endif %}</div>
 {% endcall %}
 {% endif %}
 

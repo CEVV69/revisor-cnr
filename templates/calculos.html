@@ -373,7 +373,7 @@
             </td>
           </tr>
           <tr id="{{ p }}agro-dias-row" style="display:none;">
-            <td class="col-concepto" colspan="2">Días para completar el ciclo vs. frecuencia de riego</td>
+            <td class="col-concepto" colspan="2">Ciclo completo vs. frecuencia de riego</td>
             <td class="col-calc">
               <span id="{{ p }}agro-dias-calc">—</span>
               <span id="{{ p }}agro-dias-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -1090,7 +1090,16 @@
       qPostura = nAspPostura * qAsp / 3.6;
       setText(p + "agro-postura-calc", fmt(qPostura, 3) + " l/s por postura");
       if (declQdiseno !== null && diferenciaRelevante(qPostura, declQdiseno, 10)) {
-        notaPostura = "No coincide con el caudal de diseño declarado (" + fmt(declQdiseno, 2) + " l/s).";
+        // Coherencia cruzada de UNIDADES (ago-2026, caso real): si el caudal del aspersor en
+        // realidad viniera en l/s (no m³/hr como pide el campo) y N×ese número SÍ coincide con
+        // lo declarado, es una inversión de unidad específica — más útil que un "no coincide"
+        // genérico, que arrastraría el mismo dato malo a VA/tiempo de postura sin explicar por qué.
+        var qPosturaReinterpretado = nAspPostura * qAsp;
+        if (!diferenciaRelevante(qPosturaReinterpretado, declQdiseno, 10)) {
+          notaPostura = "Posible error de unidad: el caudal del aspersor (" + fmt(qAsp, 2) + ") no coincide con lo declarado interpretado como m³/hr (" + fmt(qPostura, 3) + " l/s), pero SÍ coincide si en realidad viene en l/s (" + fmt(qPosturaReinterpretado, 3) + " l/s ≈ " + fmt(declQdiseno, 2) + " l/s declarado).";
+        } else {
+          notaPostura = "No coincide con el caudal de diseño declarado (" + fmt(declQdiseno, 2) + " l/s).";
+        }
       }
     } else {
       setText(p + "agro-postura-calc", "—");
@@ -1326,7 +1335,19 @@
     setText(p + "agro-dnadj-calc", esAltaFrecuencia ? "—" : fmt(dnAdj, 3) + " mm");
     setText(p + "agro-fr-calc", esAltaFrecuencia ? "1 (riego diario)" : frAdj + " días");
     setText(p + "agro-db-calc", fmt(db, 3) + " mm" + (esAltaFrecuencia ? "/día" : " (ciclo de " + frAdj + " día" + (frAdj === 1 ? "" : "s") + ")"));
-    nota(p + "agro-dn-nota", (!esAltaFrecuencia && diferenciaRelevante(dn, declDn, 10)) ? "No coincide con lo declarado (" + fmt(declDn, 2) + " mm)." : "");
+    // Confusión ETc↔Dn (ago-2026, caso real): mismo patrón que Db↔Db-diario más abajo — si lo
+    // declarado como "Dn" en realidad coincide con la ETc bruta (sin pasar por AD/factor de
+    // agotamiento del suelo), el consultor probablemente confundió ambas magnitudes, no un
+    // error de cálculo real.
+    if (!esAltaFrecuencia && diferenciaRelevante(dn, declDn, 10)) {
+      if (etc && !diferenciaRelevante(etc, declDn, 10)) {
+        nota(p + "agro-dn-nota", "Lo declarado como Dn (" + fmt(declDn, 2) + " mm) coincide con la ETc (" + fmt(etc, 3) + " mm/día), no con la Dn recalculada (" + fmt(dn, 3) + " mm) — el consultor puede estar confundiendo la ETc con la lámina neta (AD × factor de agotamiento).");
+      } else {
+        nota(p + "agro-dn-nota", "No coincide con lo declarado (" + fmt(declDn, 2) + " mm).");
+      }
+    } else {
+      nota(p + "agro-dn-nota", "");
+    }
     nota(p + "agro-fr-nota", (!esAltaFrecuencia && declFr !== null && declFr !== frAdj) ? "No coincide con lo declarado (" + fmt(declFr, 0) + " días)." : "");
     nota(p + "agro-db-nota", diferenciaRelevante(db, declDb, 10) ? "No coincide con lo declarado (" + fmt(declDb, 2) + " mm/día)." : "");
 
@@ -1412,7 +1433,7 @@
     // total/Balance/Volumen del estanque) usa la MISMA fórmula de siempre — solo cambia de dónde
     // sale N, por eso esos resultados difieren de antes para Aspersión/Carrete.
     var qRequerido = null, nSectores = null, tiempoTotalDia = null, caudalEstanque = null;
-    var diasNecesarios = null;
+    var diasNecesarios = null, tiempoTotalCiclo = null;
     var palabraPl = esPosturas ? "posturas" : "sectores";
     var articuloPl = esPosturas ? "las" : "los";
     if (precipEfectiva !== null) {
@@ -1430,17 +1451,22 @@
           nSectores = caudalDisp ? Math.max(1, Math.ceil((qRequerido - caudalEstanque) / caudalDisp)) : 1;
         }
         if (nSectores !== null) {
-          // Tiempo total del día: en Aspersión/Carrete NO son todas las posturas en un solo
-          // día — usa las posturas/día reales (ya limitadas por horas disponibles) y reporta
-          // cuántos días toma completar el ciclo. Sin ese dato (o en Goteo/Microaspersión),
-          // cae al comportamiento anterior (todo en un día).
+          // Tiempo total del CICLO completo — base siempre válida, independiente de si una
+          // postura cabe en un día (ago-2026, corrige comparación ciclo-vs-día inválida).
+          tiempoTotalCiclo = nSectores * tiempoRiego;
+          // Tiempo total de UN día real: en Aspersión/Carrete NO son todas las posturas en un
+          // solo día — usa las posturas/día reales (ya limitadas por horas disponibles) y
+          // reporta cuántos días toma completar el ciclo. Si ni una postura cabe en un día
+          // (posturasDiaReal falsy), no hay "día real" que describir — tiempoTotalDia queda
+          // null y el chequeo de "Ciclo completo vs. frecuencia de riego" de abajo, en horas,
+          // pasa a ser el único veredicto (nunca se compara el ciclo completo contra un día).
           if (esPosturas && posturasDiaReal) {
             tiempoTotalDia = Math.min(nSectores, posturasDiaReal) * tiempoRiego;
             diasNecesarios = Math.ceil(nSectores / posturasDiaReal);
-          } else {
-            tiempoTotalDia = nSectores * tiempoRiego;
+          } else if (!esPosturas) {
+            tiempoTotalDia = tiempoTotalCiclo;
           }
-          var excedeMsg = (horas !== null && tiempoTotalDia > horas)
+          var excedeMsg = (tiempoTotalDia !== null && horas !== null && tiempoTotalDia > horas)
             ? "El riego de " + articuloPl + " " + nSectores + " " + palabraPl + " (" + fmt(tiempoTotalDia, 2) + " hr/día) EXCEDE las " + fmt(horas, 1) + " hr/día disponibles."
             : "";
           if (!esPosturas) {
@@ -1470,12 +1496,18 @@
       }
     }
 
-    // Caudal de diseño (operación de la red): el que circula por la tubería mientras opera UN
-    // sector — Q_requerido / N° sectores. Es lo que el consultor debería usar para dimensionar
-    // diámetros/pérdidas de carga, distinto del caudal de la fuente.
+    // Caudal de diseño (operación de la red): en Goteo/Microaspersión, Q_requerido / N° sectores
+    // (caudal-dependiente). En Aspersión/Carrete es GEOMÉTRICO/de equipo — N° aspersores ×
+    // Q_aspersor (qPostura) o Q_diseño del cañón (qDisenoM3h/3,6) — el caudal que efectivamente
+    // circula mientras opera UNA postura, fijo por el marco/equipo elegido, NO por cuántas
+    // posturas hacen falta para cubrir el predio (ago-2026, auditoría técnica: dividir
+    // Q_requerido/N_posturas da un número conceptualmente distinto, confirmado con datos reales
+    // — 0,5% a 30% de diferencia según superficie/N° de posturas).
     var caudalOperacion = null;
     if (qRequerido !== null && nSectores) {
-      caudalOperacion = qRequerido / nSectores;
+      var qPosturaExt = (sistema === "Aspersión") ? qPostura
+        : (sistema === "Carrete" && qDisenoM3h !== null) ? qDisenoM3h / 3.6 : null;
+      caudalOperacion = (esPosturas && qPosturaExt) ? qPosturaExt : (qRequerido / nSectores);
       setText(p + "agro-qdiseno-calc", fmt(caudalOperacion, 3) + " l/s");
       nota(p + "agro-qdiseno-nota", diferenciaRelevante(caudalOperacion, declQdiseno, 10)
         ? "No coincide con lo declarado (" + fmt(declQdiseno, 2) + " l/s)." : "");
@@ -1496,7 +1528,17 @@
     if (caudalOperacion !== null && caudalDisp !== null) {
       var excedeCaudal = caudalOperacion > caudalDisp;
       if (!excedeCaudal) {
-        setText(p + "agro-acumreq-calc", "No requerido — caudal de operación dentro del disponible.");
+        // Redacción suavizada (ago-2026, feedback real): "no requerido" a secas se leía como que
+        // el acumulador declarado no tiene justificación alguna — este chequeo solo descarta
+        // déficit de caudal instantáneo/volumen diario, no cualquier motivo de ingeniería del
+        // consultor (regulación de presión, golpe de ariete, filtrado, etc.).
+        var balanceOkAcum = (demanda && sup !== null && caudalDisp !== null)
+          ? (dbDiario * sup * 10000) <= (caudalDisp * 24 * 3600) : null;
+        if (balanceOkAcum === false) {
+          setText(p + "agro-acumreq-calc", "Caudal instantáneo no exige acumulador — OJO, el balance diario de volumen (ver abajo) SÍ muestra déficit: igual podría requerirse acumulación por esa vía.");
+        } else {
+          setText(p + "agro-acumreq-calc", "No se evidencia necesidad de acumulación por déficit de caudal instantáneo ni por déficit de volumen diario. Se requiere verificar la justificación específica del acumulador declarado.");
+        }
         nota(p + "agro-acumreq-nota", "");
       } else {
         var diffPct = (caudalOperacion - caudalDisp) / caudalDisp * 100;
@@ -1518,14 +1560,26 @@
       nota(p + "agro-acumreq-nota", "");
     }
 
-    // Días para completar el ciclo (Aspersión/Carrete) vs. frecuencia de riego (Fr): si el
-    // ciclo tarda más días que Fr, el diseño no alcanza a regar a tiempo.
+    // Ciclo completo (Aspersión/Carrete) vs. frecuencia de riego (Fr) — chequeo PRIMARIO,
+    // siempre en la base correcta (ago-2026): si hay días/postura reales, compara en días;
+    // si ni una postura cabe en un día (posturasDiaReal falsy → diasNecesarios null), compara
+    // en horas (tiempoTotalCiclo vs. horas/día × Fr) — NUNCA el ciclo completo contra un día.
     var diasRow = document.getElementById(p + "agro-dias-row");
-    if (esPosturas && diasNecesarios !== null && !esAltaFrecuencia && frAdj) {
-      diasRow.style.display = "";
-      setText(p + "agro-dias-calc", diasNecesarios + " día" + (diasNecesarios === 1 ? "" : "s") + " — frecuencia de riego (Fr) = " + frAdj + " día" + (frAdj === 1 ? "" : "s"));
-      nota(p + "agro-dias-nota", diasNecesarios > frAdj
-        ? "El ciclo completo tarda más días que la frecuencia de riego — el diseño no alcanza a regar toda la superficie a tiempo." : "");
+    if (esPosturas && !esAltaFrecuencia && frAdj && tiempoTotalCiclo !== null) {
+      if (diasNecesarios !== null) {
+        diasRow.style.display = "";
+        setText(p + "agro-dias-calc", diasNecesarios + " día" + (diasNecesarios === 1 ? "" : "s") + " — frecuencia de riego (Fr) = " + frAdj + " día" + (frAdj === 1 ? "" : "s"));
+        nota(p + "agro-dias-nota", diasNecesarios > frAdj
+          ? "El ciclo completo tarda más días que la frecuencia de riego — el diseño no alcanza a regar toda la superficie a tiempo." : "");
+      } else if (horas !== null) {
+        var horasDisponiblesCiclo = horas * frAdj;
+        diasRow.style.display = "";
+        setText(p + "agro-dias-calc", fmt(tiempoTotalCiclo, 2) + " hr del ciclo completo — horas disponibles del ciclo (Fr=" + frAdj + " día" + (frAdj === 1 ? "" : "s") + " × " + fmt(horas, 1) + " hr/día) = " + fmt(horasDisponiblesCiclo, 2) + " hr");
+        nota(p + "agro-dias-nota", tiempoTotalCiclo > horasDisponiblesCiclo
+          ? "El ciclo completo EXCEDE las horas disponibles del ciclo — el diseño no es viable así (ni una postura cabe en el día declarado)." : "");
+      } else {
+        diasRow.style.display = "none";
+      }
     } else {
       diasRow.style.display = "none";
     }

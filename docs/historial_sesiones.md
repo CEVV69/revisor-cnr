@@ -2674,3 +2674,103 @@ con placeholders acortados a "CC %"/"PMP %"/"Da" para que no se corten).
 
 ---
 
+## Auditoría técnica del motor de revisión de Aspersión + 10 errores reales (ago-2026)
+
+El usuario pidió una auditoría formal, en dos partes: (1) un pedido de 20 secciones actuando como
+"ingeniero especialista en diseño agronómico e hidráulico" + "auditor de sistemas de revisión
+automatizados", cubriendo unidades, demanda neta/bruta, posturas vs. sectores, balance hídrico,
+acumulador, hidráulica, y una taxonomía de severidad con el principio "NO uses 'no coincide' como
+sinónimo de 'está mal'"; (2) los 10 errores reales que la app produjo revisando un proyecto real
+de Aspersión (0,86 ha, papas, ETo=4,7mm/día, Kc=1, Ef=75%, CC=55,7%/PMP=28,6%/Da=0,98/Prof=30cm,
+agotamiento 50%, caudal fuente=3,7l/s, aspersor con boquilla 5mm/1,5bar, N=10, marco 12×18m,
+caudal declarado=3,3l/s, 15h/día disponibles, matriz declarada 75mm en un documento y 90mm en
+otro). Reconciliando ambos (7 puntos confirmados tal cual, 1 confirmado pero no dominante en ese
+caso puntual, 2 hallazgos nuevos no vistos por ninguno de los dos) se acordó un plan de 7 cambios,
+implementados en este orden:
+
+**1. Coherencia cruzada de unidades — aspersor vs. N×Q declarado** (`calculos_riego.py`,
+`verificar_unidad_caudal_aspersor()`, nueva función): un caudal de aspersor mal interpretado en
+unidades (0,33 "m³/hr" en vez de 0,33 l/s = 1,188 m³/hr) cae dentro de un rango físico plausible
+y ningún chequeo de rango lo detecta — solo se delata reconstruyendo N×Q_aspersor de DOS formas
+(literal y reinterpretada) y comparando ambas contra el caudal declarado por el consultor. Si la
+literal falla pero la reinterpretada coincide, `posible_inversion_unidad=True`. Integrado en
+`main.py`/`analyzer.py` (narrativa IA con aviso explícito de inversión de unidad) y
+`calculos.html` (JS, misma detección en vivo).
+
+**2. Fix ciclo-vs-día cuando `posturas_dia=0`** (`verificacion_diseno_riego()`): si ni una
+postura cabe en un día (horas disponibles insuficientes para T_postura+T_traslado), el código
+anterior comparaba el CICLO COMPLETO contra UN SOLO DÍA de horas disponibles (bug propio de una
+sesión anterior, reproducía exactamente el "131h vs. 15h/día" que reportó el usuario). Ahora se
+agrega un chequeo PRIMARIO siempre calculado en la base correcta: `tiempo_total_ciclo_hr` (N×T)
+vs. `horas_disponibles_ciclo_hr` (horas/día × Fr_adj) → `cabe_en_ciclo_ok`, nuevo parámetro
+`fr_adj_dias` propagado desde `main.py`/`analyzer.py`. `tiempo_total_dia_hr`/
+`cabe_en_horas_disponibles` solo se publican cuando describen un día real (posturas_dia > 0).
+Reflejado en `calculos.html` (fila "Ciclo completo vs. frecuencia de riego", antes rotulada
+"Días para completar el ciclo...") y ambas Memorias (paso `dias_necesarios` con rama alternativa
+en horas).
+
+**3. `caudal_operacion_ls` por reconstrucción N×Q en Aspersión/Carrete** (mismo archivo): la
+fórmula Q_requerido/N_sectores es correcta para Goteo/Microaspersión (sectores caudal-
+dependientes) pero conceptualmente equivocada para posturas — el caudal que realmente circula
+mientras opera una postura lo fija el equipo (N_aspersores×Q_aspersor, o Q_diseño del cañón), no
+cuántas posturas hacen falta para cubrir el predio. Confirmado con datos reales: la brecha entre
+ambas fórmulas va de 0,5% a 30% según superficie/N° de posturas. Nuevo parámetro
+`caudal_postura_ext` en `verificacion_diseno_riego()`, poblado desde `postura_check.
+caudal_postura_ls`/`carrete_check.q_diseno_ls` en ambos llamadores; reemplaza a la división
+cuando está disponible. Propagado a `calculos.html` (JS) y ambas Memorias (fórmula condicional
+según si se usó reconstrucción o división).
+
+**4. Detector de confusión ETc↔Dn** (`analyzer.py`, `calculos.html`, ambas Memorias): mismo
+patrón que el detector Db↔Db-diario de una sesión anterior — en el proyecto real, el consultor
+declaró "Dn=4,7" que en realidad es la ETc bruta (4,7 mm/día), sin pasar por AD ni el criterio de
+agotamiento del suelo. Si lo declarado como Dn coincide con la ETc recalculada pero no con la Dn
+recalculada, se señala explícitamente la confusión metodológica en vez de un "no coincide"
+genérico.
+
+**5. Fix de inconsistencia interna en el texto de Dn para la IA** (`analyzer.py`): la narrativa
+mostraba "Dn recalculada" citando `dn_mm` (AD×criterio, sin ajustar por Fr) pero la comparación
+contra lo declarado usaba `dn_adj_mm` (ETc×Fr_adj, una magnitud distinta que solo alimenta la Db)
+— dos números distintos llamados "el recálculo" sin distinguirlos, inconsistente además con
+`calculos.html`/ambas Memorias, que siempre compararon contra `dn_mm`. Corregido para comparar
+siempre contra `dn_mm`, con una línea nueva "Dn AJUSTADA" explicando la diferencia.
+
+**6. Redacción suavizada de "acumulador no requerido"** (`analyzer.py`, `calculos.html`, ambas
+Memorias): el texto anterior ("no requerido — el caudal de operación no supera al disponible")
+se leía como que el acumulador declarado no tiene ninguna justificación, cuando el chequeo
+automático solo descarta DOS causas (déficit de caudal instantáneo, déficit de volumen diario) y
+no cualquier motivo de ingeniería del consultor (regulación de presión, golpe de ariete,
+filtrado...). Nueva redacción, a pedido del usuario: "No se evidencia necesidad de acumulación
+por déficit de caudal instantáneo ni por déficit de volumen diario. Se requiere verificar la
+justificación específica del acumulador declarado." — con una rama adicional si el balance diario
+de volumen SÍ muestra déficit (para no afirmar algo falso).
+
+**7. Inconsistencia documental de diámetro** (`analyzer.py`, checklist de ítems SEP, NO el
+Chequeo determinístico): el usuario aclaró que este caso (75mm en la Memoria Hidráulica vs. 90mm
+en los Planos) es temática de la REVISIÓN POR ÍTEMS (`diseno_hidraulico`/`coherencia`), no del
+Chequeo de cálculos — la IA ya recibe todos los documentos del ítem juntos en una sola llamada,
+así que basta con instruirla a comparar activamente el mismo dato entre documentos y declarar
+"INCONSISTENCIA DOCUMENTAL" citando cada documento y su valor, sin elegir uno en silencio. Se
+agregó un bullet nuevo en `diseno_hidraulico` (sección RED HIDRÁULICA, que de paso se corrigió
+para reflejar el punto 3 de arriba) y otro en `coherencia` (lista de ejemplos de relación entre
+documentos), generalizado a otros datos que puedan repetirse (longitud, material, presión,
+caudal).
+
+**Validación:** los 7 cambios se verificaron con el caso numérico completo del usuario —
+reproduciendo tanto el escenario CON el bug de unidad (VA=1,53mm/hr, tiempo_total_ciclo_hr=131,07h
+vs. horas_disponibles_ciclo_hr=120h → `cabe_en_ciclo_ok=False`, ya no comparado contra 15h de un
+solo día) como el escenario CORRECTO (VA=5,50mm/hr, T=9,12h/postura, 4 posturas×9,12≈36,5h,
+caudal_operacion_ls=3,3 l/s exacto vs. declarado — "cadena coherente" tal como pedía el prompt
+original) — además de `py_compile` en los 4 módulos tocados, `get_template()` de los 3 templates
+afectados a través de la propia app (no un `Environment` aislado, por los filtros custom), y
+`node --check` sobre el `<script>` completo de `calculos.html` con las expresiones Jinja
+reemplazadas por literales.
+
+**Archivos tocados:** `calculos_riego.py` (nueva función + 2 parámetros nuevos en
+`verificacion_diseno_riego()` + restructuración del bloque tiempo/caudal), `main.py` (propagación
+de parámetros + `_rellenar_none`/`_CAMPOS_CALC_INFORME`), `analyzer.py` (narrativa IA + 2 bullets
+de checklist), `exportar_disenador.py` (solo docstring, los campos nuevos son verificación del
+Revisor, no parámetros de diseño del Diseñador — no se exportan, documentado el porqué),
+`templates/calculos.html`, `templates/informe_calculo.html`, `templates/informe_calculo_completo.html`.
+
+---
+

@@ -308,7 +308,9 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               n_posturas_ext: int = None,
                               posturas_dia_ext: int = None,
                               dias_necesarios_ext: int = None,
-                              es_fuente_superficial: bool = None) -> dict:
+                              es_fuente_superficial: bool = None,
+                              fr_adj_dias: int = None,
+                              caudal_postura_ext: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -396,6 +398,16 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     parámetro. Sin `n_posturas_ext` (Goteo/Microaspersión, comportamiento de siempre), N° de
     sectores se sigue calculando por caudal, con la reducción por acumulador incluida.
 
+    **`caudal_postura_ext` (ago-2026) — Caudal de operación de Aspersión/Carrete es GEOMÉTRICO/
+    de equipo, NO Q_requerido/N_posturas.** Ese cociente es la fórmula correcta para "sectores"
+    caudal-dependientes (Goteo/Microaspersión) pero no para posturas: el caudal que realmente
+    circula mientras opera una postura lo fija el marco de aspersores (N×Q_aspersor,
+    `postura_aspersion()`) o el cañón elegido (Q_diseño, `diseno_carrete()`), no la cantidad de
+    posturas que hacen falta para cubrir el predio. Si se pasa este valor (ya calculado por el
+    llamador), reemplaza a la división para `caudal_operacion_ls` cuando hay `n_posturas_ext`;
+    sin él, cae a la división de siempre (auditoría técnica ago-2026, diferencia confirmada con
+    datos reales — entre 0,5% y 30% según superficie/N° de posturas, no despreciable).
+
     **`posturas_dia_ext`/`dias_necesarios_ext` (ago-2026) — corrige que Aspersión/Carrete
     regaban "todas las posturas en un día".** `postura_aspersion()`/`diseno_carrete()` ya
     calculan cuántas posturas caben por día según las horas disponibles (`posturas_dia`) y
@@ -407,6 +419,23 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     ciclo tarda más días que Fr, el diseño no alcanza a regar a tiempo (dato que esta función no
     tiene, se arma en el llamador). Sin estos parámetros (Goteo/Microaspersión, o Aspersión/
     Carrete sin horas disponibles declaradas), cae al comportamiento anterior (todo en un día).
+
+    **`fr_adj_dias` / `cabe_en_ciclo_ok` (ago-2026) — corrige comparación ciclo-vs-día cuando
+    ni una postura cabe en un día.** Si `posturas_dia_ext` es 0 (las horas disponibles no
+    alcanzan ni para UNA postura), el bloque de arriba no puede armar un "día real" — antes,
+    en ese caso, `tiempo_total_dia_hr` caía al cálculo del CICLO completo (N° posturas × tiempo
+    de riego) pero seguía comparándose contra `horas_disponibles_dia` (UN día) vía
+    `cabe_en_horas_disponibles`, una comparación ciclo-vs-día inválida que exageraba el déficit
+    (ej. "131h de riego vs. 15h/día disponibles" cuando en realidad hay Fr días completos para
+    regar, no uno). Ahora, si se pasa `fr_adj_dias` (la Fr ajustada del ciclo — ya la calcula
+    `cadena_agronomica()` y el llamador la tiene a mano), se agrega un chequeo PRIMARIO y
+    siempre en la base correcta: `tiempo_total_ciclo_hr` (N° posturas/sectores × tiempo de
+    riego — el total del ciclo completo, tenga o no `posturas_dia_ext`) vs.
+    `horas_disponibles_ciclo_hr` (horas disponibles por día × Fr días) → `cabe_en_ciclo_ok`.
+    Este reemplaza a `cabe_en_horas_disponibles` como el veredicto de viabilidad temporal;
+    `tiempo_total_dia_hr`/`cabe_en_horas_disponibles` se siguen publicando SOLO cuando
+    describen de verdad "un día real" (con `posturas_dia_ext` > 0) — en el caso degenerado
+    (`posturas_dia_ext == 0`) se omiten en vez de mostrar la comparación inválida.
 
     **Acumulador REQUERIDO — `acumulador_requerido` (ago-2026, ITT-03 §1):** distinto de
     `acumulador_ok` (que solo se calcula si el consultor YA declaró un volumen de estanque). Acá
@@ -476,20 +505,54 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                 n_sectores = 1
         r["n_sectores"] = n_sectores
 
-        # Tiempo total del día — para Aspersión/Carrete (posturas), NO son todas las posturas
-        # en un solo día: usa las posturas/día reales (ya limitadas por horas disponibles en
-        # postura_aspersion()/diseno_carrete()) y reporta cuántos días toma el ciclo completo.
-        if n_posturas_ext is not None and posturas_dia_ext:
-            tiempo_total_dia = min(n_sectores, posturas_dia_ext) * tiempo_riego
-            r["dias_necesarios"] = (dias_necesarios_ext if dias_necesarios_ext is not None
-                                     else math.ceil(n_sectores / posturas_dia_ext))
-        else:
-            tiempo_total_dia = n_sectores * tiempo_riego
-        r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
-        if horas_disponibles_dia:
-            r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+        # Tiempo total del CICLO completo (N° posturas/sectores × tiempo de riego) — base
+        # siempre válida, independiente de si una postura individual cabe en un día. Chequeo
+        # PRIMARIO de viabilidad temporal cuando se conoce la Fr ajustada del ciclo.
+        tiempo_total_ciclo = n_sectores * tiempo_riego
+        r["tiempo_total_ciclo_hr"] = round(tiempo_total_ciclo, 2)
+        if horas_disponibles_dia and fr_adj_dias:
+            horas_disponibles_ciclo = horas_disponibles_dia * fr_adj_dias
+            r["horas_disponibles_ciclo_hr"] = round(horas_disponibles_ciclo, 2)
+            r["cabe_en_ciclo_ok"] = tiempo_total_ciclo <= horas_disponibles_ciclo
 
-        caudal_operacion_ls = q_requerido_total_ls / n_sectores
+        # Tiempo total de UN día real — para Aspersión/Carrete (posturas), NO son todas las
+        # posturas en un solo día: usa las posturas/día reales (ya limitadas por horas
+        # disponibles en postura_aspersion()/diseno_carrete()) y reporta cuántos días toma el
+        # ciclo completo. Si ni una postura cabe en un día (posturas_dia_ext == 0), no hay "día
+        # real" que describir — no se publica (en vez de comparar el ciclo completo contra un
+        # día, comparación inválida; el chequeo correcto para ese caso es cabe_en_ciclo_ok
+        # arriba), pero `tiempo_total_dia` sigue necesitando un valor para el volumen mínimo del
+        # acumulador de más abajo — cae al tiempo del ciclo completo (mismo criterio que ya
+        # usaba el caso Goteo/Microaspersión).
+        tiempo_total_dia = tiempo_total_ciclo
+        if n_posturas_ext is not None:
+            if posturas_dia_ext:
+                tiempo_total_dia = min(n_sectores, posturas_dia_ext) * tiempo_riego
+                r["dias_necesarios"] = (dias_necesarios_ext if dias_necesarios_ext is not None
+                                         else math.ceil(n_sectores / posturas_dia_ext))
+                r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
+                if horas_disponibles_dia:
+                    r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+        else:
+            r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
+            if horas_disponibles_dia:
+                r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+
+        # Caudal de operación de la red: para Aspersión/Carrete (posturas) es GEOMÉTRICO/de
+        # equipo — N_aspersores × Q_aspersor (Aspersión) o Q_diseño del cañón (Carrete) — el
+        # caudal que efectivamente circula mientras opera UNA postura, fijo por el marco/equipo
+        # elegido, NO por cuántas posturas hacen falta para cubrir el predio. Dividir
+        # Q_requerido/N_posturas (fórmula de "sectores" por caudal, correcta solo en Goteo/
+        # Microaspersión) da un número distinto y conceptualmente equivocado para posturas —
+        # ago-2026, auditoría técnica: confirmado con datos reales, la brecha entre ambas
+        # fórmulas varía según superficie/N° de posturas (0,5% a 30% en los casos probados) y no
+        # es despreciable. Se usa la reconstrucción cuando el llamador la tiene
+        # (`caudal_postura_ext`, de `postura_aspersion()`/`diseno_carrete()`); si no, cae a la
+        # división de siempre (mismo resultado en Goteo/Microaspersión, donde SÍ corresponde).
+        if n_posturas_ext is not None and caudal_postura_ext:
+            caudal_operacion_ls = caudal_postura_ext
+        else:
+            caudal_operacion_ls = q_requerido_total_ls / n_sectores
         r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
 
         # Acumulador REQUERIDO (ITT-03 §1): obligatorio si el caudal de operación del sector de
@@ -597,6 +660,48 @@ def postura_aspersion(caudal_aspersor_m3h: float, espaciamiento_aspersores_m: fl
             r["posturas_dia"] = posturas_dia
             if posturas_dia > 0:
                 r["dias_necesarios"] = math.ceil(n_posturas / posturas_dia)
+    return r
+
+
+def verificar_unidad_caudal_aspersor(caudal_aspersor_m3h: float, n_aspersores: float,
+                                     caudal_declarado_ls: float, tolerancia_pct: float = 10) -> dict:
+    """Coherencia cruzada de UNIDADES del caudal del aspersor (ago-2026, caso real reportado por
+    el usuario) — detecta el patrón "el expediente da el caudal del aspersor en l/s, la
+    extracción lo trata como si fuera m³/hr" (o el error inverso). NINGÚN chequeo de rango físico
+    plausible lo detecta: 0,33 "m³/hr" cae perfectamente dentro de lo típico para un aspersor,
+    aunque en realidad el consultor escribió 0,33 l/s (=1,188 m³/hr) — el número mal interpretado
+    sigue pareciendo razonable en aislamiento, solo se delata al reconstruirlo contra otro dato
+    independiente del expediente (mismo principio de "prueba de coherencia cruzada" que pide el
+    usuario, no un chequeo de rango).
+
+    Se reconstruye el caudal simultáneo de la postura (N_aspersores × Q_aspersor) de DOS formas:
+    - LITERAL: asumiendo que `caudal_aspersor_m3h` efectivamente viene en m³/hr (la unidad que
+      pide la extracción) → Q_postura = N×Q_aspersor/3,6 [l/s].
+    - REINTERPRETADO: asumiendo que el valor extraído en realidad ya estaba en l/s (typo de
+      unidad de la extracción o del propio expediente) → Q_postura = N×Q_aspersor [l/s]
+      (sin dividir por 3,6 — si el número "es" l/s, N×ese número YA es l/s).
+    Ambas se comparan contra el caudal de diseño/operación que declara el propio consultor
+    (`caudal_declarado_ls`, el mismo dato que ya se compara contra Q_postura en otras partes del
+    motor). Si la interpretación LITERAL no coincide pero la REINTERPRETADA sí (dentro de
+    `tolerancia_pct`), es una señal fuerte de inversión de unidad — mucho más específica que un
+    "no coincide" genérico, porque apunta a la causa, no solo al síntoma.
+
+    Devuelve {} si falta algún dato para la prueba. `posible_inversion_unidad=True` SOLO en el
+    caso descrito arriba (literal mal, reinterpretado bien) — si ambas interpretaciones fallan,
+    o ambas coinciden, o la literal ya coincide, no hay nada que reportar acá (deja el
+    diagnóstico al "no coincide" genérico de siempre, que sigue aplicando igual)."""
+    if not caudal_aspersor_m3h or not n_aspersores or not caudal_declarado_ls:
+        return {}
+    q_postura_literal_ls = n_aspersores * caudal_aspersor_m3h / 3.6
+    q_postura_reinterpretado_ls = n_aspersores * caudal_aspersor_m3h
+    literal_ok = abs(q_postura_literal_ls - caudal_declarado_ls) / caudal_declarado_ls * 100 <= tolerancia_pct
+    reinterpretado_ok = abs(q_postura_reinterpretado_ls - caudal_declarado_ls) / caudal_declarado_ls * 100 <= tolerancia_pct
+    r = {
+        "q_postura_literal_ls": round(q_postura_literal_ls, 3),
+        "q_postura_reinterpretado_ls": round(q_postura_reinterpretado_ls, 3),
+    }
+    if not literal_ok and reinterpretado_ok:
+        r["posible_inversion_unidad"] = True
     return r
 
 

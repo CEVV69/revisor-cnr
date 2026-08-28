@@ -1790,6 +1790,15 @@ def _agronomico_calculo(datos: dict):
             superficie_ha=datos.get("superficie_riego_ha"),
             vib_mmhr=datos.get("vib_mmhr"),
         ) or None
+        # Coherencia cruzada de unidades del caudal del aspersor (ago-2026, caso real) — corre
+        # SIEMPRE que haya con qué comparar, independiente de si postura_check pudo calcularse
+        # (necesita menos datos: solo caudal del aspersor, N° de aspersores y el caudal
+        # declarado por el consultor).
+        unidad_check = calculos_riego.verificar_unidad_caudal_aspersor(
+            datos.get("caudal_aspersor_m3h"), datos.get("n_aspersores_postura"),
+            (datos.get("declarado") or {}).get("caudal_diseno_ls")) or None
+        if unidad_check:
+            postura_check = dict(postura_check or {}, **unidad_check)
     # Operación del carrete (INIA-Carillanca) — independiente del resto, solo Carrete.
     carrete_check = None
     if datos and datos.get("sistema_riego") == "Carrete":
@@ -1842,19 +1851,26 @@ def _agronomico_calculo(datos: dict):
             vib_mmhr=datos.get("vib_mmhr"),
             db_mm=r["db_mm"], horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         ) or postura_check
+        # postura_aspersion() no calcula la coherencia de unidades — se vuelve a fusionar acá,
+        # esta llamada REEMPLAZA por completo el dict anterior (ver arriba, antes de la cadena
+        # agronómica) y se perdería si no se repite.
+        if unidad_check:
+            postura_check = dict(postura_check, **unidad_check)
     # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
     # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
     # verificacion_diseno_riego). posturas_dia/dias_necesarios también se traspasan, para que
     # Tiempo total del día refleje UN día real y no el ciclo completo (ago-2026).
-    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = None
+    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = caudal_postura_ext = None
     if datos.get("sistema_riego") == "Aspersión" and postura_check:
         n_posturas_ext = postura_check.get("n_posturas")
         posturas_dia_ext = postura_check.get("posturas_dia")
         dias_necesarios_ext = postura_check.get("dias_necesarios")
+        caudal_postura_ext = postura_check.get("caudal_postura_ls")
     elif datos.get("sistema_riego") == "Carrete" and carrete_check:
         n_posturas_ext = carrete_check.get("n_posturas")
         posturas_dia_ext = carrete_check.get("posturas_dia")
         dias_necesarios_ext = carrete_check.get("dias_necesarios")
+        caudal_postura_ext = carrete_check.get("q_diseno_ls")
     # Precipitación EFECTIVA (ago-2026, bug real): "Precipitación del sistema" era un dato
     # declarado a mano que alimentaba directo el Tiempo de riego/Caudal de operación/Diseño
     # Base, aunque en Aspersión/Carrete la app YA calcula el equivalente físico desde el marco
@@ -1886,6 +1902,8 @@ def _agronomico_calculo(datos: dict):
         posturas_dia_ext=posturas_dia_ext,
         dias_necesarios_ext=dias_necesarios_ext,
         es_fuente_superficial=_es_fuente_superficial(datos.get("tipo_fuente_agua")),
+        fr_adj_dias=r.get("fr_adj_dias"),
+        caudal_postura_ext=caudal_postura_ext,
     ))
     # Validación de ciclo: si el diseño tarda más días en completar las posturas/sectores que
     # la frecuencia de riego (Fr) que el propio diseño usa, no alcanza a regar a tiempo.
@@ -2097,6 +2115,7 @@ _CAMPOS_CALC_INFORME = (
     "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
     "dias_necesarios", "diferencia_caudal_operacion_pct", "v_ciclo_l",
     "precipitacion_efectiva_mmhr", "precipitacion_efectiva_origen",
+    "tiempo_total_ciclo_hr", "horas_disponibles_ciclo_hr",
 )
 _CAMPOS_TRAMO_INFORME = (
     "nombre", "caudal_ls", "diametro_mm", "longitud_m", "material",
@@ -2139,6 +2158,14 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     • `ciclo_riego_ok` (ago-2026) — mismo caso: solo se calcula si hay `dias_necesarios` Y `Fr`
       (Aspersión/Carrete con horas disponibles declaradas); su ausencia es "no se pudo evaluar
       el ciclo", no "el ciclo no calza".
+    • `cabe_en_ciclo_ok` (ago-2026) — mismo caso: solo se calcula si hay `horas_disponibles_dia`
+      Y `fr_adj_dias`; es el chequeo PRIMARIO ciclo-completo-vs-horas-disponibles-del-ciclo (ver
+      docstring de `verificacion_diseno_riego`) — corrige el caso degenerado en que ni una
+      postura cabe en un día (`posturas_dia_ext == 0`), donde antes `cabe_en_horas_disponibles`
+      comparaba erróneamente el ciclo completo contra UN día.
+    • `posible_inversion_unidad` de `postura_check` (ago-2026) — mismo caso: solo se calcula si
+      hay caudal de aspersor, N° de aspersores Y un caudal declarado para comparar; su ausencia
+      es "no se pudo evaluar", no "no hay inversión de unidad".
     • `capas_suelo_calc` — su ausencia es justamente la señal de que el sistema NO usa desglose
       por capas y el AD sale de CC/PMP/Da/Prof. uniformes.
     """
@@ -2149,7 +2176,9 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     calc = _agronomico_calculo(agro) or {}
     _rellenar_none(calc, _CAMPOS_CALC_INFORME)
     if calc.get("postura_check"):
-        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios"))
+        _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios",
+                                                "q_postura_literal_ls", "q_postura_reinterpretado_ls",
+                                                "caudal_postura_ls"))
     if calc.get("carrete_check"):
         # ago-2026: diseno_carrete() es ADITIVO (cada clave puede faltar si no llegó el dato que
         # necesita, típicamente la velocidad del viento) — hay que rellenar TODAS las que la

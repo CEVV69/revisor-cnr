@@ -38,39 +38,27 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Normativa + 4 bugs reportados en vivo (ago-2026) — implementado, EL USUARIO ESTÁ
-   RE-CORRIENDO la revisión de diseño agronómico e hidráulico del mismo proyecto de Aspersión
-   para comparar observaciones "post-fix":** excepción 20%/aguas superficiales del acumulador
-   ahora DETERMINÍSTICA (`tipo_fuente_agua`); corregido el bug ciclo-vs-día del Balance diario;
-   Aspersión/Carrete reparten posturas en varios días reales (`dias_necesarios` vs. Fr);
-   "Precipitación EFECTIVA" alimenta el Diseño Base en vez del dato declarado a mano; fila "Db
-   diario" separada de "Db" del ciclo; extracción de `caudal_aspersor_m3h` con conversión de
-   unidades; salvaguarda anti-alucinación en `SYSTEM_PROMPT`. Evaluación propia de las 3
-   observaciones reales pre-fix en `docs/` — comparar contra lo que reporte el usuario.
+1. **Auditoría técnica del motor de Aspersión + 7 fixes (ago-2026) — implementado, EL USUARIO
+   ESTÁ RE-CORRIENDO la revisión del mismo proyecto para comparar observaciones "post-fix":**
+   coherencia de unidades del aspersor (detecta inversión l/s↔m³/hr); fix ciclo-vs-día cuando
+   ni una postura cabe en un día; `caudal_operacion_ls` en Aspersión/Carrete por reconstrucción
+   de equipo (N×Q) en vez de división; detector de confusión ETc↔Dn; fix Dn vs. Dn ajustada en
+   el texto IA; redacción suavizada de "acumulador no requerido"; checklist SEP exige declarar
+   "INCONSISTENCIA DOCUMENTAL" si un dato difiere entre documentos. Detalle y validación en
+   `docs/`.
 
-2. **Menú "Apps" (ago-2026, probado y OK):** botón único al final de `.proj-nav`
-   (`_apps_menu.html`, incluido en proyecto/calculos/respuestas) reemplaza los botones sueltos que
-   abrían cada app hermana por separado — ahora 5 apps: sumadas `embalses_diseno_v9.html`
-   (Pequeños Embalses) y `desarenador_diseno_v5.html` (Desarenador). Agregar apps nuevas: solo
-   editar `_apps_menu.html`.
+2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
+   apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`. Detalle en `docs/`.
 
-3. **3 fixes puntuales (ago-2026):** "Nombre del proyecto" en Resumen ahora también actualiza
-   `proyecto["nombre"]` (probado, OK); Tab entre campos del Desglose de Humedad Aprovechable por
-   capas de suelo (probado, OK) — ambos con detalle en `docs/`. **Sin confirmar todavía:**
-   `informe_calculo.html`/`informe_calculo_completo.html` (Memoria de Cálculo) no mostraban el
-   costo de API — no es que no se registrara, esas 2 páginas standalone nunca incluían el widget
-   ni recibían `costo_api` en el contexto; se agregó una línea de costo total en su barra
-   "no-print".
+3. **3 fixes puntuales:** nombre del proyecto en Resumen↔listado (OK); Tab en capas de suelo
+   (OK); costo de API en ambas Memorias standalone (**sin confirmar**). Detalle en `docs/`.
 
-4. **Criterios de revisión por método de riego** (ago-2026): `diseno_hidraulico` ganó un bloque
-   de checklist con lo que la app NO recalcula — detalle en `docs/`. `diseno_fotovoltaico` sumó
-   el tope on-grid ≤100%.
+4. **Criterios de revisión por método de riego:** `diseno_hidraulico`/`diseno_fotovoltaico` con
+   checklist ampliado. Detalle en `docs/`.
 
-5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema (NO
-   intercambiables); Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con
-   paridad total (probar con 2 sistemas); **Evaluación del Consultor** (nunca probada). El modelo
-   de acumulador "por ventana de tiempo" (ΔQ/V_aporte/V_recarga) diseñado con el usuario quedó
-   DESCARTADO al verificar ITT-01 (regla oficial más simple, ya vigente) — detalle en `docs/`.
+5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+   Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con paridad total;
+   Evaluación del Consultor (nunca probada).
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del

@@ -606,10 +606,22 @@ METODOLOGÍA AGRONÓMICA — usar el modelo equivocado es observable aunque los 
   problema es de derecho de agua o de superficie, y así debe observarse.
 
 RED HIDRÁULICA — más allá de la pérdida de carga por tramo:
-· El caudal que debe conducir la matriz es el CAUDAL DE OPERACIÓN — el del sector o postura que
-  opera simultáneamente (caudal requerido total / N° de sectores) —, NO el caudal de la fuente. Si
-  el mayor caudal de tramo declarado es menor que ese caudal de operación, la red está
-  subdimensionada aunque cada tramo por separado cumpla velocidad y pérdida de carga.
+· El caudal que debe conducir la matriz es el CAUDAL DE OPERACIÓN — el que circula mientras opera
+  UN sector o postura simultáneamente —, NO el caudal de la fuente. En Goteo/Microaspersión ese
+  caudal es caudal requerido total / N° de sectores (los sectores SÍ dependen del caudal). En
+  Aspersión/Carrete es GEOMÉTRICO/de equipo — N° aspersores × Q aspersor, o Q de diseño del cañón —
+  NO esa misma división por N° de posturas: el bloque "VERIFICACIÓN DE DISEÑO BASE" más abajo ya
+  aplica la fórmula correcta según el sistema, úsalo como referencia. Si el mayor caudal de tramo
+  declarado es menor que ese caudal de operación, la red está subdimensionada aunque cada tramo por
+  separado cumpla velocidad y pérdida de carga.
+· INCONSISTENCIA DOCUMENTAL DE DIÁMETRO: el mismo tramo (ej. la matriz) puede aparecer con
+  diámetros distintos en documentos distintos del mismo expediente — ej. 75mm en la Memoria de
+  Cálculo y 90mm en los Planos. NO asumas cuál es el correcto ni elijas uno en silencio: cuando
+  detectes esta discrepancia entre los documentos que tienes a la vista, decláralo explícitamente
+  como observación citando CADA documento y el valor que declara cada uno — es una inconsistencia
+  del expediente en sí, independiente de si el cálculo hidráulico es correcto con cualquiera de los
+  dos valores. Aplica el mismo criterio a otros datos que puedan repetirse en más de un documento
+  (longitud de tramo, material, presión, caudal) si notas valores distintos entre ellos.
 · Pérdidas singulares (fittings, válvulas, cambios de dirección): del orden del 20% de la suma de
   las pérdidas por fricción. Un diseño que las omite por completo subestima la CDT y, con ella, la
   potencia de bombeo.
@@ -903,6 +915,12 @@ Ejemplos de la relación entre documentos que hay que verificar (no es una lista
   con ninguna limitación técnica real (caudal disponible, presión, capacidad de la bomba), es
   observable — sobre todo en fuentes de acumulador (SCALL/tranque), donde el N° de sectores
   suele derivar de la capacidad del equipo de bombeo elegido, no de la disponibilidad de agua.
+- El mismo dato técnico (diámetro de tubería, longitud de tramo, material, presión de diseño)
+  declarado en MÁS DE UN documento (ej. Memoria de Cálculo hidráulico vs. Planos) debe coincidir.
+  Si encuentras valores distintos para el mismo tramo/dato entre documentos, NO asumas cuál es el
+  correcto ni elijas uno en silencio — decláralo como INCONSISTENCIA DOCUMENTAL, citando cada
+  documento y su valor; es un problema del expediente en sí, independiente de si el cálculo
+  hidráulico resulta correcto con cualquiera de los dos valores.
 - Cuando el proyecto combina invernadero/estructura cubierta y sectores al aire libre, los
   documentos deben identificar CUÁL superficie es cuál (no basta con una superficie total sin
   distinguir) — invernadero y aire libre tienen exigencias técnicas distintas (exposición al
@@ -1763,7 +1781,28 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     esp_asp = datos.get("espaciamiento_aspersores_m")
     esp_lat = datos.get("espaciamiento_laterales_m")
     sup_proy = datos.get("superficie_riego_ha")
+    declarado_qdiseno = (datos.get("declarado") or {}).get("caudal_diseno_ls")
     if datos.get("sistema_riego") == "Aspersión" and n_asp and q_asp:
+        # Coherencia cruzada de UNIDADES del caudal del aspersor (ago-2026, caso real) — ANTES de
+        # construir el resto de la verificación de postura, para que la IA vea esta advertencia
+        # primero si corresponde y no arrastre un dato de unidad invertida en silencio por el
+        # resto del análisis (VA, tiempo de postura, días necesarios, todo depende de q_asp).
+        unidad_check = calculos_riego.verificar_unidad_caudal_aspersor(q_asp, n_asp, declarado_qdiseno)
+        if unidad_check.get("posible_inversion_unidad"):
+            texto += (
+                f"\n\n⚠️ POSIBLE ERROR DE UNIDAD EN EL CAUDAL DEL ASPERSOR (prueba de coherencia "
+                f"cruzada, cálculo determinístico): el caudal del aspersor extraído es "
+                f"{q_asp} m³/hr. Interpretado literalmente (m³/hr), N° aspersores × Q_aspersor/3,6 "
+                f"= {unidad_check['q_postura_literal_ls']} l/s — NO coincide con el caudal de "
+                f"diseño/operación declarado por el consultor ({declarado_qdiseno} l/s). Pero si "
+                f"ese mismo número ({q_asp}) en realidad viniera en l/s (no m³/hr) en el "
+                f"expediente, N° aspersores × {q_asp} = {unidad_check['q_postura_reinterpretado_ls']} "
+                f"l/s SÍ coincide con lo declarado. Esto es una señal fuerte de que la extracción "
+                f"invirtió la unidad del caudal del aspersor (l/s leído como m³/hr, o viceversa) — "
+                f"NO es un simple \"no coincide\", es una causa de raíz específica. Genera una "
+                f"observación explicando esta posible inversión de unidad, citando ambos números, "
+                f"y trata con cautela cualquier cálculo posterior que dependa de este dato "
+                f"(VA, tiempo de postura, días necesarios) — puede estar heredando el mismo error.")
         postura = calculos_riego.postura_aspersion(
             caudal_aspersor_m3h=q_asp, espaciamiento_aspersores_m=esp_asp,
             espaciamiento_laterales_m=esp_lat, n_aspersores=n_asp,
@@ -1774,11 +1813,13 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                       f"sectores\" genérico de más abajo):\n"
                       f"- Q_postura = N° aspersores × Q_aspersor / 3,6 = {n_asp} × {q_asp} / 3,6 = "
                       f"{postura['caudal_postura_ls']} l/s (caudal simultáneo de la postura)")
-            declarado_qdiseno = (datos.get("declarado") or {}).get("caudal_diseno_ls")
             if declarado_qdiseno is not None and _diferencia_relevante(
                     postura["caudal_postura_ls"], declarado_qdiseno, 10):
                 texto += (f" — caudal de diseño declarado = {declarado_qdiseno} l/s, no coincide "
-                          f"con el recálculo. Genera una observación citando estos números.")
+                          f"con el recálculo." + (
+                              " Ver la advertencia de posible inversión de unidad más arriba."
+                              if unidad_check.get("posible_inversion_unidad")
+                              else " Genera una observación citando estos números."))
             if "va_mmhr" in postura:
                 texto += (f"\n- VA (velocidad de aplicación) = (Q_aspersor×1.000)/(Esp.asp×Esp.lat) "
                           f"= ({q_asp}×1.000)/({esp_asp}×{esp_lat}) = {postura['va_mmhr']} mm/hr")
@@ -1954,6 +1995,10 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             f"AD (agua disponible) = {r['ad_mm']} mm",
             f"Dn (lámina neta) recalculada = {r['dn_mm']} mm",
             f"Fr (frecuencia de riego) recalculada = {r['fr_adj_dias']} días",
+            f"Dn AJUSTADA (= ETc × Fr, con Fr ya redondeada al entero de días) = {r['dn_adj_mm']} mm "
+            f"— distinta de la Dn de arriba (esa es AD × criterio de agotamiento, sin pasar por el "
+            f"redondeo de Fr); esta es la que alimenta la Db de abajo, NO se compara contra lo que "
+            f"declara el consultor como \"Dn\" (eso se compara contra la Dn sin ajustar, arriba)",
             f"Db (demanda bruta) recalculada — CICLO de {r['fr_adj_dias']} días = {r['db_mm']} mm "
             f"(NO es una cifra diaria)",
             f"Db diario recalculada — SIN pasar por Fr = ETc/Ef = {r.get('db_diario_mm')} mm/día "
@@ -1962,8 +2007,28 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             f"son dos magnitudes con base temporal distinta)",
         ]
     comparaciones = []
-    if not alta_frec and declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_adj_mm"], declarado["dn_mm"]):
-        comparaciones.append(f"Dn declarada = {declarado['dn_mm']} mm — no coincide con el recálculo ({r['dn_adj_mm']} mm).")
+    # Ojo: la Dn que declara el consultor se compara contra `dn_mm` (AD × criterio de agotamiento,
+    # SIN pasar por el redondeo de Fr) — la misma convención que usa el Diseñador de Riego y el
+    # Chequeo interactivo (calculos.html). NO contra `dn_adj_mm` (ETc × Fr ajustada): esa es una
+    # magnitud distinta, derivada DESPUÉS de redondear Fr, que solo alimenta la Db más abajo (ver
+    # línea "Dn AJUSTADA" de arriba) — ago-2026, antes esta comparación usaba `dn_adj_mm` por error,
+    # inconsistente con lo que el propio Chequeo interactivo le muestra al revisor humano.
+    if not alta_frec and declarado.get("dn_mm") is not None and _diferencia_relevante(r["dn_mm"], declarado["dn_mm"]):
+        # Confusión ETc↔Dn (ago-2026, caso real): igual patrón que Db↔Db-diario — si lo declarado
+        # como "Dn" en realidad coincide con la ETc bruta (sin pasar por AD/factor de agotamiento
+        # del suelo), el consultor probablemente confundió ambas magnitudes en vez de tener un
+        # error de cálculo real. Se avisa explícito, no un "no coincide" genérico.
+        etc_r = r.get("etc_mm_dia")
+        if etc_r and not _diferencia_relevante(etc_r, declarado["dn_mm"]):
+            comparaciones.append(
+                f"Dn declarada = {declarado['dn_mm']} mm NO coincide con la Dn (lámina neta) "
+                f"recalculada ({r['dn_mm']} mm) — PERO SÍ coincide con la ETc recalculada "
+                f"({etc_r} mm/día). El consultor probablemente confundió la ETc (evapotranspiración "
+                f"del cultivo, sin descontar el agua disponible del suelo ni el criterio de "
+                f"agotamiento) con la Dn (lámina neta = AD × factor de agotamiento) — señala "
+                f"explícitamente esta confusión metodológica, citando ambos valores.")
+        else:
+            comparaciones.append(f"Dn declarada = {declarado['dn_mm']} mm — no coincide con el recálculo ({r['dn_mm']} mm).")
     if not alta_frec and declarado.get("fr_dias") is not None and declarado["fr_dias"] != r["fr_adj_dias"]:
         comparaciones.append(f"Fr declarada = {declarado['fr_dias']} días — no coincide con el recálculo ({r['fr_adj_dias']} días).")
     if declarado.get("db_mm") is not None and _diferencia_relevante(r["db_mm"], declarado["db_mm"]):
@@ -2008,15 +2073,17 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     # a ser el N° que usan Caudal de operación/Tiempo total/Balance/Volumen del estanque de abajo
     # — reemplaza por completo al N° de sectores por caudal (que solo aplica a Goteo/
     # Microaspersión, sistemas sin posiciones fijas de emisor).
-    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = None
+    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = caudal_postura_ext = None
     if datos.get("sistema_riego") == "Aspersión" and postura:
         n_posturas_ext = postura.get("n_posturas")
         posturas_dia_ext = postura.get("posturas_dia")
         dias_necesarios_ext = postura.get("dias_necesarios")
+        caudal_postura_ext = postura.get("caudal_postura_ls")
     elif datos.get("sistema_riego") == "Carrete" and carrete:
         n_posturas_ext = carrete.get("n_posturas")
         posturas_dia_ext = carrete.get("posturas_dia")
         dias_necesarios_ext = carrete.get("dias_necesarios")
+        caudal_postura_ext = carrete.get("q_diseno_ls")
 
     volumen_acum = datos.get("volumen_acumulador_m3")
     tipo_fuente_agua = datos.get("tipo_fuente_agua")
@@ -2043,6 +2110,8 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         posturas_dia_ext=posturas_dia_ext,
         dias_necesarios_ext=dias_necesarios_ext,
         es_fuente_superficial=es_fuente_superficial,
+        fr_adj_dias=r.get("fr_adj_dias"),
+        caudal_postura_ext=caudal_postura_ext,
     )
     if diseno:
         lineas_diseno = [f"Demanda (base DIARIA, Db/Ef sin Fr) = {diseno['demanda_ls_ha']} l/s/ha"]
@@ -2112,29 +2181,45 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                     linea += f" — declarado = {declarado_nsec}, no coincide con el recálculo."
             lineas_diseno.append(linea)
             if "caudal_operacion_ls" in diseno:
+                if es_postura_sist and caudal_postura_ext:
+                    formula_qop = (f"N° aspersores × Q aspersor (geométrico/de equipo, NO "
+                                    f"Q requerido / N° {palabra_pl})")
+                else:
+                    formula_qop = f"Q requerido / N° {palabra_pl}"
                 linea_op = (f"Caudal de operación de la red (el que circula por la tubería "
                              f"mientras opera UNA {palabra}, usado para dimensionar diámetros) = "
-                             f"Q requerido / N° {palabra_pl} = {diseno['caudal_operacion_ls']} l/s")
+                             f"{formula_qop} = {diseno['caudal_operacion_ls']} l/s")
                 declarado_qdiseno = declarado.get("caudal_diseno_ls")
                 if declarado_qdiseno is not None and _diferencia_relevante(
                         diseno["caudal_operacion_ls"], declarado_qdiseno, 10):
                     linea_op += (f" — el caudal de diseño declarado ({declarado_qdiseno} l/s) no "
                                   f"coincide con el recálculo.")
                 lineas_diseno.append(linea_op)
+            if "tiempo_total_ciclo_hr" in diseno:
+                # Chequeo PRIMARIO de viabilidad temporal (ago-2026): ciclo completo vs. horas
+                # disponibles del CICLO (horas/día × Fr días) — válido incluso cuando ni una
+                # postura cabe en un día (antes ahí se comparaba, por error, el ciclo completo
+                # contra UN solo día; ver docstring de verificacion_diseno_riego).
+                linea_ciclo = (f"Tiempo total del ciclo completo (N° {palabra_pl} × Tiempo de "
+                                f"riego) = {diseno['tiempo_total_ciclo_hr']} hr")
+                if "cabe_en_ciclo_ok" in diseno:
+                    fr_usada = r.get("fr_adj_dias")
+                    linea_ciclo += (f" — vs. horas disponibles del ciclo (horas/día × Fr={fr_usada} "
+                                     f"días) = {diseno['horas_disponibles_ciclo_hr']} hr")
+                    if diseno["cabe_en_ciclo_ok"]:
+                        linea_ciclo += ": cabe dentro del ciclo."
+                    else:
+                        linea_ciclo += (": EXCEDE las horas disponibles del ciclo — el diseño no es "
+                                         f"viable así, debe justificar/ajustar el caudal (ej. con "
+                                         f"acumulador), la superficie, o la frecuencia de riego. "
+                                         f"Genera una observación citando estos números.")
+                lineas_diseno.append(linea_ciclo)
             if "tiempo_total_dia_hr" in diseno:
                 if "dias_necesarios" in diseno:
                     linea_tiempo = (f"Tiempo ocupado en UN día real (con las posturas/día que "
                                      f"rinden las horas disponibles) = {diseno['tiempo_total_dia_hr']} "
                                      f"hr/día — completar {articulo_pl} {diseno['n_sectores']} "
                                      f"{palabra_pl} toma {diseno['dias_necesarios']} día(s)")
-                    fr_declarada = r.get("fr_adj_dias")
-                    if fr_declarada and diseno["dias_necesarios"] > fr_declarada:
-                        linea_tiempo += (f" — MÁS días que la frecuencia de riego (Fr={fr_declarada} "
-                                          f"días) que el propio diseño usa: no alcanza a regar toda "
-                                          f"la superficie a tiempo. Genera una observación citando "
-                                          f"estos números.")
-                    elif fr_declarada:
-                        linea_tiempo += f" — dentro de la frecuencia de riego (Fr={fr_declarada} días)."
                 else:
                     linea_tiempo = (f"Tiempo total para regar {articulo_pl} {diseno['n_sectores']} {palabra_pl} = "
                                      f"N° {palabra_pl} × Tiempo de riego = {diseno['tiempo_total_dia_hr']} hr/día")
@@ -2150,12 +2235,29 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             if "acumulador_requerido" in diseno:
                 linea_acum = "Acumulador requerido (ITT-03 §1): "
                 if not diseno["acumulador_requerido"]:
+                    # Redacción suavizada (ago-2026, feedback real): "no requerido" a secas se leía
+                    # como que el acumulador declarado NO tiene justificación alguna — pero estos
+                    # chequeos automáticos solo descartan DOS causas puntuales (déficit de caudal
+                    # instantáneo, déficit de volumen diario), no cualquier motivo de ingeniería que
+                    # el consultor pueda tener (regulación de presión, protección contra golpe de
+                    # ariete, filtrado, decantación, etc.) — no se debe concluir que el acumulador
+                    # declarado está de más.
+                    exento_txt = ""
                     if "diferencia_caudal_operacion_pct" in diseno:
-                        linea_acum += (f"NO requerido — la diferencia entre el caudal de operación "
-                                        f"y el disponible ({diseno['diferencia_caudal_operacion_pct']}%) "
-                                        f"está exenta por ser aguas superficiales con diferencia <20%.")
+                        exento_txt = (f"La diferencia entre el caudal de operación y el disponible "
+                                       f"({diseno['diferencia_caudal_operacion_pct']}%) está exenta "
+                                       f"por ser aguas superficiales con diferencia <20%. ")
+                    if diseno.get("balance_diario_ok") is False:
+                        linea_acum += (exento_txt + "OJO: el caudal instantáneo no exige acumulador, "
+                                        "PERO el balance diario de volumen (ver más arriba) SÍ "
+                                        "muestra déficit — la fuente no repone en 24 horas lo que "
+                                        "exige el diseño, así que igual podría requerirse "
+                                        "acumulación por esa vía. Señálalo como observación.")
                     else:
-                        linea_acum += "no requerido — el caudal de operación no supera al disponible."
+                        linea_acum += (exento_txt + "No se evidencia necesidad de acumulación por "
+                                        "déficit de caudal instantáneo ni por déficit de volumen "
+                                        "diario. Se requiere verificar la justificación específica "
+                                        "del acumulador declarado.")
                 elif volumen_acum:
                     linea_acum += (f"requerido (diferencia {diseno.get('diferencia_caudal_operacion_pct')}%) "
                                     f"y el proyecto SÍ declara un acumulador — ver dimensionamiento abajo.")

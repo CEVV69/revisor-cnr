@@ -39,11 +39,14 @@ DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intent
 - `amt_declarada_m` / `caudal_bombeo_ls`: los campos `-bomb-h`/`-bomb-q` del Diseñador son
   "H Nominal"/"Q Nominal" — la placa de la bomba elegida, no la AMT que exige el diseño.
 - `tipo_fuente_agua` (ago-2026, "superficial"/"subterranea") y los resultados que dependen de
-  él (`acumulador_requerido`, `dias_necesarios`/`ciclo_riego_ok`): son criterios de admisibilidad
-  propios de ITT-03 §1 que evalúa el REVISOR sobre el diseño ya hecho, no parámetros de diseño
-  del Diseñador de Riego. El campo más cercano ahí es `{p}-q85met` (método de cálculo del caudal
-  Q85%, con una opción "pozo") — no es un booleano superficial/subterránea equivalente, así que
-  no se mapea (evitar adivinar una fuente a partir del método de cálculo del caudal)."""
+  él (`acumulador_requerido`, `dias_necesarios`/`ciclo_riego_ok`, y desde ago-2026
+  `tiempo_total_ciclo_hr`/`horas_disponibles_ciclo_hr`/`cabe_en_ciclo_ok` — el mismo chequeo de
+  ciclo-vs-Fr, pero en horas, para cuando ni una postura cabe en un día): son criterios de
+  admisibilidad propios de ITT-03 §1 que evalúa el REVISOR sobre el diseño ya hecho, no
+  parámetros de diseño del Diseñador de Riego. El campo más cercano ahí es `{p}-q85met` (método
+  de cálculo del caudal Q85%, con una opción "pozo") — no es un booleano superficial/subterránea
+  equivalente, así que no se mapea (evitar adivinar una fuente a partir del método de cálculo
+  del caudal)."""
 import unicodedata
 
 import calculos_riego
