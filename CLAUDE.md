@@ -40,8 +40,8 @@ sin que él reporte primero. Detalle en `docs/`.
 
 1. **Auditoría técnica del motor de Aspersión (ago-2026) — CERRADA:** unidades del aspersor,
    ciclo-vs-día, Da en kg/m³, los 3 bugs del Diseñador de Riego (app en
-   `static/disenador_riego_v126.html`, era v123), y V/Hf en blanco en la Memoria Completa —
-   todos corregidos y verificados. Detalle y validación numérica en `docs/`.
+   `static/disenador_riego_v129.html`, era v123→v126→v129), y V/Hf en blanco en la Memoria
+   Completa — todos corregidos y verificados. Detalle y validación numérica en `docs/`.
 
 2. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando:**
    (a) campos "Horas disponibles por turno" (placeholder "Continuo") + "Cada cuántos días"
@@ -54,7 +54,8 @@ sin que él reporte primero. Detalle en `docs/`.
    el aporte de UN día — sobrestimaba hasta 3× en ciclos multi-día, casi siempre daba "no
    alcanza". Ahora usa ΔQ × Tiempo de UN día (misma fórmula que los datos de autonomía). Los 3
    lados + espejo JS, ver `docs/`. Pendiente: mismo par de bugs (turno + ruta crítica) en el
-   Diseñador de Riego (prompt de handoff entregado, no confirmado si se aplicó).
+   Diseñador de Riego: v129 subido (sep-2026). Pendiente en v129: turno "cada X días" (aún
+   usa ÷168) y bug reponeOk multi-día — prompt de handoff actualizado entregado en sep-2026.
 
 3. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
@@ -100,7 +101,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v126.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
+                 disenador_riego_v129.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html
 ```
@@ -151,7 +152,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v126.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v129.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.
 11. **Prompts de handoff a otra sesión (ej. Diseñador de Riego):** antes de armar uno nuevo,
     revisar si queda algo pendiente de una ronda anterior del mismo tema e incluirlo siempre —

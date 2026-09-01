@@ -381,7 +381,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="a-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('a')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="a-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="a-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="a-q" type="number" step=".01" placeholder="3.00"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="a-acum-chk" onchange="toggleAcum('a')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="a-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div class="ig" style="flex:0 0 108px"><input id="a-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('a')"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 11px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora de dimensionamiento de acumuladores SCALL (agua lluvia)">Scall</button></div><div style="font-size:.6rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.3">Se calcula con el Q del Paso 4.</div></div><div id="a-acum-r"></div></div><div id="a-acum-eq"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="a-q" type="number" step=".01" placeholder="3.00"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="a-acum-chk" onchange="toggleAcum('a')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="a-acum-box" style="display:none;margin-top:10px"><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div class="ig"><input id="a-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('a')" style="width:80px"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 10px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora SCALL">Scall</button></div></div><div class="f"><label>Disponible por Turno<span class="tip" onclick="showTip(this)" title="Vacío = caudal continuo (comportamiento actual). Si el derecho es por turno (ej. comunidad de canalistas), indique cuántas horas está disponible.">?</span></label><div class="ig"><input id="a-turno-hrs" type="number" step="1" placeholder="continuo" oninput="calcAcum(&#39;a&#39;)" style="width:90px"><span class="isuf">hr</span></div></div><div class="f"><label>Cada cuántos días<span class="tip" onclick="showTip(this)" title="Cada cuántos días se repite el turno declarado (ej. 7 = una vez por semana). Se usa solo para el balance de volumen del acumulador — la red se sigue dimensionando con el caudal nominal mientras el turno está abierto.">?</span></label><div class="ig"><input id="a-turno-dias" type="number" step="1" placeholder="7" oninput="calcAcum(&#39;a&#39;)" style="width:60px"><span class="isuf">días</span></div></div></div><div id="a-acum-r" style="margin-top:8px"></div><div id="a-acum-eq"></div></div></div>
       <div class="f"><label>Altura de Succión [m]</label><div class="ig"><input id="a-hs" type="number" step=".5" placeholder="7"><span class="isuf">m</span></div></div>
       <div class="f"><label>Dif. de Cota ΔZ [m]</label><div class="ig"><input id="a-dz" type="number" step=".5" placeholder="0" min="-20" max="50"><span class="isuf">m</span></div></div>
     </div>
@@ -515,6 +515,7 @@ select option{background:var(--white)}
     <div id="a-trs">
       <div class="card" id="at0"><div class="ctitle">Tramo 1 — Conducción principal</div>
       <div class="fg fg3">
+        <div class="f"><label>Nombre/Tramo<span class="tip" onclick="showTip(this)" title="Ej: Matriz, Secundaria Sector A. Vacío = se suma siempre (troncal en serie). Si 2+ tramos comparten un nivel (terciaria/lateral), se asume que son ramales alternativos y solo se cuenta el de mayor pérdida.">?</span></label><input class="atn" type="text" placeholder="Ej: Matriz"></div>
         <div class="f"><label>Longitud [m]</label><div class="ig"><input class="atl" type="number" placeholder="100"><span class="isuf">m</span></div></div>
         <div class="f"><label>Caudal [l/s]</label><div class="ig"><input class="atq" type="number" step=".01" placeholder="2.94"><span class="isuf">l/s</span></div></div>
         <div class="f"><label>Tubería</label><select class="att"></select></div>
@@ -704,7 +705,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="c-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('c')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="c-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="c-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="c-q" type="number" step=".01" placeholder="17.756"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="c-acum-chk" onchange="toggleAcum('c')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="c-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div class="ig" style="flex:0 0 108px"><input id="c-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('c')"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 11px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora de dimensionamiento de acumuladores SCALL (agua lluvia)">Scall</button></div><div style="font-size:.6rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.3">Se calcula con el Q del Paso 4.</div></div><div id="c-acum-r"></div></div><div id="c-acum-eq"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="c-q" type="number" step=".01" placeholder="17.756"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="c-acum-chk" onchange="toggleAcum('c')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="c-acum-box" style="display:none;margin-top:10px"><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div class="ig"><input id="c-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('c')" style="width:80px"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 10px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora SCALL">Scall</button></div></div><div class="f"><label>Disponible por Turno<span class="tip" onclick="showTip(this)" title="Vacío = caudal continuo (comportamiento actual). Si el derecho es por turno (ej. comunidad de canalistas), indique cuántas horas está disponible.">?</span></label><div class="ig"><input id="c-turno-hrs" type="number" step="1" placeholder="continuo" oninput="calcAcum(&#39;c&#39;)" style="width:90px"><span class="isuf">hr</span></div></div><div class="f"><label>Cada cuántos días<span class="tip" onclick="showTip(this)" title="Cada cuántos días se repite el turno declarado (ej. 7 = una vez por semana). Se usa solo para el balance de volumen del acumulador — la red se sigue dimensionando con el caudal nominal mientras el turno está abierto.">?</span></label><div class="ig"><input id="c-turno-dias" type="number" step="1" placeholder="7" oninput="calcAcum(&#39;c&#39;)" style="width:60px"><span class="isuf">días</span></div></div></div><div id="c-acum-r" style="margin-top:8px"></div><div id="c-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="c-hs" type="number" step=".5" placeholder="6"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="c-dz" type="number" step=".5" placeholder="1"><span class="isuf">m</span></div></div>
     </div>
@@ -827,6 +828,7 @@ select option{background:var(--white)}
     <div id="c-trs">
       <div class="card" id="ct0"><div class="ctitle">Tramo 1 — Conducción</div>
       <div class="fg fg3">
+        <div class="f"><label>Nombre/Tramo<span class="tip" onclick="showTip(this)" title="Ej: Matriz, Secundaria Sector A. Vacío = se suma siempre (troncal en serie). Si 2+ tramos comparten un nivel (terciaria/lateral), se asume que son ramales alternativos y solo se cuenta el de mayor pérdida.">?</span></label><input class="ctn" type="text" placeholder="Ej: Matriz"></div>
         <div class="f"><label>Longitud [m]</label><div class="ig"><input class="ctl" type="number" placeholder="120"><span class="isuf">m</span></div></div>
         <div class="f"><label>Caudal [l/s]</label><div class="ig"><input class="ctq" type="number" step=".01" placeholder="15"><span class="isuf">l/s</span></div></div>
         <div class="f"><label>Tubería</label><select class="ctt"></select></div>
@@ -1004,7 +1006,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="g-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('g')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="g-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="g-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="g-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="g-acum-chk" onchange="toggleAcum('g')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="g-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div class="ig" style="flex:0 0 108px"><input id="g-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('g')"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 11px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora de dimensionamiento de acumuladores SCALL (agua lluvia)">Scall</button></div><div style="font-size:.6rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.3">Se calcula con el Q del Paso 4.</div></div><div id="g-acum-r"></div></div><div id="g-acum-eq"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="g-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="g-acum-chk" onchange="toggleAcum('g')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="g-acum-box" style="display:none;margin-top:10px"><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div class="ig"><input id="g-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('g')" style="width:80px"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 10px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora SCALL">Scall</button></div></div><div class="f"><label>Disponible por Turno<span class="tip" onclick="showTip(this)" title="Vacío = caudal continuo (comportamiento actual). Si el derecho es por turno (ej. comunidad de canalistas), indique cuántas horas está disponible.">?</span></label><div class="ig"><input id="g-turno-hrs" type="number" step="1" placeholder="continuo" oninput="calcAcum(&#39;g&#39;)" style="width:90px"><span class="isuf">hr</span></div></div><div class="f"><label>Cada cuántos días<span class="tip" onclick="showTip(this)" title="Cada cuántos días se repite el turno declarado (ej. 7 = una vez por semana). Se usa solo para el balance de volumen del acumulador — la red se sigue dimensionando con el caudal nominal mientras el turno está abierto.">?</span></label><div class="ig"><input id="g-turno-dias" type="number" step="1" placeholder="7" oninput="calcAcum(&#39;g&#39;)" style="width:60px"><span class="isuf">días</span></div></div></div><div id="g-acum-r" style="margin-top:8px"></div><div id="g-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="g-hs" type="number" step=".5" placeholder="28"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="g-dz" type="number" step=".5" placeholder="5"><span class="isuf">m</span></div></div>
     </div>
@@ -1322,7 +1324,7 @@ select option{background:var(--white)}
       <div class="f"><label>Tipo de Derecho <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01)</span><span class="tip" onclick="showTip(this)" title="Clasificaci&oacute;n del derecho de aprovechamiento seg&uacute;n ITT-01 CNR. Define la metodolog&iacute;a de acreditaci&oacute;n de disponibilidad h&iacute;drica con 85% de probabilidad de excedencia." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="m-der-tipo" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none" onchange="checkDerEvt('m')"><option value="permanente">Permanente &mdash; inscrito en CBR</option><option value="eventual">Eventual &mdash; inscrito en CBR</option><option value="no-inscrito-lluvia">No inscrito &mdash; Art. 10 (Aguas lluvia)</option><option value="no-inscrito-vertiente">No inscrito &mdash; Art. 20 (Vertiente/laguna)</option><option value="no-inscrito-art56">No inscrito &mdash; Art. 56 (Consumo humano / PEPA)</option></select>
         <div id="m-der-art" style="display:none;margin-top:5px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:.74rem;color:#92400e;font-family:var(--mono);line-height:1.6"></div></div>
       <div class="f"><label>M&eacute;todo Q85% <span style="font-size:.68rem;font-weight:400;color:var(--slate)">(ITT-01 &sect;1)</span><span class="tip" onclick="showTip(this)" title="M&eacute;todo para determinar el caudal disponible con 85% de probabilidad de excedencia seg&uacute;n ITT-01 CNR. El m&eacute;todo depende del tipo de derecho y la fuente h&iacute;drica." style="cursor:help;font-size:.88rem;color:var(--blue-mid);margin-left:4px;font-weight:700">?</span></label><select id="m-q85met" style="width:100%;padding:5px 7px;border:1.5px solid var(--fog);border-radius:5px;font-family:var(--mono);font-size:.76rem;outline:none"><option value="der-inscrito">Derecho inscrito (caudal en t&iacute;tulo)</option><option value="dt01">DT-01 &mdash; Canales con dotaci&oacute;n CNR</option><option value="dt02">DT-02 &mdash; Estaci&oacute;n fluviom&eacute;trica SIIR</option><option value="aforos">Aforos directos (3 mediciones, c/15 d&iacute;as)</option><option value="estudio">Estudio hidrol&oacute;gico especial</option><option value="pozo">Pozo (caudal del t&iacute;tulo &times; 0,85)</option></select></div>
-      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="m-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-acum-chk" onchange="toggleAcum('m')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="m-acum-box" style="display:none;margin-top:10px"><div style="display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:start"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div class="ig" style="flex:0 0 108px"><input id="m-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('m')"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 11px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora de dimensionamiento de acumuladores SCALL (agua lluvia)">Scall</button></div><div style="font-size:.6rem;color:var(--mist);font-family:var(--mono);margin-top:4px;line-height:1.3">Se calcula con el Q del Paso 4.</div></div><div id="m-acum-r"></div></div><div id="m-acum-eq"></div></div></div>
+      <div class="f"><label>Caudal Disponible [l/s]</label><div class="ig"><input id="m-q" type="number" step=".001" placeholder="0.400"><span class="isuf">l/s</span></div></div><div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="m-acum-chk" onchange="toggleAcum('m')" style="width:15px;height:15px;cursor:pointer">Acumulación de agua (estanque / tranque regulador) <span style="font-weight:400;color:var(--slate);font-size:.7rem">— permite regar con un caudal mayor al de la fuente</span></label><div id="m-acum-box" style="display:none;margin-top:10px"><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end"><div class="f"><label>Vol. útil del estanque</label><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div class="ig"><input id="m-acum-vol" type="number" step=".1" placeholder="Ej: 10" oninput="calcAcum('m')" style="width:80px"><span class="isuf">m³</span></div><button type="button" class="btn bs" style="font-size:.68rem;padding:6px 10px;flex-shrink:0" onclick="openScall()" title="Abrir calculadora SCALL">Scall</button></div></div><div class="f"><label>Disponible por Turno<span class="tip" onclick="showTip(this)" title="Vacío = caudal continuo (comportamiento actual). Si el derecho es por turno (ej. comunidad de canalistas), indique cuántas horas está disponible.">?</span></label><div class="ig"><input id="m-turno-hrs" type="number" step="1" placeholder="continuo" oninput="calcAcum(&#39;m&#39;)" style="width:90px"><span class="isuf">hr</span></div></div><div class="f"><label>Cada cuántos días<span class="tip" onclick="showTip(this)" title="Cada cuántos días se repite el turno declarado (ej. 7 = una vez por semana). Se usa solo para el balance de volumen del acumulador — la red se sigue dimensionando con el caudal nominal mientras el turno está abierto.">?</span></label><div class="ig"><input id="m-turno-dias" type="number" step="1" placeholder="7" oninput="calcAcum(&#39;m&#39;)" style="width:60px"><span class="isuf">días</span></div></div></div><div id="m-acum-r" style="margin-top:8px"></div><div id="m-acum-eq"></div></div></div>
       <div class="f"><label>Altura Succión [m]</label><div class="ig"><input id="m-hs" type="number" step=".5" placeholder="28"><span class="isuf">m</span></div></div>
       <div class="f"><label>ΔZ [m]</label><div class="ig"><input id="m-dz" type="number" step=".5" placeholder="5"><span class="isuf">m</span></div></div>
     </div>
@@ -2149,6 +2151,30 @@ function hw(Qls,Dmm,L,C){if(!Qls||!Dmm||!L)return 0;const Q=Qls/1000,D=Dmm/1000;
 function hwV(Qls,Dmm){return(!Qls||!Dmm)?0:(Qls/1000)/(Math.PI/4*Math.pow(Dmm/1000,2));}
 function mcard(lbl,val,unit,cls=''){return`<div class="met ${cls}"><div class="mlbl">${lbl}</div><div class="mval">${val}</div><div class="munit">${unit}</div></div>`;}
 function al(msg,t){return`<div class="al al-${t}">${msg}</div>`;}
+// Clasificación de tramos por nombre (para CDT: matriz/sin-clasificar se suman en serie;
+// terciaria/lateral con 2+ tramos del mismo nivel son ramales alternativos — solo cuenta el de mayor Hf).
+function _clasificarTramo(nombre){
+  var s=(nombre||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(/matriz|principal/.test(s)) return 'matriz';
+  if(/terciaria|secundaria|submatriz/.test(s)) return 'terciaria';
+  if(/lateral|portagotero|portaemisor|regante/.test(s)) return 'lateral';
+  return null;
+}
+function _sumTramosCDT(items){
+  items.forEach(function(it){ it._excluido=false; });
+  ['terciaria','lateral'].forEach(function(niv){
+    var grp=items.filter(function(it){ return it.nivel===niv; });
+    if(grp.length>=2){
+      var maxHf=Math.max.apply(null,grp.map(function(it){ return it.hf; }));
+      var usado=false;
+      grp.forEach(function(it){
+        if(!usado && it.hf===maxHf){ usado=true; }
+        else { it._excluido=true; }
+      });
+    }
+  });
+  return items.reduce(function(acc,it){ return acc + (it._excluido?0:it.hf); },0);
+}
 // Verificación de plausibilidad física de Da (densidad aparente). Ningún suelo real supera ~2,2 g/cc.
 // Si el consultor tipeó kg/m³ en vez de g/cc (ej. 981 en vez de 0,981), se corrige para el cálculo
 // pero SIEMPRE se avisa — nunca se corrige en silencio.
@@ -2246,7 +2272,7 @@ function calcAspP(){
   const diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null;
   // El caudal de la postura puede superar al de la fuente si hay estanque regulador
   // que sostenga el ΔQ durante toda la operación (mismo criterio del Paso 2).
-  const _acA=evalAcum('a',qPos,trp*nPost);
+  const _acA=evalAcum('a',qPos,trp*nPost,diasNec);
   const _qOkA = qPos<=qDisp || (_acA.on && _acA.ok);
   R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,diasNec,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
   calcAcum('a'); // refresca la verificación del estanque (Paso 2)
@@ -2290,7 +2316,7 @@ function calcAspP(){
     ${!R.ASP.vibOk?al(`⚠ VA (${fd(va,1)} mm/hr) supera VIB del suelo (${vib} mm/hr). Aumentar espaciamiento o reducir caudal.`,'w'):''}
     ${!R.ASP.qOk
         ? al(_acA.on
-            ? `⚠ Caudal postura (${fd(qPos,3)} l/s) > fuente (${qDisp} l/s) y el estanque declarado no cubre la diferencia: ${_acA.autonomia<_acA.T?`autonomía ${fd(_acA.autonomia,2)} h < riego ${fd(_acA.T,2)} h`:`no alcanza a reponer los ${fd(_acA.volUsado,0)} L en las ${fd(24-_acA.T,2)} h sin riego`}. Aumente el volumen del estanque o reduzca N° aspersores.`
+            ? `⚠ Caudal postura (${fd(qPos,3)} l/s) > fuente (${qDisp} l/s) y el estanque declarado no cubre la diferencia: ${_acA.autonomia<_acA.T?`autonomía ${fd(_acA.autonomia,2)} h < riego ${fd(_acA.T,2)} h`:`no alcanza a reponer los ${fd(_acA.volUsado,0)} L en las ${fd(_acA.ventanaReposicion,2)} h sin riego`}. Aumente el volumen del estanque o reduzca N° aspersores.`
             : `⚠ Caudal postura (${fd(qPos,3)} l/s) > disponible (${qDisp} l/s). Reduzca N° aspersores o declare un estanque acumulador en el Paso 2.`,'w')
         : al(_acA.on&&qPos>qDisp
             ? `✓ Caudal postura (${fd(qPos,3)} l/s) superior al de la fuente (${qDisp} l/s), sostenido por el estanque: ΔQ ${fd(_acA.qD,3)} l/s con autonomía ${fd(_acA.autonomia,2)} h ≥ riego ${fd(_acA.T,2)} h.`
@@ -2310,8 +2336,8 @@ function calcAspP(){
   var _nsElA=document.getElementById('a-nsec-cuadro');
   if(_nsElA) _nsElA.value=nPost;
   setTimeout(function(){renderSectores('asp');},50);}
-function calcHidA(){let totalHf=0,rows='',warns='',_maxQA=0;document.querySelectorAll('#a-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.atl').value)||0,Q=parseFloat(c.querySelector('.atq').value)||0;const tidx=parseInt(c.querySelector('.att')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const C=t.C,di=t.dint;const hf=hw(Q,di,L,C),vel=hwV(Q,di);totalHf+=hf;if(Q>_maxQA)_maxQA=Q;if(vel>2)warns+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2.0 — aumentar diámetro.`,'w');const velWarn=vel>2.0?'⚠ >2,0':vel>0&&vel<0.5?'⚠ <0,5':'';
-    rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td style="${vel>2.0?'color:var(--err);font-weight:700':vel>0&&vel<0.5?'color:var(--warn);font-weight:700':''}">${fd(vel,2)} ${velWarn}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const hs=v('a-hs',7),dz=v('a-dz',0),pb=v('a-pb',20),pelv=v('a-pelv',1.5),pseg=v('a-pseg',3);const qSis=v('a-qlat',R.ASP?.qPos||2.94);
+function calcHidA(){let totalHf=0,rows='',warns='',_maxQA=0;const _itemsA=[];document.querySelectorAll('#a-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.atl').value)||0,Q=parseFloat(c.querySelector('.atq').value)||0;const tidx=parseInt(c.querySelector('.att')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const C=t.C,di=t.dint;const hf=hw(Q,di,L,C),vel=hwV(Q,di);if(Q>_maxQA)_maxQA=Q;const nom=(c.querySelector('.atn')?.value||'').trim();const nivel=_clasificarTramo(nom);_itemsA.push({i,L,Q,t,hf,vel,nom,nivel});});totalHf=_sumTramosCDT(_itemsA);_itemsA.forEach(it=>{const velWarn=it.vel>2.0?'⚠ >2,0':it.vel>0&&it.vel<0.5?'⚠ <0,5':'';if(it.vel>2)warns+=al(`⚠ Tramo ${it.i+1}: V=${fd(it.vel,2)} m/s > 2.0 — aumentar diámetro.`,'w');
+    rows+=`<tr${it._excluido?' style="opacity:.5"':''}><td>Tramo ${it.i+1}${it.nom?' — '+it.nom:''}${it._excluido?' <span style="color:var(--warn);font-size:.6rem">(no incl. — ramal alt.)</span>':''}</td><td>${it.L}m</td><td>${it.Q}l/s</td><td>${it.t.nombre}</td><td style="${it.vel>2.0?'color:var(--err);font-weight:700':it.vel>0&&it.vel<0.5?'color:var(--warn);font-weight:700':''}">${fd(it.vel,2)} ${velWarn}</td><td class="vr">${fd(it.hf,3)}</td></tr>`;});const hs=v('a-hs',7),dz=v('a-dz',0),pb=v('a-pb',20),pelv=v('a-pelv',1.5),pseg=v('a-pseg',3);const qSis=v('a-qlat',R.ASP?.qPos||2.94);
   // Caudal de operación (máxima exigencia) = caudal simultáneo de la postura
   const _qOpA=(R.ASP&&R.ASP.qPos>0)?R.ASP.qPos:qSis;
   if(_maxQA>0&&_maxQA<_qOpA*0.999) warns+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQA,3)+' l/s) es menor al caudal de operación del sistema ('+fd(_qOpA,3)+' l/s = '+(R.ASP?R.ASP.nAsp:'—')+' aspersores × '+(R.ASP?fd(R.ASP.qAsp,2):'—')+' m³/hr). La matriz debe conducir el caudal simultáneo completo.','w');const dlatVal=parseFloat(document.getElementById('a-dlat')?.value)||74.2;const hfLat=hw(qSis,dlatVal,v('a-llen',120),140)*0.36;const hfSuc=hw(qSis,74,hs,140),sing=totalHf*0.20;const cdt=pb+hs+hfSuc+totalHf+hfLat+dz+pelv+sing+pseg,potHP=(qSis*cdt)/(75*(v('a-eta',0.60)));const _llenVal=v('a-llen',120); const _latTubNom=(()=>{const s=document.getElementById('a-dlat');return s?s.options[s.selectedIndex]?.text||'Lat.':'Lat.';})(); const _velLat=+(hwV(qSis,dlatVal)).toFixed(2); R.AH={qSis,qM3h:qSis*3.6,totalHf,hfLat,hfSuc,cdt,potHP,pb,hs,dz,pelv,sing,pseg,dlatVal,llenVal:_llenVal,latTubNom:_latTubNom,velLat:_velLat,qOp:_qOpA,maxQTramo:_maxQA};document.getElementById('a-hid-r').innerHTML=`
@@ -2465,7 +2491,7 @@ function _calcCapasGenerico(pfx,cls){
   }
 }
 function calcCapasA(){ _calcCapasGenerico('a','ac'); }
-function addTrA(){aTrN++;const c=document.createElement('div');c.className='card';c.id='at'+(aTrN-1);c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ctitle" style="margin:0">Tramo ${aTrN}</div><button onclick="this.closest('.card').remove()" style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.82rem;padding:2px 6px;border-radius:4px" title="Eliminar tramo">✕ Eliminar</button></div><div class="fg fg3"><div class="f"><label>Long.[m]</label><div class="ig"><input class="atl" type="number" placeholder="0"><span class="isuf">m</span></div></div><div class="f"><label>Caudal[l/s]</label><div class="ig"><input class="atq" type="number" step=".01" placeholder="0"><span class="isuf">l/s</span></div></div><div class="f"><label>Tubería</label><select class="att"></select></div><div class="f"><label>Diámetro</label><select class="atd"></select></div><div class="f"><label>Desnivel</label><div class="ig"><input class="atz" type="number" step=".1" placeholder="0"><span class="isuf">m</span></div></div></div>`;document.getElementById('a-trs').appendChild(c);populateTubos();}
+function addTrA(){aTrN++;const c=document.createElement('div');c.className='card';c.id='at'+(aTrN-1);c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ctitle" style="margin:0">Tramo ${aTrN}</div><button onclick="this.closest('.card').remove()" style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.82rem;padding:2px 6px;border-radius:4px" title="Eliminar tramo">✕ Eliminar</button></div><div class="fg fg3"><div class="f"><label>Nombre/Tramo</label><input class="atn" type="text" placeholder="Ej: Secundaria Sector A"></div><div class="f"><label>Long.[m]</label><div class="ig"><input class="atl" type="number" placeholder="0"><span class="isuf">m</span></div></div><div class="f"><label>Caudal[l/s]</label><div class="ig"><input class="atq" type="number" step=".01" placeholder="0"><span class="isuf">l/s</span></div></div><div class="f"><label>Tubería</label><select class="att"></select></div><div class="f"><label>Diámetro</label><select class="atd"></select></div><div class="f"><label>Desnivel</label><div class="ig"><input class="atz" type="number" step=".1" placeholder="0"><span class="isuf">m</span></div></div></div>`;document.getElementById('a-trs').appendChild(c);populateTubos();}
 
 // ═══════════════════════════════════════════════════
 //  CÁLCULOS CARRETE
@@ -2647,7 +2673,7 @@ function refreshHminmax(){
       :'Calcule el CDT en la postura más cercana y en la más lejana a la bomba, y guarde ambos valores con los botones de arriba.')
     +'</div>';
 }
-function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);totalHf+=hf;if(Q>_maxQC)_maxQC=Q;if(vel>2)warnsC+=al(`⚠ Tramo ${i+1}: V=${fd(vel,2)} m/s > 2,0 — aumentar diámetro.`,'w');rows+=`<tr><td>Tramo ${i+1}</td><td>${L}m</td><td>${Q}l/s</td><td>${t.nombre}</td><td>${fd(vel,2)}</td><td class="vr">${fd(hf,3)}</td></tr>`;});const pb=v('c-pb',30),pturb=v('c-pturb',10),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;
+function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;const _itemsC=[];document.querySelectorAll('#c-trs .card').forEach((c,i)=>{const L=parseFloat(c.querySelector('.ctl').value)||0,Q=parseFloat(c.querySelector('.ctq').value)||0;const tidx=parseInt(c.querySelector('.ctt')?.value||0);const t=TUBOS[tidx]||TUBOS[0];const hf=hw(Q,t.dint,L,t.C),vel=hwV(Q,t.dint);if(Q>_maxQC)_maxQC=Q;const nom=(c.querySelector('.ctn')?.value||'').trim();const nivel=_clasificarTramo(nom);_itemsC.push({i,L,Q,t,hf,vel,nom,nivel});});totalHf=_sumTramosCDT(_itemsC);_itemsC.forEach(it=>{if(it.vel>2)warnsC+=al(`⚠ Tramo ${it.i+1}: V=${fd(it.vel,2)} m/s > 2,0 — aumentar diámetro.`,'w');rows+=`<tr${it._excluido?' style="opacity:.5"':''}><td>Tramo ${it.i+1}${it.nom?' — '+it.nom:''}${it._excluido?' <span style="color:var(--warn);font-size:.6rem">(no incl. — ramal alt.)</span>':''}</td><td>${it.L}m</td><td>${it.Q}l/s</td><td>${it.t.nombre}</td><td>${fd(it.vel,2)}</td><td class="vr">${fd(it.hf,3)}</td></tr>`;});const pb=v('c-pb',30),pturb=v('c-pturb',10),pseg=v('c-pseg',3),hs=v('c-hs',6),dz=v('c-dz',1);const qSis=R.CAR?.qCan?R.CAR.qCan/3.6:15;
   if(_maxQC>0&&_maxQC<qSis*0.999) warnsC+=al('⚠ El mayor caudal ingresado en los tramos ('+fd(_maxQC,3)+' l/s) es menor a la descarga del cañón en operación ('+fd(qSis,3)+' l/s). La matriz debe conducir el caudal completo del carrete.','w');const hfSuc=hw(qSis,76,hs,140),cdt=pb+pturb+hs+hfSuc+totalHf+dz+pseg,potHP=(qSis*cdt)/(75*(v('c-eta',0.60)));R.CH={qSis,qM3h:qSis*3.6,totalHf,hfSuc,cdt,potHP,pb,pturb,hs,dz,pseg,qOp:qSis,maxQTramo:_maxQC};
   refreshHminmax();document.getElementById('c-hid-r').innerHTML=`
   ${warnsC}
@@ -2696,7 +2722,7 @@ function calcHidC(){let totalHf=0,rows='',warnsC='',_maxQC=0;document.querySelec
     ${al(`✓ Motobomba: Q = ${fd((qSis*3.6),2)} m³/hr · H = ${fd(cdt,2)} mca · Motor mínimo: ${fd((potHP*1.2),2)} HP`,'ok')}
   </div>`;
   setTimeout(function(){renderSectores('car');},50);}
-function addTrC(){cTrN++;const c=document.createElement('div');c.className='card';c.id='ct'+(cTrN-1);c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ctitle" style="margin:0">Tramo ${cTrN}</div><button onclick="this.closest('.card').remove()" style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.82rem;padding:2px 6px;border-radius:4px" title="Eliminar tramo">✕ Eliminar</button></div><div class="fg fg3"><div class="f"><label>Long.[m]</label><div class="ig"><input class="ctl" type="number" placeholder="0"><span class="isuf">m</span></div></div><div class="f"><label>Caudal[l/s]</label><div class="ig"><input class="ctq" type="number" step=".01" placeholder="0"><span class="isuf">l/s</span></div></div><div class="f"><label>Tubería</label><select class="ctt"></select></div><div class="f"><label>Diámetro</label><select class="ctd"></select></div><div class="f"><label>Desnivel</label><div class="ig"><input class="ctz" type="number" step=".1" placeholder="0"><span class="isuf">m</span></div></div></div>`;document.getElementById('c-trs').appendChild(c);populateTubos();}
+function addTrC(){cTrN++;const c=document.createElement('div');c.className='card';c.id='ct'+(cTrN-1);c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ctitle" style="margin:0">Tramo ${cTrN}</div><button onclick="this.closest('.card').remove()" style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.82rem;padding:2px 6px;border-radius:4px" title="Eliminar tramo">✕ Eliminar</button></div><div class="fg fg3"><div class="f"><label>Nombre/Tramo</label><input class="ctn" type="text" placeholder="Ej: Secundaria Sector A"></div><div class="f"><label>Long.[m]</label><div class="ig"><input class="ctl" type="number" placeholder="0"><span class="isuf">m</span></div></div><div class="f"><label>Caudal[l/s]</label><div class="ig"><input class="ctq" type="number" step=".01" placeholder="0"><span class="isuf">l/s</span></div></div><div class="f"><label>Tubería</label><select class="ctt"></select></div><div class="f"><label>Diámetro</label><select class="ctd"></select></div><div class="f"><label>Desnivel</label><div class="ig"><input class="ctz" type="number" step=".1" placeholder="0"><span class="isuf">m</span></div></div></div>`;document.getElementById('c-trs').appendChild(c);populateTubos();}
 
 // ═══════════════════════════════════════════════════
 //  CÁLCULOS GOTEO
@@ -3001,17 +3027,17 @@ function buildInfHtml(sys){
       const _acVol=parseFloat(document.getElementById(_pfxAc+'-acum-vol')?.value)||0;
       if(_acVol<=0) return '';
       // Mismo criterio del Paso 2 y del diseño: ecuación de continuidad
-      let _qR=null,_T=null;
+      let _qR=null,_T=null,_diasCiclo=1;
       if(sys==='got'&&R.GE?.qReqTotal>0&&R.GE?.nSec>0){_qR=R.GE.qReqTotal/R.GE.nSec;_T=R.GE.tRiego*R.GE.nSec;}
       else if(sys==='mic'&&R.ME?.qReqTotal>0&&R.ME?.nSec>0){_qR=R.ME.qReqTotal/R.ME.nSec;_T=R.ME.tRiego*R.ME.nSec;}
-      else if(sys==='asp'&&R.ASP?.qPos>0){_qR=R.ASP.qPos;_T=R.ASP.trp*R.ASP.nPost;}
-      else if(sys==='car'&&R.CAR?.qCan>0){_qR=R.CAR.qCan/3.6;_T=R.CAR.trp*R.CAR.nPost;}
+      else if(sys==='asp'&&R.ASP?.qPos>0){_qR=R.ASP.qPos;_T=R.ASP.trp*R.ASP.nPost;_diasCiclo=R.ASP.diasNec||1;}
+      else if(sys==='car'&&R.CAR?.qCan>0){_qR=R.CAR.qCan/3.6;_T=R.CAR.trp*R.CAR.nPost;_diasCiclo=R.CAR.diasNec||1;}
       if(_qR===null) return irow('Acumulación de Agua',fd(_acVol,1)+' m³','Volumen declarado. Complete el diseño de emisores para la verificación hidráulica.','El proyecto contempla un estanque acumulador regulador.');
-      const _A=evalAcum(_pfxAc,_qR,_T);
+      const _A=evalAcum(_pfxAc,_qR,_T,_diasCiclo);
       const _txt='Q fuente = '+fd(_A.qF,3)+' l/s · Q diseño = '+fd(_qR,3)+' l/s · ΔQ aportado por el estanque = '+fd(Math.max(_A.qD,0),3)+' l/s. '
         +'Autonomía = V/ΔQ = '+(_A.qD>0?fd(_A.autonomia,2)+' h':'\u221e')+' frente a '+fd(_T,2)+' h de riego diario'
         +(_A.autoOk?' (suficiente)':' (INSUFICIENTE)')+'. Tiempo de llenado = V/Q_f = '+fd(_A.tLlenado,2)+' h; '
-        +'reposición de los '+fd(_A.volUsado,0)+' L consumidos = '+fd(_A.tRepone,2)+' h en las '+fd(24-_T,2)+' h sin riego'
+        +'reposición de los '+fd(_A.volUsado,0)+' L consumidos = '+fd(_A.tRepone,2)+' h en las '+fd(_A.ventanaReposicion,2)+' h sin riego'
         +(_A.reponeOk?' (suficiente)':' (INSUFICIENTE)')+'.';
       return irow('Acumulación de Agua',fd(_acVol,1)+' m³',_txt,
         'El estanque acumulador no incrementa el caudal de la fuente: aplica el principio de continuidad (dV/dt = Q_entrada − Q_salida) para desacoplar el caudal de aporte del caudal de riego. La fuente entrega de forma continua su caudal Q_f, y el estanque cubre temporalmente la diferencia ΔQ = Q_r − Q_f durante la operación, reponiéndose con el aporte de la fuente en el período sin riego.');
@@ -3759,10 +3785,10 @@ function initSectores(sys){
 //  SISTEMA DE PROYECTOS — guardar y cargar
 // ════════════════════════════════════════════════════
 const FIELD_IDS = {
-  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-serie", "a-pend", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
-  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-alfa", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
-  got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
-  mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
+  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-serie", "a-pend", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-turno-hrs", "a-turno-dias", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
+  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-turno-hrs", "c-turno-dias", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-alfa", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
+  got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-turno-hrs", "g-turno-dias", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
+  mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-turno-hrs","m-turno-dias","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
 };
 
 
@@ -3789,7 +3815,8 @@ function collectFieldData(sys) {
         l: (card.querySelector('.atl') || {}).value || '',
         q: (card.querySelector('.atq') || {}).value || '',
         t: (card.querySelector('.att') || {}).value || '',
-        z: (card.querySelector('.atz') || {}).value || ''
+        z: (card.querySelector('.atz') || {}).value || '',
+        n: (card.querySelector('.atn') || {}).value || ''
       });
     });
     data.__tramos = tramos;
@@ -3801,7 +3828,8 @@ function collectFieldData(sys) {
         l: (card.querySelector('.ctl') || {}).value || '',
         q: (card.querySelector('.ctq') || {}).value || '',
         t: (card.querySelector('.ctt') || {}).value || '',
-        z: (card.querySelector('.ctz') || {}).value || ''
+        z: (card.querySelector('.ctz') || {}).value || '',
+        n: (card.querySelector('.ctn') || {}).value || ''
       });
     });
     data.__tramos = tramos;
@@ -3872,8 +3900,8 @@ function restoreTramos(pfx, tramos) {
   var c0 = container.querySelector('.card');
   if (c0 && tramos[0]) {
     var t = tramos[0];
-    if (pfx === 'a') { if(c0.querySelector('.atl')) c0.querySelector('.atl').value=t.l; if(c0.querySelector('.atq')) c0.querySelector('.atq').value=t.q; if(c0.querySelector('.atz')) c0.querySelector('.atz').value=t.z; if(c0.querySelector('.att')&&t.t!==undefined) c0.querySelector('.att').value=t.t; }
-    if (pfx === 'c') { if(c0.querySelector('.ctl')) c0.querySelector('.ctl').value=t.l; if(c0.querySelector('.ctq')) c0.querySelector('.ctq').value=t.q; if(c0.querySelector('.ctz')) c0.querySelector('.ctz').value=t.z; if(c0.querySelector('.ctt')&&t.t!==undefined) c0.querySelector('.ctt').value=t.t; }
+    if (pfx === 'a') { if(c0.querySelector('.atl')) c0.querySelector('.atl').value=t.l; if(c0.querySelector('.atq')) c0.querySelector('.atq').value=t.q; if(c0.querySelector('.atz')) c0.querySelector('.atz').value=t.z; if(c0.querySelector('.att')&&t.t!==undefined) c0.querySelector('.att').value=t.t; if(c0.querySelector('.atn')) c0.querySelector('.atn').value=t.n||''; }
+    if (pfx === 'c') { if(c0.querySelector('.ctl')) c0.querySelector('.ctl').value=t.l; if(c0.querySelector('.ctq')) c0.querySelector('.ctq').value=t.q; if(c0.querySelector('.ctz')) c0.querySelector('.ctz').value=t.z; if(c0.querySelector('.ctt')&&t.t!==undefined) c0.querySelector('.ctt').value=t.t; if(c0.querySelector('.ctn')) c0.querySelector('.ctn').value=t.n||''; }
   }
   // Tramos adicionales
   for (var i = 1; i < tramos.length; i++) {
@@ -3881,8 +3909,8 @@ function restoreTramos(pfx, tramos) {
     var cards2 = container.querySelectorAll('.card');
     var cn = cards2[i]; if (!cn) continue;
     var t = tramos[i];
-    if (pfx === 'a') { cn.querySelector('.atl').value=t.l; cn.querySelector('.atq').value=t.q; cn.querySelector('.atz').value=t.z||'0'; if(cn.querySelector('.att')&&t.t!==undefined) cn.querySelector('.att').value=t.t; }
-    if (pfx === 'c') { cn.querySelector('.ctl').value=t.l; cn.querySelector('.ctq').value=t.q; cn.querySelector('.ctz').value=t.z||'0'; if(cn.querySelector('.ctt')&&t.t!==undefined) cn.querySelector('.ctt').value=t.t; }
+    if (pfx === 'a') { cn.querySelector('.atl').value=t.l; cn.querySelector('.atq').value=t.q; cn.querySelector('.atz').value=t.z||'0'; if(cn.querySelector('.att')&&t.t!==undefined) cn.querySelector('.att').value=t.t; if(cn.querySelector('.atn')) cn.querySelector('.atn').value=t.n||''; }
+    if (pfx === 'c') { cn.querySelector('.ctl').value=t.l; cn.querySelector('.ctq').value=t.q; cn.querySelector('.ctz').value=t.z||'0'; if(cn.querySelector('.ctt')&&t.t!==undefined) cn.querySelector('.ctt').value=t.t; if(cn.querySelector('.ctn')) cn.querySelector('.ctn').value=t.n||''; }
     populateTubos();
   }
 }
@@ -6749,19 +6777,30 @@ function toggleAcum(pfx){
 
 // Evaluación única del acumulador (ecuación de continuidad dV/dt = Q_ent − Q_sal).
 // La usan: el Paso 2, la validación de caudal de aspersión y el informe → un solo criterio.
-function evalAcum(pfx,qR,T){
+function evalAcum(pfx,qR,T,diasCiclo){
   var chk=document.getElementById(pfx+'-acum-chk');
   var on=!!(chk&&chk.checked);
   var volL=on? v(pfx+'-acum-vol',0)*1000 : 0;
   var qF=v(pfx+'-q',0);
-  var qD=qR-qF;                                       // ΔQ que debe aportar el estanque
+  // Turno opcional: "X hr cada N días" (ej. 24hr cada 7 días = una vez por semana). La fuente
+  // NO repone a la tasa nominal las 24h — se deriva una tasa promedio equivalente para el
+  // balance de volumen. Vacío = continuo (comportamiento histórico, sin cambios).
+  var turnoHrs=v(pfx+'-turno-hrs',0);
+  var turnoDias=v(pfx+'-turno-dias',0);
+  var qFef = (turnoHrs>0 && turnoDias>0) ? qF*(turnoHrs/(turnoDias*24)) : qF;
+  var qD=qR-qF;                                       // ΔQ que debe aportar el estanque (dimensionamiento con nominal: turno abierto)
   var autonomia = qD>0 ? volL/(qD*3600) : Infinity;   // h que sostiene ese ΔQ
-  var tLlenado  = qF>0 ? volL/(qF*3600) : Infinity;   // h en llenarse desde vacío
+  var tLlenado  = qFef>0 ? volL/(qFef*3600) : Infinity;   // h en llenarse desde vacío (con tasa efectiva)
   var volUsado  = qD>0 ? qD*T*3600 : 0;               // L que realmente entrega
-  var tRepone   = qF>0 ? volUsado/(qF*3600) : Infinity;
+  var tRepone   = qFef>0 ? volUsado/(qFef*3600) : Infinity;
   var autoOk  = qD<=0 || (on && autonomia>=T);
-  var reponeOk= tRepone <= (24-T);
-  return {on:on,volL:volL,qF:qF,qR:qR,T:T,qD:qD,autonomia:autonomia,tLlenado:tLlenado,
+  // Ventana de reposición: T puede abarcar varios días (ej. Aspersión con posturas multi-día).
+  // diasCiclo = N° de días que dura el ciclo completo T (mínimo 1) — evita que un T>24h
+  // (ej. 72h) reste negativo contra 24h y marque "no repone" cuando en realidad tiene días de sobra.
+  var dCiclo = (diasCiclo!=null && diasCiclo>0) ? diasCiclo : 1;
+  var ventanaReposicion = (dCiclo*24) - T;
+  var reponeOk= tRepone <= ventanaReposicion;
+  return {on:on,volL:volL,qF:qF,qFef:qFef,turnoHrs:turnoHrs,turnoDias:turnoDias,qR:qR,T:T,diasCiclo:dCiclo,ventanaReposicion:ventanaReposicion,qD:qD,autonomia:autonomia,tLlenado:tLlenado,
           volUsado:volUsado,tRepone:tRepone,autoOk:autoOk,reponeOk:reponeOk,ok:autoOk&&reponeOk};
 }
 
@@ -6777,7 +6816,7 @@ function calcAcum(pfx){
   }
   // Caudal de diseño (Q_r) y tiempo de riego diario (T), provenientes del Paso 4
   var sysMap={g:'got',a:'asp',m:'mic',c:'car'}, sys=sysMap[pfx];
-  var qR=null, T=null, det='';
+  var qR=null, T=null, det='', diasCiclo=1;
   if(sys==='got'&&R.GE&&R.GE.qReqTotal>0&&R.GE.nSec>0){
     qR=R.GE.qReqTotal/R.GE.nSec; T=R.GE.tRiego*R.GE.nSec;
     det='Q_r = '+fd(R.GE.qReqTotal,3)+' l/s ÷ '+R.GE.nSec+' sectores &nbsp;·&nbsp; T = '+fd(R.GE.tRiego,3)+' h × '+R.GE.nSec+' sectores';
@@ -6785,11 +6824,11 @@ function calcAcum(pfx){
     qR=R.ME.qReqTotal/R.ME.nSec; T=R.ME.tRiego*R.ME.nSec;
     det='Q_r = '+fd(R.ME.qReqTotal,3)+' l/s ÷ '+R.ME.nSec+' sectores &nbsp;·&nbsp; T = '+fd(R.ME.tRiego,3)+' h × '+R.ME.nSec+' sectores';
   } else if(sys==='asp'&&R.ASP&&R.ASP.qPos>0){
-    qR=R.ASP.qPos; T=R.ASP.trp*R.ASP.nPost;
-    det='Q_r = caudal simultáneo de la postura &nbsp;·&nbsp; T = '+fd(R.ASP.trp,3)+' h × '+R.ASP.nPost+' posturas';
+    qR=R.ASP.qPos; T=R.ASP.trp*R.ASP.nPost; diasCiclo=R.ASP.diasNec||1;
+    det='Q_r = caudal simultáneo de la postura &nbsp;·&nbsp; T = '+fd(R.ASP.trp,3)+' h × '+R.ASP.nPost+' posturas ('+diasCiclo+' día'+(diasCiclo>1?'s':'')+')';
   } else if(sys==='car'&&R.CAR&&R.CAR.qCan>0){
-    qR=R.CAR.qCan/3.6; T=R.CAR.trp*R.CAR.nPost;
-    det='Q_r = descarga del cañón &nbsp;·&nbsp; T = '+fd(R.CAR.trp,3)+' h × '+R.CAR.nPost+' posturas';
+    qR=R.CAR.qCan/3.6; T=R.CAR.trp*R.CAR.nPost; diasCiclo=R.CAR.diasNec||1;
+    det='Q_r = descarga del cañón &nbsp;·&nbsp; T = '+fd(R.CAR.trp,3)+' h × '+R.CAR.nPost+' posturas ('+diasCiclo+' día'+(diasCiclo>1?'s':'')+')';
   }
   if(qR===null){
     r.innerHTML='<div style="padding:8px 10px;background:#fff7ed;border-radius:6px;font-size:.7rem;'
@@ -6798,23 +6837,25 @@ function calcAcum(pfx){
       +'caudal de diseño del Paso 4. Se calculará solo al completarlo.</div>';
     return;
   }
-  var A=evalAcum(pfx,qR,T);
+  var A=evalAcum(pfx,qR,T,diasCiclo);
   function card(lbl,val,un,cls){
-    return '<div style="background:#fff;border:1px solid var(--fog);border-left:3px solid '+cls+';border-radius:6px;padding:6px 9px">'
-      +'<div style="font-size:.6rem;color:var(--slate);font-family:var(--mono);letter-spacing:.3px">'+lbl+'</div>'
-      +'<div style="font-size:.92rem;color:var(--navy);font-family:var(--mono)">'+val
-      +' <span style="font-size:.62rem;color:var(--slate)">'+un+'</span></div></div>';
+    return '<div style="background:#fff;border:1px solid var(--fog);border-left:3px solid '+cls+';border-radius:6px;padding:5px 8px;flex-shrink:0">'
+      +'<div style="font-size:.58rem;color:var(--slate);font-family:var(--mono);letter-spacing:.3px;white-space:nowrap">'+lbl+'</div>'
+      +'<div style="font-size:.85rem;color:var(--navy);font-family:var(--mono);white-space:nowrap">'+val
+      +' <span style="font-size:.6rem;color:var(--slate)">'+un+'</span></div></div>';
   }
   var azul='var(--blue-mid)', verde='#16a34a', rojo='var(--err)';
   r.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px">'
+    '<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin-top:4px">'
     + card('Q fuente (Q_f)', fd(A.qF,3), 'l/s', azul)
+    + ((A.turnoHrs>0&&A.turnoDias>0)?card('Q efectivo (turno)', fd(A.qFef,3), 'l/s', '#c2410c'):'')
     + card('Q diseño (Q_r)', fd(qR,3), 'l/s', azul)
     + card('ΔQ aporta estanque', A.qD>0?fd(A.qD,3):'0', 'l/s', A.qD>0?azul:verde)
     + card('Autonomía', A.qD>0?fd(A.autonomia,2):'\u221e', 'h', A.autoOk?verde:rojo)
     + card('T. llenado', fd(A.tLlenado,2), 'h', azul)
-    + card('T. riego diario', fd(T,3), 'h', azul)
-    + '</div>';
+    + card('T. riego total', fd(T,3), 'h', azul)
+    + '</div>'
+    + ((A.turnoHrs>0&&A.turnoDias>0)?'<div style="margin-top:6px;font-size:.66rem;color:#c2410c;font-family:var(--mono)">⏱ Fuente por turno: '+fd(A.turnoHrs,0)+' hr cada '+fd(A.turnoDias,0)+' días → Q efectivo promedio = '+fd(A.qF,3)+' × ('+fd(A.turnoHrs,0)+'/('+fd(A.turnoDias,0)+'×24)) = '+fd(A.qFef,3)+' l/s. Se usa esta tasa para el balance de volumen (llenado/reposición) — el dimensionamiento de la red sigue usando Q_f nominal mientras el turno está abierto.</div>':'');
   if(!eq) return;
   function fila(nom,formula,valor){
     return '<div style="display:grid;grid-template-columns:190px 1fr 120px;gap:10px;align-items:baseline;'
@@ -6829,9 +6870,9 @@ function calcAcum(pfx){
     +'ECUACIÓN DE CONTINUIDAD &nbsp;·&nbsp; dV/dt = Q_entrada − Q_salida</div>'
     + fila('ΔQ aporta estanque','Q_r − Q_f = '+fd(qR,3)+' − '+fd(A.qF,3), fd(Math.max(A.qD,0),3)+' l/s')
     + fila('Autonomía','V / ΔQ = '+fd(A.volL,0)+' L ÷ '+fd(Math.max(A.qD,0),3)+' l/s', (A.qD>0?fd(A.autonomia,2):'\u221e')+' h')
-    + fila('Tiempo de llenado','V / Q_f = '+fd(A.volL,0)+' L ÷ '+fd(A.qF,3)+' l/s', fd(A.tLlenado,2)+' h')
+    + fila('Tiempo de llenado','V / Q_f'+((A.turnoHrs>0&&A.turnoDias>0)?'_efectivo':'')+' = '+fd(A.volL,0)+' L ÷ '+fd(A.qFef,3)+' l/s', fd(A.tLlenado,2)+' h')
     + fila('Volumen consumido','ΔQ × T × 3600 = '+fd(Math.max(A.qD,0),3)+' × '+fd(T,3)+' h', fd(A.volUsado,0)+' L')
-    + fila('Reposición','V_consumido / Q_f = '+fd(A.volUsado,0)+' L ÷ '+fd(A.qF,3)+' l/s', fd(A.tRepone,2)+' h')
+    + fila('Reposición','V_consumido / Q_f'+((A.turnoHrs>0&&A.turnoDias>0)?'_efectivo':'')+' = '+fd(A.volUsado,0)+' L ÷ '+fd(A.qFef,3)+' l/s', fd(A.tRepone,2)+' h')
     + '<div style="padding:6px 10px;font-size:.63rem;color:var(--mist);font-family:var(--mono);line-height:1.5">'+det
     +'. El estanque no aumenta el caudal de la fuente: desacopla el aporte del consumo.</div>'
     + '</div>'
@@ -6843,8 +6884,8 @@ function calcAcum(pfx){
             ? '\u2713 Autonomía '+fd(A.autonomia,2)+' h \u2265 riego diario '+fd(T,3)+' h — el estanque sostiene el ΔQ durante toda la operación.'
             : '\u26a0 Autonomía '+fd(A.autonomia,2)+' h < riego diario '+fd(T,3)+' h — se vacía antes de terminar. Aumente el volumen a \u2265 '+fd(A.qD*T*3600/1000,1)+' m³ o divida en más sectores.'))
     + '<br>' + (A.reponeOk
-        ? '\u2713 Repone los '+fd(A.volUsado,0)+' L consumidos en '+fd(A.tRepone,2)+' h, dentro de las '+fd(24-T,2)+' h sin riego.'
-        : '\u26a0 Requiere '+fd(A.tRepone,2)+' h para reponer '+fd(A.volUsado,0)+' L y solo dispone de '+fd(24-T,2)+' h sin riego.')
+        ? '\u2713 Repone los '+fd(A.volUsado,0)+' L consumidos en '+fd(A.tRepone,2)+' h, dentro de las '+fd(A.ventanaReposicion,2)+' h sin riego.'
+        : '\u26a0 Requiere '+fd(A.tRepone,2)+' h para reponer '+fd(A.volUsado,0)+' L y solo dispone de '+fd(A.ventanaReposicion,2)+' h sin riego.')
     + '</div>';
 }
 

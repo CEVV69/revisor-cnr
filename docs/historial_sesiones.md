@@ -1,3 +1,20 @@
+## Sesión sep-2026 — Diseñador de Riego actualizado a v129
+
+El usuario subió `disenador_riego_v129.html`. Se reemplazó `static/disenador_riego_v126.html`
+por `static/disenador_riego_v129.html` y se actualizó el enlace en `templates/_apps_menu.html`,
+el comentario en `calculos_riego.py` y el docstring en `exportar_disenador.py`. El v126 se borró.
+
+**Pendiente en v129 (prompt de handoff entregado sep-2026):**
+1. Turno generalizado "cada X días": el campo `pfx-turno-hrs` existe y usa `÷168` (hr/semana
+   fijo). Cambiar a dos campos: "Horas disponibles" + "Cada cuántos días" (placeholder "7"),
+   fórmula `÷(N×24)`. Actualizar también el texto de salida de `calcAcum`.
+2. Bug `reponeOk` multi-día: `evalAcum` usa `tRepone <= (24-T)` donde T puede ser > 24h para
+   Aspersión/Carrete multi-día → siempre falla. Corregir a `tRepone <= (diasCiclo×24 - T)`,
+   pasando `diasNec` desde el bloque de Aspersión. Para Gotero/Micro (ciclo diario),
+   `diasCiclo=1` → sin cambio de comportamiento.
+
+---
+
 ## Sesión ago-2026 — Costo de API ausente en las Memorias de Cálculo (sin confirmar aún)
 
 El usuario hizo "Comparar con la metodología del consultor" en la Memoria de Cálculo Completa
