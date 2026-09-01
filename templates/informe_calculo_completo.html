@@ -481,9 +481,9 @@
     <td>{{ num(t.caudal_ls) }}</td><td>{{ num(t.diametro_mm) }}</td><td>{{ num(t.longitud_m) }}</td>
     <td>{{ t.material or '—' }}</td>
     <td>{{ num(t.velocidad_declarada_ms) }}</td>
-    <td>{% if t.velocidad_ms is not none %}<span class="{% if t.velocidad_ok %}ok{% else %}alerta{% endif %}">{{ num(t.velocidad_ms) }}</span>{% else %}—{% endif %}</td>
+    <td>{% if t.calculo and t.calculo.velocidad_ms is not none %}<span class="{% if t.calculo.alerta %}alerta{% else %}ok{% endif %}">{{ num(t.calculo.velocidad_ms) }}</span>{% if t.calculo.alerta %}<br><span class="alerta" style="font-size:0.85em">{{ t.calculo.alerta }}</span>{% endif %}{% else %}—{% endif %}</td>
     <td>{{ num(t.hf_declarada_mca) }}</td>
-    <td>{% if t.hf_mca is not none %}{{ num(t.hf_mca) }}{% else %}—{% endif %}</td>
+    <td>{% if t.calculo and t.calculo.hf_mca is not none %}{{ num(t.calculo.hf_mca) }}{% else %}—{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>
