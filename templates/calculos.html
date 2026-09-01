@@ -184,7 +184,8 @@
       <div class="agro-grid">
         <div><label>Superficie de riego (ha)</label><input type="number" step="any" id="{{ p }}superficie_riego_ha" name="{{ p }}superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
         <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" id="{{ p }}caudal_disponible_ls" name="{{ p }}caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
-        <div><label>Disponible por turno (hr/semana) <span title="Solo si el caudal declarado NO está disponible continuo (ej. turno de una comunidad de canalistas). Vacío = disponible continuo (24 hr), comportamiento normal. Con este dato, la app usa un caudal promedio equivalente (nominal × horas turno/168) para superficie segura, balance diario y necesidad de acumulador.">ⓘ</span></label><input type="number" step="0.1" id="{{ p }}horas_disponibles_turno_semana" name="{{ p }}horas_disponibles_turno_semana" value="{{ agro.horas_disponibles_turno_semana if agro.horas_disponibles_turno_semana is not none else '' }}"></div>
+        <div><label>Horas disponibles por turno <span title="Solo si el caudal declarado NO está disponible continuo (ej. turno de una comunidad de canalistas: X horas cada tantos días). Vacío = disponible continuo (comportamiento normal). Con este dato + 'Cada cuántos días', la app usa un caudal promedio equivalente para superficie segura, balance diario y necesidad de acumulador.">ⓘ</span></label><input type="number" step="0.1" id="{{ p }}horas_disponibles_turno" name="{{ p }}horas_disponibles_turno" placeholder="Continuo" value="{{ agro.horas_disponibles_turno if agro.horas_disponibles_turno is not none else '' }}"></div>
+        <div><label>Cada cuántos días <span title="Cada cuántos días se repite el turno (7 = semanal, el más común — 15, 30, etc. para turnos más espaciados). Solo aplica si se completó 'Horas disponibles por turno'.">ⓘ</span></label><input type="number" step="1" id="{{ p }}periodo_turno_dias" name="{{ p }}periodo_turno_dias" placeholder="7" value="{{ agro.periodo_turno_dias if agro.periodo_turno_dias is not none else '' }}"></div>
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
@@ -977,8 +978,10 @@
     // de red). caudalDispEf es el promedio en el tiempo — se usa en las verificaciones de balance
     // de volumen (superficie segura, balance diario, acumulador). Sin turno declarado, son el
     // mismo valor.
-    var horasTurno = numVal(p + "horas_disponibles_turno_semana");
-    var caudalDispEf = (caudalDisp !== null && horasTurno !== null) ? caudalDisp * horasTurno / 168 : caudalDisp;
+    var horasTurno = numVal(p + "horas_disponibles_turno");
+    var periodoTurnoDecl = numVal(p + "periodo_turno_dias");
+    var periodoTurno = (periodoTurnoDecl !== null && periodoTurnoDecl > 0) ? periodoTurnoDecl : 7;
+    var caudalDispEf = (caudalDisp !== null && horasTurno !== null) ? caudalDisp * horasTurno / (periodoTurno * 24) : caudalDisp;
 
     // Sistema de riego declarado — muestra solo los campos de marco/espaciamiento que
     // correspondan (Goteo vs. Aspersión/Carrete); si no se ha declarado o es "Mixto", muestra
@@ -1486,7 +1489,7 @@
       nota(p + "agro-sup-nota", "");
     }
     nota(p + "agro-sup-info", horasTurno !== null && caudalDisp !== null
-      ? "Caudal por turnos: " + fmt(caudalDisp, 2) + " l/s durante " + fmt(horasTurno, 1) + " hr/semana → caudal promedio efectivo usado = " + fmt(caudalDispEf, 3) + " l/s."
+      ? "Caudal por turnos: " + fmt(caudalDisp, 2) + " l/s durante " + fmt(horasTurno, 1) + " hr cada " + fmt(periodoTurno, 0) + " días → caudal promedio efectivo usado = " + fmt(caudalDispEf, 3) + " l/s."
       : "");
 
     // N° de sectores (Goteo/Microaspersión, fórmula v104 del Diseñador — calcGE/calcME, FORMA

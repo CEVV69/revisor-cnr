@@ -2205,25 +2205,26 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         es_fuente_superficial=es_fuente_superficial,
         fr_adj_dias=r.get("fr_adj_dias"),
         caudal_postura_ext=caudal_postura_ext,
-        horas_disponibles_turno_semana=datos.get("horas_disponibles_turno_semana"),
+        horas_disponibles_turno=datos.get("horas_disponibles_turno"),
+        periodo_turno_dias=datos.get("periodo_turno_dias"),
     )
     if diseno:
         lineas_diseno = [f"Demanda (base DIARIA, Db/Ef sin Fr) = {diseno['demanda_ls_ha']} l/s/ha"]
         superficie_decl = datos.get("superficie_riego_ha")
         caudal_disp = datos.get("caudal_disponible_ls")
         # Caudal por turnos (ago-2026): el caudal declarado no está disponible continuo, solo
-        # durante un turno semanal — de aquí en más "caudal disponible" es el EFECTIVO (promedio
-        # en el tiempo), no el nominal, para las verificaciones de balance de volumen (superficie
-        # segura, balance diario, acumulador). El caudal nominal sigue siendo el que realmente
-        # circula mientras el turno está abierto.
+        # durante un turno cada cierta cantidad de días — de aquí en más "caudal disponible" es
+        # el EFECTIVO (promedio en el tiempo), no el nominal, para las verificaciones de balance
+        # de volumen (superficie segura, balance diario, acumulador). El caudal nominal sigue
+        # siendo el que realmente circula mientras el turno está abierto.
         if "caudal_disponible_efectivo_ls" in diseno:
             lineas_diseno.append(
                 f"Caudal disponible declarado como POR TURNOS: {diseno['caudal_disponible_nominal_ls']} "
-                f"l/s durante {diseno['horas_disponibles_turno_semana']} hr/semana (no continuo) → "
-                f"caudal promedio EFECTIVO = caudal nominal × horas turno/168 = "
-                f"{diseno['caudal_disponible_efectivo_ls']} l/s — este es el que se usa de aquí en "
-                f"más para superficie segura, balance diario y necesidad de acumulador (no el "
-                f"nominal, que solo aplica mientras el turno está abierto).")
+                f"l/s durante {diseno['horas_disponibles_turno']} hr cada {diseno['periodo_turno_dias']} "
+                f"días (no continuo) → caudal promedio EFECTIVO = caudal nominal × horas turno / "
+                f"(período × 24) = {diseno['caudal_disponible_efectivo_ls']} l/s — este es el que se "
+                f"usa de aquí en más para superficie segura, balance diario y necesidad de acumulador "
+                f"(no el nominal, que solo aplica mientras el turno está abierto).")
             caudal_disp = diseno["caudal_disponible_efectivo_ls"]
         if "superficie_segura_ha" in diseno:
             linea = (f"Superficie de riego segura (con el caudal disponible declarado de "

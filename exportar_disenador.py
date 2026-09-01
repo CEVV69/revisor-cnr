@@ -47,8 +47,8 @@ DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intent
   de cálculo del caudal Q85%, con una opción "pozo") — no es un booleano superficial/subterránea
   equivalente, así que no se mapea (evitar adivinar una fuente a partir del método de cálculo
   del caudal).
-- `horas_disponibles_turno_semana` (ago-2026, caudal disponible por turnos — ver docstring de
-  `calculos_riego.verificacion_diseno_riego`): el Diseñador de Riego no tiene ningún campo para
+- `horas_disponibles_turno`/`periodo_turno_dias` (ago-2026, caudal disponible por turnos — ver
+  docstring de `calculos_riego.verificacion_diseno_riego`): el Diseñador de Riego no tiene ningún campo para
   disponibilidad horaria/turnos del caudal — asume el caudal declarado como continuo. Concepto
   nuevo de Revisor, sin equivalente que mapear todavía (pendiente para una futura actualización
   del Diseñador, ver handoff de ago-2026)."""

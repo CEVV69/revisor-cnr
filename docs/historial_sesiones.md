@@ -3206,3 +3206,41 @@ diseño original). Pendiente de su respuesta.
 
 ---
 
+## Turno generalizado a "cada X días" (ago-2026)
+
+Respuesta del usuario a la pregunta de UI de arriba: mantener el campo único (sin selector
+Continuo/Turno), pero mostrar "Continuo" como placeholder dentro del campo vacío en vez de
+depender solo del tooltip — implementado (`placeholder="Continuo"` en el input HTML).
+
+De paso, el usuario hizo una observación de fondo: el campo estaba fijo a "horas por SEMANA"
+(`horas_disponibles_turno_semana`, ÷168) — pero un turno de una comunidad de canalistas puede
+repetirse cada 15 días, un mes, etc., no solo semanalmente. Con el campo semanal, el consultor
+tendría que convertir su turno real a un equivalente semanal a mano antes de ingresarlo — la
+misma fricción de "hacerle la conversión al usuario" que ya se había evitado deliberadamente al
+elegir "horas por semana" sobre "horas + período" en la pregunta de diseño original de este
+mismo tema (la respuesta cambió al ver el caso real en la práctica).
+
+**Fix:** se generalizó a DOS campos — "Horas disponibles por turno" (`horas_disponibles_turno`,
+sin unidad de período fija) + "Cada cuántos días" (`periodo_turno_dias`, default 7 si se omite —
+turno semanal, el caso más común, para no forzar a completarlo siempre). Fórmula:
+```
+caudal_efectivo = caudal_nominal × horas_disponibles_turno / (periodo_turno_dias × 24)
+```
+Con `periodo_turno_dias` no declarado (o 7), da EXACTAMENTE el mismo resultado que la fórmula
+semanal anterior (÷168 = ÷(7×24)) — verificado. Con un turno real de "24 horas cada 15 días"
+(ejemplo del usuario), la fórmula anterior habría exigido convertir a mano (24×7/15 ≈ 11,2
+hr/semana); ahora se ingresa tal cual aparece en el expediente.
+
+**Rename limpio, sin shim de compatibilidad** (Regla del proyecto: no backwards-compat hacks
+cuando se puede simplemente cambiar el código) — el campo se había agregado y pusheado esta misma
+sesión, sin datos reales guardados todavía con el nombre viejo, así que se renombró directo:
+`horas_disponibles_turno_semana` → `horas_disponibles_turno` + `periodo_turno_dias` en los 3
+lados (`calculos_riego.py`, `main.py` — `_CAMPOS_AGRO_INFORME` y campos de
+`calculos_guardar_agronomico` —, `analyzer.py`, `calculos.html` JS y HTML, ambas Memorias,
+docstring de `exportar_disenador.py`). Validado: `py_compile` de los 4 módulos, carga Jinja real
+de las 3 plantillas, render end-to-end de ambas Memorias con un caso "24 hr cada 15 días"
+(confirma el texto "cada 15 días" en el HTML generado), y `node --check` del `<script>` de
+`calculos.html`.
+
+---
+

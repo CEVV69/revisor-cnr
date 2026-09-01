@@ -1910,7 +1910,8 @@ def _agronomico_calculo(datos: dict):
         es_fuente_superficial=_es_fuente_superficial(datos.get("tipo_fuente_agua")),
         fr_adj_dias=r.get("fr_adj_dias"),
         caudal_postura_ext=caudal_postura_ext,
-        horas_disponibles_turno_semana=datos.get("horas_disponibles_turno_semana"),
+        horas_disponibles_turno=datos.get("horas_disponibles_turno"),
+        periodo_turno_dias=datos.get("periodo_turno_dias"),
     ))
     # Validación de ciclo: si el diseño tarda más días en completar las posturas/sectores que
     # la frecuencia de riego (Fr) que el propio diseño usa, no alcanza a regar a tiempo.
@@ -2104,7 +2105,7 @@ def _fecha_disenador() -> str:
 _CAMPOS_AGRO_INFORME = (
     "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
     "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr",
-    "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno_semana",
+    "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno", "periodo_turno_dias",
     "tipo_fuente_agua", "precipitacion_sistema_mmhr",
     "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
     "caudal_aspersor_m3h", "caudal_canon_m3h",
@@ -2667,7 +2668,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     form = await request.form()
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
               "factor_agotamiento_pct", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr", "vib_mmhr",
-              "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno_semana",
+              "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno", "periodo_turno_dias",
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",
               "espaciamiento_emisores_m", "espaciamiento_aspersores_m",

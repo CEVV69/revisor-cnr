@@ -445,7 +445,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               es_fuente_superficial: bool = None,
                               fr_adj_dias: int = None,
                               caudal_postura_ext: float = None,
-                              horas_disponibles_turno_semana: float = None) -> dict:
+                              horas_disponibles_turno: float = None,
+                              periodo_turno_dias: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -592,21 +593,26 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     acumulador (`volumen_minimo_estanque_l`) — ese es un cálculo distinto, sobre cuánto debe
     aportar el estanque DURANTE el riego de un día, no sobre el balance de 24 horas.
 
-    **`horas_disponibles_turno_semana` (ago-2026) — caudal disponible NO continuo, por turnos.**
-    Todo lo de arriba asume que `caudal_disponible_ls` está disponible las 24 horas del día. Hay
-    proyectos donde el derecho es alto pero de uso intermitente — turnos de una comunidad de
-    canalistas, disponibilidad por horas a la semana, etc. — y sin este dato la app comparaba el
-    caudal nominal (el que corre MIENTRAS el turno está abierto) como si fuera continuo,
-    concluyendo "sobra caudal, no hace falta acumulador" cuando en realidad el problema es de
-    continuidad, no de magnitud. (Distinto del "derecho eventual" de la DGA/ITT-01 — categoría
-    legal con su propio factor ×0,5, que es un chequeo textual del ítem de disponibilidad de
-    aguas, no de este motor — acá se trata la disponibilidad HORARIA de uso, sea el derecho
-    eventual o permanente.)
+    **`horas_disponibles_turno`/`periodo_turno_dias` (ago-2026) — caudal disponible NO continuo,
+    por turnos.** Todo lo de arriba asume que `caudal_disponible_ls` está disponible las 24 horas
+    del día. Hay proyectos donde el derecho es alto pero de uso intermitente — turnos de una
+    comunidad de canalistas, disponible solo cierta cantidad de horas cada cierta cantidad de
+    días (una semana, 15 días, un mes...) — y sin este dato la app comparaba el caudal nominal
+    (el que corre MIENTRAS el turno está abierto) como si fuera continuo, concluyendo "sobra
+    caudal, no hace falta acumulador" cuando en realidad el problema es de continuidad, no de
+    magnitud. (Distinto del "derecho eventual" de la DGA/ITT-01 — categoría legal con su propio
+    factor ×0,5, que es un chequeo textual del ítem de disponibilidad de aguas, no de este motor
+    — acá se trata la disponibilidad HORARIA de uso, sea el derecho eventual o permanente.)
 
-    Si se declara, se deriva un caudal promedio equivalente = `caudal_disponible_ls ×
-    horas_disponibles_turno_semana / 168` y se usa ESE valor — no el nominal — en las
-    verificaciones que son preguntas de BALANCE DE VOLUMEN en el tiempo (superficie segura,
-    balance diario, acumulador requerido, volumen mínimo del estanque y sus datos informativos).
+    `periodo_turno_dias` es cada cuántos días se repite el turno — 7 si no se declara (turno
+    semanal, el caso más común; ago-2026: el campo era fijo a "horas por SEMANA" hasta que el
+    usuario hizo notar que un turno cada 15 días o un mes no entra ahí sin que el consultor
+    convierta el número a mano — se generaliza el período en vez de forzar esa conversión).
+    Si se declara `horas_disponibles_turno`, se deriva un caudal promedio equivalente =
+    `caudal_disponible_ls × horas_disponibles_turno / (periodo_turno_dias × 24)` y se usa ESE
+    valor — no el nominal — en las verificaciones que son preguntas de BALANCE DE VOLUMEN en el
+    tiempo (superficie segura, balance diario, acumulador requerido, volumen mínimo del estanque
+    y sus datos informativos).
 
     **Volumen mínimo del estanque — corregido a ΔQ×UN día, no ciclo completo menos un día de
     aporte (ago-2026, bug real detectado al agregar el caudal por turnos):** la fórmula anterior
@@ -640,11 +646,13 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     # Caudal disponible EFECTIVO (promedio en el tiempo) vs. NOMINAL (el que corre mientras el
     # turno está abierto) — ver docstring. Sin turno declarado, son el mismo valor.
     caudal_efectivo_ls = caudal_disponible_ls
-    if caudal_disponible_ls and horas_disponibles_turno_semana is not None:
-        caudal_efectivo_ls = caudal_disponible_ls * horas_disponibles_turno_semana / 168
+    if caudal_disponible_ls and horas_disponibles_turno is not None:
+        periodo = periodo_turno_dias if periodo_turno_dias else 7
+        caudal_efectivo_ls = caudal_disponible_ls * horas_disponibles_turno / (periodo * 24)
         r["caudal_disponible_nominal_ls"] = round(caudal_disponible_ls, 3)
         r["caudal_disponible_efectivo_ls"] = round(caudal_efectivo_ls, 3)
-        r["horas_disponibles_turno_semana"] = horas_disponibles_turno_semana
+        r["horas_disponibles_turno"] = horas_disponibles_turno
+        r["periodo_turno_dias"] = periodo
 
     # Superficie de riego segura: SOLO el caudal de la fuente (v104 — el acumulador ya no se
     # suma acá, ver docstring). Con turno declarado, usa el caudal EFECTIVO (promedio) — es una
