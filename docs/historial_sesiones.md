@@ -3030,3 +3030,37 @@ en `CLAUDE.md`. Sin cambios en `exportar_disenador.py`: diff de 3 líneas, ning�
 
 ---
 
+## Memoria Completa: V/Hf en blanco en la tabla de tramos hidráulicos (ago-2026)
+
+**Reporte del usuario:** en la Memoria de Cálculo Completa, sección Diseño hidráulico, la tabla
+de tramos no mostraba Velocidad calculada ni Pérdida de carga calculada (columnas en blanco),
+pese a que el Chequeo interactivo (`calculos.html`) sí las calcula y muestra bien para el mismo
+proyecto.
+
+**Causa:** `templates/informe_calculo_completo.html` (sección "Diseño hidráulico — tramos de
+tubería", ~línea 484-486) leía los campos calculados PLANOS: `t.velocidad_ms`, `t.hf_mca`,
+`t.velocidad_ok`. Ninguno de los tres existe en esa forma. `main.py`'s `_tramos_con_calculo()`
+(usada tanto por el Chequeo como por ambas Memorias, vía `_normalizar_sistema_informe()`) adjunta
+el resultado de Hazen-Williams ANIDADO: `t["calculo"] = calculos_riego.evaluar_tramo(...)`, es
+decir `t.calculo.velocidad_ms` / `t.calculo.hf_mca` / `t.calculo.alerta` (no existe ningún
+`velocidad_ok` en todo el código — era una referencia inventada, solo en esta plantilla).
+Como Jinja trata un atributo inexistente como `Undefined`, y `Undefined is not none` evalúa
+`True`, el `{% if t.velocidad_ms is not none %}` pasaba pero `num(t.velocidad_ms)` no tenía nada
+que mostrar — mismo patrón de trampa Jinja que otros bugs de esta sesión (Da, agronómico).
+
+Se confirmó por grep que `informe_calculo.html` (Memoria por sistema) y `calculos.html` YA usaban
+la ruta anidada correcta (`t.calculo.velocidad_ms`, `t.calculo.alerta`) — el bug era exclusivo de
+`informe_calculo_completo.html`. El motor de cálculo (`calculos_riego.evaluar_tramo()`) nunca
+estuvo mal: probado con datos reales de un documento (`q_ls=3.7, d_mm=81.4, l_m=430.0`) devuelve
+`velocidad_ms=0.71, hf_mca=4.098` correctamente.
+
+**Fix:** corregidas las dos celdas para leer `t.calculo.velocidad_ms` / `t.calculo.hf_mca`
+(con guarda `t.calculo and ...`), y usar `t.calculo.alerta` para decidir la clase `alerta`/`ok`
+(en vez del inexistente `velocidad_ok`), agregando además el texto de la alerta bajo el valor
+cuando corresponde — mismo comportamiento visual que ya tenía `informe_calculo.html`. Solo
+plantilla, sin cambios en `calculos_riego.py` ni `main.py`. Validado importando la plantilla vía
+`main.templates.env.get_template(...)` (Jinja real, con los filtros custom del proyecto).
+Commit `8cf4a61`.
+
+---
+

@@ -47,7 +47,10 @@ sin que él reporte primero. Detalle en `docs/`.
    abandona esa mejora puntual, el chequeo de coherencia ya lo caza igual. **CERRADO:** los 3
    bugs propios del Diseñador de Riego (Da fuera de rango, Aspersión sin días-necesarios,
    Cuadro 1 rotulaba "l/hr" un valor en m³/hr) — todos corregidos y verificados, app en
-   `static/disenador_riego_v126.html` (era v123). Detalle y validación numérica en `docs/`.
+   `static/disenador_riego_v126.html` (era v123). **CERRADO:** tabla de tramos hidráulicos en
+   Memoria Completa mostraba V/Hf calculadas en blanco — `informe_calculo_completo.html` leía
+   campos planos inexistentes en vez de `t.calculo.*` (bug aislado de esa plantilla, motor de
+   cálculo siempre estuvo bien). Detalle y validación numérica en `docs/`.
 
 2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
