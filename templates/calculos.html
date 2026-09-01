@@ -184,6 +184,7 @@
       <div class="agro-grid">
         <div><label>Superficie de riego (ha)</label><input type="number" step="any" id="{{ p }}superficie_riego_ha" name="{{ p }}superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
         <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" id="{{ p }}caudal_disponible_ls" name="{{ p }}caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
+        <div><label>Disponible por turno (hr/semana) <span title="Solo si el caudal declarado NO está disponible continuo (ej. turno de una comunidad de canalistas). Vacío = disponible continuo (24 hr), comportamiento normal. Con este dato, la app usa un caudal promedio equivalente (nominal × horas turno/168) para superficie segura, balance diario y necesidad de acumulador.">ⓘ</span></label><input type="number" step="0.1" id="{{ p }}horas_disponibles_turno_semana" name="{{ p }}horas_disponibles_turno_semana" value="{{ agro.horas_disponibles_turno_semana if agro.horas_disponibles_turno_semana is not none else '' }}"></div>
         <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
         <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
         <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
@@ -335,6 +336,7 @@
             <td class="col-calc">
               <span id="{{ p }}agro-sup-calc">—</span>
               <span id="{{ p }}agro-sup-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+              <span id="{{ p }}agro-sup-info" class="calc-nota" style="display:none;"></span>
             </td>
           </tr>
           <tr>
@@ -672,6 +674,24 @@
   var N_TRAMOS = {{ hid_sistemas[0].tramos|length }};
   var N_SISTEMAS = {{ n_sistemas }};
   var C_HAZEN = {pvc:150, pe:120, pead:120, polietileno:120, aluminio:140};
+  // Clasificación de tramos por nivel jerárquico — espejo JS de
+  // calculos_riego.clasificar_nivel_tramo() (ago-2026, ver amt_calculada_m). Mismos alias.
+  var ALIAS_NIVEL_TRAMO = {
+    matriz: ["matriz", "principal"],
+    terciaria: ["terciaria", "secundaria", "submatriz"],
+    lateral: ["lateral", "portagotero", "portaemisor", "regante"]
+  };
+  function clasificarNivelTramo(nombre) {
+    var n = (nombre || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!n) return null;
+    for (var nivel in ALIAS_NIVEL_TRAMO) {
+      var alias = ALIAS_NIVEL_TRAMO[nivel];
+      for (var j = 0; j < alias.length; j++) {
+        if (n.indexOf(alias[j]) !== -1) return nivel;
+      }
+    }
+    return null;
+  }
   var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
   var RHO_CU = 1/58;
 
@@ -951,6 +971,14 @@
     var sup = numVal(p + "superficie_riego_ha"), caudalDisp = numVal(p + "caudal_disponible_ls"),
         precip = numVal(p + "precipitacion_sistema_mmhr"), horas = numVal(p + "horas_disponibles_dia");
     var declQdiseno = numVal(p + "decl_qdiseno"), declTriego = numVal(p + "decl_triego"), declNsec = numVal(p + "decl_nsec");
+    // Caudal por turnos (ago-2026, ver calculos_riego.verificacion_diseno_riego docstring):
+    // caudalDisp sigue siendo el NOMINAL (el que corre mientras el turno está abierto — se usa
+    // tal cual para el chequeo instantáneo de la postura y para N° de sectores, dimensionamiento
+    // de red). caudalDispEf es el promedio en el tiempo — se usa en las verificaciones de balance
+    // de volumen (superficie segura, balance diario, acumulador). Sin turno declarado, son el
+    // mismo valor.
+    var horasTurno = numVal(p + "horas_disponibles_turno_semana");
+    var caudalDispEf = (caudalDisp !== null && horasTurno !== null) ? caudalDisp * horasTurno / 168 : caudalDisp;
 
     // Sistema de riego declarado — muestra solo los campos de marco/espaciamiento que
     // correspondan (Goteo vs. Aspersión/Carrete); si no se ha declarado o es "Mixto", muestra
@@ -1311,7 +1339,7 @@
        "agro-dbdiario-calc", "agro-sup-calc", "agro-triego-calc", "agro-nsec-calc", "agro-qdiseno-calc",
        "agro-balance-calc", "agro-acumreq-calc", "agro-vmin-calc", "agro-deltaq-calc",
        "agro-autonomia-calc", "agro-tllenado-calc"].forEach(function(id) { setText(p + id, "—"); });
-      ["agro-ad-nota", "agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-dbdiario-nota", "agro-sup-nota", "agro-triego-nota",
+      ["agro-ad-nota", "agro-dn-nota", "agro-fr-nota", "agro-db-nota", "agro-dbdiario-nota", "agro-sup-nota", "agro-sup-info", "agro-triego-nota",
        "agro-nsec-nota", "agro-qdiseno-nota", "agro-balance-nota", "agro-acumreq-nota",
        "agro-vmin-nota"].forEach(function(id) { nota(p + id, ""); });
       var diasRowReset = document.getElementById(p + "agro-dias-row");
@@ -1448,8 +1476,8 @@
     // esta verificación es de balance diario, no de ciclo de riego. En Goteo ambos valores ya
     // coinciden (Fr=1 ahí).
     var demanda = dbDiario / 8.64;
-    if (caudalDisp !== null && demanda) {
-      var supSegura = caudalDisp / demanda;
+    if (caudalDispEf !== null && demanda) {
+      var supSegura = caudalDispEf / demanda;
       setText(p + "agro-sup-calc", fmt(supSegura, 2) + " ha");
       nota(p + "agro-sup-nota", (sup !== null && supSegura < sup)
         ? "Menor a la superficie declarada del proyecto (" + fmt(sup, 2) + " ha) — el caudal disponible no alcanza." : "");
@@ -1457,6 +1485,9 @@
       setText(p + "agro-sup-calc", "—");
       nota(p + "agro-sup-nota", "");
     }
+    nota(p + "agro-sup-info", horasTurno !== null && caudalDisp !== null
+      ? "Caudal por turnos: " + fmt(caudalDisp, 2) + " l/s durante " + fmt(horasTurno, 1) + " hr/semana → caudal promedio efectivo usado = " + fmt(caudalDispEf, 3) + " l/s."
+      : "");
 
     // N° de sectores (Goteo/Microaspersión, fórmula v104 del Diseñador — calcGE/calcME, FORMA
     // CERRADA sin iterar, acumulador reduce el N° necesario) o N° de posturas (Aspersión/
@@ -1557,15 +1588,15 @@
     // mayor gasto supera el caudal continuo disponible, salvo que la fuente sea de aguas
     // SUPERFICIALES y la diferencia sea menor a un 20%. Distinto de "Volumen mínimo del
     // estanque" de abajo, que solo se evalúa si YA se declaró un volumen de acumulador.
-    if (caudalOperacion !== null && caudalDisp !== null) {
-      var excedeCaudal = caudalOperacion > caudalDisp;
+    if (caudalOperacion !== null && caudalDispEf !== null) {
+      var excedeCaudal = caudalOperacion > caudalDispEf;
       if (!excedeCaudal) {
         // Redacción suavizada (ago-2026, feedback real): "no requerido" a secas se leía como que
         // el acumulador declarado no tiene justificación alguna — este chequeo solo descarta
         // déficit de caudal instantáneo/volumen diario, no cualquier motivo de ingeniería del
         // consultor (regulación de presión, golpe de ariete, filtrado, etc.).
-        var balanceOkAcum = (demanda && sup !== null && caudalDisp !== null)
-          ? (dbDiario * sup * 10000) <= (caudalDisp * 24 * 3600) : null;
+        var balanceOkAcum = (demanda && sup !== null && caudalDispEf !== null)
+          ? (dbDiario * sup * 10000) <= (caudalDispEf * 24 * 3600) : null;
         if (balanceOkAcum === false) {
           setText(p + "agro-acumreq-calc", "Caudal instantáneo no exige acumulador — OJO, el balance diario de volumen (ver abajo) SÍ muestra déficit: igual podría requerirse acumulación por esa vía.");
         } else {
@@ -1573,7 +1604,7 @@
         }
         nota(p + "agro-acumreq-nota", "");
       } else {
-        var diffPct = (caudalOperacion - caudalDisp) / caudalDisp * 100;
+        var diffPct = (caudalOperacion - caudalDispEf) / caudalDispEf * 100;
         var excepcion20 = tipoFuente === "superficial" && diffPct < 20;
         setText(p + "agro-acumreq-calc", "Caudal de operación supera al disponible en " + fmt(diffPct, 1) + "%"
           + (excepcion20 ? " — exento (aguas superficiales, diferencia <20%)." : "."));
@@ -1624,8 +1655,8 @@
     // estanque de abajo).
     if (demanda && sup !== null) {
       var vDiaReq = dbDiario * sup * 10000;
-      if (caudalDisp !== null) {
-        var vFuenteDia = caudalDisp * 24 * 3600;
+      if (caudalDispEf !== null) {
+        var vFuenteDia = caudalDispEf * 24 * 3600;
         var balanceOk = vDiaReq <= vFuenteDia;
         setText(p + "agro-balance-calc", "V. requerido = " + fmt(vDiaReq, 0) + " L/día — V. fuente = " + fmt(vFuenteDia, 0) + " L/día");
         nota(p + "agro-balance-nota", balanceOk ? "" : "La fuente no repone lo que exige el diseño en 24 horas — ningún acumulador resuelve esto (reducir superficie o aumentar el derecho de agua).");
@@ -1643,10 +1674,10 @@
     // arriba (ver docstring de verificacion_diseno_riego en calculos_riego.py).
     if (qRequerido !== null && tiempoRiego) {
       var vCiclo = qRequerido * tiempoRiego * 3600;
-      if (caudalDisp !== null) {
+      if (caudalDispEf !== null) {
         // Volumen mínimo del estanque — solo si hay acumulador declarado.
         if (volAcum !== null && tiempoTotalDia !== null) {
-          var vMin = Math.max(0, vCiclo - caudalDisp * tiempoTotalDia * 3600);
+          var vMin = Math.max(0, vCiclo - caudalDispEf * tiempoTotalDia * 3600);
           var volAcumL = volAcum * 1000;
           setText(p + "agro-vmin-calc", "Mínimo = " + fmt(vMin, 0) + " L — declarado = " + fmt(volAcumL, 0) + " L");
           nota(p + "agro-vmin-nota", volAcumL >= vMin ? "" : "El volumen declarado no alcanza el mínimo requerido.");
@@ -1655,14 +1686,14 @@
           // chequeo de arriba (volumen mínimo), expresado de forma más intuitiva para el
           // revisor: ΔQ que debe aportar el estanque, cuántas horas lo sostiene (autonomía) y
           // cuánto tarda en llenarse desde vacío usando solo la fuente.
-          var deltaQ = Math.max(0, caudalOperacion - caudalDisp);
+          var deltaQ = Math.max(0, caudalOperacion - caudalDispEf);
           setText(p + "agro-deltaq-calc", fmt(deltaQ, 3) + " l/s");
           if (deltaQ > 0) {
             setText(p + "agro-autonomia-calc", fmt(volAcumL / (deltaQ * 3600), 2) + " hr");
           } else {
             setText(p + "agro-autonomia-calc", "∞ (la fuente sola alcanza)");
           }
-          setText(p + "agro-tllenado-calc", fmt(volAcumL / (caudalDisp * 3600), 2) + " hr");
+          setText(p + "agro-tllenado-calc", fmt(volAcumL / (caudalDispEf * 3600), 2) + " hr");
         } else {
           setText(p + "agro-vmin-calc", "—");
           nota(p + "agro-vmin-nota", "");
@@ -1696,12 +1727,16 @@
   // `sp` es el prefijo de ids/names de este sistema de riego (ej. "s0_", "s1_") — mismo N°
   // de sistemas GLOBAL del proyecto que usa Agronómico (ver N_SISTEMAS).
   function recalcHidraulicoSistema(sp) {
-    var hfTotal = 0, hfHuboDato = false;
+    // Cada tramo se calcula igual que antes (V/Hf/Ø sugerido/alertas) — lo que cambia es CUÁLES
+    // de esos Hf entran a la suma de la CDT: ruta crítica, no todos los tramos (ago-2026, ver
+    // calculos_riego.amt_calculada_m/tramos_en_ruta_critica — mismo criterio acá, espejo JS).
+    var tramos = [];   // {cellId, html, hf, nivel}
     for (var i = 0; i < N_TRAMOS; i++) {
       var q = numVal(sp + "t" + i + "_caudal");
       var d = numVal(sp + "t" + i + "_diametro");
       var l = numVal(sp + "t" + i + "_longitud");
       var mat = strVal(sp + "t" + i + "_material");
+      var nombre = strVal(sp + "t" + i + "_nombre");
       var velDecl = numVal(sp + "t" + i + "_vel_declarada");
       var hfDecl = numVal(sp + "t" + i + "_hf_declarada");
       var cellId = sp + "t" + i + "_resultado";
@@ -1715,7 +1750,6 @@
       if (l && c) {
         var qM3s = q / 1000, dM = d / 1000;
         hf = 10.67 * l * Math.pow(qM3s, 1.852) / (Math.pow(c, 1.852) * Math.pow(dM, 4.87));
-        hfTotal += hf; hfHuboDato = true;
       }
       var alerta = "";
       if (vel > 2.0) alerta = "velocidad " + fmt(vel, 2) + " m/s supera el máximo recomendado (2,0 m/s)";
@@ -1730,9 +1764,37 @@
       if (hf !== null) html += " · Hf=<b>" + fmt(hf, 3) + "</b> mca";
       html += " · Ø sug.=" + fmt(dSug, 1) + " mm";
       if (alerta) html += '<br><span class="calc-alerta">' + alerta + "</span>";
-      setHtml(cellId, html);
+      tramos.push({cellId: cellId, html: html, hf: hf, nivel: clasificarNivelTramo(nombre)});
     }
-    // AMT calculada = Σ Hf de los tramos + Desnivel + Pérdida de carga en cabezal + Presión de operación del emisor.
+
+    // Ruta crítica: Matriz y tramos sin clasificar van SIEMPRE incluidos (troncal en serie, o sin
+    // info de jerarquía). Terciaria/Lateral: declarar 2+ del mismo nivel es ramal alternativo —
+    // solo el de mayor Hf cuenta; el resto queda marcado como excluido.
+    var incluido = tramos.map(function() { return true; });
+    ["terciaria", "lateral"].forEach(function(nivel) {
+      var idxs = [];
+      tramos.forEach(function(t, idx) { if (t.nivel === nivel) idxs.push(idx); });
+      if (idxs.length <= 1) return;
+      var conHf = idxs.filter(function(idx) { return tramos[idx].hf; });
+      var elegido = conHf.length
+        ? conHf.reduce(function(a, b) { return tramos[b].hf > tramos[a].hf ? b : a; })
+        : null;
+      idxs.forEach(function(idx) { incluido[idx] = (idx === elegido); });
+    });
+
+    var hfTotal = 0, hfHuboDato = false;
+    tramos.forEach(function(t, idx) {
+      var html = t.html;
+      if (!incluido[idx]) {
+        html += '<br><span class="text-muted" style="font-size:0.85em;">no incluido en la CDT — hay otro tramo de su mismo nivel (' + t.nivel + ') con mayor pérdida de carga.</span>';
+      } else if (t.hf) {
+        hfTotal += t.hf; hfHuboDato = true;
+      }
+      setHtml(t.cellId, html);
+    });
+
+    // AMT calculada = Σ Hf de los tramos de la ruta crítica + Desnivel + Pérdida de carga en
+    // cabezal + Presión de operación del emisor.
     var desnivel = numVal(sp + "desnivel");
     var perdCabezal = numVal(sp + "perdida_cabezal");
     var presionEmisor = numVal(sp + "presion_emisor_mca");

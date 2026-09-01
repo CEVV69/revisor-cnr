@@ -8,6 +8,7 @@ y comparar — en vez de que la IA intente hacer la matemática de memoria a par
 libre. Funciones puras, sin dependencias externas.
 """
 import math
+import unicodedata
 
 
 # ── Hidráulica: Hazen-Williams ──────────────────────────────────────────────
@@ -122,21 +123,106 @@ def evaluar_tramo(q_ls: float, d_mm: float, l_m: float = None, c: float = None) 
     }
 
 
+# Alias por los que se reconoce el `nombre` de un tramo como uno de los 3 niveles jerárquicos de
+# una red ramificada (Matriz → Terciaria/Secundaria → Lateral). Coincidencia por SUBSTRING sobre
+# el nombre normalizado (sin tildes/mayúsculas), para tolerar variantes razonables como "Tubería
+# matriz" o "Línea terciaria PVC" — deliberadamente conservador: un nombre que no menciona
+# ninguno de estos términos queda SIN CLASIFICAR, nunca se adivina. MISMOS alias que
+# `exportar_disenador.py` usaba de forma duplicada (ago-2026: unificados acá, ver
+# `clasificar_nivel_tramo`, para que Chequeo/Memoria y exportación compartan un solo criterio).
+_ALIAS_NIVEL_TRAMO = {
+    "matriz": {"matriz", "principal"},
+    "terciaria": {"terciaria", "secundaria", "submatriz"},
+    "lateral": {"lateral", "portagotero", "portaemisor", "regante"},
+}
+
+
+def _normalizar_nombre_tramo(nombre: str) -> str:
+    """minúsculas, sin tildes, para comparar contra los alias de `_ALIAS_NIVEL_TRAMO`."""
+    n = unicodedata.normalize("NFKD", (nombre or "").strip().lower())
+    return "".join(c for c in n if unicodedata.category(c) != "Mn")
+
+
+def clasificar_nivel_tramo(nombre: str) -> str:
+    """"matriz"/"terciaria"/"lateral" si el `nombre` de un tramo calza con alguno de los alias
+    jerárquicos, o None si no calza con ninguno (nombre libre, ej. "Tramo 1")."""
+    nombre_norm = _normalizar_nombre_tramo(nombre)
+    if not nombre_norm:
+        return None
+    for nivel, alias in _ALIAS_NIVEL_TRAMO.items():
+        if any(a in nombre_norm for a in alias):
+            return nivel
+    return None
+
+
+def _hf_tramo(t: dict) -> float:
+    c = C_HAZEN_WILLIAMS.get((t.get("material") or "").strip().lower())
+    return hazen_williams(t.get("caudal_ls"), t.get("diametro_mm"), t.get("longitud_m"), c)
+
+
+def tramos_en_ruta_critica(tramos: list) -> list:
+    """Para cada tramo de `tramos`, en el mismo orden, devuelve True si pertenece a la ruta
+    crítica (la que debe sumarse para la CDT) o False si es un ramal alternativo descartado.
+
+    Criterio (ago-2026, auditoría técnica — reporte del usuario: "no todos los sectores o
+    posturas operan a la vez, son ramales alternativos"): la red parte en la Matriz (tronco
+    único, SIEMPRE en serie con todo lo demás — se incluyen todos los tramos así nombrados) y se
+    ramifica en Terciarias/Laterales que alimentan sectores o posturas DISTINTOS, que no operan
+    simultáneamente — declarar 2 o más tramos del MISMO nivel (ej. dos "Secundaria") es la señal
+    de que son ramales alternativos, no tramos en serie. Por nivel Terciaria y Lateral, solo el
+    de MAYOR pérdida de carga (Hf) es la ruta crítica — el resto queda False. Con un solo tramo
+    en el nivel (el caso típico: un camino representativo Matriz→Terciaria→Lateral), ese único
+    tramo va en True — comportamiento idéntico al de antes de este cambio.
+
+    Los tramos sin clasificar (nombre libre que no calza con ningún alias) se tratan igual que
+    Matriz: se incluyen todos — no hay información de jerarquía para tratarlos como ramales
+    alternativos, así que se mantiene el criterio anterior (sumarlos)."""
+    grupos = {"matriz": [], "terciaria": [], "lateral": [], None: []}
+    for i, t in enumerate(tramos or []):
+        grupos[clasificar_nivel_tramo(t.get("nombre"))].append(i)
+
+    incluido = [False] * len(tramos or [])
+    for i in grupos["matriz"] + grupos[None]:
+        incluido[i] = True
+
+    for nivel in ("terciaria", "lateral"):
+        idxs = grupos[nivel]
+        con_hf = [(i, _hf_tramo(tramos[i])) for i in idxs]
+        con_hf = [(i, hf) for i, hf in con_hf if hf]
+        if con_hf:
+            i_critico, _ = max(con_hf, key=lambda par: par[1])
+            incluido[i_critico] = True
+        elif len(idxs) == 1:
+            # único candidato del nivel pero sin Hf calculable (falta longitud/material) — se
+            # mantiene incluido igual, mismo criterio de "un solo tramo = ruta crítica" de arriba.
+            incluido[idxs[0]] = True
+    return incluido
+
+
 def amt_calculada_m(tramos: list, desnivel_m: float = None, perdida_cabezal_m: float = None, presion_emisor_mca: float = None) -> float:
-    """AMT/CDT calculada = Σ Hf de los tramos declarados (Hazen-Williams, mismo criterio de
-    `evaluar_tramo`) + desnivel del área de riego + pérdidas de carga en el cabezal de control
-    + presión de operación del emisor (goteros/aspersores/cañón según el sistema).
+    """AMT/CDT calculada = Σ Hf de los tramos de la RUTA CRÍTICA (ver `tramos_en_ruta_critica`) +
+    desnivel del área de riego + pérdidas de carga en el cabezal de control + presión de
+    operación del emisor (goteros/aspersores/cañón según el sistema).
+
+    **Ruta crítica, no suma de todos los tramos (ago-2026):** sumar TODOS los tramos declarados
+    es correcto solo si describen un único camino en serie (Matriz→Terciaria→Lateral del sector
+    más desfavorable) — si el consultor declaró ramales alternativos (ej. una Secundaria por
+    cada sector, que no operan a la vez) como filas separadas, sumarlos todos sobrestima la CDT.
+    Ver `tramos_en_ruta_critica` para el criterio de selección por nivel jerárquico.
 
     NO es la cadena CDT completa (le falta succión y margen de seguridad si el consultor no los
     incluyó como un tramo más de la tabla) — es la suma de lo que Revisor efectivamente puede
     calcular o el revisor declaró a mano. None si no hay NINGÚN dato para sumar (ni un Hf de
     tramo, ni desnivel, ni pérdida de cabezal, ni presión del emisor) — evita mostrar "0" como si
     fuera un resultado real cuando en verdad no hay nada calculado."""
+    tramos = tramos or []
+    incluido = tramos_en_ruta_critica(tramos)
     total = 0.0
     hubo_dato = False
-    for t in (tramos or []):
-        c = C_HAZEN_WILLIAMS.get((t.get("material") or "").strip().lower())
-        hf = hazen_williams(t.get("caudal_ls"), t.get("diametro_mm"), t.get("longitud_m"), c)
+    for t, inc in zip(tramos, incluido):
+        if not inc:
+            continue
+        hf = _hf_tramo(t)
         if hf:
             total += hf
             hubo_dato = True
@@ -358,7 +444,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               dias_necesarios_ext: int = None,
                               es_fuente_superficial: bool = None,
                               fr_adj_dias: int = None,
-                              caudal_postura_ext: float = None) -> dict:
+                              caudal_postura_ext: float = None,
+                              horas_disponibles_turno_semana: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -501,7 +588,28 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     24 horas que la superficie segura — así ambos comparten el mismo criterio ITT-03. El volumen
     de un ciclo completo sigue existiendo, correctamente, como base del volumen mínimo del
     acumulador (`volumen_minimo_estanque_l`) — ese es un cálculo distinto, sobre cuánto debe
-    aportar el estanque DURANTE el riego de un día, no sobre el balance de 24 horas."""
+    aportar el estanque DURANTE el riego de un día, no sobre el balance de 24 horas.
+
+    **`horas_disponibles_turno_semana` (ago-2026) — caudal disponible NO continuo, por turnos.**
+    Todo lo de arriba asume que `caudal_disponible_ls` está disponible las 24 horas del día. Hay
+    proyectos donde el derecho es alto pero de uso intermitente — turnos de una comunidad de
+    canalistas, disponibilidad por horas a la semana, etc. — y sin este dato la app comparaba el
+    caudal nominal (el que corre MIENTRAS el turno está abierto) como si fuera continuo,
+    concluyendo "sobra caudal, no hace falta acumulador" cuando en realidad el problema es de
+    continuidad, no de magnitud. (Distinto del "derecho eventual" de la DGA/ITT-01 — categoría
+    legal con su propio factor ×0,5, que es un chequeo textual del ítem de disponibilidad de
+    aguas, no de este motor — acá se trata la disponibilidad HORARIA de uso, sea el derecho
+    eventual o permanente.)
+
+    Si se declara, se deriva un caudal promedio equivalente = `caudal_disponible_ls ×
+    horas_disponibles_turno_semana / 168` y se usa ESE valor — no el nominal — en las
+    verificaciones que son preguntas de BALANCE DE VOLUMEN en el tiempo (superficie segura,
+    balance diario, acumulador requerido, volumen mínimo del estanque y sus datos informativos).
+    `n_sectores`/`tiempo_riego`/`caudal_operacion_ls` (dimensionamiento de la red — cuánto
+    circula MIENTRAS se opera) siguen usando el caudal NOMINAL a propósito: cuando el turno está
+    abierto, el caudal real que corre por la tubería es el nominal, no el promedio — reducirlo
+    ahí sería un error distinto. Sin este parámetro (caso continuo, el de siempre), el caudal
+    "nominal" y el "efectivo" son el mismo número — comportamiento idéntico al de antes."""
     r = {}
     if not db_mm_dia:
         return r
@@ -509,10 +617,20 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     demanda_ls_ha = db_diario / 8.64
     r["demanda_ls_ha"] = round(demanda_ls_ha, 4)
 
+    # Caudal disponible EFECTIVO (promedio en el tiempo) vs. NOMINAL (el que corre mientras el
+    # turno está abierto) — ver docstring. Sin turno declarado, son el mismo valor.
+    caudal_efectivo_ls = caudal_disponible_ls
+    if caudal_disponible_ls and horas_disponibles_turno_semana is not None:
+        caudal_efectivo_ls = caudal_disponible_ls * horas_disponibles_turno_semana / 168
+        r["caudal_disponible_nominal_ls"] = round(caudal_disponible_ls, 3)
+        r["caudal_disponible_efectivo_ls"] = round(caudal_efectivo_ls, 3)
+        r["horas_disponibles_turno_semana"] = horas_disponibles_turno_semana
+
     # Superficie de riego segura: SOLO el caudal de la fuente (v104 — el acumulador ya no se
-    # suma acá, ver docstring).
-    if caudal_disponible_ls and demanda_ls_ha:
-        r["superficie_segura_ha"] = round(caudal_disponible_ls / demanda_ls_ha, 4)
+    # suma acá, ver docstring). Con turno declarado, usa el caudal EFECTIVO (promedio) — es una
+    # pregunta de volumen disponible en el tiempo, no de caudal instantáneo.
+    if caudal_efectivo_ls and demanda_ls_ha:
+        r["superficie_segura_ha"] = round(caudal_efectivo_ls / demanda_ls_ha, 4)
 
     # Balance diario de volumen — EN BASE A 24 HORAS (ITT-03 §1), con Db_diario (ETc/Ef, sin Fr)
     # y no con el Db del ciclo. Independiente de precipitación/tiempo de riego: solo necesita
@@ -521,10 +639,10 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     # es el volumen de UN CICLO completo (Fr días) para Aspersión/Carrete, no de UN día; el
     # texto "L/día" resultante confundía al consultor. Ese volumen de ciclo sigue existiendo
     # más abajo, correctamente, como base del volumen mínimo del acumulador.)
-    if superficie_ha and caudal_disponible_ls:
+    if superficie_ha and caudal_efectivo_ls:
         v_dia_requerido_l = db_diario * superficie_ha * 10000
         r["v_requerido_dia_l"] = round(v_dia_requerido_l, 0)
-        v_fuente_dia_l = caudal_disponible_ls * 24 * 3600
+        v_fuente_dia_l = caudal_efectivo_ls * 24 * 3600
         r["v_fuente_dia_l"] = round(v_fuente_dia_l, 0)
         r["balance_diario_ok"] = v_dia_requerido_l <= v_fuente_dia_l
 
@@ -604,12 +722,15 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
 
         # Acumulador REQUERIDO (ITT-03 §1): obligatorio si el caudal de operación del sector de
-        # mayor gasto supera el caudal continuo disponible — salvo, en aguas superficiales, si
-        # la diferencia es menor a un 20%.
-        if caudal_disponible_ls:
-            excede = caudal_operacion_ls > caudal_disponible_ls
+        # mayor gasto supera el caudal disponible — salvo, en aguas superficiales, si la
+        # diferencia es menor a un 20%. Con turno declarado, contra el caudal EFECTIVO (promedio
+        # en el tiempo): aunque el nominal alcance mientras el turno está abierto, si la fuente
+        # no repone en promedio lo que exige la operación, igual hace falta acumular para cubrir
+        # las horas sin turno.
+        if caudal_efectivo_ls:
+            excede = caudal_operacion_ls > caudal_efectivo_ls
             if excede:
-                diff_pct = (caudal_operacion_ls - caudal_disponible_ls) / caudal_disponible_ls
+                diff_pct = (caudal_operacion_ls - caudal_efectivo_ls) / caudal_efectivo_ls
                 r["diferencia_caudal_operacion_pct"] = round(diff_pct * 100, 1)
                 excepcion = es_fuente_superficial is True and diff_pct < 0.20
                 r["acumulador_requerido"] = not excepcion
@@ -621,8 +742,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         # mientras dura ese riego — ver docstring. Distinto del balance diario de arriba.
         v_ciclo_l = q_requerido_total_ls * tiempo_riego * 3600
         r["v_ciclo_l"] = round(v_ciclo_l, 0)
-        if caudal_disponible_ls and vol_litros:
-            v_min_l = max(0.0, v_ciclo_l - caudal_disponible_ls * tiempo_total_dia * 3600)
+        if caudal_efectivo_ls and vol_litros:
+            v_min_l = max(0.0, v_ciclo_l - caudal_efectivo_ls * tiempo_total_dia * 3600)
             r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
             r["acumulador_ok"] = vol_litros >= v_min_l
 
@@ -631,11 +752,11 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
             # intuitivo para el revisor: "cuántas horas aguanta" en vez de solo litros).
             # Equivalencia algebraica exacta: autonomía ≥ Tiempo total ⟺ Vol ≥ Volumen mínimo
             # (ambas expresan la misma desigualdad, solo reordenada).
-            delta_q_ls = caudal_operacion_ls - caudal_disponible_ls
+            delta_q_ls = caudal_operacion_ls - caudal_efectivo_ls
             r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
             if delta_q_ls > 0:
                 r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
-            r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_disponible_ls * 3600), 2)
+            r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_efectivo_ls * 3600), 2)
 
     return r
 

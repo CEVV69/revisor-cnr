@@ -46,9 +46,12 @@ DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intent
   parámetros de diseño del Diseñador de Riego. El campo más cercano ahí es `{p}-q85met` (método
   de cálculo del caudal Q85%, con una opción "pozo") — no es un booleano superficial/subterránea
   equivalente, así que no se mapea (evitar adivinar una fuente a partir del método de cálculo
-  del caudal)."""
-import unicodedata
-
+  del caudal).
+- `horas_disponibles_turno_semana` (ago-2026, caudal disponible por turnos — ver docstring de
+  `calculos_riego.verificacion_diseno_riego`): el Diseñador de Riego no tiene ningún campo para
+  disponibilidad horaria/turnos del caudal — asume el caudal declarado como continuo. Concepto
+  nuevo de Revisor, sin equivalente que mapear todavía (pendiente para una futura actualización
+  del Diseñador, ver handoff de ago-2026)."""
 import calculos_riego
 
 # Sistema de riego declarado en Revisor → (prefijo de campo, código __sys del Diseñador).
@@ -64,16 +67,9 @@ SISTEMA_A_DR = {
 # ver `_clasificar_tramos_jerarquico`.
 _SYS_CON_TRAMOS = {"asp", "car"}
 
-# Alias por los que se reconoce el `nombre` de un tramo como uno de los 3 niveles fijos que
-# usa el Diseñador para Goteo/Microaspersión. Coincidencia por SUBSTRING (no exacta) sobre el
-# nombre normalizado, para tolerar variantes razonables como "Tubería matriz" o "Línea
-# terciaria PVC" — deliberadamente conservador: si el nombre no menciona ninguno de estos
-# términos, no se clasifica (mejor no exportar que adivinar mal).
-_ALIAS_TRAMO_JERARQUICO = {
-    "matriz": {"matriz", "principal"},
-    "terciaria": {"terciaria", "secundaria", "submatriz"},
-    "lateral": {"lateral", "portagotero", "portaemisor", "regante"},
-}
+# Clasificación de tramos por nivel jerárquico (Matriz/Terciaria/Lateral, por alias del campo
+# `nombre`) — ago-2026: unificada en `calculos_riego.clasificar_nivel_tramo`, que además la usa
+# para la CDT por ruta crítica (`amt_calculada_m`). No duplicar los alias acá.
 
 # Sufijos de campo por nivel (longitud, diámetro, material/C) — confirmados en el HTML del
 # Diseñador: Goteo y Microaspersión usan EXACTAMENTE los mismos sufijos para los 3 niveles.
@@ -94,12 +90,6 @@ def _s(v):
     return str(v)
 
 
-def _normalizar_nombre_tramo(nombre: str) -> str:
-    """minúsculas, sin tildes, para comparar contra los alias de `_ALIAS_TRAMO_JERARQUICO`."""
-    n = unicodedata.normalize("NFKD", (nombre or "").strip().lower())
-    return "".join(c for c in n if unicodedata.category(c) != "Mn")
-
-
 def _clasificar_tramos_jerarquico(tramos: list) -> dict:
     """Devuelve {"matriz": tramo|None, "terciaria": tramo|None, "lateral": tramo|None} según el
     campo `nombre` de cada tramo de `tramos` (la tabla de tramos hidráulicos de Revisor).
@@ -115,13 +105,9 @@ def _clasificar_tramos_jerarquico(tramos: list) -> dict:
     determinar cuál es el crítico y el nivel queda en None (mismo criterio de no adivinar)."""
     candidatos = {"matriz": [], "terciaria": [], "lateral": []}
     for t in (tramos or []):
-        nombre_norm = _normalizar_nombre_tramo(t.get("nombre"))
-        if not nombre_norm:
-            continue
-        for nivel, alias in _ALIAS_TRAMO_JERARQUICO.items():
-            if any(a in nombre_norm for a in alias):
-                candidatos[nivel].append(t)
-                break   # un tramo se clasifica en un solo nivel (el primero que calce)
+        nivel = calculos_riego.clasificar_nivel_tramo(t.get("nombre"))
+        if nivel:
+            candidatos[nivel].append(t)
 
     resultado = {
         nivel: (lista[0] if len(lista) == 1 else None)

@@ -159,6 +159,9 @@
   {% endif %}
   <tr><td class="label">Superficie de riego</td><td class="valor">{{ val(agro.superficie_riego_ha, ' ha') }}</td></tr>
   <tr><td class="label">Caudal disponible (fuente)</td><td class="valor">{{ val(agro.caudal_disponible_ls, ' l/s') }}</td></tr>
+  {% if agro.horas_disponibles_turno_semana is not none %}
+  <tr><td class="label">Disponible por turno</td><td class="valor">{{ val(agro.horas_disponibles_turno_semana, ' hr/semana') }} (no continuo)</td></tr>
+  {% endif %}
   <tr><td class="label">Precipitación del sistema</td><td class="valor">{{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }}</td></tr>
   <tr><td class="label">Horas disponibles al día</td><td class="valor">{{ val(agro.horas_disponibles_dia, ' hr') }}</td></tr>
   <tr><td class="label">Volumen acumulador (estanque/tranque)</td><td class="valor">{{ val(agro.volumen_acumulador_m3, ' m³') }}</td></tr>
@@ -353,7 +356,10 @@
 
 {% if calc.superficie_segura_ha is not none %}
 {% call paso('superficie_segura') %}
-  <div class="formula">Superficie de riego segura = Caudal de la fuente / Demanda = {{ val(agro.caudal_disponible_ls) }} / {{ val(calc.demanda_ls_ha) }} = <strong>{{ val(calc.superficie_segura_ha, ' ha') }}</strong></div>
+  {% if calc.caudal_disponible_efectivo_ls is defined %}
+  <div class="compara">Caudal declarado como POR TURNOS: {{ val(calc.caudal_disponible_nominal_ls, ' l/s') }} durante {{ val(calc.horas_disponibles_turno_semana, ' hr/semana') }} (no continuo) → caudal promedio EFECTIVO = nominal × horas turno/168 = <strong>{{ val(calc.caudal_disponible_efectivo_ls, ' l/s') }}</strong> — este es el que se usa de aquí en más para superficie segura, balance diario y necesidad de acumulador.</div>
+  {% endif %}
+  <div class="formula">Superficie de riego segura = Caudal de la fuente / Demanda = {{ val(calc.caudal_disponible_efectivo_ls if calc.caudal_disponible_efectivo_ls is defined else agro.caudal_disponible_ls) }} / {{ val(calc.demanda_ls_ha) }} = <strong>{{ val(calc.superficie_segura_ha, ' ha') }}</strong></div>
   <div class="explica">Cuánta superficie puede regarse de forma segura SOLO con el caudal de la fuente (sin considerar el acumulador — ITT-03 §1, balance diario). Usa la demanda "diaria" (ETc/Ef, sin pasar por Fr), no la de ciclo de riego.</div>
   {% if agro.superficie_riego_ha is not none %}
   <div class="compara">Superficie declarada del proyecto: {{ num(agro.superficie_riego_ha) }} ha — {% if calc.superficie_segura_ha < agro.superficie_riego_ha %}<span class="alerta">supera la superficie segura — el caudal de la fuente no alcanza por sí solo (el acumulador puede compensar, ver más abajo).</span>{% else %}<span class="ok">dentro de lo que alcanza el caudal de la fuente.</span>{% endif %}</div>
@@ -467,7 +473,7 @@
       <th>V calculada</th><th>Hf calculada</th><th>Declarado (V / Hf)</th></tr>
   {% for t in tramos_con_datos %}
   <tr>
-    <td>{{ t.nombre or '—' }}</td>
+    <td>{{ t.nombre or '—' }}{% if t.en_ruta_critica is defined and not t.en_ruta_critica %}<br><span class="text-muted" style="font-size:0.8em;">no incluido en la CDT — ramal alternativo, no crítico</span>{% endif %}</td>
     <td>{{ num(t.caudal_ls) }}</td>
     <td>{{ num(t.diametro_mm) }}</td>
     <td>{{ num(t.longitud_m) }}</td>

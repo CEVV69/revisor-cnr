@@ -38,30 +38,28 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
 
-1. **Auditoría técnica del motor de Aspersión (ago-2026), varias rondas de fixes — EL USUARIO
-   ESTÁ RE-CORRIENDO la revisión del mismo proyecto para comparar observaciones "post-fix":**
-   unidades del aspersor, ciclo-vs-día, `caudal_operacion_ls` por N×Q, confusión ETc↔Dn y
-   agregado-vs-individual, acumulador, inconsistencia documental, y el más grave — Da en kg/m³
-   sin convertir inflaba AD ×1000 (+ gap de `capas_suelo` en `analyzer.py`). **CERRADO:** el
-   caso de extracción de caudal agregado (÷N sin ×3,6) resistió 2 rondas de prompt — se
-   abandona esa mejora puntual, el chequeo de coherencia ya lo caza igual. **CERRADO:** los 3
-   bugs propios del Diseñador de Riego (Da fuera de rango, Aspersión sin días-necesarios,
-   Cuadro 1 rotulaba "l/hr" un valor en m³/hr) — todos corregidos y verificados, app en
-   `static/disenador_riego_v126.html` (era v123). **CERRADO:** tabla de tramos hidráulicos en
-   Memoria Completa mostraba V/Hf calculadas en blanco — `informe_calculo_completo.html` leía
-   campos planos inexistentes en vez de `t.calculo.*` (bug aislado de esa plantilla, motor de
-   cálculo siempre estuvo bien). Detalle y validación numérica en `docs/`.
+1. **Auditoría técnica del motor de Aspersión (ago-2026) — CERRADA:** unidades del aspersor,
+   ciclo-vs-día, Da en kg/m³, los 3 bugs del Diseñador de Riego (app en
+   `static/disenador_riego_v126.html`, era v123), y V/Hf en blanco en la Memoria Completa —
+   todos corregidos y verificados. Detalle y validación numérica en `docs/`.
 
-2. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
+2. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, sin probar en un
+   proyecto real todavía:** (a) nuevo campo "Disponible por turno (hr/semana)" — cuando el
+   caudal de la fuente no está disponible continuo (turnos de comunidad de canalistas), usa un
+   caudal EFECTIVO (nominal × horas turno/168) para superficie segura/balance diario/acumulador
+   requerido — antes esas verificaciones asumían 24h continuas y podían concluir "no hace falta
+   acumulador" con un caudal alto pero intermitente. (b) La CDT (`amt_calculada_m`) ya NO suma
+   todos los tramos declarados — si hay 2+ tramos del mismo nivel jerárquico (ej. dos
+   "Secundaria"), son ramales alternativos y solo cuenta el de mayor Hf (ruta crítica), no la
+   suma de todos. Los 3 lados + espejo JS, ver `docs/`. Pendiente: mismo par de bugs en el
+   Diseñador de Riego (prompt de handoff entregado al usuario, no confirmado si se aplicó).
+
+3. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
 
-3. **3 fixes puntuales:** nombre del proyecto en Resumen↔listado (OK); Tab en capas de suelo
-   (OK); costo de API en ambas Memorias standalone (**sin confirmar**). `diseno_hidraulico`/
-   `diseno_fotovoltaico` con checklist ampliado.
-
 4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
-   Word con presupuesto en tabla; chequeo hidráulico; Memoria COMPLETA con paridad total;
-   Evaluación del Consultor (nunca probada).
+   Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
+   (nunca probada); costo de API en Memorias standalone (sin confirmar).
 
 **Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
 potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del

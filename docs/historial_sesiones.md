@@ -3064,3 +3064,96 @@ Commit `8cf4a61`.
 
 ---
 
+## Caudal por turnos (acumulador) + CDT por ruta crítica (ago-2026)
+
+El usuario planteó dos temas de ingeniería, con análisis y propuesta discutidos antes de
+implementar (no fixes reactivos a un bug reportado, sino mejoras conceptuales del motor):
+
+**1. Acumulador y caudal "eventual"/por turnos.** Reporte: proyectos con caudal inscrito alto
+pero de uso intermitente (turnos de una comunidad de canalistas, ej. disponible solo ciertas
+horas a la semana) — la app comparaba ese caudal como si fuera continuo 24h y concluía "sobra
+caudal, no hace falta acumulador" cuando el problema real es de continuidad, no de magnitud.
+Distinto del "derecho eventual" de la DGA/ITT-01 (categoría legal, factor ×0,5, chequeo textual
+del ítem de disponibilidad de aguas — no vive en `calculos_riego.py` y no se tocó).
+
+Fix: nuevo parámetro `horas_disponibles_turno_semana` en `verificacion_diseno_riego()`. Si se
+declara, deriva `caudal_disponible_efectivo_ls = caudal_disponible_ls × horas_turno_semana/168`
+(caudal promedio equivalente) y lo usa — en vez del nominal — en las verificaciones que son
+preguntas de BALANCE DE VOLUMEN en el tiempo: `superficie_segura_ha`, balance diario
+(`v_fuente_dia_l`/`balance_diario_ok`), `acumulador_requerido`, `volumen_minimo_estanque_l` y
+sus datos informativos (`delta_q_estanque_ls`/`autonomia_estanque_hr`/
+`tiempo_llenado_estanque_hr`). Deliberadamente NO afecta `n_sectores`/`tiempo_riego_hr`/
+`caudal_operacion_ls` (dimensionamiento de red — el caudal que circula MIENTRAS el turno está
+abierto es el nominal, no el promedio; reducirlo ahí sería un error distinto). Sin el parámetro
+(caso continuo, el de siempre), nominal y efectivo son el mismo valor — comportamiento idéntico
+al de antes, verificado con `horas_disponibles_turno_semana=168` reproduciendo exacto el caso
+base.
+
+Campo nuevo 100% MANUAL (sin intentar extracción automática) — mismo criterio ya adoptado este
+mes para el caso del caudal agregado del aspersor: la diversidad de formatos de los expedientes
+hace la extracción poco confiable para un dato tan variable en cómo se redacta.
+
+**2. CDT: suma de todos los tramos vs. ruta crítica.** Reporte: `amt_calculada_m()` sumaba el Hf
+de TODOS los tramos declarados sin distinguir si están en serie o son ramales alternativos (ej.
+una Secundaria por cada sector, que no operan a la vez) — sobrestimaba la CDT si el consultor
+declaraba más de un tramo por nivel jerárquico.
+
+Se encontró que `exportar_disenador.py` ya resolvía un problema hermano:
+`_clasificar_tramos_jerarquico()` reconoce tramos como Matriz/Terciaria/Lateral por alias del
+`nombre` (substring, sin tildes) y ya sabía que declarar 2+ Laterales es normal (uno por
+sector) — resolvía la ambigüedad exportando el "lateral crítico" (el de mayor `longitud_m`, un
+proxy). Se unificó la clasificación por alias en `calculos_riego.clasificar_nivel_tramo()`
+(antes duplicada en `exportar_disenador.py` como `_ALIAS_TRAMO_JERARQUICO`/
+`_normalizar_nombre_tramo` — ahora ese módulo solo importa la función de `calculos_riego`, sin
+cambiar su criterio de selección "más largo" para el export).
+
+Nueva función `calculos_riego.tramos_en_ruta_critica(tramos)`: Matriz y tramos sin clasificar
+(nombre libre) van SIEMPRE incluidos — troncal en serie, o sin info de jerarquía para tratarlos
+como alternativos (se mantiene el comportamiento de sumarlos, decisión del usuario). Terciaria y
+Lateral: si hay 2+ tramos del mismo nivel, solo el de MAYOR Hf calculado entra a la CDT (más
+preciso que "más largo", que es solo un proxy — acá ya se calcula Hf de todos modos); el resto
+queda excluido. Con un único tramo por nivel (el caso típico Matriz→Terciaria→Lateral), el
+comportamiento es IDÉNTICO al de antes (se verificó con 3 casos sintéticos: serie pura, dos
+ramales paralelos, y tramos sin clasificar — ver commit).
+
+`amt_calculada_m()` ahora usa `tramos_en_ruta_critica()` para decidir qué Hf sumar. `main.py`'s
+`_tramos_con_calculo()` marca cada tramo con `en_ruta_critica` (bool) para que la UI lo muestre.
+
+Propagación a los 3 lados (Regla 10):
+- `calculos_riego.py`: `clasificar_nivel_tramo()`, `tramos_en_ruta_critica()`,
+  `amt_calculada_m()` reescrito; `verificacion_diseno_riego()` con el nuevo parámetro.
+- `main.py`: `_tramos_con_calculo()` marca `en_ruta_critica`; `_agronomico_calculo()` pasa
+  `horas_disponibles_turno_semana`; nuevo campo en `_CAMPOS_AGRO_INFORME` y en la lista de
+  `campos` de `calculos_guardar_agronomico`.
+- `analyzer.py`: `_bloque_verificacion_agronomica_sistema()` pasa el nuevo parámetro y agrega el
+  párrafo narrativo nominal-vs-efectivo para la IA (mismo texto que ve el revisor).
+- `calculos.html`: campo nuevo "Disponible por turno (hr/semana)" junto a Caudal disponible;
+  JS `caudalDispEf` (mirror exacto del cálculo Python) reemplaza a `caudalDisp` SOLO en los 4
+  bloques de balance de volumen (superficie segura, acumulador requerido, balance diario,
+  volumen mínimo/deltaQ/autonomía/tiempo de llenado) — no en el chequeo instantáneo de postura
+  ni en N° de sectores, que siguen con el nominal. Nota informativa `agro-sup-info` (neutra, no
+  alerta) muestra nominal vs. efectivo cuando hay turno declarado. Tabla de tramos: función
+  `clasificarNivelTramo()` (espejo de la de Python) + lógica de ruta crítica en
+  `recalcHidraulicoSistema()`, con nota "no incluido en la CDT" en el tramo excluido — validado
+  reproduciendo los mismos 3 casos sintéticos en Node, mismos números exactos que Python.
+- `informe_calculo.html`/`informe_calculo_completo.html`: fila "Disponible por turno" en datos
+  declarados; nota nominal-vs-efectivo antes de la fórmula de superficie segura (que ahora usa
+  el efectivo cuando corresponde); marca "no incluido en la CDT" en la tabla de tramos.
+- `exportar_disenador.py`: docstring documenta que `horas_disponibles_turno_semana` no tiene
+  campo equivalente en el Diseñador (concepto nuevo) — no se exporta. La ruta crítica es solo un
+  cambio de CÁLCULO del lado Revisor, no afecta qué se exporta (sigue exportando el tramo crudo
+  por nivel, igual que antes).
+
+Validado end-to-end: render real de `informe_calculo.html`/`informe_calculo_completo.html` vía
+Jinja con datos sintéticos (turno 10h/semana + 2 Secundarias paralelas) — confirma que el HTML
+generado contiene tanto la nota "POR TURNOS" como "no incluido en la CDT". `py_compile` de los
+4 módulos tocados, carga de plantilla Jinja real para `calculos.html`, y `node --check` +
+ejecución del bloque `<script>` extraído, todos sin errores.
+
+**Pendiente:** el Diseñador de Riego probablemente tiene el mismo par de problemas (asume
+caudal continuo; no distingue ruta crítica al sumar tramos para la bomba) — fuera del alcance de
+esta sesión. Prompt de handoff entregado al usuario en el chat (no un archivo — Regla 5); no
+confirmado si ya se aplicó.
+
+---
+
