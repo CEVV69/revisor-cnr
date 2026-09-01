@@ -439,8 +439,8 @@
 
 {% if calc.volumen_minimo_estanque_l is not none %}
 {% call paso('volumen_estanque') %}
-  <div class="formula">Volumen mínimo del estanque = Volumen de un ciclo (Q requerido × Tiempo de riego × 3.600 = {{ val(calc.v_ciclo_l, ' L') }}) − Caudal fuente × (N° {% if calc.postura_check or calc.carrete_check %}posturas{% else %}sectores{% endif %} × Tiempo de riego) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
-  <div class="explica">Volumen mínimo que debe tener el acumulador para sostener el diseño, dado lo que la fuente ya aporta durante el riego de un día — distinto del balance diario de arriba, que es sobre 24 horas completas.</div>
+  <div class="formula">Volumen mínimo del estanque = ΔQ (Caudal de operación − Caudal de la fuente = {{ val(calc.delta_q_estanque_ls, ' l/s') }}) × Tiempo total de UN día ({{ val(calc.tiempo_total_dia_hr, ' hr') }}) × 3.600 = <strong>{{ val(calc.volumen_minimo_estanque_l, ' L') }}</strong> ({{ '%.1f'|format(calc.volumen_minimo_estanque_l / 1000) }} m³)</div>
+  <div class="explica">Volumen mínimo que debe tener el acumulador para sostener el déficit de UN día representativo del ciclo — asume que la fuente, si es continua, repone durante las horas sin riego y los días siguientes del ciclo (volumen del ciclo completo, solo informativo: {{ val(calc.v_ciclo_l, ' L') }}). Distinto del balance diario de arriba, que es sobre 24 horas completas.</div>
   <div class="compara">Volumen declarado: {{ val(agro.volumen_acumulador_m3, ' m³') }} — {% if calc.acumulador_ok %}<span class="ok">alcanza.</span>{% else %}<span class="alerta">NO alcanza el volumen mínimo requerido.</span>{% endif %}</div>
 {% endcall %}
 {% if calc.delta_q_estanque_ls is not none %}

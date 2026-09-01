@@ -43,16 +43,19 @@ sin que él reporte primero. Detalle en `docs/`.
    `static/disenador_riego_v126.html`, era v123), y V/Hf en blanco en la Memoria Completa —
    todos corregidos y verificados. Detalle y validación numérica en `docs/`.
 
-2. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, sin probar en un
-   proyecto real todavía:** (a) nuevo campo "Disponible por turno (hr/semana)" — cuando el
-   caudal de la fuente no está disponible continuo (turnos de comunidad de canalistas), usa un
-   caudal EFECTIVO (nominal × horas turno/168) para superficie segura/balance diario/acumulador
-   requerido — antes esas verificaciones asumían 24h continuas y podían concluir "no hace falta
-   acumulador" con un caudal alto pero intermitente. (b) La CDT (`amt_calculada_m`) ya NO suma
-   todos los tramos declarados — si hay 2+ tramos del mismo nivel jerárquico (ej. dos
-   "Secundaria"), son ramales alternativos y solo cuenta el de mayor Hf (ruta crítica), no la
-   suma de todos. Los 3 lados + espejo JS, ver `docs/`. Pendiente: mismo par de bugs en el
-   Diseñador de Riego (prompt de handoff entregado al usuario, no confirmado si se aplicó).
+2. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando:**
+   (a) nuevo campo "Disponible por turno (hr/semana)" — caudal EFECTIVO (nominal × horas
+   turno/168) para superficie segura/balance diario/acumulador requerido, en vez de asumir 24h
+   continuas. **Pendiente decisión de UI:** el usuario esperaba un selector Continuo/Turno que
+   revele el campo de horas — hoy es un solo campo (vacío=continuo, con tooltip). Preguntado,
+   sin responder aún. (b) La CDT (`amt_calculada_m`) ya NO suma todos los tramos — 2+ del mismo
+   nivel jerárquico son ramales alternativos, solo cuenta el de mayor Hf (ruta crítica).
+   (c) **Bug real encontrado por el usuario y corregido:** "Volumen mínimo del estanque" usaba
+   volumen del CICLO COMPLETO menos el aporte de UN día — sobrestimaba hasta 3× en ciclos
+   multi-día (Aspersión/Carrete), casi siempre daba "no alcanza". Ahora usa ΔQ × Tiempo de UN
+   día (misma fórmula que ya usaban los datos informativos de autonomía). Los 3 lados + espejo
+   JS, ver `docs/`. Pendiente: mismo par de bugs (turno + ruta crítica) en el Diseñador de Riego
+   (prompt de handoff entregado, no confirmado si se aplicó).
 
 3. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.

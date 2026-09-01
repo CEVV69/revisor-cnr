@@ -3157,3 +3157,52 @@ confirmado si ya se aplicó.
 
 ---
 
+## Volumen mínimo del estanque: bug real de ciclo-vs-día (ago-2026)
+
+El usuario probó el campo de caudal por turnos recién agregado y reportó dos cosas: (1) esperaba
+un selector "Continuo/Turno" que revelara el campo de horas, no un solo campo (queda como
+pregunta abierta, ver más abajo); (2) la fila "Volumen mínimo del estanque" casi siempre decía
+"no alcanza", y su intuición era correcta: "si el caudal que llena el estanque es continuo, así
+como se saca agua entra agua, se va reponiendo" — sospechaba que el chequeo no modelaba bien esa
+reposición continua.
+
+**Diagnóstico confirmado, no fue un malentendido del usuario.** La fórmula (preexistente,
+anterior a esta sesión) era:
+```
+volumen_minimo = V_ciclo_completo − Caudal_fuente × Tiempo_total_de_UN_día
+```
+`V_ciclo_completo` es el agua que exige TODO el ciclo (todas las posturas/sectores, puede ser
+varios días en Aspersión/Carrete con horas limitadas — `dias_necesarios>1`). Pero solo se
+restaba lo que la fuente aporta durante UN día — no contaba que, si la fuente es continua, sigue
+aportando en los días SIGUIENTES del mismo ciclo y durante las horas sin riego de cada día. En
+ciclos de 1 día (Goteo/Microaspersión, o Aspersión/Carrete que cabe en un día) la fórmula daba
+lo mismo que la alternativa correcta — coincidencia algebraica que ocultó el bug hasta ahora. En
+ciclos multi-día la sobrestimaba fuerte: probado con un caso sintético de 3 días, la fórmula
+vieja pedía 2.797.500 L; la correcta, 922.500 L — 3× de diferencia. El propio código ya tenía,
+aparte, un bloque "informativo" (`delta_q_estanque_ls`/`autonomia_estanque_hr`/
+`tiempo_llenado_estanque_hr`, del Diseñador v106) que SÍ modelaba la reposición continua
+correctamente — con un comentario que afirmaba "equivalencia algebraica exacta" con el volumen
+mínimo, cierta solo en el caso de 1 día.
+
+**Fix:** `volumen_minimo_estanque_l` pasa a ser exactamente `ΔQ × Tiempo total de UN día × 3.600`
+— la MISMA fórmula que ya usaban los datos informativos (ya no son dos cálculos distintos que
+"casualmente" coinciden en un caso). Dimensiona para sostener el déficit de UN día representativo
+del ciclo, asumiendo que la fuente repone durante las horas sin riego y los días siguientes.
+`v_ciclo_l` se sigue calculando y mostrando (informativo — cuánta agua exige el ciclo completo)
+pero ya no alimenta el mínimo del estanque. Verificado: caso Goteo (1 día) da resultado idéntico
+al de antes; caso Aspersión 3 días pasa de "no alcanza con 50 m³" (mínimo falso: 2.797 m³) a
+"alcanza con 950 m³" (mínimo real: 922,5 m³) — un tamaño de estanque plausible para un proyecto
+real, no la cifra inflada de antes.
+
+Propagado a los 3 lados: `calculos_riego.py` (fórmula + docstring), `calculos.html` (JS,
+`agro-vmin-calc`), `informe_calculo.html`/`informe_calculo_completo.html` (fórmula en texto),
+`analyzer.py` (narrativa para la IA). No se toca `exportar_disenador.py` — este campo es un
+resultado derivado de Revisor, nunca se exportó.
+
+**Pregunta abierta del usuario, sin resolver aún:** si prefiere el selector Continuo/Turno (como
+esperaba) o el campo único actual con tooltip "vacío=continuo" (más alineado con la Regla 8 de
+minimalismo UI, pero fue una simplificación que no se le avisó explícitamente al proponer el
+diseño original). Pendiente de su respuesta.
+
+---
+

@@ -1669,24 +1669,26 @@
       nota(p + "agro-balance-nota", "");
     }
 
-    // Volumen mínimo del estanque — volumen de UN CICLO completo (Q_requerido×Tiempo_riego)
-    // menos lo que la fuente aporta durante el riego de un día; distinto del balance diario de
-    // arriba (ver docstring de verificacion_diseno_riego en calculos_riego.py).
+    // Volumen mínimo del estanque = ΔQ × Tiempo total de UN día × 3.600 — dimensiona para
+    // sostener el déficit de UN día representativo del ciclo (la fuente, si es continua, repone
+    // durante las horas sin riego y los días siguientes del ciclo). Ya NO es el volumen del
+    // ciclo completo menos un día de aporte (ago-2026, bug corregido: esa fórmula sobrestimaba
+    // el mínimo requerido en ciclos multi-día, hasta 3× en las pruebas — ver docstring de
+    // verificacion_diseno_riego en calculos_riego.py). Volumen del ciclo completo (informativo,
+    // ya no se usa para el mínimo del estanque):
     if (qRequerido !== null && tiempoRiego) {
       var vCiclo = qRequerido * tiempoRiego * 3600;
       if (caudalDispEf !== null) {
         // Volumen mínimo del estanque — solo si hay acumulador declarado.
         if (volAcum !== null && tiempoTotalDia !== null) {
-          var vMin = Math.max(0, vCiclo - caudalDispEf * tiempoTotalDia * 3600);
           var volAcumL = volAcum * 1000;
+          // Aporte del estanque, en unidades de tiempo (Diseñador v106, evalAcum) — MISMA
+          // fórmula que el volumen mínimo de arriba (antes eran dos cálculos distintos que el
+          // código afirmaba "equivalentes" sin serlo en el caso multi-día).
+          var deltaQ = Math.max(0, caudalOperacion - caudalDispEf);
+          var vMin = deltaQ * tiempoTotalDia * 3600;
           setText(p + "agro-vmin-calc", "Mínimo = " + fmt(vMin, 0) + " L — declarado = " + fmt(volAcumL, 0) + " L");
           nota(p + "agro-vmin-nota", volAcumL >= vMin ? "" : "El volumen declarado no alcanza el mínimo requerido.");
-
-          // Aporte del estanque, en unidades de tiempo (Diseñador v106, evalAcum) — mismo
-          // chequeo de arriba (volumen mínimo), expresado de forma más intuitiva para el
-          // revisor: ΔQ que debe aportar el estanque, cuántas horas lo sostiene (autonomía) y
-          // cuánto tarda en llenarse desde vacío usando solo la fuente.
-          var deltaQ = Math.max(0, caudalOperacion - caudalDispEf);
           setText(p + "agro-deltaq-calc", fmt(deltaQ, 3) + " l/s");
           if (deltaQ > 0) {
             setText(p + "agro-autonomia-calc", fmt(volAcumL / (deltaQ * 3600), 2) + " hr");

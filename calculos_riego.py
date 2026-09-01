@@ -496,9 +496,11 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
       Caudal de la fuente × 86.400. Si la fuente no repone el volumen diario que exige el
       diseño, NINGÚN acumulador lo resuelve (hay que reducir superficie o aumentar el derecho
       de agua) — `balance_diario_ok`.
-    - Si hay acumulador declarado: volumen MÍNIMO que debe tener = V_requerido − Caudal de la
-      fuente × (N° sectores × Tiempo de riego) × 3.600 — compara contra el volumen declarado
-      (`volumen_minimo_estanque_l`, `acumulador_ok`).
+    - Si hay acumulador declarado: volumen MÍNIMO que debe tener = ΔQ × Tiempo total de UN día ×
+      3.600, con ΔQ = Caudal de operación − Caudal de la fuente — compara contra el volumen
+      declarado (`volumen_minimo_estanque_l`, `acumulador_ok`). Ver más abajo por qué es ΔQ×UN
+      día y NO el volumen del ciclo completo menos un día de aporte (bug real, corregido
+      ago-2026).
     - Datos INFORMATIVOS del aporte del estanque (Diseñador v106, `evalAcum` — mismo chequeo de
       volumen mínimo de arriba, expresado en unidades de tiempo, más intuitivo para el revisor):
         ΔQ que aporta el estanque = Caudal de operación − Caudal de la fuente (si es ≤ 0, la
@@ -605,6 +607,24 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     horas_disponibles_turno_semana / 168` y se usa ESE valor — no el nominal — en las
     verificaciones que son preguntas de BALANCE DE VOLUMEN en el tiempo (superficie segura,
     balance diario, acumulador requerido, volumen mínimo del estanque y sus datos informativos).
+
+    **Volumen mínimo del estanque — corregido a ΔQ×UN día, no ciclo completo menos un día de
+    aporte (ago-2026, bug real detectado al agregar el caudal por turnos):** la fórmula anterior
+    (`V_ciclo − Caudal_fuente × Tiempo_total_día`) resta el aporte de la fuente durante SOLO un
+    día de riego activo del volumen del CICLO COMPLETO (que en Aspersión/Carrete multi-día son
+    varios días) — no cuenta que la fuente, si es continua, sigue aportando en los días
+    siguientes del mismo ciclo y durante las horas sin riego de cada día, reponiendo el estanque
+    antes de la siguiente sesión (exactamente el razonamiento de "así como se saca agua, entra
+    agua" que ya modelaban, de forma separada, los datos informativos `delta_q_estanque_ls`/
+    `autonomia_estanque_hr` — el comentario del código afirmaba que ambos chequeos eran
+    "algebraicamente equivalentes", pero solo lo eran cuando el ciclo cabe en UN día (Goteo/
+    Microaspersión, o Aspersión/Carrete sin multi-día) — en el caso multi-día real divergían
+    hasta 3× en las pruebas). Ahora `volumen_minimo_estanque_l = ΔQ × Tiempo total de UN día ×
+    3.600` (la MISMA fórmula que ya usaban esos datos informativos) es la ÚNICA fórmula — se
+    dimensiona para sostener el déficit de UN día representativo del ciclo (asumiendo que la
+    fuente repone durante las horas sin riego y los días siguientes), no para todo el ciclo de
+    una sola vez. `v_ciclo_l` se sigue calculando y mostrando (informativo — volumen total que
+    exige el ciclo completo), pero ya NO se usa para el volumen mínimo del estanque.
     `n_sectores`/`tiempo_riego`/`caudal_operacion_ls` (dimensionamiento de la red — cuánto
     circula MIENTRAS se opera) siguen usando el caudal NOMINAL a propósito: cuando el turno está
     abierto, el caudal real que corre por la tubería es el nominal, no el promedio — reducirlo
@@ -737,23 +757,26 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
             else:
                 r["acumulador_requerido"] = False
 
-        # Volumen del acumulador: dimensionado sobre el volumen de UN CICLO completo por las
-        # posturas/sectores del día (Q_requerido×Tiempo_riego) menos lo que la fuente aporta
-        # mientras dura ese riego — ver docstring. Distinto del balance diario de arriba.
+        # Volumen del ciclo completo — informativo (cuánta agua exige el ciclo entero), ya NO es
+        # la base del volumen mínimo del estanque (ver docstring, bug corregido ago-2026).
         v_ciclo_l = q_requerido_total_ls * tiempo_riego * 3600
         r["v_ciclo_l"] = round(v_ciclo_l, 0)
         if caudal_efectivo_ls and vol_litros:
-            v_min_l = max(0.0, v_ciclo_l - caudal_efectivo_ls * tiempo_total_dia * 3600)
+            # Volumen mínimo del estanque = ΔQ × Tiempo total de UN día × 3.600 — dimensiona para
+            # sostener el déficit de UN día representativo del ciclo (la fuente, si es continua,
+            # repone durante las horas sin riego y los días siguientes del ciclo — ver docstring).
+            # MISMA fórmula que los datos informativos de abajo (antes eran dos cálculos distintos
+            # que el código afirmaba "equivalentes" sin serlo en el caso multi-día).
+            delta_q_ls = caudal_operacion_ls - caudal_efectivo_ls
+            r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
+            v_min_l = max(0.0, delta_q_ls) * tiempo_total_dia * 3600
             r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
             r["acumulador_ok"] = vol_litros >= v_min_l
 
-            # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`) — el
-            # mismo chequeo de volumen mínimo de arriba, expresado en unidades de tiempo (más
-            # intuitivo para el revisor: "cuántas horas aguanta" en vez de solo litros).
-            # Equivalencia algebraica exacta: autonomía ≥ Tiempo total ⟺ Vol ≥ Volumen mínimo
-            # (ambas expresan la misma desigualdad, solo reordenada).
-            delta_q_ls = caudal_operacion_ls - caudal_efectivo_ls
-            r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
+            # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`), en unidades
+            # de tiempo (más intuitivo: "cuántas horas aguanta" en vez de solo litros). Equivalencia
+            # algebraica exacta con el volumen mínimo de arriba: autonomía ≥ Tiempo total de UN día
+            # ⟺ Vol ≥ Volumen mínimo (misma desigualdad, solo reordenada — ahora sí, siempre).
             if delta_q_ls > 0:
                 r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
             r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_efectivo_ls * 3600), 2)

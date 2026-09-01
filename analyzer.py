@@ -2395,13 +2395,17 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                 lineas_diseno.append(linea_bal)
                 if "volumen_minimo_estanque_l" in diseno:
                     volumen_acum_l = round((volumen_acum or 0) * 1000)
-                    linea_vmin = (f"Volumen mínimo de acumulador que exige este diseño (volumen de "
-                                  f"UN CICLO completo — Q requerido × Tiempo de riego × 3.600 = "
-                                  f"{diseno.get('v_ciclo_l')} L — menos lo que aporta la fuente "
-                                  f"durante el riego de un día; DISTINTO del balance diario de "
-                                  f"arriba, que es sobre 24 horas completas) = "
-                                  f"{diseno['volumen_minimo_estanque_l']} L — volumen declarado "
-                                  f"= {volumen_acum_l} L")
+                    linea_vmin = (f"Volumen mínimo de acumulador que exige este diseño = ΔQ "
+                                  f"(Caudal de operación − Caudal disponible = "
+                                  f"{diseno.get('delta_q_estanque_ls')} l/s) × Tiempo total de UN "
+                                  f"día × 3.600 = {diseno['volumen_minimo_estanque_l']} L — "
+                                  f"dimensiona para sostener el déficit de UN día representativo "
+                                  f"del ciclo, asumiendo que la fuente repone durante las horas "
+                                  f"sin riego y los días siguientes del ciclo (el volumen del "
+                                  f"CICLO COMPLETO es {diseno.get('v_ciclo_l')} L, solo "
+                                  f"informativo — DISTINTO del balance diario de arriba, que es "
+                                  f"sobre 24 horas completas) — volumen declarado = "
+                                  f"{volumen_acum_l} L")
                     if diseno.get("acumulador_ok"):
                         linea_vmin += " — el volumen declarado alcanza."
                     else:
