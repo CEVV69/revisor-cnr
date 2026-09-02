@@ -193,8 +193,9 @@ def tramos_en_ruta_critica(tramos: list) -> list:
     tramos = tramos or []
     incluido = [False] * len(tramos)
 
-    # Tramos de llenado del acumulador (bomba independiente fuente→acumulador): excluidos siempre.
-    llenado = [es_tramo_llenado(t.get("nombre")) for t in tramos]
+    # Tramos con bomba independiente declarada explícitamente por el revisor (checkbox en UI):
+    # excluidos del CDT de distribución — tienen su propio sistema de bombeo.
+    llenado = [bool(t.get("es_llenado")) for t in tramos]
     distribucion = [i for i, ll in enumerate(llenado) if not ll]
 
     grupos = {"matriz": [], "terciaria": [], "lateral": [], None: []}

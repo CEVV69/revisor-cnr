@@ -9,28 +9,39 @@ justificación" (falso positivo).
 `calculos_riego.py`:
 - `_PALABRAS_LLENADO`: set con palabras clave ("acumulador", "embalse", "tranque", "estanque",
   "cisterna", "llenado", "reservorio").
-- `es_tramo_llenado(nombre)`: detecta el tramo fuente→acumulador por su nombre.
-- `tramos_en_ruta_critica()`: excluye los tramos de llenado antes de la lógica jerárquica —
-  siempre `False`, independiente del nivel.
+- `es_tramo_llenado(nombre)`: detecta el tramo fuente→acumulador por su nombre — función de
+  solo UI (controla visibilidad del checkbox). NO controla la exclusión del CDT directamente.
+- `tramos_en_ruta_critica()`: usa `bool(t.get("es_llenado"))` — campo explícito guardado por
+  el revisor — para excluir tramos. Nunca auto-detecta por nombre.
 
-`main.py` → `_tramos_con_calculo()`: marca `t["es_llenado"]` en cada tramo.
+`main.py`:
+- `_tramos_con_calculo()`: marca `t["es_llenado"] = bool(t.get("es_llenado"))` (estado
+  guardado del checkbox) y `t["es_llenado_detectado"] = es_tramo_llenado(nombre)` (hint para
+  mostrar el checkbox en la UI).
+- `calculos_guardar_hidraulico()`: guarda `"es_llenado": form.get(..._llenado_chk) == "on"`.
 
 `templates/calculos.html`:
-- `PALABRAS_LLENADO` + `esTramolLenado()` en JS (espejo de Python).
-- `recalcHidraulicoSistema()`: detecta tramos de llenado, los excluye del `hfTotal`, muestra
-  nota inline: "tramo de llenado del acumulador — bomba independiente, excluido del CDT...".
-- `<div id="{{ sp }}nota-llenado">`: nota debajo del CDT cuando hay doble bombeo, controlada
-  por JS.
+- `PALABRAS_LLENADO` + `esTramolLenado()` en JS (espejo de Python) — solo para visibilidad.
+- Jinja: `<label id=".._llenado_label" style="display:{{ 'block' if t.es_llenado_detectado else 'none' }}>
+  <input type="checkbox" name=".._llenado_chk"> Bomba independiente (excluir del CDT)</label>`
+  dentro del `<td>` del nombre — siempre en el DOM, hidden si no detectado.
+- `recalcHidraulicoSistema()`: a) actualiza `display` del label según `esTramolLenado()`, b)
+  lee `chkEl.checked` para `esLlenado` (no la detección por nombre), c) excluye del CDT solo
+  cuando checked. Nota "tramo de llenado" en result cell aparece solo cuando checked.
+- `<div id="{{ sp }}nota-llenado">`: nota debajo del CDT solo cuando hay tramo(s) con checkbox
+  marcado, controlada por JS.
+
+**Comportamiento correcto:** un consultor con una sola bomba que llena el acumulador y luego
+riega NO tiene checkbox marcado → todos sus tramos se suman al CDT (correcto). Solo si el
+revisor marca "Bomba independiente" en el tramo detectado, ese tramo se excluye del CDT. El
+checkbox nunca aparece en tramos sin palabras clave de llenado (sin ruido).
 
 `templates/informe_calculo.html` + `informe_calculo_completo.html`: nota en la columna de
-nombre del tramo cuando `t.es_llenado`.
+nombre cuando `t.es_llenado` (estado guardado, no detectado). Sin cambios.
 
 `analyzer.py` → checklist `diseno_hidraulico`: párrafo "SISTEMA DE DOBLE BOMBEO" — instruye
 que dos bombas con acumulador intermedio es válido y NO observable; solo es observable si se
-declaran sin acumulador o sin explicar el rol de cada una.
-
-**Detección:** automática por nombre del tramo — sin checkbox ni columna nueva. El consultor
-solo necesita nombrar el tramo con alguna de las palabras clave.
+declaran sin acumulador o sin explicar el rol de cada una. Sin cambios.
 
 ---
 

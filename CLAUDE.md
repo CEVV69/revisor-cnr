@@ -58,9 +58,10 @@ sin que él reporte primero. Detalle en `docs/`.
    usa ÷168) y bug reponeOk multi-día — prompt de handoff actualizado entregado en sep-2026.
 
 3. **Sistema de doble bombeo (sep-2026) — implementado, usuario probando:** cuando un tramo se
-   nombra con "acumulador/embalse/tranque/estanque/cisterna/llenado/reservorio", se detecta
-   automáticamente como tramo fuente→acumulador con bomba independiente y se excluye del CDT de
-   distribución. La nota aparece inline en la fila del tramo. El checklist del ítem
+   nombra con "acumulador/embalse/tranque/estanque/cisterna/llenado/reservorio", aparece un
+   checkbox "Bomba independiente (excluir del CDT)" solo en ese tramo. El revisor lo marca si
+   efectivamente hay una bomba separada para ese tramo — solo ahí se excluye del CDT. En tramos
+   sin nombre clave, no aparece ningún checkbox (sin ruido). El checklist del ítem
    `diseno_hidraulico` (IA) ya instruye que dos bombas con acumulador intermedio NO es observable.
 
 4. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5

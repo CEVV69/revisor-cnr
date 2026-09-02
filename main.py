@@ -1634,7 +1634,8 @@ def _tramos_con_calculo(tramos: list) -> list:
         else:
             t["calculo"] = None
         t["en_ruta_critica"] = en_critica
-        t["es_llenado"] = calculos_riego.es_tramo_llenado(t.get("nombre"))
+        t["es_llenado"] = bool(t.get("es_llenado"))
+        t["es_llenado_detectado"] = calculos_riego.es_tramo_llenado(t.get("nombre"))
         out.append(t)
     return out
 
@@ -2070,6 +2071,7 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
                 "material": (form.get(f"{sp}t{i}_material") or "").strip() or None,
                 "velocidad_declarada_ms": _num_form(form, f"{sp}t{i}_vel_declarada"),
                 "hf_declarada_mca": _num_form(form, f"{sp}t{i}_hf_declarada"),
+                "es_llenado": form.get(f"{sp}t{i}_llenado_chk") == "on",
             })
         sistemas.append({
             "tramos": tramos,
