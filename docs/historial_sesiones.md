@@ -1,3 +1,39 @@
+## Sesión sep-2026 — Sistema de doble bombeo (fuente→acumulador + acumulador→red)
+
+**Problema:** proyectos con mini-embalse intermedio declaran dos equipos de bombeo. El Chequeo
+sumaba todos los tramos en un solo CDT (incorrecto) y la IA observaba "2 equipos sin
+justificación" (falso positivo).
+
+**Solución implementada:**
+
+`calculos_riego.py`:
+- `_PALABRAS_LLENADO`: set con palabras clave ("acumulador", "embalse", "tranque", "estanque",
+  "cisterna", "llenado", "reservorio").
+- `es_tramo_llenado(nombre)`: detecta el tramo fuente→acumulador por su nombre.
+- `tramos_en_ruta_critica()`: excluye los tramos de llenado antes de la lógica jerárquica —
+  siempre `False`, independiente del nivel.
+
+`main.py` → `_tramos_con_calculo()`: marca `t["es_llenado"]` en cada tramo.
+
+`templates/calculos.html`:
+- `PALABRAS_LLENADO` + `esTramolLenado()` en JS (espejo de Python).
+- `recalcHidraulicoSistema()`: detecta tramos de llenado, los excluye del `hfTotal`, muestra
+  nota inline: "tramo de llenado del acumulador — bomba independiente, excluido del CDT...".
+- `<div id="{{ sp }}nota-llenado">`: nota debajo del CDT cuando hay doble bombeo, controlada
+  por JS.
+
+`templates/informe_calculo.html` + `informe_calculo_completo.html`: nota en la columna de
+nombre del tramo cuando `t.es_llenado`.
+
+`analyzer.py` → checklist `diseno_hidraulico`: párrafo "SISTEMA DE DOBLE BOMBEO" — instruye
+que dos bombas con acumulador intermedio es válido y NO observable; solo es observable si se
+declaran sin acumulador o sin explicar el rol de cada una.
+
+**Detección:** automática por nombre del tramo — sin checkbox ni columna nueva. El consultor
+solo necesita nombrar el tramo con alguna de las palabras clave.
+
+---
+
 ## Sesión sep-2026 — Diseñador de Riego actualizado a v129
 
 El usuario subió `disenador_riego_v129.html`. Se reemplazó `static/disenador_riego_v126.html`

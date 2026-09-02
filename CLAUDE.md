@@ -33,7 +33,7 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ---
 
-## Estado actual (ago-2026)
+## Estado actual (sep-2026)
 
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle en `docs/`.
@@ -57,10 +57,16 @@ sin que él reporte primero. Detalle en `docs/`.
    Diseñador de Riego: v129 subido (sep-2026). Pendiente en v129: turno "cada X días" (aún
    usa ÷168) y bug reponeOk multi-día — prompt de handoff actualizado entregado en sep-2026.
 
-3. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
+3. **Sistema de doble bombeo (sep-2026) — implementado, usuario probando:** cuando un tramo se
+   nombra con "acumulador/embalse/tranque/estanque/cisterna/llenado/reservorio", se detecta
+   automáticamente como tramo fuente→acumulador con bomba independiente y se excluye del CDT de
+   distribución. La nota aparece inline en la fila del tramo. El checklist del ítem
+   `diseno_hidraulico` (IA) ya instruye que dos bombas con acumulador intermedio NO es observable.
+
+4. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
    apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
 
-4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
    (nunca probada); costo de API en Memorias standalone (sin confirmar).
 
