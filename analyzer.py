@@ -625,6 +625,16 @@ RED HIDRÁULICA — más allá de la pérdida de carga por tramo:
 · Pérdidas singulares (fittings, válvulas, cambios de dirección): del orden del 20% de la suma de
   las pérdidas por fricción. Un diseño que las omite por completo subestima la CDT y, con ella, la
   potencia de bombeo.
+· SISTEMA DE DOBLE BOMBEO (válido y no observable): cuando hay un acumulador o mini-embalse
+  intermedio y la fuente está a distancia o desnivel significativo, es técnicamente correcto declarar
+  DOS equipos de bombeo — uno que impulsa desde la fuente hasta el acumulador (bomba de llenado) y
+  otro que distribuye desde el acumulador hacia los sectores de riego (bomba de distribución). Cada
+  bomba tiene su propia CDT independiente: la bomba de llenado vence las pérdidas y el desnivel del
+  tramo fuente→acumulador; la bomba de distribución vence las pérdidas y el desnivel del tramo
+  acumulador→red. Si el expediente declara ambas bombas y este contexto queda claro (tramo de
+  llenado identificado, acumulador declarado), NO es observable la presencia de dos equipos — es la
+  solución correcta. Solo es observable si se declaran dos bombas sin acumulador o sin que el diseño
+  explique qué resuelve cada una.
 · Goteo/Microaspersión: la variación de presión dentro de un sector no debe superar el 20% (que
   equivale a ~10% de variación de caudal entre emisores). Si el diseño la excede, deben proyectarse
   reguladores de presión o emisores autocompensados — su ausencia es observable.
