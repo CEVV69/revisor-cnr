@@ -136,11 +136,24 @@ _ALIAS_NIVEL_TRAMO = {
     "lateral": {"lateral", "portagotero", "portaemisor", "regante"},
 }
 
+# Palabras que identifican un tramo de llenado del acumulador (embalse/tranque/estanque):
+# cuando el nombre del tramo contiene alguna de estas, se infiere que ese tramo pertenece al
+# sistema de bombeo independiente fuente→acumulador, y se excluye del CDT de distribución.
+_PALABRAS_LLENADO = {"acumulador", "embalse", "tranque", "estanque", "cisterna", "llenado", "reservorio"}
+
 
 def _normalizar_nombre_tramo(nombre: str) -> str:
     """minúsculas, sin tildes, para comparar contra los alias de `_ALIAS_NIVEL_TRAMO`."""
     n = unicodedata.normalize("NFKD", (nombre or "").strip().lower())
     return "".join(c for c in n if unicodedata.category(c) != "Mn")
+
+
+def es_tramo_llenado(nombre: str) -> bool:
+    """True si el nombre del tramo indica que es el tramo fuente→acumulador con bomba propia.
+    Esos tramos se excluyen del CDT de distribución — pertenecen a un sistema de bombeo
+    independiente y tienen su propia AMT que el consultor dimensiona aparte."""
+    n = _normalizar_nombre_tramo(nombre)
+    return bool(n and any(p in n for p in _PALABRAS_LLENADO))
 
 
 def clasificar_nivel_tramo(nombre: str) -> str:
@@ -177,11 +190,16 @@ def tramos_en_ruta_critica(tramos: list) -> list:
     Los tramos sin clasificar (nombre libre que no calza con ningún alias) se tratan igual que
     Matriz: se incluyen todos — no hay información de jerarquía para tratarlos como ramales
     alternativos, así que se mantiene el criterio anterior (sumarlos)."""
-    grupos = {"matriz": [], "terciaria": [], "lateral": [], None: []}
-    for i, t in enumerate(tramos or []):
-        grupos[clasificar_nivel_tramo(t.get("nombre"))].append(i)
+    tramos = tramos or []
+    incluido = [False] * len(tramos)
 
-    incluido = [False] * len(tramos or [])
+    # Tramos de llenado del acumulador (bomba independiente fuente→acumulador): excluidos siempre.
+    llenado = [es_tramo_llenado(t.get("nombre")) for t in tramos]
+    distribucion = [i for i, ll in enumerate(llenado) if not ll]
+
+    grupos = {"matriz": [], "terciaria": [], "lateral": [], None: []}
+    for i in distribucion:
+        grupos[clasificar_nivel_tramo(tramos[i].get("nombre"))].append(i)
     for i in grupos["matriz"] + grupos[None]:
         incluido[i] = True
 

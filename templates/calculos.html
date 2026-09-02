@@ -521,6 +521,7 @@
           AMT calc. (m) <span id="{{ sp }}amt_calculada" class="text-muted" style="font-weight:400;">{{ hsis.amt_calculada_m if hsis.amt_calculada_m is not none else '—' }}</span>
         </span>
       </div>
+      <div id="{{ sp }}nota-llenado" class="text-muted" style="font-size:0.78rem; margin-top:0.25rem; display:none;">Sistema de doble bombeo detectado — CDT calculada corresponde solo al sistema de distribución (bomba 2). El tramo fuente→acumulador tiene bomba independiente.</div>
     </div>
     {% endfor %}
     <label style="display:grid; grid-template-columns:auto 1fr; align-items:start; column-gap:0.5rem; margin:0.9rem 0; font-size:0.85rem;">
@@ -692,6 +693,14 @@
       }
     }
     return null;
+  }
+  var PALABRAS_LLENADO = ["acumulador", "embalse", "tranque", "estanque", "cisterna", "llenado", "reservorio"];
+  function esTramolLenado(nombre) {
+    var n = (nombre || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    for (var j = 0; j < PALABRAS_LLENADO.length; j++) {
+      if (n.indexOf(PALABRAS_LLENADO[j]) !== -1) return true;
+    }
+    return false;
   }
   var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
   var RHO_CU = 1/58;
@@ -1769,16 +1778,16 @@
       if (hf !== null) html += " · Hf=<b>" + fmt(hf, 3) + "</b> mca";
       html += " · Ø sug.=" + fmt(dSug, 1) + " mm";
       if (alerta) html += '<br><span class="calc-alerta">' + alerta + "</span>";
-      tramos.push({cellId: cellId, html: html, hf: hf, nivel: clasificarNivelTramo(nombre)});
+      tramos.push({cellId: cellId, html: html, hf: hf, nivel: clasificarNivelTramo(nombre), esLlenado: esTramolLenado(nombre)});
     }
 
-    // Ruta crítica: Matriz y tramos sin clasificar van SIEMPRE incluidos (troncal en serie, o sin
-    // info de jerarquía). Terciaria/Lateral: declarar 2+ del mismo nivel es ramal alternativo —
-    // solo el de mayor Hf cuenta; el resto queda marcado como excluido.
-    var incluido = tramos.map(function() { return true; });
+    // Tramos de llenado (fuente→acumulador con bomba independiente): excluidos siempre del CDT
+    // de distribución. El resto sigue la lógica de ruta crítica por nivel jerárquico.
+    var incluido = tramos.map(function(t) { return !t.esLlenado; });
+    var hayLlenado = tramos.some(function(t) { return t.esLlenado; });
     ["terciaria", "lateral"].forEach(function(nivel) {
       var idxs = [];
-      tramos.forEach(function(t, idx) { if (t.nivel === nivel) idxs.push(idx); });
+      tramos.forEach(function(t, idx) { if (!t.esLlenado && t.nivel === nivel) idxs.push(idx); });
       if (idxs.length <= 1) return;
       var conHf = idxs.filter(function(idx) { return tramos[idx].hf; });
       var elegido = conHf.length
@@ -1790,7 +1799,9 @@
     var hfTotal = 0, hfHuboDato = false;
     tramos.forEach(function(t, idx) {
       var html = t.html;
-      if (!incluido[idx]) {
+      if (t.esLlenado) {
+        html += '<br><span class="text-muted" style="font-size:0.85em;">tramo de llenado del acumulador — bomba independiente, excluido del CDT de distribución.</span>';
+      } else if (!incluido[idx]) {
         html += '<br><span class="text-muted" style="font-size:0.85em;">no incluido en la CDT — hay otro tramo de su mismo nivel (' + t.nivel + ') con mayor pérdida de carga.</span>';
       } else if (t.hf) {
         hfTotal += t.hf; hfHuboDato = true;
@@ -1808,6 +1819,8 @@
     if (perdCabezal !== null) { amtTotal += perdCabezal; amtHuboDato = true; }
     if (presionEmisor !== null) { amtTotal += presionEmisor; amtHuboDato = true; }
     setHtml(sp + "amt_calculada", amtHuboDato ? fmt(amtTotal, 2) : "—");
+    var notaLlenado = document.getElementById(sp + "nota-llenado");
+    if (notaLlenado) notaLlenado.style.display = hayLlenado ? "" : "none";
   }
 
   function recalcHidraulico() {

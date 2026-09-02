@@ -1634,6 +1634,7 @@ def _tramos_con_calculo(tramos: list) -> list:
         else:
             t["calculo"] = None
         t["en_ruta_critica"] = en_critica
+        t["es_llenado"] = calculos_riego.es_tramo_llenado(t.get("nombre"))
         out.append(t)
     return out
 

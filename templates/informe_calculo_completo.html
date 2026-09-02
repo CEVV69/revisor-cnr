@@ -483,7 +483,7 @@
   <tbody>
   {% for t in tramos_con_datos %}
   <tr>
-    <td>{{ t.nombre or ('Tramo ' ~ loop.index) }}{% if t.en_ruta_critica is defined and not t.en_ruta_critica %}<br><span class="text-muted" style="font-size:0.8em;">no incluido en la CDT — ramal alternativo, no crítico</span>{% endif %}</td>
+    <td>{{ t.nombre or ('Tramo ' ~ loop.index) }}{% if t.es_llenado %}<br><span class="text-muted" style="font-size:0.8em;">tramo de llenado — bomba independiente, excluido del CDT de distribución</span>{% elif t.en_ruta_critica is defined and not t.en_ruta_critica %}<br><span class="text-muted" style="font-size:0.8em;">no incluido en la CDT — ramal alternativo, no crítico</span>{% endif %}</td>
     <td>{{ num(t.caudal_ls) }}</td><td>{{ num(t.diametro_mm) }}</td><td>{{ num(t.longitud_m) }}</td>
     <td>{{ t.material or '—' }}</td>
     <td>{{ num(t.velocidad_declarada_ms) }}</td>
