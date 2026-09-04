@@ -488,17 +488,19 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # los 5 colores existentes ya estaban todos tomados y el usuario pidió explícitamente un color
 # DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
 # lado por otro más urgente) no pase desapercibido en el dashboard.
-ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Con respuesta Obs.",
+ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Resp. Obs.2",
                     "Aprobado Técnicamente", "Rechazado"]
-# "Con respuesta Observaciones" (nombre original, hasta sep-2026) se acorta acá porque su largo
-# desbordaba el badge y apretaba el resto de la fila/encabezado — ver ESTADOS_LEGACY para no
-# perder el estado ya guardado en proyectos anteriores al cambio.
-ESTADOS_LEGACY = {"Con respuesta Observaciones": "Con respuesta Obs."}
+# "Con respuesta Observaciones"/"Con respuesta Obs." (nombres anteriores, hasta sep-2026) se
+# reemplazan por un estado por ronda — el revisor elige cuál corresponde. Sin forma de saber a
+# qué ronda corresponde un proyecto ya guardado con el nombre viejo, cae a la ronda 1 por
+# defecto; ver ESTADOS_LEGACY para no perder el estado ya guardado en proyectos anteriores.
+ESTADOS_LEGACY = {"Con respuesta Observaciones": "Resp. Obs.1", "Con respuesta Obs.": "Resp. Obs.1"}
 ESTADOS_PROYECTO_BADGE = {
     "En revisión":         "badge-estado",     # celeste
     "Pendiente":           "badge-pendiente",   # rosa/magenta
     "Observado":           "badge-menor",       # amarillo
-    "Con respuesta Obs.":  "badge-legal",       # morado claro
+    "Resp. Obs.1":         "badge-legal",       # morado claro
+    "Resp. Obs.2":         "badge-legal",       # morado claro
     "Aprobado Técnicamente": "badge-tecnica",   # verde
     "Rechazado":           "badge-mayor",       # rojo
 }
@@ -506,7 +508,8 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "En revisión":         "#2b6cb0",
     "Pendiente":           "#c2185b",
     "Observado":           "#c05621",
-    "Con respuesta Obs.":  "#5e35b1",
+    "Resp. Obs.1":         "#5e35b1",
+    "Resp. Obs.2":         "#5e35b1",
     "Aprobado Técnicamente": "#276749",
     "Rechazado":           "#c41230",
 }
@@ -3746,9 +3749,22 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         n_obs_item = sum(1 for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("item", "") == item_obs)
 
+        # Si ya hubo una ronda reiterada, la "Contra Observación" que el revisor escribió ahí
+        # suele acotar o precisar el punto (ej. "falta específicamente el cálculo de X") — se
+        # suma al texto de la observación original con la MISMA categoría que esta, no como un
+        # dato aparte, para que la IA evalúe la ronda nueva contra el foco real, no solo el
+        # enunciado genérico inicial.
+        observacion_texto = obs.get("texto", "")
+        rondas_previas = (obs.get("subsanacion") or {}).get("rondas", [])
+        if rondas_previas:
+            ultima_ronda = rondas_previas[-1]
+            contra_obs = (ultima_ronda.get("comentario") or "").strip()
+            if ultima_ronda.get("evaluacion") == "reiterada" and contra_obs:
+                observacion_texto += f"\n\nContra Observación del revisor (ronda {ultima_ronda.get('ronda')}, tras la respuesta anterior): {contra_obs}"
+
         acc_costo = iniciar_costo()
         resultado = await evaluar_respuesta_subsanacion(
-            observacion_texto=obs.get("texto", ""),
+            observacion_texto=observacion_texto,
             referencia=obs.get("referencia_normativa", ""),
             respuesta_consultor=respuesta, item_key=item_obs,
             documentos=documentos_con_texto, resumen=proyecto.get("resumen", {}),
@@ -3832,7 +3848,10 @@ async def adjuntar_respaldo_subsanacion(
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/subsanacion/deshacer")
 async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs_id: str):
     """Borra la ÚLTIMA ronda registrada (por si el revisor se equivocó al evaluar). Solo quita
-    el último registro, conserva los anteriores."""
+    el último registro, conserva los anteriores. Los adjuntos que esa ronda se había llevado
+    (ver `registrar_respuesta_subsanacion`, que los mueve de `adjuntos_pendientes` a la ronda al
+    guardar) vuelven a `adjuntos_pendientes` — si no, el archivo seguía existiendo como documento
+    del proyecto pero dejaba de aparecer en ningún lado de Respuestas."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -3841,7 +3860,10 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
         raise HTTPException(status_code=404)
     obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
     if obs and (obs.get("subsanacion") or {}).get("rondas"):
-        obs["subsanacion"]["rondas"].pop()
+        ronda = obs["subsanacion"]["rondas"].pop()
+        adjuntos = ronda.get("adjuntos", [])
+        if adjuntos:
+            obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
 

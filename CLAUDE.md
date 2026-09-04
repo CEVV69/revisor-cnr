@@ -49,13 +49,11 @@ agregar apps nuevas).
    "cada X días" (aún usa ÷168) y bug `reponeOk` multi-día — prompt de handoff entregado en
    sep-2026, aún no aplicado.
 
-2. **Sección Respuestas — 5 correcciones (sep-2026) — implementado, usuario probando:** estado
-   "Con respuesta Obs." acortado (legacy migrado vía filtro `estado_label`); observaciones
-   renumeradas secuencial por grupo (`loop.index`, igual que la ficha); adjuntos (pendientes y de
-   rondas ya guardadas) ahora son link a `/documento/{id}/ver`; la ficha muestra la respuesta del
-   consultor bajo cada observación, precedida de "R:"; la evaluación IA persiste en
-   `sessionStorage` al volver de otra pestaña (se invalida si cambió el texto de la respuesta).
-   Detalle en `docs/`.
+2. **Sección Respuestas — 2 rondas de correcciones (sep-2026) — implementado, usuario probando.**
+   Estado del proyecto ahora es por ronda ("Resp. Obs.1"/"Resp. Obs.2"); "Nota del revisor" pasó
+   a ser "Contra Observación" (destacada visualmente, alimenta a la IA en la ronda siguiente);
+   formulario reordenado sin texto explicativo redundante; deshacer ronda ya no pierde sus
+   adjuntos. Detalle completo en `docs/`.
 
 3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor

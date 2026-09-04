@@ -1,3 +1,63 @@
+## Sesión sep-2026 — Sección Respuestas: 2ª ronda de correcciones (afinado tras la primera)
+
+El usuario probó la primera ronda de correcciones (ver entrada siguiente) y pidió 7 ajustes más
+finos, todos sobre el mismo flujo:
+
+**1. Estado aún más corto, y por RONDA.** "Con respuesta Obs." pasó a ser DOS estados:
+"Resp. Obs.1" (1ª ronda) y "Resp. Obs.2" (2ª ronda) — el revisor elige cuál corresponde al
+subir el proyecto de estado, igual que antes. `ESTADOS_PROYECTO` ahora las lista a ambas;
+`ESTADOS_LEGACY` (`main.py`) mapea las DOS grafías anteriores ("Con respuesta Observaciones" Y
+"Con respuesta Obs.") a "Resp. Obs.1" por defecto, ya que no hay forma de saber a qué ronda
+corresponde un proyecto ya guardado con el nombre viejo. Mismos filtros `estado_label`/
+`estado_badge` de la ronda anterior, sin cambios ahí.
+
+**2. "Nota del revisor" → "Contra Observación", y debe llegar a la ficha.** Cuando la respuesta
+NO se da por resuelta (reiterada), lo que el revisor escribe ahí es en la práctica una nueva
+observación — más acotada, apuntando a lo específico que sigue faltando — no una nota
+secundaria. Se renombró la label en `respuestas.html` y se le dio tratamiento visual de
+observación (no de nota muda): clase `.contra-obs` nueva, borde izquierdo naranja (`#c05621`,
+mismo tono que "esperando"/"observado" en el resto de la app) + fondo tenue, en vez del texto
+gris chico que tenía antes. En `ficha.html` se agrega, bajo el "R:" de cada ronda, un bloque
+"Contra Observación:" (clase `.obs-contra`, mismo criterio de color) — SOLO cuando esa ronda fue
+`reiterada` y tiene comentario. Con esto la ficha queda con trazabilidad completa por ronda:
+Observación → R (ronda 1) → Contra Observación (si reiteró) → R (ronda 2).
+
+**3. La Contra Observación debe alimentar a la IA en la ronda siguiente.** En
+`evaluar_respuesta_ia` (`main.py`), antes de llamar a `evaluar_respuesta_subsanacion`, si la
+última ronda registrada fue `reiterada` y tiene `comentario`, se concatena al
+`observacion_texto` original (no se manda como parámetro aparte) — el pedido explícito del
+usuario fue que tuviera "la misma categoría que una observación, no solo una nota", así que se
+suma al mismo texto que la IA ya trata como LA observación a resolver, en vez de vivir en un
+campo secundario que la IA podría ponderar menos.
+
+**4. Reordenar el formulario de respuesta.** Orden nuevo: Respuesta del consultor → Contra
+Observación → Documento de respaldo/respuesta → una sola fila con [Evaluar respuesta con IA]
+[Marcar como resuelta] [Reiterar] → resultado de la IA debajo. Antes el adjunto iba primero y
+la nota del revisor quedaba después de evaluar con IA y separada de los botones de decisión.
+Se eliminó el texto explicativo bajo el botón IA ("La IA la cruza con los antecedentes..." —
+ya se entiende por el nombre del botón, redundante) — ahorra una línea completa por observación,
+en línea con "minimizar la longitud vertical".
+
+**5. `Deshacer última ronda` perdía los adjuntos.** `registrar_respuesta_subsanacion` mueve los
+archivos de `adjuntos_pendientes` a `ronda["adjuntos"]` al guardar la ronda. Al deshacer
+(`deshacer_respuesta_subsanacion`), se hacía `pop()` de la ronda entera sin recuperar esos
+adjuntos — el archivo seguía existiendo como documento del proyecto (nunca se borra), pero
+dejaba de aparecer en cualquier lista de Respuestas. Fix: el `pop()` ahora captura la ronda,
+y sus `adjuntos` (si tiene) vuelven a `adjuntos_pendientes` (antepuestos, por si ya había algo
+pendiente sin usar).
+
+**6. Badges redundantes en cada ronda.** El badge superior de la tarjeta ya dice "Resuelta" /
+"No resuelta (2 rondas)" / "Esperando respuesta (ronda N)". Cada `ronda-box` individual
+ADEMÁS mostraba "La resuelve" (verde) o "Reiterada" (rojo) junto al título "Ronda N —
+respuesta del consultor" — puramente redundante con el badge de arriba. Se eliminaron ambos,
+el título de la ronda queda solo con el número.
+
+Los 3 archivos tocados: `main.py` (estados por ronda + Contra Observación a la IA + fix
+deshacer), `templates/respuestas.html` (reorden de formulario, badges, estilo Contra
+Observación), `templates/ficha.html` (Contra Observación bajo la respuesta reiterada).
+
+---
+
 ## Sesión sep-2026 — Sección Respuestas: 5 correcciones tras las primeras respuestas reales
 
 Llegaron las primeras respuestas del consultor a observaciones en producción y el usuario
