@@ -919,7 +919,7 @@ function actualizarEtiqueta(input) {
       <h2 style="margin:0; border:none; padding:0;">Resumen del proyecto</h2>
       <span style="font-size:0.8rem; color:var(--text-2);">Ficha con los datos mínimos. Auto-completa con la IA y edita lo que falte.</span>
     </div>
-    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-left:auto;">
       <form method="post" action="/proyecto/{{ proyecto.id }}/programa" style="display:flex; align-items:center; gap:0.35rem;">
         <span style="font-size:0.8rem; color:var(--text-2); white-space:nowrap;">Programa:</span>
         <select name="programa" onchange="this.form.submit()"
