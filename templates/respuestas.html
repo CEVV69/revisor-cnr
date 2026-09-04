@@ -189,6 +189,7 @@
                 onclick="evaluarIA('{{ obs.id }}')" style="border-color:#2b6cb0; color:#2b6cb0;">
           Evaluar respuesta con IA
         </button>
+        <span style="flex:1;"></span>
         <button type="submit" name="evaluacion" value="resuelta" class="btn btn-success btn-sm">Marcar como resuelta</button>
         <button type="submit" name="evaluacion" value="reiterada" class="btn btn-danger btn-sm">
           {% if sub.ronda_actual == 1 %}Reiterar (no la resuelve){% else %}Reiterar — última ronda{% endif %}
