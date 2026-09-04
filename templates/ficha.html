@@ -56,9 +56,7 @@
     .obs-ref { font-size: 9.5px; color: #555; margin-top: 3px; font-style: italic; }
     .obs-resp { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #ccc; line-height: 1.5; white-space: pre-wrap; }
     .obs-resp-r { font-weight: bold; color: #276749; }
-    .obs-contra { margin-top: 3px; padding: 3px 6px; border-left: 2px solid #c05621;
-                  background: #fffaf0; line-height: 1.5; white-space: pre-wrap; }
-    .obs-contra-label { font-weight: bold; color: #c05621; }
+    .obs-contra-label { font-size: 10px; font-weight: bold; color: #1a365d; margin-top: 4px; }
 
     /* Resumen contadores */
     .resumen { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px;
@@ -153,11 +151,16 @@
       {% endif %}
       {% set rondas = (obs.subsanacion or {}).get("rondas", []) %}
       {% for r in rondas %}
-      <div class="obs-resp"><span class="obs-resp-r">R{% if rondas|length > 1 %} (ronda {{ r.ronda }}){% endif %}:</span> {{ r.respuesta }}</div>
-      {% if r.evaluacion == 'reiterada' and r.comentario %}
-      <div class="obs-contra"><span class="obs-contra-label">Contra Observación:</span> {{ r.comentario }}</div>
+      {% if loop.index0 > 0 %}
+      <div class="obs-contra-label">Contra Observación</div>
+      <div class="obs-texto">{{ rondas[loop.index0 - 1].comentario }}</div>
       {% endif %}
+      <div class="obs-resp"><span class="obs-resp-r">R{% if rondas|length > 1 %} (ronda {{ r.ronda }}){% endif %}:</span> {{ r.respuesta }}</div>
       {% endfor %}
+      {% if rondas and rondas[-1].evaluacion == 'reiterada' and rondas[-1].comentario %}
+      <div class="obs-contra-label">Contra Observación</div>
+      <div class="obs-texto">{{ rondas[-1].comentario }}</div>
+      {% endif %}
     </div>
     {% endfor %}
   {% endfor %}

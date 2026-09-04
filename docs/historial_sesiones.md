@@ -1,3 +1,47 @@
+## Sesión sep-2026 — Sección Respuestas: 3ª ronda de correcciones (auto-alto, formato y reorden)
+
+Tras probar la 2ª ronda (ver entrada siguiente), el usuario pidió 3 ajustes más, todos en
+`templates/respuestas.html` y `templates/ficha.html` (sin cambios en `main.py`):
+
+**1. Textareas con alto fijo desperdiciaban espacio.** "Respuesta del consultor" (`rows="3"`) y
+"Contra Observación" (`rows="2"`) mostraban mucho blanco vacío para una respuesta de una línea.
+Se cambiaron a `rows="1"` + auto-resize por JS: función `autoResize(el)` (`el.style.height =
+'auto'` y luego `= el.scrollHeight + 'px'`), llamada en el `oninput` de cada textarea y también
+para todas las `.form-resp textarea` al cargar la página (por si el navegador restaura texto ya
+escrito tras un back). CSS: `resize:none; overflow:hidden` (el resize manual del usuario ya no
+tiene sentido si la altura la controla el contenido).
+
+**2. La Contra Observación "se perdía" con formato de nota, y el usuario quería que definiera el
+inicio de la ronda siguiente.** Antes vivía DENTRO del `ronda-box` de la ronda que la originó,
+con caja ámbar (`.contra-obs`, borde `#c05621` + fondo tenue) y label inline ("**Contra
+Observación:** texto..."), muy parecida visualmente a cualquier nota secundaria. Pedido del
+usuario: "cada ronda se inicia con la Observación o con la Contra Observación según
+corresponda" — es decir, la Contra Observación de la ronda N es conceptualmente la Observación
+que abre la ronda N+1, y debe verse EXACTAMENTE igual que la Observación original (misma clase,
+sin caja de color), con su label arriba (línea propia), no inline.
+
+Se reestructuró el loop de rondas en ambos templates: para la ronda de índice `i` (0-based), si
+`i > 0` se muestra ANTES del bloque de esa ronda un label "Contra Observación" + el `comentario`
+de la ronda `i-1`, usando la MISMA clase que la Observación original (`.resp-txt` en
+`respuestas.html`, `.obs-texto` en `ficha.html`) — cero CSS de "nota". La ronda 0 nunca lleva
+este bloque porque su "observación de apertura" ya es el `obs.texto` de más arriba (mostrado una
+sola vez, fuera del loop). Caso borde cubierto: si la ÚLTIMA ronda registrada fue `reiterada` y
+tiene comentario pero no hay ronda siguiente (2 rondas agotadas, o el revisor aún no respondió
+la próxima), se muestra el mismo bloque DESPUÉS del loop — es la última palabra del revisor y no
+puede perderse solo porque no hay una ronda N+1 que la "abra" todavía.
+
+CSS eliminado: `.contra-obs`/`.contra-obs-label` en ambos templates (ya no se usan). En
+`ficha.html` se dejó solo `.obs-contra-label` (heading chico en línea propia, igual peso visual
+que el resto de labels de la ficha) — el contenido usa `.obs-texto` sin clase nueva.
+
+**3. Párrafo explicativo de la página eliminado.** La tarjeta introductoria al inicio de
+`respuestas.html` ("Aquí se revisan las respuestas del consultor...", 4 líneas fijas siempre
+visibles) se quitó completa — ahorra espacio vertical permanente en una página donde cada
+observación aprobada ya ocupa su propia tarjeta; el flujo se entiende por los propios labels/
+botones (ver Regla 8 de CLAUDE.md, minimalismo UI).
+
+---
+
 ## Sesión sep-2026 — Sección Respuestas: 2ª ronda de correcciones (afinado tras la primera)
 
 El usuario probó la primera ronda de correcciones (ver entrada siguiente) y pidió 7 ajustes más

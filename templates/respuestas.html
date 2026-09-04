@@ -21,10 +21,9 @@
     margin:0.6rem 0; background:rgba(128,128,128,0.04); }
   .ronda-titulo { font-size:0.8rem; font-weight:700; color:var(--text-2); margin-bottom:0.3rem; }
   .resp-txt { white-space:pre-wrap; font-size:0.88rem; line-height:1.5; }
-  .contra-obs { white-space:pre-wrap; font-size:0.86rem; line-height:1.45; margin-top:0.4rem;
-    padding:0.4rem 0.6rem; border-left:3px solid #c05621; background:rgba(192,86,33,0.06); }
   .form-resp textarea { width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
-    font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:vertical; }
+    font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:none;
+    overflow:hidden; }
   .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
     font-size:0.85rem; line-height:1.45; }
   .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
@@ -47,18 +46,6 @@
   <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas</a>
   {% include "_apps_menu.html" %}
 </nav>
-
-<div class="card" style="border-left:4px solid #2b6cb0;">
-  <p class="text-muted" style="font-size:0.85rem; margin:0;">
-    Aquí se revisan las respuestas del consultor a las observaciones ya <strong>aprobadas</strong>
-    (las que se enviaron con la ficha). El consultor responde por fuera (SEP); tú
-    <strong>transcribes</strong> su respuesta a cada punto y la evalúas: si la resuelve, el punto
-    se cierra; si no, se reitera. Hay hasta <strong>2 rondas</strong> por observación. Cuando
-    <strong>todas</strong> quedan resueltas, puedes dar el proyecto por
-    <strong>Aprobado Técnicamente</strong>. Si algún antecedente nuevo llega como archivo, súbelo
-    en la página <strong>Documentos</strong> (y vuelve a revisar el ítem si corresponde).
-  </p>
-</div>
 
 {% if total == 0 %}
 <div class="card">
@@ -129,6 +116,10 @@
     {% endif %}
 
     {% for r in sub.rondas %}
+    {% if loop.index0 > 0 %}
+    <div class="ronda-titulo">Contra Observación</div>
+    <div class="resp-txt" style="margin-bottom:0.5rem;">{{ sub.rondas[loop.index0 - 1].comentario }}</div>
+    {% endif %}
     <div class="ronda-box">
       <div class="ronda-titulo">Ronda {{ r.ronda }} — respuesta del consultor</div>
       <div class="resp-txt">{{ r.respuesta }}</div>
@@ -136,11 +127,6 @@
       <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.35rem;">
         <strong>Documentos adjuntados:</strong>
         {% for a in r.adjuntos %}<a href="/proyecto/{{ proyecto.id }}/documento/{{ a.id }}/ver" target="_blank">{{ a.nombre }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
-      </div>
-      {% endif %}
-      {% if r.comentario %}
-      <div class="contra-obs">
-        <strong>Contra Observación:</strong> {{ r.comentario }}
       </div>
       {% endif %}
       {% if r.ia_recomendacion %}
@@ -156,13 +142,18 @@
     </div>
     {% endfor %}
 
+    {% if sub.rondas and sub.rondas[-1].evaluacion == 'reiterada' and sub.rondas[-1].comentario %}
+    <div class="ronda-titulo">Contra Observación</div>
+    <div class="resp-txt" style="margin-bottom:0.5rem;">{{ sub.rondas[-1].comentario }}</div>
+    {% endif %}
+
     {% if sub.puede_responder %}
     <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/responder"
           id="form-resp-{{ obs.id }}" class="form-resp" style="margin-top:0.6rem;">
       <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;">
         Respuesta del consultor (ronda {{ sub.ronda_actual }})
       </label>
-      <textarea name="respuesta" rows="3" required oninput="limpiarIA('{{ obs.id }}')"
+      <textarea name="respuesta" rows="1" required oninput="limpiarIA('{{ obs.id }}'); autoResize(this);"
         placeholder="Transcribe o resume qué respondió el consultor a este punto..."></textarea>
       <input type="hidden" name="ia_recomendacion" id="ia-rec-{{ obs.id }}">
       <input type="hidden" name="ia_fundamento" id="ia-fund-{{ obs.id }}">
@@ -170,7 +161,7 @@
       <label style="display:block; font-size:0.82rem; font-weight:600; margin:0.6rem 0 0.3rem;">
         Contra Observación (opcional)
       </label>
-      <textarea name="comentario" rows="2"
+      <textarea name="comentario" rows="1" oninput="autoResize(this);"
         placeholder="Por qué la das por resuelta, o qué sigue faltando si la reiteras..."></textarea>
 
       <div style="margin-top:0.6rem; border:1px dashed var(--border); border-radius:8px; padding:0.5rem 0.7rem;">
@@ -351,9 +342,18 @@ async function evaluarIA(obsId) {
   btn.disabled = false; btn.textContent = orig;
 }
 
+// Altura ajustada al contenido — con rows fijo (3/2) quedaba mucho espacio vacío para una
+// respuesta corta. Arrancan en rows=1 y crecen con cada tecla (input) y con el valor que el
+// navegador restaure al cargar (ej. tras un back con el formulario ya escrito).
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   var obsIds = [{% for grupo in grupos %}{% for par in grupo.obs %}'{{ par.obs.id }}',{% endfor %}{% endfor %}];
   obsIds.forEach(restaurarIA);
+  document.querySelectorAll('.form-resp textarea').forEach(autoResize);
 });
 </script>
 
