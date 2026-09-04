@@ -36,38 +36,28 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 ## Estado actual (sep-2026)
 
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
-sin que él reporte primero. Detalle en `docs/`.
+sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 
-1. **Auditoría técnica del motor de Aspersión (ago-2026) — CERRADA:** unidades del aspersor,
-   ciclo-vs-día, Da en kg/m³, los 3 bugs del Diseñador de Riego (app en
-   `static/disenador_riego_v129.html`, era v123→v126→v129), y V/Hf en blanco en la Memoria
-   Completa — todos corregidos y verificados. Detalle y validación numérica en `docs/`.
+**Cerrado, probado y OK** (detalle en `docs/`): auditoría del motor de Aspersión (ago-2026);
+sistema de doble bombeo — checkbox manual "Bomba independiente (excluir del CDT)" que solo
+aparece en tramos cuyo nombre sugiere acumulador/embalse/etc., el revisor decide si marcarlo
+(sep-2026); menú "Apps" único al final de `.proj-nav` (`_apps_menu.html`, editar ahí para
+agregar apps nuevas).
 
-2. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando:**
-   (a) campos "Horas disponibles por turno" (placeholder "Continuo") + "Cada cuántos días"
-   (default 7) — caudal EFECTIVO (nominal × horas/(período×24)) para superficie segura/balance
-   diario/acumulador requerido, en vez de asumir 24h continuas. Generalizado a "cada X días" (no
-   fijo a semana) tras feedback del usuario — turnos de canalistas pueden ser cada 15/30 días.
-   (b) La CDT (`amt_calculada_m`) ya NO suma todos los tramos — 2+ del mismo nivel jerárquico son
-   ramales alternativos, solo cuenta el de mayor Hf (ruta crítica). (c) **Bug real encontrado por
-   el usuario y corregido:** "Volumen mínimo del estanque" usaba volumen del CICLO COMPLETO menos
-   el aporte de UN día — sobrestimaba hasta 3× en ciclos multi-día, casi siempre daba "no
-   alcanza". Ahora usa ΔQ × Tiempo de UN día (misma fórmula que los datos de autonomía). Los 3
-   lados + espejo JS, ver `docs/`. Pendiente: mismo par de bugs (turno + ruta crítica) en el
-   Diseñador de Riego: v129 subido (sep-2026). Pendiente en v129: turno "cada X días" (aún
-   usa ÷168) y bug reponeOk multi-día — prompt de handoff actualizado entregado en sep-2026.
+1. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando.**
+   Detalle en `docs/`. Pendiente: mismo par de bugs en el Diseñador de Riego v129 — turno
+   "cada X días" (aún usa ÷168) y bug `reponeOk` multi-día — prompt de handoff entregado en
+   sep-2026, aún no aplicado.
 
-3. **Sistema de doble bombeo (sep-2026) — probado y OK:** cuando un tramo se
-   nombra con "acumulador/embalse/tranque/estanque/cisterna/llenado/reservorio", aparece un
-   checkbox "Bomba independiente (excluir del CDT)" solo en ese tramo. El revisor lo marca si
-   efectivamente hay una bomba separada para ese tramo — solo ahí se excluye del CDT. En tramos
-   sin nombre clave, no aparece ningún checkbox (sin ruido). El checklist del ítem
-   `diseno_hidraulico` (IA) ya instruye que dos bombas con acumulador intermedio NO es observable.
+2. **Sección Respuestas — 5 correcciones (sep-2026) — implementado, usuario probando:** estado
+   "Con respuesta Obs." acortado (legacy migrado vía filtro `estado_label`); observaciones
+   renumeradas secuencial por grupo (`loop.index`, igual que la ficha); adjuntos (pendientes y de
+   rondas ya guardadas) ahora son link a `/documento/{id}/ver`; la ficha muestra la respuesta del
+   consultor bajo cada observación, precedida de "R:"; la evaluación IA persiste en
+   `sessionStorage` al volver de otra pestaña (se invalida si cambió el texto de la respuesta).
+   Detalle en `docs/`.
 
-4. **Menú "Apps" (probado y OK):** botón único al final de `.proj-nav` (`_apps_menu.html`) — 5
-   apps hermanas. Agregar apps nuevas: solo editar `_apps_menu.html`.
-
-5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
    (nunca probada); costo de API en Memorias standalone (sin confirmar).
 

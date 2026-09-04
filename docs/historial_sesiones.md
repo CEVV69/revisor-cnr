@@ -1,3 +1,79 @@
+## Sesión sep-2026 — Sección Respuestas: 5 correcciones tras las primeras respuestas reales
+
+Llegaron las primeras respuestas del consultor a observaciones en producción y el usuario
+reportó 5 problemas de uso real:
+
+**1. Estado "Con respuesta Observaciones" muy largo — acorralaba el resto de la fila/encabezado.**
+Se acortó a "Con respuesta Obs." en `ESTADOS_PROYECTO`/`ESTADOS_PROYECTO_BADGE`/
+`ESTADOS_PROYECTO_COLOR_SOLIDO` (`main.py`). Para no romper proyectos ya guardados con el valor
+largo, se agregó `ESTADOS_LEGACY = {"Con respuesta Observaciones": "Con respuesta Obs."}` y dos
+filtros Jinja: `estado_label` (mapea legacy→nuevo para mostrar) y `estado_badge` (ídem antes de
+buscar la clase CSS). Aplicado en `dashboard.html`, `ficha.html`, y en `proyecto.html` (botón de
+estado + comparaciones de resaltado en el menú desplegable — ambas pasaban por `==` directo
+contra `proyecto.estado`, se cambiaron a `(proyecto.estado | estado_label) ==`). El valor que se
+GUARDA al hacer clic en cualquier opción del menú siempre es el nuevo (`est[0]` ya viene de la
+lista corta) — autocorrectivo la primera vez que el revisor cambia el estado de un proyecto
+legacy.
+
+**2. Observaciones no se renumeraban — mantenían el número original del ítem.** `respuestas.html`
+usaba `obs.numero` (numeración interna POR ÍTEM, asignada al crear la observación — ver
+`main.py` línea ~1482, `max(numero de las obs del mismo item) + 1`) en vez de una posición
+secuencial de las que realmente se muestran (solo las aprobadas). Si de 4 observaciones de un
+ítem solo la 2 y la 4 se aprobaron, se veían como "Obs. 2" y "Obs. 4" en vez de "Obs. 1" y
+"Obs. 2". Cambiado a `{{ loop.index }}` (dentro de `{% for par in grupo.obs %}`) — mismo patrón
+que ya usaba `ficha.html` (`{{ loop.index }})` dentro de su propio `{% for obs in grupo.obs %}`),
+así ambas páginas quedan consistentes entre sí.
+
+**3. Archivo recién subido no quedaba como link — había que ir a Documentos a buscarlo.** Ya
+existía la ruta `/proyecto/{id}/documento/{doc_id}/ver` (sirve el archivo, PDF inline/resto
+descarga) usada en `proyecto.html` con `target="_blank"`. Se aplicó el mismo patrón en
+`respuestas.html` en los 3 lugares donde aparece un adjunto:
+- Lista inicial de `adjuntos_pendientes` (Jinja, server-side).
+- El `<li>` que agrega el JS de `adjuntar()` tras la subida AJAX (antes `li.textContent`, ahora
+  arma un `<a href=".../documento/" + data.doc.id + "/ver" target="_blank">`).
+- La lista "Documentos adjuntados" de cada ronda ya registrada (`r.adjuntos`, mismo shape
+  `{id, nombre, tipo_label}` que ya se guardaba — no hizo falta cambiar el backend).
+
+**4. Respuestas del consultor no se veían en la ficha de revisión técnica.** `ficha.html`
+mostraba el texto de la observación pero no la respuesta. Se agregó, debajo de cada
+`obs-texto`/`obs-ref`, un bloque por cada ronda ya registrada:
+`{% set rondas = (obs.subsanacion or {}).get("rondas", []) %}` + `{% for r in rondas %}` con
+`<span class="obs-resp-r">R{% if rondas|length > 1 %} (ronda {{ r.ronda }}){% endif %}:</span>
+{{ r.respuesta }}`. Con 1 sola ronda queda simple "R: texto"; con 2 rondas (reiterada) muestra
+"R (ronda 1):" y "R (ronda 2):" para no confundir cuál respuesta es cuál. CSS nuevo `.obs-resp`
+(borde punteado arriba, separación visual del texto de la observación) y `.obs-resp-r` (verde,
+igual que el resto de indicadores "resuelto" de la app). No requirió cambios en `main.py` — la
+ficha ya recibe `obs` completo desde `proyecto.get("observaciones", [])`, que incluye
+`subsanacion.rondas` con `respuesta` — mismo dato que ya usa `respuestas.html`.
+
+**5. La evaluación de la IA se borraba al cambiar de pestaña del proyecto y volver.** El estado
+de la evaluación (`ia-result-{obsId}` box + los 2 `<input type="hidden">` con la recomendación/
+fundamento) vivía SOLO en el DOM — nunca se guardaba hasta que el revisor de hecho enviaba el
+formulario ("Marcar como resuelta"/"Reiterar"). Como `.proj-nav` son links reales (navegación
+completa, no SPA), ir a Documentos a mirar un archivo y volver a Respuestas recargaba la página
+entera y perdía la evaluación recién pedida — obligando a re-evaluar. Se agregó persistencia en
+`sessionStorage` (por pestaña del navegador, se limpia sola al cerrarla — no necesita backend ni
+limpieza manual):
+- `guardarIA(obsId, resp, rec, fundamento)`: guarda `{respuesta, rec, fundamento}` bajo la key
+  `iaEval_{proyecto.id}_{obsId}`, llamado al final de `evaluarIA()` cuando la respuesta del
+  servidor viene OK.
+- `restaurarIA(obsId)`: al cargar la página (`DOMContentLoaded`, recorre todos los `obs.id` del
+  proyecto), si hay algo guardado Y el texto del `<textarea>` sigue siendo EXACTAMENTE igual al
+  que se evaluó, repinta el resultado con `mostrarResultadoIA()` (función nueva, extraída del
+  bloque que antes armaba el HTML inline en `evaluarIA()`, ahora compartida por las dos rutas de
+  entrada). Si el texto ya no coincide (el revisor lo editó, o es una ronda nueva con textarea
+  vacío), se descarta silenciosamente (`borrarIAGuardada`) — nunca muestra una evaluación que ya
+  no corresponde a lo escrito.
+- `limpiarIA(obsId)` (ya existía, se dispara al editar el textarea o al subir un adjunto nuevo)
+  ahora también llama a `borrarIAGuardada(obsId)` — mismo criterio de invalidación en ambos
+  sentidos.
+
+Los 3 archivos tocados: `main.py` (estado + filtros), `templates/respuestas.html` (ítems 2, 3,
+5), `templates/ficha.html` (ítem 4) + `templates/dashboard.html`/`templates/proyecto.html`
+(ítem 1, consumo de los filtros nuevos).
+
+---
+
 ## Sesión sep-2026 — Sistema de doble bombeo (fuente→acumulador + acumulador→red)
 
 **Problema:** proyectos con mini-embalse intermedio declaran dos equipos de bombeo. El Chequeo

@@ -280,9 +280,9 @@
     <!-- Botón de estado -->
     <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
       <button onclick="toggleMenuEstado()" class="btn btn-sm"
-              style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+              style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == (proyecto.estado | estado_label) %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
         {% if proyecto.estado == 'En revisión' %}● En revisión ▾
-        {% else %}{{ proyecto.estado }} ▾{% endif %}
+        {% else %}{{ proyecto.estado | estado_label }} ▾{% endif %}
       </button>
       <!-- z-index alto a propósito: el selector genérico `nav { z-index:100 }` de base.html
            (pensado para la barra superior del sitio) también alcanza a `.proj-nav` de acá abajo
@@ -294,9 +294,9 @@
         <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
           <button type="submit" name="estado" value="{{ est[0] }}"
                   style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
-                         background:{% if proyecto.estado == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                         background:{% if (proyecto.estado | estado_label) == est[0] %}#f7fafc{% else %}transparent{% endif %};
                          color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
-            {% if proyecto.estado == est[0] %}● {% endif %}{{ est[0] }}
+            {% if (proyecto.estado | estado_label) == est[0] %}● {% endif %}{{ est[0] }}
           </button>
         </form>
         {% endfor %}

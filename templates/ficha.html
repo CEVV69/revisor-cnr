@@ -54,6 +54,8 @@
                  page-break-after: avoid; }
     .obs-texto { margin-top: 2px; line-height: 1.5; }
     .obs-ref { font-size: 9.5px; color: #555; margin-top: 3px; font-style: italic; }
+    .obs-resp { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #ccc; line-height: 1.5; white-space: pre-wrap; }
+    .obs-resp-r { font-weight: bold; color: #276749; }
 
     /* Resumen contadores */
     .resumen { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px;
@@ -107,7 +109,7 @@
     <td class="label">Revisor</td>
     <td class="valor" colspan="2">{{ proyecto.revisor_nombre }}</td>
     <td class="label">Estado</td>
-    <td class="valor" colspan="2">{{ proyecto.estado }}</td>
+    <td class="valor" colspan="2">{{ proyecto.estado | estado_label }}</td>
   </tr>
   <tr>
     <td class="label">Fecha revisión</td>
@@ -146,6 +148,10 @@
       {% if obs.referencia_normativa %}
       <div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>
       {% endif %}
+      {% set rondas = (obs.subsanacion or {}).get("rondas", []) %}
+      {% for r in rondas %}
+      <div class="obs-resp"><span class="obs-resp-r">R{% if rondas|length > 1 %} (ronda {{ r.ronda }}){% endif %}:</span> {{ r.respuesta }}</div>
+      {% endfor %}
     </div>
     {% endfor %}
   {% endfor %}

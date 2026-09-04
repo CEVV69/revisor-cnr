@@ -488,25 +488,30 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # los 5 colores existentes ya estaban todos tomados y el usuario pidió explícitamente un color
 # DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
 # lado por otro más urgente) no pase desapercibido en el dashboard.
-ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Con respuesta Observaciones",
+ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Con respuesta Obs.",
                     "Aprobado Técnicamente", "Rechazado"]
+# "Con respuesta Observaciones" (nombre original, hasta sep-2026) se acorta acá porque su largo
+# desbordaba el badge y apretaba el resto de la fila/encabezado — ver ESTADOS_LEGACY para no
+# perder el estado ya guardado en proyectos anteriores al cambio.
+ESTADOS_LEGACY = {"Con respuesta Observaciones": "Con respuesta Obs."}
 ESTADOS_PROYECTO_BADGE = {
-    "En revisión":                 "badge-estado",     # celeste
-    "Pendiente":                   "badge-pendiente",   # rosa/magenta
-    "Observado":                   "badge-menor",       # amarillo
-    "Con respuesta Observaciones": "badge-legal",       # morado claro
-    "Aprobado Técnicamente":       "badge-tecnica",     # verde
-    "Rechazado":                   "badge-mayor",       # rojo
+    "En revisión":         "badge-estado",     # celeste
+    "Pendiente":           "badge-pendiente",   # rosa/magenta
+    "Observado":           "badge-menor",       # amarillo
+    "Con respuesta Obs.":  "badge-legal",       # morado claro
+    "Aprobado Técnicamente": "badge-tecnica",   # verde
+    "Rechazado":           "badge-mayor",       # rojo
 }
 ESTADOS_PROYECTO_COLOR_SOLIDO = {
-    "En revisión":                 "#2b6cb0",
-    "Pendiente":                   "#c2185b",
-    "Observado":                   "#c05621",
-    "Con respuesta Observaciones": "#5e35b1",
-    "Aprobado Técnicamente":       "#276749",
-    "Rechazado":                   "#c41230",
+    "En revisión":         "#2b6cb0",
+    "Pendiente":           "#c2185b",
+    "Observado":           "#c05621",
+    "Con respuesta Obs.":  "#5e35b1",
+    "Aprobado Técnicamente": "#276749",
+    "Rechazado":           "#c41230",
 }
-templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(e, "badge-estado")
+templates.env.filters["estado_label"] = lambda e: ESTADOS_LEGACY.get(e, e)
+templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(ESTADOS_LEGACY.get(e, e), "badge-estado")
 
 
 @app.on_event("startup")

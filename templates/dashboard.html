@@ -31,7 +31,7 @@
         <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>
         <td class="text-muted" style="max-width:150px; word-break:break-word;">{{ p.consultor or "—" }}</td>
-        <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado }}</span></td>
+        <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado | estado_label }}</span></td>
         <td class="text-muted" style="white-space:nowrap;">{{ p.fecha_creacion | fecha }}</td>
         <td class="text-muted" style="white-space:nowrap;">{% if p.costo_usd %}US$ {{ p.costo_usd | usd }}{% else %}—{% endif %}</td>
         <td style="white-space:nowrap;">
