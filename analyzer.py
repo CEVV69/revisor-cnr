@@ -453,6 +453,75 @@ MAX_CHARS_POR_ITEM = {
 # Postulación (SEP), que coinciden con el agrupamiento de archivos que hace el consultor.
 # Cada ítem revisa su(s) documento(s) y produce observaciones tageadas con el ítem, para
 # facilitar el ingreso al SEP.
+# ─── Criterios adicionales para Programa Pequeña Agricultura (PEPA) ──────────
+# Se concatenan al checklist del ítem correspondiente cuando proyecto["programa"] == "pequena_agricultura".
+# Fuente: Instructivo Técnico Res. Exenta CNR N° 585/2024 e Instructivo Legal Res. 371/2024.
+ITEMS_PEPA_EXTRA = {
+    "hidrologico": """\
+
+CONSIDERACIONES ESPECIALES — PROGRAMA PEQUEÑA AGRICULTURA (Inst. Técnico Res. 585/2024):
+· Aguas lluvias (Art. 10 CA): para el cálculo del agua disponible se deben usar las
+  precipitaciones de diseño del Anexo N° 6 del instructivo.
+· Pozos norias (Art. 56 CA): caudal máximo 0,5 L/s; volumen máximo 650 m³/mes.""",
+
+    "pruebas_bombeo": """\
+
+CONSIDERACIONES ESPECIALES — PROGRAMA PEQUEÑA AGRICULTURA (Inst. Técnico Res. 585/2024):
+En pozos norias acogidos al Art. 56 del Código de Aguas (caudal máx. 0,5 L/s, volumen
+máx. 650 m³/mes), la prueba debe cumplir: (a) gasto constante con mínimo 3 horas de
+estabilización de niveles, o (b) prueba de agotamiento y recuperación.
+La prueba debe realizarse dentro de los 3 meses del período de nivel crítico del pozo
+para la zona geográfica; si se realiza fuera de ese período, el caudal obtenido debe
+castigarse en 50% — verifica que el informe declare cuándo se realizó y si corresponde
+aplicar el castigo. El informe debe incluir: registro fotográfico georreferenciado con
+presencia acreditada del postulante y del profesional; todas las características del pozo
+(dimensiones, tipo de revestimiento, profundidad); firma del consultor.""",
+
+    "diseno_hidraulico": """\
+
+CONSIDERACIONES ESPECIALES — PROGRAMA PEQUEÑA AGRICULTURA (Inst. Técnico Res. 585/2024):
+· Automatización obligatoria: diseños con más de 8 horas de riego diario Y/O 5 sectores
+  o más deben ser automatizados (válvulas eléctricas, programador de riego incluidos en
+  el presupuesto). Para aspersión con tuberías móviles o semi-móviles, el tiempo máximo
+  diario es 8 horas incluyendo traslado y conexión.
+· SCALLS: proyectos con sistemas SCALL deben presentar balance hídrico anual desglosado
+  mensualmente, que demuestre que el volumen embalsado cubre los requerimientos hídricos.
+· Embalses pequeños (altura ≤2,5 m, volumen ≤1.000 m³, sección rectangular o cuadrada,
+  terreno plano): puede utilizarse la planilla de diseño simplificada de la CNR.
+· Obras de acumulación: no se exigen aforos ni medición de pérdidas.
+· Obras de hormigón de altura ≤50 cm: no se exige cálculo estructural; basta espesor de
+  muros de 10 cm y enfierradura mínima centrada.
+· Embalses con volumen <1.000 m³ SIN geomembrana: se exige ensayo de mecánica de suelos.
+  CON geomembrana: no se exigen pruebas de infiltración.
+· Invernaderos: deben incluir informe de especificaciones constructivas y estructurales que
+  respalde ausencia de riesgo de colapso, y bajada de aguas lluvias para evitar erosión.
+· Suelos CCU V, VI o VII, o sin clasificación agrícola: debe presentarse informe técnico
+  del consultor justificando que las condiciones de suelo, riego y cultivo no presentan
+  limitaciones para el establecimiento del proyecto.""",
+
+    "presupuesto": """\
+
+CONSIDERACIONES ESPECIALES — PROGRAMA PEQUEÑA AGRICULTURA (Inst. Técnico Res. 585/2024):
+· Costo máximo del proyecto: 1.000 UF (con o sin IVA según corresponda, ver punto IVA).
+· Obras de acumulación abiertas: el presupuesto debe incluir cerco perimetral y elementos
+  de salida de emergencia (para rescate si personas caen al interior). Para acumuladores
+  verticales el cerco es opcional.
+· Utilidades: no pueden superar el 10% del costo total del proyecto.
+· IVA: puede incluirse si el postulante no tiene inicio de actividades ante el SII
+  (acreditado con reporte SII), o si presenta carta firmada renunciando al crédito fiscal.
+  En ese caso el costo total del proyecto incluye IVA y no puede superar las 1.000 UF.
+· Fletes: deben ser coherentes con la distancia real al punto de despacho de los materiales.
+· Formato del presupuesto detallado: debe presentarse en Excel, con columna adicional que
+  incluya el número de la cotización que respalda el valor de cada partida.
+· Mano de obra del postulante: si se contempla aporte en mano de obra, debe adjuntarse
+  carta firmada por el solicitante especificando obras y valores.
+· Costo de estudio/presentación financiado por INDAP, CONADI u otra institución pública:
+  NO debe cargarse al presupuesto del proyecto, pero sí se considera para el cálculo
+  del 15% (Art. 1 punto 15 del Reglamento) y del límite del 95%.
+· Corrección de costos permitida durante revisión: se puede aumentar o disminuir el monto
+  (a solicitud del revisor), siempre que el total no supere las 1.000 UF.""",
+}
+
 ITEMS_SEP = {
     "plano_ubicacion": {
         "nombre": "Plano de ubicación del proyecto",
@@ -3302,7 +3371,8 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         tabla_precios: list = None,
                         observaciones_previas: list = None,
                         observaciones_pendientes_otros: list = None,
-                        tipo_revision: str = "tecnica", ruta_uploads: str = None) -> dict:
+                        tipo_revision: str = "tecnica", ruta_uploads: str = None,
+                        programa: str = "") -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
 
     `resumen`: lo que el revisor ya completó en la página Resumen del proyecto
@@ -3400,8 +3470,14 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     except Exception as e:
         print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
 
+    checklist_item = item["checklist"]
+    if programa == "pequena_agricultura":
+        extra_pepa = ITEMS_PEPA_EXTRA.get(item_key, "")
+        if extra_pepa:
+            checklist_item = checklist_item + extra_pepa
+
     analisis_task = _analizar_grupo(
-        item["nombre"], item["checklist"], docs_grupo, documentos,
+        item["nombre"], checklist_item, docs_grupo, documentos,
         modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
         observaciones_previas=(None if item_key in ITEMS_SIN_OBS_PREVIAS
                                else observaciones_previas),

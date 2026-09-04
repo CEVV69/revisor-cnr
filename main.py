@@ -1184,6 +1184,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             observaciones_pendientes_otros=observaciones_pendientes_otros,
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
+            programa=proyecto.get("programa", "pequena_agricultura"),
         )
     except Exception as e:
         import traceback
@@ -3198,6 +3199,21 @@ async def informe_resumen(request: Request, proyecto_id: str):
         "sistemas_riego_str": _sistemas_riego_proyecto(proyecto),
         "fecha_informe": _ahora().strftime("%d/%m/%Y"),
     })
+
+
+# ─── Programa del proyecto (PEPA / Estándar) ──────────────────────────────────
+
+@app.post("/proyecto/{proyecto_id}/programa")
+async def guardar_programa(request: Request, proyecto_id: str, programa: str = Form("")):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    proyecto["programa"] = programa if programa in ("pequena_agricultura", "estandar") else "pequena_agricultura"
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen", status_code=302)
 
 
 # ─── Resumen del proyecto (formulario) ────────────────────────────────────────

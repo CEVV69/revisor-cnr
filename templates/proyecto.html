@@ -314,11 +314,16 @@
     {{ proyecto.nombre }}
   </h1>
 
-  <!-- Línea 3: código y beneficiario -->
+  <!-- Línea 3: código, beneficiario y badge de programa -->
   <p style="text-align:center; color:var(--text-2); font-size:0.85rem;">
     <span style="font-family:monospace; font-weight:500;">{{ proyecto.codigo_sep }}</span>
     &nbsp;·&nbsp;
     {{ proyecto.postulante }}
+    {% if not proyecto.programa or proyecto.programa == 'pequena_agricultura' %}
+    &nbsp;·&nbsp;<span style="background:#2b6cb0; color:#fff; font-size:0.72rem; font-weight:700;
+                              padding:0.12em 0.5em; border-radius:3px; letter-spacing:0.03em;"
+                       title="Programa Especial Pequeña Agricultura — Res. CNR 585/2024">PEPA</span>
+    {% endif %}
   </p>
 
 </div>
@@ -915,7 +920,18 @@ function actualizarEtiqueta(input) {
       <h2 style="margin:0; border:none; padding:0;">Resumen del proyecto</h2>
       <span style="font-size:0.8rem; color:var(--text-2);">Ficha con los datos mínimos. Auto-completa con la IA y edita lo que falte.</span>
     </div>
-    <a href="/proyecto/{{ proyecto.id }}/resumen/informe" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">Imprimir informe</a>
+    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+      <form method="post" action="/proyecto/{{ proyecto.id }}/programa" style="display:flex; align-items:center; gap:0.35rem;">
+        <span style="font-size:0.8rem; color:var(--text-2); white-space:nowrap;">Programa:</span>
+        <select name="programa" onchange="this.form.submit()"
+                style="font-size:0.82rem; padding:0.3rem 0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer;"
+                title="Define si el proyecto se rige por el Instructivo Pequeña Agricultura (Res. CNR 585/2024)">
+          <option value="pequena_agricultura" {% if not proyecto.programa or proyecto.programa == 'pequena_agricultura' %}selected{% endif %}>Pequeña Agricultura (PEPA)</option>
+          <option value="estandar" {% if proyecto.programa == 'estandar' %}selected{% endif %}>Estándar</option>
+        </select>
+      </form>
+      <a href="/proyecto/{{ proyecto.id }}/resumen/informe" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">Imprimir informe</a>
+    </div>
   </div>
 
   {% if request.query_params.get('resumen_ok') %}
