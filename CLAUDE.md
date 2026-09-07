@@ -45,20 +45,25 @@ aparece en tramos cuyo nombre sugiere acumulador/embalse/etc., el revisor decide
 agregar apps nuevas).
 
 1. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando.**
-   Detalle en `docs/`. Pendiente: mismo par de bugs en el Diseñador de Riego v129 — turno
-   "cada X días" (aún usa ÷168) y bug `reponeOk` multi-día — prompt de handoff entregado en
-   sep-2026, aún no aplicado.
+   Detalle en `docs/`. Pendiente: bugs en el Diseñador de Riego v129 — turno "cada X días"
+   (aún usa ÷168) y bug `reponeOk` multi-día — prompt de handoff entregado, aún no aplicado.
 
 2. **Sección Respuestas — 3 rondas de correcciones (sep-2026) — implementado, usuario probando.**
-   Estado del proyecto ahora es por ronda ("Resp. Obs.1"/"Resp. Obs.2"); "Nota del revisor" pasó
-   a ser "Contra Observación", con formato IDÉNTICO al de la Observación original (antes se
-   perdía como nota chica) y encabezando la ronda siguiente ("cada ronda empieza con la
-   Observación o la Contra Observación, según corresponda") — también alimenta a la IA en esa
-   ronda; formulario reordenado sin texto explicativo redundante ni párrafo intro de la página;
-   textareas de Respuesta/Contra Observación con alto ajustado al contenido (JS, sin espacio
-   vacío); deshacer ronda ya no pierde sus adjuntos. Detalle completo en `docs/`.
+   Estados por ronda ("Resp. Obs.1"/"Resp. Obs.2"); "Nota del revisor" → "Contra Observación"
+   (formato idéntico al de la observación, encabeza la ronda siguiente, alimenta a la IA);
+   textareas auto-altura; deshacer ya no pierde adjuntos. Detalle en `docs/`.
 
-3. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+3. **Programa Pequeña Agricultura — PEPA (sep-2026) — implementado, usuario probando.**
+   Campo `programa` en proyecto (default `"pequena_agricultura"`); badge en encabezado global;
+   selector Resumen alineado a la derecha; `ITEMS_PEPA_EXTRA` en `analyzer.py` inyecta criterios
+   del Inst. Técnico Res. 585/2024 a los checklists de `hidrologico`, `pruebas_bombeo`,
+   `diseno_hidraulico` y `presupuesto` cuando el proyecto es PEPA. Detalle en `docs/`.
+
+4. **Ficha tacha observaciones resueltas (sep-2026) — implementado, usuario probando.**
+   Clase `.obs-resuelta` en `ficha.html`: `text-decoration:line-through` + `opacity:0.65`
+   cuando `rondas[-1].evaluacion == "resuelta"`. Igual al SEP.
+
+5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
    (nunca probada); costo de API en Memorias standalone (sin confirmar).
 

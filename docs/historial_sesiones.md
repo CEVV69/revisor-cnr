@@ -1,3 +1,54 @@
+## Sesión sep-2026 — Programa Pequeña Agricultura (PEPA) + Ficha tacha resueltas
+
+### Programa Pequeña Agricultura (PEPA)
+
+El usuario agregó al Drive dos instructivos oficiales de la CNR para el Programa Especial de
+Pequeña Agricultura — Instructivo Legal (Res. 371/2024) e Instructivo Técnico (Res. 585/2024).
+Se leyeron con Google Drive MCP y se implementó soporte completo en la app.
+
+**Campo `programa` en el proyecto** (`"pequena_agricultura"` | `"estandar"`, default PEPA).
+Ruta `POST /proyecto/{id}/programa` en `main.py` lo guarda. Por defecto todos los proyectos son
+PEPA (todos los actuales lo son); el revisor puede cambiarlo a "Estándar" si corresponde.
+
+**Badge en el encabezado** (visible en todas las páginas del proyecto): texto "PEPA" en
+`var(--text-2)`, sin fondo, junto al código y postulante en la línea 3 del header. Solo aparece
+cuando `programa == "pequena_agricultura"` (o si no está seteado, ya que el default es PEPA).
+
+**Selector en la página Resumen**: `<select>` con "Pequeña Agricultura (PEPA)" y "Estándar",
+alineado a la derecha junto al botón "Imprimir informe" (`margin-left:auto` para que funcione
+incluso con `flex-wrap`). Cambia al instante (onchange submit). Archivo: `templates/proyecto.html`.
+
+**`ITEMS_PEPA_EXTRA`** en `analyzer.py` — dict con texto adicional para los 4 ítems más
+relevantes según el Inst. Técnico 585/2024. Se concatena al `checklist` del ítem cuando el
+proyecto es PEPA, antes de llamar a `_analizar_grupo()`. La función `analizar_item()` recibe
+el nuevo parámetro `programa: str = ""`. En `main.py`, `_analizar_item_fondo()` pasa
+`programa=proyecto.get("programa", "pequena_agricultura")`.
+
+Criterios inyectados por ítem:
+- **`hidrologico`**: Art. 56 (0,5 L/s, 650 m³/mes), Art. 10 precipitaciones Anexo 6.
+- **`pruebas_bombeo`**: Art. 56 — mínimo 3h estabilización o prueba agotamiento/recuperación;
+  castigo 50% si la prueba no fue en los 3 meses de nivel crítico; foto georreferenciada con
+  postulante y profesional; informe firmado por consultor.
+- **`diseno_hidraulico`**: automatización obligatoria si >8h/día y/o ≥5 sectores; aspersión
+  móvil máx 8h incluyendo traslado; SCALLS con balance hídrico anual mensualizado; embalses
+  ≤2,5m/1.000m³ con diseño simplificado; obras hormigón ≤50cm sin cálculo estructural; embalses
+  <1.000m³ sin geomembrana → mecánica de suelos; invernaderos con informe estructural + bajada
+  aguas lluvias; suelos CCU V/VI/VII → informe técnico del consultor.
+- **`presupuesto`**: máx 1.000 UF; obras acumulación abiertas → cerco + salida emergencia;
+  utilidades máx 10%; IVA permitido sin inicio actividades SII o con renuncia crédito fiscal;
+  flete coherente con distancia; Excel con columna N° cotización; carta mano de obra del
+  postulante; costo estudio no se carga si financiado por INDAP/CONADI/institución pública.
+
+### Ficha: tacha observaciones resueltas
+
+En `templates/ficha.html`: cuando la última ronda de una observación tiene `evaluacion ==
+"resuelta"`, la clase `.obs-resuelta` aplica `text-decoration:line-through` + `opacity:0.65`
+a todo el bloque (`.obs-resuelta, .obs-resuelta *`), igual que la vista del SEP en la imagen
+que mostró el usuario. La condición se evalúa con `rondas_obs[-1].get("evaluacion") == "resuelta"`
+(se renombró la variable `rondas` a `rondas_obs` para no colisionar con la declaración de `es_resuelta`).
+
+---
+
 ## Sesión sep-2026 — Sección Respuestas: 3ª ronda de correcciones (auto-alto, formato y reorden)
 
 Tras probar la 2ª ronda (ver entrada siguiente), el usuario pidió 3 ajustes más, todos en
