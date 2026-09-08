@@ -505,7 +505,7 @@ ESTADOS_PROYECTO_BADGE = {
     "Pendiente":           "badge-pendiente",   # rosa/magenta
     "Observado":           "badge-menor",       # amarillo
     "Resp. Obs.1":         "badge-legal",       # morado claro
-    "Obs. Ronda 2":        "badge-legal",       # morado claro
+    "Obs. Ronda 2":        "badge-administrativa", # gris — distinto del morado de Resp. Obs., para no confundirse
     "Resp. Obs.2":         "badge-legal",       # morado claro
     "Aprobado Técnicamente": "badge-tecnica",   # verde
     "Rechazado":           "badge-mayor",       # rojo
@@ -515,7 +515,7 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "Pendiente":           "#c2185b",
     "Observado":           "#c05621",
     "Resp. Obs.1":         "#5e35b1",
-    "Obs. Ronda 2":        "#5e35b1",
+    "Obs. Ronda 2":        "#6e6e73",
     "Resp. Obs.2":         "#5e35b1",
     "Aprobado Técnicamente": "#276749",
     "Rechazado":           "#c41230",
