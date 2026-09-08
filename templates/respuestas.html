@@ -36,7 +36,7 @@
     border-color:transparent transparent transparent var(--text-2);
     transition:transform 0.15s; }
   .grupo-card.abierto .grupo-chevron { transform:rotate(90deg); }
-  .grupo-resumen { font-size:0.78rem; font-weight:400; color:var(--text-2); margin-left:auto; white-space:nowrap; flex-shrink:0; }
+  .grupo-resumen { display:flex; gap:0.35rem; flex-wrap:wrap; margin-left:auto; flex-shrink:0; }
   .grupo-body { margin-top:0.8rem; }
 </style>
 
@@ -96,13 +96,13 @@
 {% for grupo in grupos %}
 {% set cnt = namespace(res=0, nor=0, esp=0) %}
 {% for par in grupo.obs %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
-<div class="card grupo-card{% if cnt.esp > 0 %} abierto{% endif %}" id="grupo-{{ loop.index }}">
+<div class="card grupo-card" id="grupo-{{ loop.index }}">
   <h2 class="grupo-h2" style="font-size:1rem; color:#2b6cb0; border:none; padding:0;" onclick="toggleGrupo(this)">
     <span class="grupo-chevron"></span>
     {{ grupo.nombre }}
-    <span class="grupo-resumen">{% if cnt.res %}<span style="color:#276749;">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}{% if cnt.res %} · {% endif %}<span style="color:#c41230;">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.esp %}{% if cnt.res or cnt.nor %} · {% endif %}<span style="color:#c05621;">{{ cnt.esp }} esperando</span>{% endif %}</span>
+    <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
   </h2>
-  <div class="grupo-body" {% if cnt.esp == 0 %}hidden{% endif %}>
+  <div class="grupo-body" hidden>
   {% for par in grupo.obs %}
   {% set obs = par.obs %}
   {% set sub = par.sub %}
