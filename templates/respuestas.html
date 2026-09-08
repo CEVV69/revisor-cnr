@@ -97,14 +97,13 @@
 {% for grupo in grupos %}
 {% set cnt = namespace(res=0, nor=0, esp=0, reobs=0) %}
 {% for par in grupo.obs %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% elif par.sub.ronda_actual and par.sub.ronda_actual > 1 %}{% set cnt.reobs = cnt.reobs + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
-{% set grupo_pendiente = (cnt.esp + cnt.reobs) > 0 %}
-<div class="card grupo-card{% if grupo_pendiente %} abierto{% endif %}" id="grupo-{{ loop.index }}">
+<div class="card grupo-card" id="grupo-{{ loop.index }}" data-grupo-key="{{ grupo.nombre }}" data-cnt-esp="{{ cnt.esp }}">
   <h2 class="grupo-h2" style="font-size:1rem; color:#2b6cb0; border:none; padding:0;" onclick="toggleGrupo(this)">
     <span class="grupo-chevron"></span>
     {{ grupo.nombre }}
     <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.reobs %}<span class="sub-badge sub-reobservada">{{ cnt.reobs }} re-observada{{ 's' if cnt.reobs > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
   </h2>
-  <div class="grupo-body" {% if not grupo_pendiente %}hidden{% endif %}>
+  <div class="grupo-body" hidden>
   {% for par in grupo.obs %}
   {% set obs = par.obs %}
   {% set sub = par.sub %}
@@ -232,17 +231,47 @@
 {% endif %}
 
 <script>
+// Todo ítem arranca comprimido en cada carga de página. Si el revisor lo expande a mano para
+// trabajarlo, esa intención se guarda en sessionStorage (por pestaña) para sobrevivir el reload
+// que dispara cada envío de formulario dentro del ítem (marcar resuelta/reiterada) — así no hay
+// que reabrirlo entre observación y observación. Se descarta automáticamente, junto con el marcado
+// abierto, en cuanto ya no queda ninguna observación en "Esperando" (ronda 1 sin tocar) — ver
+// restaurarGrupos(). "Re-observada"/"No resuelta"/"Resuelta" no cuentan como pendientes acá: el
+// revisor ya actuó sobre esas, no hay razón para mantener el ítem abierto por ellas.
+function grupoStorageKey(nombre) { return 'grupoAbierto_{{ proyecto.id }}_' + nombre; }
+
 function toggleGrupo(h2) {
   var card = h2.closest('.grupo-card');
   var body = card.querySelector('.grupo-body');
+  var key = grupoStorageKey(card.dataset.grupoKey);
   if (card.classList.toggle('abierto')) {
     body.hidden = false;
     // autoResize se saltó estos textareas mientras el grupo estaba oculto (scrollHeight da 0
     // con display:none) — al mostrarlos recién se puede medir el alto real.
     body.querySelectorAll('textarea').forEach(autoResize);
+    try { sessionStorage.setItem(key, '1'); } catch (e) {}
   } else {
     body.hidden = true;
+    try { sessionStorage.removeItem(key); } catch (e) {}
   }
+}
+
+function restaurarGrupos() {
+  document.querySelectorAll('.grupo-card').forEach(function(card) {
+    var key = grupoStorageKey(card.dataset.grupoKey);
+    var marcadoAbierto;
+    try { marcadoAbierto = sessionStorage.getItem(key) === '1'; } catch (e) { marcadoAbierto = false; }
+    if (!marcadoAbierto) return;
+    if (parseInt(card.dataset.cntEsp, 10) > 0) {
+      card.classList.add('abierto');
+      var body = card.querySelector('.grupo-body');
+      body.hidden = false;
+      body.querySelectorAll('textarea').forEach(autoResize);
+    } else {
+      // Ya no queda ninguna "Esperando" — el ítem quedó completo, se comprime y se olvida.
+      try { sessionStorage.removeItem(key); } catch (e) {}
+    }
+  });
 }
 
 // La evaluación IA es puramente client-side hasta que se guarda la respuesta (form submit) — si
@@ -388,6 +417,7 @@ function autoResize(el) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  restaurarGrupos();
   var obsIds = [{% for grupo in grupos %}{% for par in grupo.obs %}'{{ par.obs.id }}',{% endfor %}{% endfor %}];
   obsIds.forEach(restaurarIA);
   document.querySelectorAll('.form-resp textarea').forEach(autoResize);
