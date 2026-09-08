@@ -488,18 +488,24 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # los 5 colores existentes ya estaban todos tomados y el usuario pidió explícitamente un color
 # DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
 # lado por otro más urgente) no pase desapercibido en el dashboard.
-ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Resp. Obs.2",
-                    "Aprobado Técnicamente", "Rechazado"]
+ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Obs. Ronda 2",
+                    "Resp. Obs.2", "Aprobado Técnicamente", "Rechazado"]
 # "Con respuesta Observaciones"/"Con respuesta Obs." (nombres anteriores, hasta sep-2026) se
 # reemplazan por un estado por ronda — el revisor elige cuál corresponde. Sin forma de saber a
 # qué ronda corresponde un proyecto ya guardado con el nombre viejo, cae a la ronda 1 por
 # defecto; ver ESTADOS_LEGACY para no perder el estado ya guardado en proyectos anteriores.
 ESTADOS_LEGACY = {"Con respuesta Observaciones": "Resp. Obs.1", "Con respuesta Obs.": "Resp. Obs.1"}
+# "Obs. Ronda 2" (sep-2026): entre "Resp. Obs.1" y "Resp. Obs.2" — marca que ya se revisaron
+# TODAS las respuestas de la ronda 1 (algunas se reiteraron) y el proyecto queda esperando que
+# el consultor responda la ronda 2. Sin este estado intermedio, un proyecto en ese punto exacto
+# no tenía dónde reflejarlo: "Resp. Obs.1" ya no aplica (esa ronda se terminó de revisar) y
+# "Resp. Obs.2" tampoco (aún no llegan las respuestas de ronda 2 para revisar).
 ESTADOS_PROYECTO_BADGE = {
     "En revisión":         "badge-estado",     # celeste
     "Pendiente":           "badge-pendiente",   # rosa/magenta
     "Observado":           "badge-menor",       # amarillo
     "Resp. Obs.1":         "badge-legal",       # morado claro
+    "Obs. Ronda 2":        "badge-legal",       # morado claro
     "Resp. Obs.2":         "badge-legal",       # morado claro
     "Aprobado Técnicamente": "badge-tecnica",   # verde
     "Rechazado":           "badge-mayor",       # rojo
@@ -509,6 +515,7 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "Pendiente":           "#c2185b",
     "Observado":           "#c05621",
     "Resp. Obs.1":         "#5e35b1",
+    "Obs. Ronda 2":        "#5e35b1",
     "Resp. Obs.2":         "#5e35b1",
     "Aprobado Técnicamente": "#276749",
     "Rechazado":           "#c41230",
