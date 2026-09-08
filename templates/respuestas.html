@@ -95,13 +95,13 @@
 </div>
 
 {% for grupo in grupos %}
-{% set cnt = namespace(res=0, nor=0, esp=0) %}
-{% for par in grupo.obs %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
+{% set cnt = namespace(res=0, nor=0, esp=0, reobs=0) %}
+{% for par in grupo.obs %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% elif par.sub.ronda_actual and par.sub.ronda_actual > 1 %}{% set cnt.reobs = cnt.reobs + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
 <div class="card grupo-card" id="grupo-{{ loop.index }}">
   <h2 class="grupo-h2" style="font-size:1rem; color:#2b6cb0; border:none; padding:0;" onclick="toggleGrupo(this)">
     <span class="grupo-chevron"></span>
     {{ grupo.nombre }}
-    <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
+    <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.reobs %}<span class="sub-badge sub-reobservada">{{ cnt.reobs }} re-observada{{ 's' if cnt.reobs > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
   </h2>
   <div class="grupo-body" hidden>
   {% for par in grupo.obs %}
