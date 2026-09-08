@@ -15,6 +15,7 @@
   .sub-esperando { background:#fffaf0; color:#c05621; border:1px solid rgba(192,86,33,.3); }
   .sub-resuelta  { background:#f0fff4; color:#276749; border:1px solid rgba(39,103,73,.3); }
   .sub-noresuelta{ background:#fff0f0; color:#c41230; border:1px solid rgba(196,18,48,.3); }
+  .sub-reobservada{ background:#f3eeff; color:#5e35b1; border:1px solid rgba(94,53,177,.28); }
 
   .obs-card { border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem; }
   .ronda-box { border:1px solid var(--border); border-radius:8px; padding:0.7rem 0.85rem;
@@ -118,10 +119,11 @@
         <span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>
       </div>
       <span class="sub-badge
-        {% if sub.estado == 'resuelta' %}sub-resuelta{% elif sub.estado == 'no_resuelta' %}sub-noresuelta{% else %}sub-esperando{% endif %}">
+        {% if sub.estado == 'resuelta' %}sub-resuelta{% elif sub.estado == 'no_resuelta' %}sub-noresuelta{% elif sub.ronda_actual and sub.ronda_actual > 1 %}sub-reobservada{% else %}sub-esperando{% endif %}">
         {% if sub.estado == 'resuelta' %}Resuelta
         {% elif sub.estado == 'no_resuelta' %}No resuelta (2 rondas)
-        {% else %}Esperando respuesta (ronda {{ sub.ronda_actual }}){% endif %}
+        {% elif sub.ronda_actual and sub.ronda_actual > 1 %}Re-observada
+        {% else %}Esperando respuesta{% endif %}
       </span>
     </div>
 
