@@ -23,7 +23,7 @@
   .resp-txt { white-space:pre-wrap; font-size:0.88rem; line-height:1.5; }
   .form-resp textarea { width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
     font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:none;
-    overflow:hidden; }
+    overflow:hidden; min-height:2.6rem; }
   .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
     font-size:0.85rem; line-height:1.45; }
   .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
@@ -234,6 +234,9 @@ function toggleGrupo(h2) {
   var body = card.querySelector('.grupo-body');
   if (card.classList.toggle('abierto')) {
     body.hidden = false;
+    // autoResize se saltó estos textareas mientras el grupo estaba oculto (scrollHeight da 0
+    // con display:none) — al mostrarlos recién se puede medir el alto real.
+    body.querySelectorAll('textarea').forEach(autoResize);
   } else {
     body.hidden = true;
   }
@@ -373,6 +376,10 @@ async function evaluarIA(obsId) {
 // respuesta corta. Arrancan en rows=1 y crecen con cada tecla (input) y con el valor que el
 // navegador restaure al cargar (ej. tras un back con el formulario ya escrito).
 function autoResize(el) {
+  // Con el grupo colapsado (display:none) scrollHeight da 0 — si se aplicara acá, el textarea
+  // quedaría con alto inline forzado a 0px aunque el grupo se expanda después. Se salta la
+  // medición; toggleGrupo() la vuelve a llamar recién cuando el grupo queda visible.
+  if (el.offsetParent === null) return;
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
