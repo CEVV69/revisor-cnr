@@ -3666,11 +3666,15 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     grupos_lista = [{"nombre": n, "key": g["key"], "obs": g["obs"]}
                     for n, g in sorted(grupos.items(), key=lambda kv: orden_item.get(kv[0], 999))]
 
-    estados = [_estado_subsanacion(o)["estado"] for o in aprobadas]
+    subs = [_estado_subsanacion(o) for o in aprobadas]
     total = len(aprobadas)
-    n_resueltas = estados.count("resuelta")
-    n_no_resueltas = estados.count("no_resuelta")
-    n_esperando = estados.count("esperando")
+    n_resueltas = sum(1 for s in subs if s["estado"] == "resuelta")
+    n_no_resueltas = sum(1 for s in subs if s["estado"] == "no_resuelta")
+    # "esperando" agrupa dos casos: ronda 1 nunca respondida (esperando propiamente) y ronda 2
+    # tras una reiteración del revisor (re-observada) — se distinguen igual que en el badge de
+    # cada observación (ver sub-reobservada en respuestas.html).
+    n_reobservadas = sum(1 for s in subs if s["estado"] == "esperando" and (s["ronda_actual"] or 0) > 1)
+    n_esperando = sum(1 for s in subs if s["estado"] == "esperando" and (s["ronda_actual"] or 0) <= 1)
     todas_resueltas = total > 0 and n_resueltas == total
 
     return templates.TemplateResponse("respuestas.html", {
@@ -3678,7 +3682,7 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         "costo_api": _costo_para_vista(proyecto),
         "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
         "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
-        "todas_resueltas": todas_resueltas,
+        "n_reobservadas": n_reobservadas, "todas_resueltas": todas_resueltas,
     })
 
 

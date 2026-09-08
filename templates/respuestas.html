@@ -71,6 +71,7 @@
     <div style="font-size:0.9rem;">
       <strong>{{ n_resueltas }}</strong> de <strong>{{ total }}</strong> resueltas
       {% if n_esperando %}&nbsp;·&nbsp; <strong>{{ n_esperando }}</strong> esperando respuesta{% endif %}
+      {% if n_reobservadas %}&nbsp;·&nbsp; <span style="color:#5e35b1;"><strong>{{ n_reobservadas }}</strong> re-observada{{ 's' if n_reobservadas != 1 }}</span>{% endif %}
       {% if n_no_resueltas %}&nbsp;·&nbsp; <span style="color:#c41230;"><strong>{{ n_no_resueltas }}</strong> no resueltas</span>{% endif %}
     </div>
     <span style="flex:1;"></span>
