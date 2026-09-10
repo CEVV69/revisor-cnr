@@ -4,7 +4,6 @@ import json
 import re
 import asyncio
 import contextvars
-import datetime
 from pathlib import Path
 import anthropic
 import calculos_riego
@@ -53,31 +52,19 @@ def _texto_respuesta(response) -> str:
 
 
 # Precios USD por millón de tokens, para estimar el costo real de cada llamada en el log.
-# Referencia: lista pública de Anthropic. La caché con TTL de 1h se escribe a 2× el precio de
-# input y se lee a 0,1× — por eso se contabilizan por separado, es donde está la diferencia entre
-# un concurso bien cacheado y uno que reescribe la caché en cada ítem.
+# Confirmados a mano en console.anthropic.com (sep-2026) — cache_w es el de caché TTL 1h (2× el
+# precio de input; el 1,25× que muestra la página de precios por defecto es el de TTL 5min, que
+# esta app no usa — ver `cache_control: {"ttl": "1h"}` en cada llamada). cache_r es 0,1× en los
+# tres modelos, no cambia según TTL.
 #
-# Sonnet 5 tiene precio PROMOCIONAL de lanzamiento (USD 2/10 por MTok in/out, en vez de los
-# 3/15 de lista) vigente hasta el 31-08-2026 — bug real encontrado (ago-2026): la tabla tenía
-# el precio de lista desde el principio, así que el contador de costo de la app sobreestimaba
-# ~40% contra lo que el usuario medía a mano en la consola de Anthropic (reportado: la app
-# marcaba USD 3,71 en un proyecto donde el saldo real bajó USD 2,60). `_precio_sonnet5()` calcula
-# el precio vigente según la fecha — pasado el 31-08-2026 vuelve solo al precio de lista, sin
-# necesidad de tocar el código de nuevo. El costo de caché escala proporcional (2×/0,1×) sobre
-# el precio de input que esté vigente en ese momento, promocional o no.
-_FIN_PROMO_SONNET5 = datetime.date(2026, 8, 31)
-
-
-def _precio_sonnet5() -> dict:
-    if datetime.date.today() <= _FIN_PROMO_SONNET5:
-        p_in, p_out = 2.00, 10.00
-    else:
-        p_in, p_out = 3.00, 15.00
-    return {"in": p_in, "out": p_out, "cache_w": p_in * 2, "cache_r": p_in * 0.1}
-
-
+# Sonnet 5 se pensó como precio PROMOCIONAL de lanzamiento con vencimiento 31-08-2026 (ver
+# historial en docs/), pero al confirmar en la consola el 10-sep-2026 seguía en USD 2/10 — el
+# supuesto vencimiento no ocurrió (o no en esa fecha). Se deja como precio fijo, igual que los
+# otros dos modelos, sin lógica de expiración: si Anthropic lo cambia, hay que actualizarlo acá
+# a mano (no hay forma de que el código lo detecte solo).
 PRECIOS_USD_POR_MTOK = {
     "claude-haiku-4-5":   {"in": 1.00, "out":  5.00, "cache_w": 2.00, "cache_r": 0.10},
+    "claude-sonnet-5":    {"in": 2.00, "out": 10.00, "cache_w": 4.00, "cache_r": 0.20},
     "claude-sonnet-4-6":  {"in": 3.00, "out": 15.00, "cache_w": 6.00, "cache_r": 0.30},
 }
 
@@ -134,8 +121,7 @@ def _log_uso(etiqueta: str, response, modelo: str) -> None:
         # una llamada que olvidara pasarlo se tarificaba en silencio al precio del modelo más caro
         # y falseaba el contador de costo que ve el revisor. Mejor un TypeError al escribir el
         # código que un número equivocado en producción.
-        p = (_precio_sonnet5() if modelo == MODELO_SONNET
-             else PRECIOS_USD_POR_MTOK.get(modelo))
+        p = PRECIOS_USD_POR_MTOK.get(modelo)
         costo = ""
         usd = 0.0
         if p:
