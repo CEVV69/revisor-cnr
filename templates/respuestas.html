@@ -436,12 +436,39 @@ async function evaluarIA(obsId) {
       document.getElementById('ia-fund-' + obsId).value = data.fundamento || '';
       mostrarResultadoIA(obsId, rec, data.fundamento || '');
       guardarIA(obsId, resp, rec, data.fundamento || '');
+      actualizarCostoApi(data.costo_api);
     }
   } catch (e) {
     box.className = 'ia-box ia-neutral';
     box.textContent = 'Error al evaluar: ' + e;
   }
   btn.disabled = false; btn.textContent = orig;
+}
+
+// El contador de costo del encabezado (_costo_api.html) se arma en el servidor al cargar la
+// página — "Evaluar respuesta con IA" es AJAX puro y no recarga nada, así que sin esto el badge
+// quedaba mostrando el valor viejo aunque el costo ya se hubiera sumado y guardado bien (bug
+// reportado sep-2026). Repone el panel completo con lo que devuelve el backend, mismo formato
+// que _fmt_usd (coma decimal, 2 o 3 decimales).
+function actualizarCostoApi(costoApi) {
+  var det = document.querySelector('.costo-api');
+  if (!det || !costoApi) return;  // sin costo previo el badge no existe — caso raro, se ignora
+  var fmt = function(v, dec) { return Number(v).toFixed(dec || 2).replace('.', ','); };
+  det.querySelector('summary').textContent = 'US$ ' + fmt(costoApi.total_usd);
+  var filas = '<div class="costo-api-fila"><strong>Total del proyecto</strong><strong>US$ '
+    + fmt(costoApi.total_usd) + '</strong></div>';
+  costoApi.pasos.forEach(function(p) {
+    filas += '<div class="costo-api-fila"><span>' + p.nombre + '</span><span>US$ ' + fmt(p.usd) + '</span></div>';
+  });
+  if (costoApi.por_item && costoApi.por_item.length) {
+    filas += '<div class="costo-api-sub">Revisión, por ítem</div>';
+    costoApi.por_item.forEach(function(i) {
+      filas += '<div class="costo-api-fila"><span>' + i.nombre + '</span><span>US$ ' + fmt(i.usd, 3) + '</span></div>';
+    });
+  }
+  filas += '<div class="costo-api-pie">' + costoApi.llamadas + ' llamada' + (costoApi.llamadas === 1 ? '' : 's')
+    + ' a la API · última ' + costoApi.actualizado + '</div>';
+  det.querySelector('.costo-api-panel').innerHTML = filas;
 }
 
 // Altura ajustada al contenido — con rows fijo (3/2) quedaba mucho espacio vacío para una

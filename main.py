@@ -3806,12 +3806,22 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         # tarda decenas de segundos y en ese lapso un análisis en segundo plano pudo haber
         # escrito sus observaciones — guardar la copia vieja las borraría.
         proyecto_fresco = db.get_proyecto(proyecto_id)
+        costo_api = None
         if proyecto_fresco:
             _registrar_costo(proyecto_fresco, "subsanacion", acc_costo)
             db.save_proyecto(proyecto_fresco)
+            # Esta ruta es AJAX puro (no recarga la página) — sin esto el contador de costo del
+            # encabezado quedaba "congelado" en el valor con el que se cargó la página, aunque el
+            # costo sí se hubiera sumado y guardado bien en el servidor (bug reportado sep-2026:
+            # "hice un par [de evaluaciones] que no suma nada" — el número real estaba bien, solo
+            # no se refrescaba en pantalla). Se manda el desglose completo para que el JS reponga
+            # el panel entero, no solo el total.
+            costo_api = _costo_para_vista(proyecto_fresco)
+            if costo_api:
+                costo_api["actualizado"] = _fmt_fecha(costo_api["actualizado"], con_hora=True)
 
         return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
-                             "fundamento": resultado.get("fundamento", "")})
+                             "fundamento": resultado.get("fundamento", ""), "costo_api": costo_api})
     except Exception as e:
         import traceback
         print(f"❌ ERROR en evaluar-respuesta {obs_id}: {type(e).__name__}: {e}")
