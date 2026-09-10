@@ -38,42 +38,34 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 
-**Cerrado, probado y OK** (detalle en `docs/`): auditoría del motor de Aspersión (ago-2026);
-sistema de doble bombeo — checkbox manual "Bomba independiente (excluir del CDT)" que solo
-aparece en tramos cuyo nombre sugiere acumulador/embalse/etc., el revisor decide si marcarlo
-(sep-2026); menú "Apps" único al final de `.proj-nav` (`_apps_menu.html`, editar ahí para
-agregar apps nuevas).
+**Cerrado, probado y OK** (detalle en `docs/`): auditoría motor Aspersión; doble bombeo; menú
+"Apps"; precios de la API corregidos contra la consola real (Sonnet 5 sigue en USD 2/10, no
+volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar.
 
-1. **Caudal por turnos + CDT por ruta crítica (ago-2026) — implementado, usuario probando.**
-   Detalle en `docs/`. Pendiente: bugs en el Diseñador de Riego v129 — turno "cada X días"
-   (aún usa ÷168) y bug `reponeOk` multi-día — prompt de handoff entregado, aún no aplicado.
+1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
+   `docs/`. Pendiente: bugs en el Diseñador de Riego v129 (turno "cada X días" aún usa ÷168,
+   bug `reponeOk` multi-día) — prompt de handoff entregado, aún no aplicado.
 
-2. **Sección Respuestas — 3 rondas de correcciones (sep-2026) — implementado, usuario probando.**
-   Estados por ronda ("Resp. Obs.1"/"Resp. Obs.2"); "Nota del revisor" → "Contra Observación"
-   (formato idéntico al de la observación, encabeza la ronda siguiente, alimenta a la IA);
-   textareas auto-altura; deshacer ya no pierde adjuntos. Detalle en `docs/`.
+2. **Sección Respuestas — implementado, usuario probando.** 3 rondas con estado por ronda
+   ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); "Contra Observación" encabeza la ronda
+   siguiente. Ítems colapsables: arrancan comprimidos con badges de conteo (incl.
+   "Re-observada", morado, vs "Esperando" naranja); al abrir uno a mano queda así
+   (sessionStorage) hasta que no quede obs. "Esperando". Botón Ficha + selector de estado en
+   el encabezado. Detalle en `docs/`.
 
-3. **Programa Pequeña Agricultura — PEPA (sep-2026) — implementado, usuario probando.**
-   Campo `programa` en proyecto (default `"pequena_agricultura"`); badge en encabezado global;
-   selector Resumen alineado a la derecha; `ITEMS_PEPA_EXTRA` en `analyzer.py` inyecta criterios
-   del Inst. Técnico Res. 585/2024 a los checklists de `hidrologico`, `pruebas_bombeo`,
-   `diseno_hidraulico` y `presupuesto` cuando el proyecto es PEPA. Detalle en `docs/`.
+3. **PEPA + Ficha tacha resueltas — implementado, usuario probando.** PEPA: campo `programa`,
+   badge, selector en Resumen, `ITEMS_PEPA_EXTRA` en `analyzer.py` (criterios Res. 585/2024).
+   Ficha: `.obs-resuelta` tacha lo resuelto, igual al SEP. Detalle en `docs/`.
 
-4. **Ficha tacha observaciones resueltas (sep-2026) — implementado, usuario probando.**
-   Clase `.obs-resuelta` en `ficha.html`: `text-decoration:line-through` + `opacity:0.65`
-   cuando `rondas[-1].evaluacion == "resuelta"`. Igual al SEP.
-
-5. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
+4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
    Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
    (nunca probada); costo de API en Memorias standalone (sin confirmar).
 
-**Pendiente de implementar:** los chequeos del Revisor Fotovoltaico (generación, cobertura anual,
-potencia requerida) en la Memoria Completa — bloqueado: dependen del perfil solar horario del
-predio, que solo vive dentro de `static/fotovoltaico_riego_v15.html`.
+**Pendiente:** chequeos del Revisor Fotovoltaico en la Memoria Completa — bloqueado, depende del
+perfil solar horario que solo vive en `static/fotovoltaico_riego_v15.html`.
 
-**Fuera de alcance:** verificaciones que combinen cultivos vía Kc mensual (ej. "horas de riego por
-mes") pertenecen al **Revisor Fotovoltaico** — su chequeo FV usa un solo valor diario promedio, no
-un motor agronómico multi-cultivo.
+**Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
+un valor diario promedio, no motor agronómico multi-cultivo).
 
 ---
 

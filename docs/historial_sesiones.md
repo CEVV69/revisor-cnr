@@ -1,3 +1,103 @@
+## Sesión sep-2026 — Respuestas: colapso de ítems, estado "Obs. Ronda 2", fixes de costo/precio
+
+Serie de ajustes sobre `templates/respuestas.html` (más `main.py` y `analyzer.py` puntuales),
+todos ya pusheados a `main`, usuario probando.
+
+### Colapso de ítems (3 iteraciones hasta el criterio correcto)
+
+Pedido: comprimir en Respuestas los ítems ya evaluados, igual que la grilla compacta de la
+sección Revisión, para despejar la vista.
+
+1ª vuelta: colapso condicional a que el ítem no tuviera obs. "esperando" — mal, porque la
+condición se evaluaba en cada carga de página, así que un ítem con algo pendiente aparecía
+SIEMPRE expandido, incluso recién abierta la página (el usuario pidió justo lo contrario: todos
+comprimidos al inicio). 2ª vuelta: colapso incondicional para todos al cargar — mejor, pero al
+marcar una observación (resuelta/reiterada) el POST recarga la página entera y, si el ítem
+todavía tenía otras obs. por analizar, se volvía a comprimir en cada vuelta — molesto a mitad de
+trabajo. Criterio final (`respuestas.html`):
+
+- **Carga inicial de la página:** TODOS los ítems arrancan comprimidos, sin excepción — cada
+  `.grupo-card` lleva `data-grupo-key` (nombre del ítem) y `data-cnt-esp` (N° de obs. en
+  "Esperando", ronda 1 sin tocar) como atributos `data-*`.
+- **Expandir a mano:** `toggleGrupo()` guarda la intención en `sessionStorage` (clave
+  `grupoAbierto_{proyecto_id}_{nombre}`, por pestaña del navegador) cuando el revisor abre un
+  ítem. Sobrevive el reload de cada envío de formulario dentro de ese ítem — no hay que
+  reabrirlo entre observación y observación.
+- **Cierre automático:** `restaurarGrupos()` (en `DOMContentLoaded`) reabre solo los ítems
+  marcados en `sessionStorage` Y con `data-cnt-esp > 0` (todavía queda algo en "Esperando" —
+  ver más abajo por qué "Re-observada" NO cuenta acá). Si ya no queda nada "Esperando", el ítem
+  se comprime solo y se borra la marca de `sessionStorage` — el revisor no tiene que cerrarlo a
+  mano cuando termina.
+- Bug colateral: `autoResize()` (alto de los textareas "Respuesta"/"Contra Observación" según su
+  contenido) medía `scrollHeight` mientras el grupo estaba oculto (`display:none` → da 0),
+  dejando el textarea con alto inline forzado a `0px` aunque el grupo se expandiera después. Fix:
+  `autoResize()` se salta la medición si `el.offsetParent === null` (oculto); `toggleGrupo()` la
+  vuelve a llamar al abrir. Se agregó `min-height:2.6rem` en el CSS como respaldo.
+
+### Distinguir "Esperando" (ronda 1) de "Re-observada" (ronda 2 pendiente)
+
+`_estado_subsanacion()` (`main.py`) devuelve `estado: "esperando"` tanto para una obs. nunca
+respondida (ronda 1) como para una ya reiterada por el revisor que espera la ronda 2 — mismo
+badge naranja "Esperando respuesta" para ambos casos, confuso. Se distingue en todos lados con
+`sub.ronda_actual > 1` (backend) sin tocar `_estado_subsanacion()`:
+
+- Badge de cada observación: "Re-observada", morado (`.sub-reobservada`, mismo tono que
+  `badge-legal`), en vez de "Esperando respuesta (ronda N)".
+- Borde izquierdo del `.obs-card`: morado en vez de naranja para el mismo caso.
+- Resumen del ítem colapsado (badges de conteo) y franja superior del proyecto (contador
+  general): separan "N esperando" de "N re-observada(s)" — `main.py` calcula `n_esperando` y
+  `n_reobservadas` por separado en `pagina_respuestas()`.
+
+Importante: "Re-observada" NO cuenta como pendiente para el criterio de colapso — el revisor ya
+actuó sobre esa observación (la reiteró), no hay razón para mantener el ítem abierto por ella.
+Solo "Esperando" (ronda 1, sin tocar) mantiene el ítem expandido.
+
+### Nuevo estado de proyecto "Obs. Ronda 2"
+
+Entre "Resp. Obs.1" y "Resp. Obs.2" en `ESTADOS_PROYECTO` (`main.py`) — marca que ya se
+revisaron TODAS las respuestas de la ronda 1 (algunas se reiteraron) y el proyecto queda
+esperando que el consultor responda la ronda 2; sin este estado intermedio no había dónde
+reflejar ese punto exacto del flujo. Color propio: `badge-administrativa` / `#6e6e73` (gris) —
+al principio se probó con el mismo morado de "Resp. Obs.1/2" pero se confundían, el usuario pidió
+un color distinto.
+
+### Encabezado de Respuestas: botón Ficha + selector de estado
+
+Se replicó el botón "Generar Ficha de Revisión" (ya existente en `proyecto.html`) y el selector
+de estado del proyecto (mismo patrón de menú desplegable + `toggleMenuEstado()`) en el
+encabezado de `respuestas.html`, alineados a la derecha con `margin-left:auto`/`0.5rem` para no
+sumar alto ni quedar pegados. El `POST /proyecto/{id}/estado` ya volvía a la página de origen vía
+`_volver_a()` (Referer) — no hizo falta tocar el backend, solo pasar `estados_proyecto_opciones`
+al contexto de `pagina_respuestas()`.
+
+### Fix: contador de costo "congelado" tras evaluar con IA
+
+Reportado como "hice un par de evaluaciones que no suman nada". Investigado a fondo (acumulador
+por `ContextVar`, `_registrar_costo`, posible carrera de escritura en Postgres — descartada
+porque el usuario confirmó que nunca evalúa 2 observaciones en paralelo) hasta confirmar la causa
+real: "Evaluar respuesta con IA" es AJAX puro (`fetch`), no recarga la página — el badge de costo
+del encabezado (`_costo_api.html`) se arma en el servidor y se pinta una sola vez al cargar. El
+costo SÍ se sumaba y guardaba bien; el número en pantalla solo quedaba desactualizado hasta el
+próximo F5. Fix: `/observacion/{id}/evaluar-respuesta` ahora devuelve el desglose completo
+(`_costo_para_vista()`, con la fecha ya formateada) en el JSON; `actualizarCostoApi()` (JS) repone
+el panel entero del badge (total, por paso, por ítem, pie) sin esperar un reload.
+
+### Fix: precio de Sonnet 5 desactualizado
+
+`_precio_sonnet5()` (`analyzer.py`) asumía que el precio promocional de lanzamiento (USD 2/10 por
+MTok) vencía el 31-08-2026 y volvía sola al precio de lista (3/15). El usuario confirmó a mano en
+`console.anthropic.com` (10-sep-2026) que Sonnet 5 seguía en USD 2/10 — el vencimiento asumido no
+ocurrió. Como la fecha de hoy ya había pasado el supuesto corte, el código llevaba desde el
+1-sep sobreestimando 50% el costo de cada llamada con visión (planos/escaneados). Se reemplazó la
+lógica de expiración por un precio fijo en `PRECIOS_USD_POR_MTOK`, igual que Haiku 4.5 y Sonnet
+4.6 — sin mecanismo de detección automática; si Anthropic lo cambia de nuevo hay que actualizarlo
+a mano. De paso se confirmaron con la misma consola los multiplicadores de caché: escritura 2× el
+precio de input para TTL 1h (el que usa esta app en todas sus llamadas — la página de precios por
+defecto muestra el 1,25× de TTL 5min, que no aplica acá) y lectura 0,1× en los tres modelos —
+coincidían con lo que ya tenía el código para Haiku 4.5 y Sonnet 4.6, sin cambios ahí.
+
+---
+
 ## Sesión sep-2026 — Programa Pequeña Agricultura (PEPA) + Ficha tacha resueltas
 
 ### Programa Pequeña Agricultura (PEPA)
