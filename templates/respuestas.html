@@ -138,6 +138,7 @@
   <div class="obs-card" id="obs-{{ obs.id }}"
     {% if sub.estado == 'resuelta' %}style="border-left:4px solid #276749;"
     {% elif sub.estado == 'no_resuelta' %}style="border-left:4px solid #c41230;"
+    {% elif sub.ronda_actual and sub.ronda_actual > 1 %}style="border-left:4px solid #5e35b1;"
     {% else %}style="border-left:4px solid #c05621;"{% endif %}>
 
     <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
