@@ -3690,6 +3690,8 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
         "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
         "n_reobservadas": n_reobservadas, "todas_resueltas": todas_resueltas,
+        # Selector de estado del encabezado — mismo formato que usa proyecto.html.
+        "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
     })
 
 

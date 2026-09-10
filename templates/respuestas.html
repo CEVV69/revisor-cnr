@@ -49,6 +49,29 @@
      style="border-color:#2b6cb0; margin-left:auto;">
     Generar Ficha de Revisión
   </a>
+
+  <!-- Botón de estado — mismo patrón que el encabezado de proyecto.html, para cambiar el estado
+       del proyecto sin salir de Respuestas una vez revisadas todas las rondas. -->
+  <div style="position:relative; display:inline-block; margin-left:0.5rem;" id="menu-estado-wrapper">
+    <button onclick="toggleMenuEstado()" class="btn btn-sm"
+            style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == (proyecto.estado | estado_label) %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+      {% if proyecto.estado == 'En revisión' %}● En revisión ▾
+      {% else %}{{ proyecto.estado | estado_label }} ▾{% endif %}
+    </button>
+    <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+         border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+      {% for est in estados_proyecto_opciones %}
+      <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
+        <button type="submit" name="estado" value="{{ est[0] }}"
+                style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                       background:{% if (proyecto.estado | estado_label) == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                       color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+          {% if (proyecto.estado | estado_label) == est[0] %}● {% endif %}{{ est[0] }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <nav class="proj-nav">
@@ -236,6 +259,17 @@
 {% endif %}
 
 <script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var w = document.getElementById('menu-estado-wrapper');
+  if (w && !w.contains(e.target)) {
+    document.getElementById('menu-estado').style.display = 'none';
+  }
+});
+
 // Todo ítem arranca comprimido en cada carga de página. Si el revisor lo expande a mano para
 // trabajarlo, esa intención se guarda en sessionStorage (por pestaña) para sobrevivir el reload
 // que dispara cada envío de formulario dentro del ítem (marcar resuelta/reiterada) — así no hay
