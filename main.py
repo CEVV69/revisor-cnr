@@ -3769,6 +3769,12 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         pendientes = (obs.get("subsanacion") or {}).get("adjuntos_pendientes", [])
         doc_ids_extra = [a.get("id") for a in pendientes]
 
+        # Si algún documento que necesita visión (escaneado, plano, prueba de bombeo) perdió su
+        # archivo físico tras un redeploy, lo recupera desde Postgres — mismo helper que usa
+        # `_analizar_item_fondo()` antes de `analizar_item()`. Sin esto, `evaluar_respuesta_
+        # subsanacion()` no podría renderizarlo aunque el proyecto lo tenga guardado en la base.
+        await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
+                                proyecto.get("documentos", []))
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
         # Cuántas observaciones aprobadas tiene ESTE ítem: los antecedentes que se le mandan a la
@@ -3798,7 +3804,7 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
             respuesta_consultor=respuesta, item_key=item_obs,
             documentos=documentos_con_texto, resumen=proyecto.get("resumen", {}),
             bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
-            n_obs_item=n_obs_item,
+            n_obs_item=n_obs_item, ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
 
         # Esta ruta no modifica el proyecto (solo devuelve la recomendación por AJAX), pero el

@@ -1161,6 +1161,14 @@ def _documentos_para_verificacion(grupo_key: str, documentos: list) -> list:
 
 MAX_IMG_EJE = 14   # tope de imágenes (páginas) por revisión de grupo, para controlar costo
 
+# Tope de imágenes para `evaluar_respuesta_subsanacion` — mucho menor que MAX_IMG_EJE porque acá
+# no se revisa el ítem completo, solo se verifica si UNA observación puntual quedó resuelta en el
+# documento nuevo/corregido. Sin cuadrantes ampliados (`render_plano_tiles`, 5 imágenes por
+# página): esta evaluación es de verificación, no de lectura fina de cotas — se prioriza costo
+# bajo (Sonnet 4.6/texto sigue siendo el camino por defecto; visión y Sonnet 5 solo se activan si
+# de verdad hay un documento escaneado/plano/prueba de bombeo de por medio, ver más abajo).
+MAX_IMG_SUBSANACION = 6
+
 # Tipos de documento que son PLANOS: van a visión SIEMPRE que el archivo exista (aunque el PDF
 # tenga capa de texto — un plano exportado de AutoCAD suele traer las cotas/textos extraíbles,
 # pero la geometría del trazado solo se ve en imagen), y se renderizan en ALTA RESOLUCIÓN con
@@ -4376,7 +4384,8 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                                         documentos: list, resumen: dict = None,
                                         bases_texto: str = "", concurso_id: str = "",
                                         doc_ids_extra: list = None,
-                                        n_obs_item: int = 1) -> dict:
+                                        n_obs_item: int = 1,
+                                        ruta_uploads: str = None) -> dict:
     """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
 
     `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
@@ -4385,8 +4394,19 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
     evaluación.
 
     `n_obs_item`: cuántas observaciones aprobadas tiene ESE ítem en el proyecto. Solo decide si
-    los antecedentes viajan cacheados o frescos (ver más abajo) — no cambia en nada el contenido
-    que lee la IA ni el criterio de evaluación."""
+    los antecedentes de TEXTO viajan cacheados o frescos (ver más abajo) — no cambia en nada el
+    contenido que lee la IA ni el criterio de evaluación.
+
+    `ruta_uploads`: carpeta física de los archivos del proyecto, para renderizar a imagen los
+    documentos escaneados/planos/pruebas de bombeo (bug real reportado sep-2026: esta evaluación
+    era 100% texto y EXCLUÍA por completo los documentos escaneados de su contexto — si lo que el
+    consultor corrigió estaba en un plano o una foto, la IA decía "no se agregó" sin haberlo visto
+    nunca). Mismo criterio de "necesita visión" que `_analizar_grupo`, pero con cuota reducida
+    (MAX_IMG_SUBSANACION) y sin cuadrantes ampliados — acá se verifica un punto puntual, no se
+    revisa el ítem completo. Sonnet 5 (visión) solo se usa si de verdad hay un documento así de
+    por medio; el resto de los casos se queda en Sonnet 4.6/texto, más barato. Sin `ruta_uploads`
+    (o si el archivo no está disponible), se sigue evaluando solo con lo que haya de texto, como
+    antes."""
     if not (respuesta_consultor or "").strip():
         return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
 
@@ -4406,6 +4426,29 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         ya = {d.get("id") for d in docs_grupo}
         docs_grupo = docs_grupo + [d for d in documentos
                                    if d.get("id") in ids_extra and d.get("id") not in ya]
+
+    # Separar texto vs imagen — MISMO criterio que `_analizar_grupo`: un documento va a imagen si
+    # es un PDF escaneado o tiene muy poco texto extraíble, o si su tipo está SIEMPRE en visión
+    # (TIPOS_SIEMPRE_VISION: planos + pruebas de bombeo), aunque tenga texto — ese texto se suma
+    # igual (cotas/rótulos), la imagen aporta lo que el texto no puede (trazado, tablas/gráficos
+    # incrustados como imagen).
+    import os as _os
+    docs_texto = []
+    docs_imagen = []   # (doc, filepath)
+    for d in docs_grupo:
+        t = d.get("texto_extraido", "").strip()
+        es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
+        es_siempre_vision = d.get("tipo_doc") in TIPOS_SIEMPRE_VISION
+        fp = _os.path.join(ruta_uploads, d.get("filename", "")) if ruta_uploads else ""
+        pdf_disponible = (fp and d.get("filename", "").lower().endswith(".pdf")
+                          and _os.path.exists(fp))
+        if pdf_disponible and (es_imagen or es_siempre_vision):
+            docs_imagen.append((d, fp))
+            if es_imagen:
+                continue
+        if t not in ("", "__PDF_ESCANEADO__"):
+            docs_texto.append(d)
+
     # Presupuesto de caracteres: el MISMO que usó el análisis original de este ítem
     # (MAX_CHARS_POR_ITEM), con tope 80.000. Antes eran 80.000 fijos para todos los ítems — más
     # contexto del que había visto la propia revisión que generó la observación (45.000 en 12 de
@@ -4413,9 +4456,31 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
     # contra los mismos antecedentes con los que se originó. En los ítems densos (presupuesto,
     # coherencia, etc., 120.000) el tope de 80.000 manda igual que antes, sin cambio.
     max_chars_ctx = min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))
-    contexto_docs = _texto_grupo_para_extraccion(docs_grupo, max_chars=max_chars_ctx)
-    if not contexto_docs.strip():
-        contexto_docs = "(No hay antecedentes con texto extraíble para este ítem.)"
+    contexto_docs = _texto_grupo_para_extraccion(docs_texto, max_chars=max_chars_ctx)
+
+    # Renderizar imágenes, con tope reducido y sin cuadrantes ampliados (ver MAX_IMG_SUBSANACION).
+    # Cuota fija por documento para que el primero no consuma todo el tope si hay varios.
+    imagenes_por_doc = []   # (label, nombre_original, [(etiqueta, b64), ...])
+    if docs_imagen:
+        from extractor import render_pdf_as_images
+        cuota_por_doc = max(1, MAX_IMG_SUBSANACION // len(docs_imagen))
+        restante = MAX_IMG_SUBSANACION
+        for d, fp in docs_imagen:
+            if restante <= 0:
+                break
+            cuota_doc = min(cuota_por_doc, restante)
+            try:
+                pags = min(cuota_doc, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 3))
+                crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
+                imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
+            except Exception as e:
+                print(f"⚠️ evaluar_respuesta_subsanacion: error renderizando imagen de "
+                      f"'{d.get('nombre_original','')}': {e}")
+                imgs = []
+            if imgs:
+                label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
+                imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
+                restante -= len(imgs)
 
     bloque_resumen = _construir_bloque_resumen(resumen)
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
@@ -4425,13 +4490,14 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         system_con_cache.append({"type": "text", "text": bloque_bases,
                                  "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
-    # Los antecedentes del ítem son IDÉNTICOS para todas las observaciones de ese mismo ítem, así
+    # Los antecedentes de TEXTO son IDÉNTICOS para todas las observaciones de ese mismo ítem, así
     # que si hay varias que evaluar conviene cachearlos (se leen a 0,1× en vez de pagarse frescos
     # una vez por observación). No se cachea siempre porque escribir la caché cuesta 2× (TTL 1h):
     # con 1 o 2 evaluaciones saldría igual o más caro que mandarlo fresco — el punto de equilibrio
     # está sobre 2 lecturas, de ahí el umbral de 3. `n_obs_item` lo calcula main.py contando las
-    # observaciones aprobadas de este mismo ítem en el proyecto.
-    cachear_antecedentes = (n_obs_item or 1) >= 3
+    # observaciones aprobadas de este mismo ítem en el proyecto. Las IMÁGENES nunca se cachean acá
+    # — son adjuntos puntuales de esta respuesta/ronda, no antecedentes estables del ítem.
+    cachear_antecedentes = (n_obs_item or 1) >= 3 and bool(contexto_docs.strip())
     if cachear_antecedentes:
         system_con_cache.append({
             "type": "text",
@@ -4439,6 +4505,27 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
             "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
     nombre_item = item["nombre"] if item else item_key
+
+    if cachear_antecedentes:
+        seccion_antecedentes = ('(Se adjuntan más arriba, en el bloque "ANTECEDENTES ACTUALES '
+                                 'DEL ÍTEM EN REVISIÓN".)')
+    elif contexto_docs.strip():
+        seccion_antecedentes = contexto_docs
+    elif imagenes_por_doc:
+        seccion_antecedentes = ("(Sin antecedentes con texto extraíble — se adjuntan documentos "
+                                 "como imágenes más abajo.)")
+    else:
+        seccion_antecedentes = "(No hay antecedentes con texto extraíble para este ítem.)"
+
+    nota_imagenes = ""
+    if imagenes_por_doc:
+        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
+        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
+                         f"(planos, pruebas de bombeo o escaneados) — analízalos visualmente: "
+                         f"{nombres_img}. Lee SOLO lo efectivamente anotado/rotulado en la "
+                         f"imagen (diámetros, cotas, valores de tablas, forma de curvas o "
+                         f"gráficos); nunca midas a escala ni estimes a ojo.")
+
     prompt = f"""{bloque_resumen}
 Estás revisando la RESPUESTA del consultor a una observación de un proyecto CNR (Ley 18.450).
 Determina si la respuesta, CONSIDERANDO LOS ANTECEDENTES ACTUALES del expediente (que ya
@@ -4453,7 +4540,7 @@ RESPUESTA DEL CONSULTOR (transcrita por el revisor):
 {respuesta_consultor.strip()}
 
 ANTECEDENTES ACTUALES DEL ÍTEM:
-{'(Se adjuntan más arriba, en el bloque "ANTECEDENTES ACTUALES DEL ÍTEM EN REVISIÓN".)' if cachear_antecedentes else contexto_docs}
+{seccion_antecedentes}{nota_imagenes}
 
 CRITERIOS:
 - "resuelta": la respuesta aporta lo que faltaba, corrige lo observado o aclara satisfactoriamente
@@ -4467,10 +4554,27 @@ refleja en los antecedentes.
 Responde SOLO este JSON, sin texto adicional:
 {{"recomendacion": "resuelta"|"no_resuelta", "fundamento": "2-4 líneas explicando por qué, citando la norma/base si aplica"}}"""
 
+    # Contenido: texto + imágenes de los documentos escaneados/planos/pruebas de bombeo.
+    content_blocks = [{"type": "text", "text": prompt}]
+    for label, nombre_img, imgs in imagenes_por_doc:
+        content_blocks.append({"type": "text",
+                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
+        for etiqueta, b64 in imgs:
+            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
+            content_blocks.append({"type": "image",
+                                   "source": {"type": "base64", "media_type": "image/jpeg",
+                                              "data": b64}})
+
+    # Sonnet 5 (visión) SOLO si de verdad hay un documento escaneado/plano/prueba de bombeo de
+    # por medio — el resto de los casos (la gran mayoría) se queda en Sonnet 4.6/texto, más
+    # barato. Mismo criterio que `_analizar_grupo`.
+    hay_imagenes = any(b.get("type") == "image" for b in content_blocks)
+    modelo_analisis = MODELO_SONNET if hay_imagenes else MODELO_SONNET_TEXTO
+
     def _stream_final(max_tokens):
         with client.messages.stream(
-            model=MODELO_SONNET_TEXTO, max_tokens=max_tokens, system=system_con_cache,
-            messages=[{"role": "user", "content": prompt}],
+            model=modelo_analisis, max_tokens=max_tokens, system=system_con_cache,
+            messages=[{"role": "user", "content": content_blocks}],
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
         ) as stream:
             return stream.get_final_message()
@@ -4481,7 +4585,7 @@ Responde SOLO este JSON, sin texto adicional:
         print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
         return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
 
-    _log_uso(f"9 · Respuesta del consultor · '{nombre_item}'", response, MODELO_SONNET_TEXTO)
+    _log_uso(f"9 · Respuesta del consultor · '{nombre_item}'", response, modelo_analisis)
     content = _texto_respuesta(response)
     data = _extraer_json_tolerante(content)
     rec = data.get("recomendacion", "")
