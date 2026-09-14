@@ -489,7 +489,7 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
 # lado por otro más urgente) no pase desapercibido en el dashboard.
 ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Obs. Ronda 2",
-                    "Resp. Obs.2", "Aprobado Técnicamente", "Rechazado"]
+                    "Resp. Obs.2", "Aprobado", "Rechazado"]
 # "Con respuesta Observaciones"/"Con respuesta Obs." (nombres anteriores, hasta sep-2026) se
 # reemplazan por un estado por ronda — el revisor elige cuál corresponde. Sin forma de saber a
 # qué ronda corresponde un proyecto ya guardado con el nombre viejo, cae a la ronda 1 por
@@ -507,7 +507,7 @@ ESTADOS_PROYECTO_BADGE = {
     "Resp. Obs.1":         "badge-legal",       # morado claro
     "Obs. Ronda 2":        "badge-administrativa", # gris — distinto del morado de Resp. Obs., para no confundirse
     "Resp. Obs.2":         "badge-legal",       # morado claro
-    "Aprobado Técnicamente": "badge-tecnica",   # verde
+    "Aprobado":            "badge-tecnica",     # verde
     "Rechazado":           "badge-mayor",       # rojo
 }
 ESTADOS_PROYECTO_COLOR_SOLIDO = {
@@ -517,7 +517,7 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "Resp. Obs.1":         "#5e35b1",
     "Obs. Ronda 2":        "#6e6e73",
     "Resp. Obs.2":         "#5e35b1",
-    "Aprobado Técnicamente": "#276749",
+    "Aprobado":            "#276749",
     "Rechazado":           "#c41230",
 }
 templates.env.filters["estado_label"] = lambda e: ESTADOS_LEGACY.get(e, e)
@@ -3612,7 +3612,7 @@ async def derivar_observacion_item(
 # ─── Subsanación: revisión de las respuestas del consultor a las observaciones ────────────────
 # Tras enviar las observaciones APROBADAS al consultor (fuera de la app, vía SEP), este tiene 10
 # días hábiles para responder. El revisor transcribe cada respuesta acá y la evalúa: la resuelve
-# (cierra el punto) o no la resuelve (reitera). El proyecto pasa a "Aprobado Técnicamente" solo
+# (cierra el punto) o no la resuelve (reitera). El proyecto pasa a "Aprobado" solo
 # cuando TODAS las observaciones enviadas quedan resueltas.
 
 # Tope de rondas por defecto — 2, salvo que el proyecto declare `max_rondas_subsanacion` (sep-2026:
