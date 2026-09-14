@@ -1,3 +1,40 @@
+## Sesión sep-2026 — Diseñador de Riego actualizado a v133 (limpieza interna)
+
+El usuario subió `disenador_riego_v133.html` ("se corrigieron algunos errores internos"). Diff
+completo contra v131 (199 líneas) revisado antes de reemplazar:
+
+- **Bug real corregido:** `id="m-dl"` estaba DUPLICADO en v131 (Microaspersión) — "Dist. entre
+  Laterales [m]" Y "Ø Int. Lateral [mm]" compartían el mismo id. `getElementById` solo
+  encontraba el primero (Dist. entre Laterales), así que la lógica que debía leer/escribir el
+  diámetro interior (`calcSalidasM()`) estaba tocando el campo equivocado. Renombrado a
+  `id="m-dl2"` para el diámetro; el campo de distancia conserva `m-dl`.
+- **Limpieza de referencias rotas:** `a-aspmod`/`c-cmod` se referenciaban en JS
+  (`document.getElementById(...)`) pero NO tenían elemento HTML real en v131 (huérfanos, ya sin
+  efecto salvo el fallback `?.value` → `'—'`) — reemplazados por el selector `a-tipe`/`c-tipe`
+  (con la función nueva `_emisorNombre()`, que resuelve el nombre real desde el array
+  `EMISORES` por índice), que ya existía y sí funcionaba.
+- **Código muerto eliminado:** funciones duplicadas o sin uso (`loadProject`, `delSectorUI` +
+  `delSector` duplicado, `addSector`/`commitSector` obsoletos, `mgrPrecios`,
+  `_toggleCapasGenerico`/`toggleCapasA`/`toggleCapasC`, `fmt()` duplicado, cuerpo de
+  `showDerechoArt`).
+- Ajustes menores: filtro de goteo (`g-filtro`, campo que no existe — cae fijo a "Malla", con
+  comentario); textura de goteo (`g-tex`, ídem, cae fija a "franco"); criterio de riego de
+  Microaspersión (`m-crit`, ídem, fijo 50%); filtro `isAsp` ahora también excluye emisores tipo
+  "micro" de la lista de aspersores.
+
+**Verificado contra `exportar_disenador.py` antes de aplicar** (Regla 10): se comparó el SET
+COMPLETO de `id="..."` entre v131 y v133 (no solo los cambios visibles en el diff) — el único id
+nuevo es `m-dl2`, ninguno se eliminó. `exportar_disenador.py` no referencia `a-aspmod`/`c-cmod`
+en ningún lado (grepeado, 0 resultados) y su `put("dl", ...)` sigue apuntando al `m-dl` correcto
+("Dist. entre Laterales", sin cambios) — la exportación queda intacta, sin necesidad de tocar
+`exportar_disenador.py`.
+
+**Cambio mecánico en este repo:** `static/disenador_riego_v131.html` → `v133.html` (`git rm` +
+`git add`), enlace en `_apps_menu.html`, comentarios en `calculos_riego.py`/
+`exportar_disenador.py`, y las 2 menciones en `CLAUDE.md`.
+
+---
+
 ## Sesión sep-2026 — Los "pendientes" del Diseñador de Riego ya estaban resueltos
 
 El usuario pidió el prompt de handoff para los 2 bugs que CLAUDE.md daba por pendientes desde la

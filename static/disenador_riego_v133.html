@@ -1455,7 +1455,7 @@ select option{background:var(--white)}
       <div class="f"><label>Ø Int. Terciaria [mm]</label><div class="ig"><input id="m-dt" type="number" placeholder="36.4" oninput="calcSalidasM()"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Material Terciaria (C H-W)</label><select id="m-ct" onchange="calcSalidasM()"><option value="120">PE (C=120)</option><option value="150">PVC (C=150)</option></select></div>
       <div class="f"><label>Long. Lateral [m]</label><div class="ig"><input id="m-ll" type="number" placeholder="33" oninput="calcSalidasM()"><span class="isuf">m</span></div></div>
-      <div class="f"><label>Ø Int. Lateral [mm]</label><div class="ig"><input id="m-dl" type="number" placeholder="15" oninput="calcSalidasM()"><span class="isuf">mm</span></div></div>
+      <div class="f"><label>Ø Int. Lateral [mm]</label><div class="ig"><input id="m-dl2" type="number" placeholder="15" oninput="calcSalidasM()"><span class="isuf">mm</span></div></div>
       <div class="f"><label>Material Lateral (C H-W)</label><select id="m-cl" onchange="calcSalidasM()"><option value="120">PE (C=120)</option><option value="150">PVC (C=150)</option></select></div>
     </div>
     <div class="card" style="margin-bottom:12px">
@@ -1733,7 +1733,7 @@ function populateEmisores(){
     var val=sel.value; sel.innerHTML='';
     var isAsp=tid==='a-tipe', isCar=tid==='c-tipe', isMic=tid==='m-tipe';
     EMISORES.forEach(function(e,i){
-      if(isAsp&&e.tipo&&!e.tipo.toLowerCase().includes('aspersor'))return;
+      if(isAsp&&(!e.tipo||!e.tipo.toLowerCase().includes('aspersor')||e.tipo.toLowerCase().includes('micro')))return;
       if(isCar&&e.tipo&&!e.tipo.toLowerCase().includes('carrete'))return;
       if(isMic&&e.tipo&&!e.tipo.toLowerCase().includes('microaspersor')&&!e.tipo.toLowerCase().includes('micro'))return;
       var o=document.createElement('option');
@@ -1890,7 +1890,7 @@ function buildPresItems(sys){
     add('p-manometro','Equipo de Bombeo','Manómetro','Unidad',1,'');
     add('p-tub-con','Red de Conducción',`Tubería conducción: ${t0.nombre} (tiras de 6m)`,'Tiras 6m',Math.ceil(lTub/6),'Diseño Hidráulico');
     add('p-tub-lat','Red de Conducción','Tuberías laterales aluminio 3" o 4"','m',nLat*120,'Estimación');
-    add('p-aspersores','Emisores',`Aspersores (modelo: ${document.getElementById('a-aspmod')?.value||'—'}) con trípode`,'Unidad',nAsp*nPost,'Diseño');
+    add('p-aspersores','Emisores',`Aspersores (modelo: ${_emisorNombre('a-tipe')}) con trípode`,'Unidad',nAsp*nPost,'Diseño');
     add('p-acc-conduccion','Accesorios','Codos, uniones y accesorios de conducción','Global',1,'');
     add('p-instalacion','Instalación','Mano de obra instalación y puesta en marcha','Global',1,'');
     (function(){var fvInc=lsGet('dr_fv_include_asp',null);var fR=lsGet('dr_fv_res_asp',null);if(fvInc===true&&fR&&fR.n_real){
@@ -1912,7 +1912,7 @@ function buildPresItems(sys){
     const qSis=R.CH?.qSis||0, cdt=R.CH?.cdt||0, potHP=(R.CH?.potHP||0)*1.2;
     const t0=TUBOS[parseInt(document.querySelector('.ctt')?.value||0)]||TUBOS[2];
     const lTub=parseFloat(document.querySelector('.ctl')?.value)||120;
-    const carMod=document.getElementById('c-cmod')?.value||'IRRIMEC ST4 100 TG 300';
+    const carMod=_emisorNombre('c-tipe');
     const boq=document.getElementById('c-boq')?.value||'28';
     const desc=document.getElementById('c-desc')?.value||'54';
 
@@ -1949,7 +1949,7 @@ function buildPresItems(sys){
     const emis=EMISORES[tidxEmis]||EMISORES[0];
     const nSec=R.GE?.nSec||7, nPl=R.GE?.nPl||1000;
     const supR=parseFloat(document.getElementById('g-sup')?.value)||0;
-    const filtroTipo=document.getElementById('g-filtro')?.value||'Malla';
+    const filtroTipo='Malla'; // No hay campo g-filtro — 'Malla' es el filtro estándar para goteo (referencia en presupuesto)
     // Tuberías por nodo
     const lMat=parseFloat(document.getElementById('g-lm')?.value)||300;
     const lTer=parseFloat(document.getElementById('g-lt')?.value)||0;
@@ -2009,7 +2009,7 @@ function buildPresItems(sys){
     const emis=EMISORES[tidxEmis]||EMISORES[0];
     const nSec=R.ME?.nSec||7, nPl=R.ME?.nPl||1000;
     const supR=parseFloat(document.getElementById('m-sup')?.value)||0;
-    const filtroTipo=document.getElementById('g-filtro')?.value||'Malla';
+    const filtroTipo='Malla'; // No hay campo g-filtro — 'Malla' es el filtro estándar para goteo (referencia en presupuesto)
     // Tuberías por nodo
     const lMat=parseFloat(document.getElementById('m-lm')?.value)||300;
     const lTer=parseFloat(document.getElementById('m-lt')?.value)||0;
@@ -2151,6 +2151,11 @@ function hw(Qls,Dmm,L,C){if(!Qls||!Dmm||!L)return 0;const Q=Qls/1000,D=Dmm/1000;
 function hwV(Qls,Dmm){return(!Qls||!Dmm)?0:(Qls/1000)/(Math.PI/4*Math.pow(Dmm/1000,2));}
 function mcard(lbl,val,unit,cls=''){return`<div class="met ${cls}"><div class="mlbl">${lbl}</div><div class="mval">${val}</div><div class="munit">${unit}</div></div>`;}
 function al(msg,t){return`<div class="al al-${t}">${msg}</div>`;}
+// Resuelve el nombre real del emisor/equipo seleccionado (a-tipe/c-tipe guardan un índice, no el nombre)
+function _emisorNombre(tid){
+  var el=document.getElementById(tid); if(!el||el.value==='') return '—';
+  var e=EMISORES[parseInt(el.value)]; return e?e.nombre:'—';
+}
 // Clasificación de tramos por nombre (para CDT: matriz/sin-clasificar se suman en serie;
 // terciaria/lateral con 2+ tramos del mismo nivel son ramales alternativos — solo cuenta el de mayor Hf).
 function _clasificarTramo(nombre){
@@ -2182,7 +2187,6 @@ function _checkDaPlausible(da){
   if(da>5) return {da:da/1000, alerta:true, daOriginal:da};
   return {da:da, alerta:false, daOriginal:da};
 }
-function fmt(n){return n?n.toLocaleString('es-CL'):'0';}
 
 // ═══════════════════════════════════════════════════
 //  CÁLCULOS ASPERSIÓN
@@ -2396,19 +2400,6 @@ function calcHidA(){let totalHf=0,rows='',warns='',_maxQA=0;const _itemsA=[];doc
   </div>`;
   setTimeout(function(){renderSectores('asp');},50);}
 var aCapaN=0, cCapaN=0;
-function _toggleCapasGenerico(pfx){
-  var chk=document.getElementById(pfx+'-capas-chk');
-  var box=document.getElementById(pfx+'-capas-box');
-  if(!box) return;
-  box.style.display=(chk&&chk.checked)?'block':'none';
-  if(chk&&chk.checked&&document.getElementById(pfx+'-capas-list').children.length===0){
-    if(pfx==='a') addCapaA(0, v('a-pr',60), v('a-cc',22), v('a-pmp',10), v('a-da',1.4));
-    else addCapaC(0, v('c-pr',30), v('c-cc',19.5), v('c-pmp',10), v('c-da',1.25));
-  }
-  if(pfx==='a') calcCapasA(); else calcCapasC();
-}
-function toggleCapasA(){ _toggleCapasGenerico('a'); }
-function toggleCapasC(){ _toggleCapasGenerico('c'); }
 function calcCapasC(){ _calcCapasGenerico('c','cc'); }
 function addCapaC(desde,hasta,cc,pmp,da){
   cCapaN++;
@@ -3465,10 +3456,8 @@ const DER_ARTS = {
   art10: 'Art. 10 Código de Aguas: Permite la captación y acumulación de aguas pluviales que caigan dentro de un predio, para uso del propietario. No requiere derecho de aprovechamiento.',
   art20: 'Art. 20 Código de Aguas: Las vertientes que nacen, corren y mueren dentro de una misma heredad pertenecen al dueño de ella. Puede usarlas libremente dentro del predio.'
 };
-function showDerechoArt(pfx){
-  // El select derechos fue eliminado (redundante con der-tipo).
-  // checkDerEvt() maneja los avisos de artículos basándose en der-tipo (ITT-01).
-}
+// El select derechos fue eliminado (redundante con der-tipo).
+// checkDerEvt() maneja los avisos de artículos basándose en der-tipo (ITT-01).
 
 // ════════════════════════════════════════════
 //  BULBO HÚMEDO — calculado
@@ -3481,7 +3470,7 @@ function calcBulbo(){
   const tidx=parseInt(document.getElementById('g-tipe')?.value||0);
   const emis=EMISORES[tidx]||EMISORES[0];
   const qem=emis.q||1.2;
-  const tex=document.getElementById('g-tex')?.value||'franco';
+  const tex='franco'; // Goteo no tiene selector de textura desde v118 (Db no la necesita); bulbo asume franco como referencia conservadora
   const k_tex={'arenoso':0.80,'franco_arenoso':0.90,'franco':1.00,'franco_limoso':1.10,'franco_arcilloso':1.15,'arcilloso':1.20}[tex]||1.00;
   const D=k_tex*0.6*Math.sqrt(qem);               // diámetro mojado [m]: D = k × 0.6 × √(q_em[l/hr])
   const r=D/2;
@@ -3758,21 +3747,10 @@ function updateCuadro1(input){
     tfoot.innerHTML=fd(totSup,3)+'<br><small style="font-weight:400;font-size:.65rem">'+(supOk?'✓ = '+fd(supTotal,3)+' ha':'≠ '+fd(supTotal,3)+' ha')+'</small>';
   }
 }
-function delSectorUI(sys,id){
-  var arr=getSectores(sys).filter(function(s){return s.id!==id;});
-  setSectores(sys,arr);renderSectores(sys);
-}
-
 // Alias: renderSectoresUI === renderSectores (el HTML llama a ambos)
 var renderSectoresUI = renderSectores;
 
 // Eliminar sector
-function delSector(sys, id){
-  const arr = getSectores(sys).filter(s=>s.id!==id);
-  setSectores(sys, arr);
-  renderSectores(sys);
-}
-
 // Inicializar sectores al entrar al paso 3
 function initSectores(sys){
   renderSectores(sys);
@@ -3785,8 +3763,8 @@ function initSectores(sys){
 //  SISTEMA DE PROYECTOS — guardar y cargar
 // ════════════════════════════════════════════════════
 const FIELD_IDS = {
-  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-serie", "a-pend", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-turno-hrs", "a-turno-dias", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-aspmod", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
-  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-turno-hrs", "c-turno-dias", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-cmod", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-alfa", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
+  asp: ["a-consultor","a-nombre-proy","a-prop", "a-rol", "a-sec", "a-com", "a-huso","a-utmn", "a-utme", "a-sttot", "a-strie", "a-cult", "a-ef", "a-hrs", "a-tras", "a-serie", "a-pend", "a-pr", "a-crit", "a-vib", "a-tfue", "a-der-tipo","a-q", "a-acum-chk", "a-acum-vol", "a-turno-hrs", "a-turno-dias", "a-hs", "a-dz", "ae0","ae1","ae2","ae3","ae4","ae5","ae6","ae7","ae8","ae9","ae10","ae11", "a-kc", "a-etom", "a-dias", "a-tipe", "a-boq", "a-pres", "a-qasp", "a-radio", "a-nasp", "a-easp", "a-elat", "a-llat", "a-llen", "a-qlat", "a-dlat", "a-pb", "a-pelv", "a-pseg", "a-bomb-mod", "a-bomb-tipo", "a-bomb-q", "a-bomb-h", "a-bomb-hp", "a-bomb-motor","a-bomb-curva-b64","a-fv-pkw","a-fv-hbom","a-fv-hsp","a-fv-fp","a-fv-wp","a-fv-vmp","a-fv-imp","a-fv-ct","a-fv-temp","a-fv-einv","a-fv-vsis","a-eta","a-aporte","a-gg-pct","a-util-pct","a-dis-pct","a-ito-pct","a-imp-pct"],
+  car: ["c-consultor","c-nombre-proy","c-prop", "c-rol", "c-sec", "c-com", "c-huso","c-utmn", "c-utme", "c-supr", "c-cult", "c-ef", "c-serie", "c-pr", "c-crit", "c-vib", "c-hrs", "c-tfue", "c-der-tipo","c-q", "c-acum-chk", "c-acum-vol", "c-turno-hrs", "c-turno-dias", "c-hs", "c-dz", "ce0","ce1","ce2","ce3","ce4","ce5","ce6","ce7","ce8","ce9","ce10","ce11", "c-kc", "c-etom", "c-dias", "c-tipe", "c-boq", "c-desc", "c-margq", "c-radio", "c-vv", "c-alfa", "c-fv", "c-lf", "c-va", "c-tras", "c-pb", "c-pturb", "c-pseg", "c-bomb-mod", "c-bomb-tipo", "c-bomb-q", "c-bomb-h", "c-bomb-hp", "c-bomb-motor","c-bomb-curva-b64","c-fv-pkw","c-fv-hbom","c-fv-hsp","c-fv-fp","c-fv-wp","c-fv-vmp","c-fv-imp","c-fv-ct","c-fv-temp","c-fv-einv","c-fv-vsis","c-eta","c-aporte","c-gg-pct","c-util-pct","c-dis-pct","c-ito-pct","c-imp-pct"],
   got: ["g-consultor","g-nombre-proy","g-prop", "g-rol", "g-sec", "g-com", "g-huso","g-utmn", "g-utme", "g-sup", "g-cult", "g-ef", "g-hrs", "g-pr", "g-tfue", "g-der-tipo","g-q", "g-acum-chk", "g-acum-vol", "g-turno-hrs", "g-turno-dias", "g-hs", "g-dz", "ge0","ge1","ge2","ge3","ge4","ge5","ge6","ge7","ge8","ge9","ge10","ge11", "g-kc", "g-etom", "g-dias", "g-deh", "g-dsh", "g-tipe", "g-nlin", "g-nem", "g-espm", "g-dhum", "g-lm", "g-dm", "g-cm", "g-lt", "g-dt", "g-ct", "g-ll", "g-dl", "g-cl", "g-nst", "g-nsl", "g-pem", "g-pven", "g-pcab", "g-pseg", "g-bomb-mod", "g-bomb-tipo", "g-bomb-q", "g-bomb-h", "g-bomb-hp", "g-bomb-motor","g-bomb-curva-b64","g-fv-pkw","g-fv-hbom","g-fv-hsp","g-fv-fp","g-fv-wp","g-fv-vmp","g-fv-imp","g-fv-ct","g-fv-temp","g-fv-einv","g-fv-vsis","g-eta","g-aporte","g-gg-pct","g-util-pct","g-dis-pct","g-ito-pct","g-imp-pct"],
   mic: ["m-consultor","m-nombre-proy","m-prop","m-rol","m-sec","m-com","m-huso","m-utmn","m-utme","m-sup","m-cult","m-ef","m-hrs","m-tex","m-serie","m-cc","m-pmp","m-da","m-pr","m-tfue","m-der-tipo","m-derechos","m-q","m-acum-chk","m-acum-vol","m-turno-hrs","m-turno-dias","m-hs","m-dz","me0","me1","me2","me3","me4","me5","me6","me7","me8","me9","me10","me11","m-kc","m-etom","m-dias","m-de","m-dl","m-tipe","m-nem","m-radio","m-vib","m-lm","m-dm","m-cm","m-lt","m-dt","m-ct","m-ll","m-dl2","m-cl","m-nst","m-nsl","m-pem","m-pven","m-pcab","m-pseg","m-bomb-mod","m-bomb-tipo","m-bomb-q","m-bomb-h","m-bomb-hp","m-bomb-motor","m-bomb-curva-b64","m-fv-pkw","m-fv-hbom","m-fv-hsp","m-fv-fp","m-fv-wp","m-fv-vmp","m-fv-imp","m-fv-ct","m-fv-temp","m-fv-einv","m-fv-vsis","m-eta","m-aporte","m-gg-pct","m-util-pct","m-dis-pct","m-ito-pct","m-imp-pct"]
 };
@@ -3959,23 +3937,6 @@ function saveProject(sys) {
   var ov = document.getElementById('projects-modal');
   if (ov) { ov.remove(); openProjectsMgr(sys); }
 }
-function loadProject(sys){
-  var key='dr_proj_named_'+sys;
-  var saved=lsGet(key,null);
-  if(!saved){
-    // intentar proyecto automático
-    saved=lsGet('dr_autosave_'+sys,null);
-  }
-  if(!saved){alert('No hay proyecto guardado para '+sys+'.');return;}
-  try{
-    restoreFieldData(sys,saved);
-    if(typeof buildWiz==='function'&&typeof gG==='function'){
-      var fn={got:gG,asp:aG,car:cG,mic:mG}[sys];
-      if(fn) fn(1);
-    }
-  }catch(e){console.error('loadProject error:',e);}
-}
-
 
 // Abrir panel de proyectos
 function openProjectsMgr(sys) {
@@ -4709,7 +4670,7 @@ function buildDetalleHtml(sys) {
   }
   if (sys==='asp' && asp) {
     let a_content = tblParam([
-      ['Modelo aspersor', sv('a-aspmod','—'), ''],
+      ['Modelo aspersor', _emisorNombre('a-tipe'), ''],
       ['Boquilla', sv('a-boq','—'), 'mm'],
       ['Presión de operación', sv('a-pres','—'), 'mca'],
       ['Caudal del aspersor', fd(asp.qAsp,3), 'm³/hr'],
@@ -4730,7 +4691,7 @@ function buildDetalleHtml(sys) {
   }
   if (sys==='car' && car) {
     let c_content = tblParam([
-      ['Modelo carrete', sv('c-tipe','—'), ''],
+      ['Modelo carrete', _emisorNombre('c-tipe'), ''],
       ['Boquilla', sv('c-boq','—'), 'mm'],
       ['Descarga cañón', sv('c-desc','—'), 'm³/hr'],
       ['Radio de alcance', sv('c-radio','—'), 'm'],
@@ -5965,39 +5926,6 @@ function calcBalance(sys){
 function getSectores(sys){ return lsGet('dr_sec_'+sys, []); }
 function setSectores(sys, arr){ lsSet('dr_sec_'+sys, arr); }
 
-function addSector(sys){
-  const arr = getSectores(sys);
-  arr.push({id: 'sec_'+Date.now(), cultivo:'', dda:0, qEmisor:0, distEm:0, marco:'', pp:0, nLat:1, tiempoR:0, sup:0, qSec:0});
-  setSectores(sys, arr);
-  renderSectores(sys);
-}
-
-function commitSector(sys, id){
-  const pfx = {asp:'a', got:'g', car:'c', mic:'m'}[sys];
-  const tr = document.querySelector(`tr[data-secid="${id}"]`);
-  if(!tr) return;
-  const arr = getSectores(sys);
-  const s = arr.find(x => x.id === id);
-  if(!s) return;
-  const g = (cls) => parseFloat(tr.querySelector('.'+cls)?.value)||0;
-  const gs = (cls) => tr.querySelector('.'+cls)?.value||'';
-  s.cultivo = gs('si-cult');
-  s.dda     = g('si-dda');
-  s.qEmisor = g('si-qem');
-  s.distEm  = g('si-dem');
-  s.marco   = gs('si-mar');
-  s.pp      = g('si-pp');
-  s.nLat    = g('si-nlat');
-  s.tiempoR = g('si-tr');
-  s.sup     = g('si-sup');
-  // Caudal del sector: Q = (sup*10000 / (dist_entre_lat * dist_entre_em)) * qEmisor / 3600
-  // Simplificado: Q_sector (l/s) = sup(ha)*10000 * qEmisor(l/hr) / (dist_lat*dist_em*3600)
-  // Si el usuario ingresa Q directamente mejor
-  s.qSec = g('si-q');
-  setSectores(sys, arr);
-  renderSectores(sys);
-}
-
 // ── Formato numérico chileno: punto miles, coma decimal, 3 decimales ──
 function fmtN(n, dec){
   if(n===undefined||n===null||isNaN(n)||!isFinite(n)) return '—';
@@ -6252,61 +6180,6 @@ function getPresData(sys) {
   return { rows, total };
 }
 
-// ── mgrPrecios: gestionar precios guardados globalmente ──────
-function mgrPrecios() {
-  const keys = [];
-  try { for (let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('dr_pu_'))keys.push(k);} } catch(e){}
-  let rows = keys.length === 0
-    ? '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--mist);font-family:var(--mono)">No hay precios guardados.</td></tr>'
-    : keys.map(k => {
-        const id = k.slice(6); const pu = getPU(id);
-        return `<tr>
-          <td style="padding:6px 9px;border-bottom:1px solid var(--fog);font-family:var(--mono);font-size:.71rem;color:var(--mist);word-break:break-all">${id}</td>
-          <td style="padding:6px 9px;border-bottom:1px solid var(--fog)">
-            <input type="number" value="${pu}" step="100"
-              style="width:100px;text-align:right;padding:4px 6px;border:1.5px solid var(--fog);border-radius:4px;font-family:var(--mono);font-size:.76rem;outline:none"
-              onchange="setPU('${id}',parseFloat(this.value)||0);showToast('✓ Actualizado')">
-          </td>
-          <td style="padding:6px 9px;border-bottom:1px solid var(--fog);text-align:center">
-            <button onclick="localStorage.removeItem('dr_pu_${id}');this.closest('tr').remove();showToast('Eliminado')"
-              style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.8rem">✕</button>
-          </td></tr>`;
-      }).join('');
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,22,40,.78);display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML = `<div style="background:#fff;border-radius:13px;width:100%;max-width:500px;max-height:78vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25)">
-    <div style="background:var(--navy);color:#fff;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-      <span style="font-weight:700;font-size:.87rem">📋 Precios unitarios guardados</span>
-      <button onclick="this.closest('div[style*=fixed]').remove()" style="border:none;background:rgba(255,255,255,.15);color:#fff;padding:4px 10px;border-radius:5px;cursor:pointer">✕</button>
-    </div>
-    <div style="overflow-y:auto;flex:1;padding:13px">
-      <p style="font-size:.74rem;color:var(--slate);margin-bottom:10px">Se aplican automáticamente a ítems con el mismo ID en futuros proyectos.</p>
-      <table style="width:100%;border-collapse:collapse">
-        <tr style="background:var(--frost)">
-          <th style="padding:6px 9px;text-align:left;font-size:.62rem;font-family:var(--mono);color:var(--blue-mid);border-bottom:2px solid var(--ice)">ID ítem</th>
-          <th style="padding:6px 9px;text-align:right;font-size:.62rem;font-family:var(--mono);color:var(--blue-mid);border-bottom:2px solid var(--ice)">Precio ($)</th>
-          <th style="border-bottom:2px solid var(--ice);width:30px"></th>
-        </tr>
-        ${rows}
-      </table>
-    </div>
-    <div style="padding:11px 14px;border-top:1px solid var(--fog);display:flex;gap:7px;justify-content:flex-end;flex-shrink:0">
-      <button onclick="this.closest('div[style*=fixed]').remove()"
-        style="padding:7px 14px;border-radius:7px;border:none;background:var(--blue-mid);color:#fff;font-family:var(--sans);font-weight:600;cursor:pointer;font-size:.78rem">
-        Cerrar
-      </button>
-    </div>
-  </div>`;
-  document.body.appendChild(ov);
-}
-
-// Alias para compatibilidad
-function calcRow(sys,id){ presUpdateTotCell(sys,id); presCalcTotal(sys); }
-function recalcAllRows(sys){ presCalcTotal(sys); }
-function recalcTotal(sys){ presCalcTotal(sys); }
-
-// ── Helper: caja de fórmula ──
-
 
 
 
@@ -6341,7 +6214,6 @@ function setPU(id,v){try{localStorage.setItem('dr_pu_'+id,v);}catch(e){}}
 
 
 
-// calcRow es alias para compatibilidad
 
 
 
@@ -6516,7 +6388,7 @@ function calcMA(){
   // (microaspersión es riego localizado como goteo — ITT-03 no exige AD/Dn/Fr aquí;
   //  se mantiene AD/Dn/Fr solo como dato informativo adicional, ver tabla de dudas)
   var demLsHa=db/8.64, supSeg=qDisp/demLsHa;
-  var cc=v('m-cc',22),pmp=v('m-pmp',10),da=v('m-da',1.4),pr=v('m-pr',60),crit=v('m-crit',50);
+  var cc=v('m-cc',22),pmp=v('m-pmp',10),da=v('m-da',1.4),pr=v('m-pr',60),crit=50; // Criterio de riego fijo 50% (informativo, no hay campo m-crit — Micro no usa Fr para Db)
   var _daChkM=_checkDaPlausible(da);
   da=_daChkM.da;
   var ha=(cc-pmp)*da*(pr/100)*10;
