@@ -47,11 +47,12 @@ volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin 
 
 2. **Sección Respuestas — implementado, usuario probando.** Tope de rondas por proyecto (2 por
    defecto, 3 opcional, selector "Rondas:" en el encabezado); última ronda dice "Obs. No
-   resuelta" en vez de "Reiterar". Botón "Rechazar Proyecto" cuando terminan las rondas sin que
-   todo quede resuelto (antes solo se mencionaba Aprobar, contradecía el selector de estado).
+   resuelta" en vez de "Reiterar". Selector de estado (Aprobado/Rechazado/etc.) vive en la fila
+   del conteo de observaciones, alineado a la derecha — único control ahí, sin botones ni texto
+   aparte condicionados al avance de las rondas (se eliminó `/aprobar-tecnicamente`, sin uso).
    Estados por ronda ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); Contra Observación encabeza la
    ronda siguiente; ítems colapsables con badges de conteo (incl. "Re-observada" vs "Esperando");
-   botón Ficha + selector de estado en el encabezado. Detalle en `docs/`.
+   botón Ficha en el encabezado. Detalle en `docs/`.
 
 3. **PEPA + Ficha tacha resueltas — implementado, usuario probando.** PEPA: campo `programa`,
    badge, selector en Resumen, `ITEMS_PEPA_EXTRA` en `analyzer.py` (criterios Res. 585/2024).

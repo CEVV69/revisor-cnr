@@ -1,3 +1,29 @@
+## Sesión sep-2026 — Respuestas: selector de estado a la fila del conteo (ahorro de filas)
+
+Pedido del usuario, inmediatamente después de la entrada siguiente (3ª ronda opcional + botón
+Rechazar): mover el selector de estado del encabezado a la fila del conteo de observaciones,
+alineado a la derecha, y eliminar el texto explicativo — "siempre es un objetivo deseado" ahorrar
+filas verticales.
+
+**Implementado en `templates/respuestas.html`:** el selector de estado (botón + menú desplegable,
+mismo patrón que `proyecto.html`) se sacó del encabezado y pasó a ocupar el espacio a la derecha
+de la fila "{{ n_resueltas }} de {{ total }} resueltas · ...", reemplazando ahí los botones "Dar
+por Aprobado Técnicamente"/"Rechazar Proyecto" (de la entrada anterior) y el texto muted
+condicional. Con el selector general siempre visible y sin gating, esos dos botones específicos
+quedaron redundantes — un solo control para todo el estado del proyecto, en vez de tres piezas de
+UI distintas turnándose en el mismo lugar.
+
+**Limpieza de código muerto en `main.py`** (confirmado con grep antes de borrar, cero
+referencias): ruta `POST /proyecto/{id}/aprobar-tecnicamente` (sin más llamador tras sacar su
+botón) y las variables `todas_resueltas`/`todas_finalizadas` en `pagina_respuestas()` (ya no se
+leen en el template). `n_resueltas`/`n_no_resueltas`/`n_esperando`/`n_reobservadas` se mantienen
+— siguen alimentando el conteo de la fila.
+
+Validado: `ast.parse` de `main.py` y parseo completo de `respuestas.html` con
+`jinja2.Environment` (filtros custom stubeados), sin errores.
+
+---
+
 ## Sesión sep-2026 — Respuestas: 3ª ronda opcional + botón Rechazar
 
 Dos pedidos del usuario, revisando la 2ª (última) ronda de un proyecto real:
