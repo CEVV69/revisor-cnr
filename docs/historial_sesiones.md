@@ -1,3 +1,20 @@
+## Sesión sep-2026 — Nueva app "Cálculo de Superficies" en el menú Apps
+
+El usuario adjuntó `Superficies-Tecnificacion-V2.html`, una app standalone nueva (sin relación
+directa con el resto de las apps hermanas, calcula superficies de tecnificación de riego) y pidió
+agregarla al menú desplegable "Apps".
+
+Copiada a `static/superficies_tecnificacion_v2.html` (mismo patrón de nombres que las demás:
+`<nombre>_vN.html`, sin build, HTML único). Agregado el link en `templates/_apps_menu.html`
+(único punto de mantención del menú, ya documentado ahí) como "Cálculo de Superficies" — nombre
+corto, autoexplicativo, sin texto de acompañamiento. `CLAUDE.md` actualizado con el nuevo archivo
+en el listado de `static/`.
+
+No requirió cambios en `exportar_disenador.py` ni en los cálculos: es una app independiente, no
+extiende ni reemplaza el Diseñador de Riego ni ningún dato validado de los tres lados (Regla 10).
+
+---
+
 ## Sesión sep-2026 — Estado "Aprobado Técnicamente" → "Aprobado"
 
 El usuario avisó que el primer proyecto llegó al final del proceso de subsanación y queda en
