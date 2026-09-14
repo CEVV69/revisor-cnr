@@ -3691,18 +3691,13 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     # cada observación (ver sub-reobservada en respuestas.html).
     n_reobservadas = sum(1 for s in subs if s["estado"] == "esperando" and (s["ronda_actual"] or 0) > 1)
     n_esperando = sum(1 for s in subs if s["estado"] == "esperando" and (s["ronda_actual"] or 0) <= 1)
-    todas_resueltas = total > 0 and n_resueltas == total
-    # Rondas terminadas: ninguna obs. queda "esperando" respuesta — puede ser todas resueltas, o
-    # quedar alguna "no_resuelta" (ahí corresponde ofrecer Rechazar, ver respuestas.html).
-    todas_finalizadas = total > 0 and (n_esperando + n_reobservadas) == 0
 
     return templates.TemplateResponse("respuestas.html", {
         "request": request, "user": user, "proyecto": proyecto,
         "costo_api": _costo_para_vista(proyecto),
         "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
         "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
-        "n_reobservadas": n_reobservadas, "todas_resueltas": todas_resueltas,
-        "todas_finalizadas": todas_finalizadas, "max_rondas": max_rondas,
+        "n_reobservadas": n_reobservadas, "max_rondas": max_rondas,
         # Selector de estado del encabezado — mismo formato que usa proyecto.html.
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
     })
@@ -3942,28 +3937,6 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
             obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
-
-
-@app.post("/proyecto/{proyecto_id}/aprobar-tecnicamente")
-async def aprobar_tecnicamente(request: Request, proyecto_id: str):
-    """Marca el proyecto 'Aprobado Técnicamente' — solo si TODAS las observaciones aprobadas
-    (enviadas al consultor) quedaron resueltas. Si falta alguna, no hace nada."""
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
-    if not proyecto:
-        raise HTTPException(status_code=404)
-    aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]
-    max_rondas = proyecto.get("max_rondas_subsanacion") or MAX_RONDAS_SUBSANACION
-    todas_resueltas = bool(aprobadas) and all(
-        _estado_subsanacion(o, max_rondas)["estado"] == "resuelta" for o in aprobadas)
-    if todas_resueltas:
-        proyecto["estado"] = "Aprobado Técnicamente"
-        proyecto["fecha_estado"] = _ahora().isoformat()
-        proyecto["estado_por"] = user["nombre"]
-        db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

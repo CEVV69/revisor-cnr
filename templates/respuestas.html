@@ -62,29 +62,6 @@
       <option value="3" {% if max_rondas == 3 %}selected{% endif %}>3 rondas</option>
     </select>
   </form>
-
-  <!-- Botón de estado — mismo patrón que el encabezado de proyecto.html, para cambiar el estado
-       del proyecto sin salir de Respuestas una vez revisadas todas las rondas. -->
-  <div style="position:relative; display:inline-block; margin-left:0.5rem;" id="menu-estado-wrapper">
-    <button onclick="toggleMenuEstado()" class="btn btn-sm"
-            style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == (proyecto.estado | estado_label) %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
-      {% if proyecto.estado == 'En revisión' %}● En revisión ▾
-      {% else %}{{ proyecto.estado | estado_label }} ▾{% endif %}
-    </button>
-    <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
-         border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
-      {% for est in estados_proyecto_opciones %}
-      <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
-        <button type="submit" name="estado" value="{{ est[0] }}"
-                style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
-                       background:{% if (proyecto.estado | estado_label) == est[0] %}#f7fafc{% else %}transparent{% endif %};
-                       color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
-          {% if (proyecto.estado | estado_label) == est[0] %}● {% endif %}{{ est[0] }}
-        </button>
-      </form>
-      {% endfor %}
-    </div>
-  </div>
 </div>
 
 <nav class="proj-nav">
@@ -115,24 +92,31 @@
       {% if n_no_resueltas %}&nbsp;·&nbsp; <span style="color:#c41230;"><strong>{{ n_no_resueltas }}</strong> no resueltas</span>{% endif %}
     </div>
     <span style="flex:1;"></span>
-    {% if todas_resueltas %}
-    <form method="post" action="/proyecto/{{ proyecto.id }}/aprobar-tecnicamente"
-          onsubmit="return confirm('¿Dar el proyecto por Aprobado Técnicamente? Todas las observaciones quedaron resueltas.')">
-      <button type="submit" class="btn btn-success btn-sm">Dar por Aprobado Técnicamente</button>
-    </form>
-    {% elif todas_finalizadas %}
-    <form method="post" action="/proyecto/{{ proyecto.id }}/estado"
-          onsubmit="return confirm('¿Declarar el proyecto Rechazado? Quedó al menos una observación no resuelta tras agotar las rondas de subsanación.')">
-      <input type="hidden" name="estado" value="Rechazado">
-      <button type="submit" class="btn btn-danger btn-sm">Rechazar Proyecto</button>
-    </form>
-    {% else %}
-    <span class="text-muted" style="font-size:0.82rem;">
-      Al terminar las rondas (sin observaciones esperando respuesta) aparece acá la opción de
-      aprobar o rechazar el proyecto — o puedes rechazarlo antes, en cualquier momento, desde el
-      selector de estado si el consultor no respondió a tiempo.
-    </span>
-    {% endif %}
+
+    <!-- Selector de estado — mismo patrón que el encabezado de proyecto.html. Único control para
+         Aprobado Técnicamente/Rechazado/etc.: sin botones ni texto aparte condicionados al avance
+         de las rondas (ahorra filas, y evita la contradicción de antes: "aprobar" solo se
+         habilitaba con todo resuelto, pero "rechazar" siempre estuvo disponible acá). -->
+    <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
+      <button onclick="toggleMenuEstado()" class="btn btn-sm"
+              style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == (proyecto.estado | estado_label) %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+        {% if proyecto.estado == 'En revisión' %}● En revisión ▾
+        {% else %}{{ proyecto.estado | estado_label }} ▾{% endif %}
+      </button>
+      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+        {% for est in estados_proyecto_opciones %}
+        <form method="post" action="/proyecto/{{ proyecto.id }}/estado">
+          <button type="submit" name="estado" value="{{ est[0] }}"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:{% if (proyecto.estado | estado_label) == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                         color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            {% if (proyecto.estado | estado_label) == est[0] %}● {% endif %}{{ est[0] }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </div>
 
