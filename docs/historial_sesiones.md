@@ -1,3 +1,22 @@
+## Sesión sep-2026 — Estado "Aprobado Técnicamente" → "Aprobado"
+
+El usuario avisó que el primer proyecto llegó al final del proceso de subsanación y queda en
+condiciones de aprobarse — y de paso pidió sacar "Técnicamente" del nombre del estado, porque el
+sistema hoy solo hace revisión Técnica (no hay revisión Legal implementada), así que la palabra
+sobraba.
+
+Rename limpio en `main.py`: `ESTADOS_PROYECTO`, `ESTADOS_PROYECTO_BADGE`,
+`ESTADOS_PROYECTO_COLOR_SOLIDO` y el comentario de la sección de subsanación. Sin entrada nueva en
+`ESTADOS_LEGACY` — el usuario confirmó que es el PRIMER proyecto que llega a este estado, no hay
+ningún proyecto guardado con el nombre viejo que migrar (mismo criterio que otros renames de esta
+app: shim de compatibilidad solo cuando de verdad hay datos existentes que perderían el valor).
+
+Grepeado el repo completo (`.py`/`.html`/`.md`) antes de cerrar: sin más referencias activas a
+"Aprobado Técnicamente" salvo entradas de este mismo historial (registro de lo que pasó en su
+momento, no se reescribe).
+
+---
+
 ## Sesión sep-2026 — Respuestas: selector de estado a la fila del conteo (ahorro de filas)
 
 Pedido del usuario, inmediatamente después de la entrada siguiente (3ª ronda opcional + botón
