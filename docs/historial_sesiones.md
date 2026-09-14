@@ -1,3 +1,35 @@
+## Sesión sep-2026 — Los "pendientes" del Diseñador de Riego ya estaban resueltos
+
+El usuario pidió el prompt de handoff para los 2 bugs que CLAUDE.md daba por pendientes desde la
+actualización a v129 (turno "cada X días" ÷168, `reponeOk` multi-día) — pidiendo explícitamente
+verificar que la solución esté bien resuelta y no "en duda". Antes de armar el prompt, se leyó el
+código real de `evalAcum()` en `static/disenador_riego_v131.html` (línea 6799) en vez de confiar
+en la nota vieja — y AMBOS bugs ya estaban corregidos ahí:
+
+1. **Turno "cada X días":** líneas 6804-6809. Dos campos por sistema (`{pfx}-turno-hrs` +
+   `{pfx}-turno-dias`, con label "Cada cuántos días" en el HTML), fórmula
+   `qFef = qF*(turnoHrs/(turnoDias*24))` — exactamente la generalización ÷(N×24) que pedía el
+   handoff, no el ÷168 fijo. Sin rastro de `168` en todo el archivo.
+2. **`reponeOk` multi-día:** líneas 6816-6821. Recibe `diasCiclo` como parámetro de `evalAcum()`,
+   `ventanaReposicion = (diasCiclo*24) - T`, `reponeOk = tRepone <= ventanaReposicion` —
+   exactamente el fix que pedía el handoff (antes comparaba contra `24-T` fijo, fallaba siempre
+   con T>24h de Aspersión/Carrete multi-día).
+
+**Conclusión: ambos ya estaban aplicados en v129** (el diff v129→v131, revisado en la entrada de
+abajo, no toca estas líneas — así que venían de antes). La nota "pendiente, prompt entregado, aún
+no aplicado" quedó arrastrándose sin verificar contra el archivo real durante dos actualizaciones
+de versión (v129→v131) — corregida en `CLAUDE.md`. No se armó ningún prompt de handoff: no hacía
+falta.
+
+Detalle menor, NO reportado como bug (diferencia de comportamiento, no error): en Python
+(`calculos_riego.py`, `verificacion_diseno_riego`) si se declara `horas_disponibles_turno` sin
+`periodo_turno_dias`, éste cae a 7 por defecto (turno semanal implícito). En el JS, si
+`turno-dias` queda vacío, `qFef=qF` (sin ajuste — se trata como continuo), aunque `turno-hrs` sí
+tenga un valor. Distinto default, no un error — el placeholder "continuo" en `turno-hrs` ya
+comunica que hace falta completar ambos campos para que aplique el turno.
+
+---
+
 ## Sesión sep-2026 — Diseñador de Riego actualizado a v131
 
 El usuario subió `disenador_riego_v131.html`. Diff completo contra la v129 (21 líneas): agrega

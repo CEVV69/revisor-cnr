@@ -43,8 +43,9 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar.
 
 1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
-   `docs/`. Pendiente: bugs en el Diseñador de Riego v131 (turno "cada X días" aún usa ÷168,
-   bug `reponeOk` multi-día) — prompt de handoff entregado, aún no aplicado.
+   `docs/`. Los 2 bugs del Diseñador que se creían pendientes (turno "cada X días", `reponeOk`
+   multi-día) en realidad YA estaban corregidos en v129/v131 — verificado línea por línea contra
+   el archivo real (sep-2026), la nota estaba desactualizada. Nada pendiente en el Diseñador.
 
 2. **Sección Respuestas — implementado, usuario probando.** 3 rondas con estado por ronda
    ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); "Contra Observación" encabeza la ronda
