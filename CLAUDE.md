@@ -43,7 +43,7 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar.
 
 1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
-   `docs/`. Pendiente: bugs en el Diseñador de Riego v129 (turno "cada X días" aún usa ÷168,
+   `docs/`. Pendiente: bugs en el Diseñador de Riego v131 (turno "cada X días" aún usa ÷168,
    bug `reponeOk` multi-día) — prompt de handoff entregado, aún no aplicado.
 
 2. **Sección Respuestas — implementado, usuario probando.** 3 rondas con estado por ronda
@@ -96,7 +96,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v129.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
+                 disenador_riego_v131.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html
 ```
@@ -147,7 +147,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v129.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v131.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.
 11. **Prompts de handoff a otra sesión (ej. Diseñador de Riego):** antes de armar uno nuevo,
     revisar si queda algo pendiente de una ronda anterior del mismo tema e incluirlo siempre —

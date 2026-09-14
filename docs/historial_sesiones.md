@@ -1,3 +1,16 @@
+## Sesión sep-2026 — Diseñador de Riego actualizado a v131
+
+El usuario subió `disenador_riego_v131.html`. Diff completo contra la v129 (21 líneas): agrega
+importación de cultivos/fuentes nuevos y de anexos desde "Ficha de Terreno" (`importProject`) —
+nada relacionado con los bugs pendientes (turno "cada X días" ÷168, `reponeOk` multi-día), que
+siguen SIN aplicar en esta versión. Se reemplazó `static/disenador_riego_v129.html` por
+`static/disenador_riego_v131.html` (`git rm` + `git add`, no queda el archivo viejo en el repo) y
+se actualizó el enlace en `templates/_apps_menu.html`, más las referencias de comentario en
+`exportar_disenador.py` y `calculos_riego.py` (catálogo `TUBOS`) y en `CLAUDE.md` (índice de
+archivos, instrucción del export, nota de bugs pendientes).
+
+---
+
 ## Sesión sep-2026 — Respuestas: colapso de ítems, estado "Obs. Ronda 2", fixes de costo/precio
 
 Serie de ajustes sobre `templates/respuestas.html` (más `main.py` y `analyzer.py` puntuales),

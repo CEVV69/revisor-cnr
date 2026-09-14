@@ -3856,6 +3856,15 @@ function collectFieldData(sys) {
 // Restaura todos los campos desde un objeto de datos
 function restoreFieldData(sys, data) {
   if (!data) return;
+  // Ficha de Terreno puede traer cultivos/fuentes nuevos no presentes en los arrays locales.
+  // Si el valor no existe, se agrega automáticamente (mismo patrón que addCultivo/addFuente).
+  var _pfxCult = sys[0]+'-cult', _pfxFue = sys[0]+'-tfue';
+  if (data[_pfxCult] && CULTIVOS.indexOf(data[_pfxCult]) === -1) {
+    CULTIVOS.push(data[_pfxCult]); lsSet('dr_cultivos', CULTIVOS); populateCultivos();
+  }
+  if (data[_pfxFue] && FUENTES.indexOf(data[_pfxFue]) === -1) {
+    FUENTES.push(data[_pfxFue]); lsSet('dr_fuentes', FUENTES); populateFuentes();
+  }
   (FIELD_IDS[sys] || []).forEach(function(id) {
     var el = document.getElementById(id);
     if (!el || data[id] === undefined) return;
@@ -4109,6 +4118,16 @@ function importProject(sys) {
         var obj = JSON.parse(ev.target.result);
         var data = obj.fields || obj; // soportar ambos formatos
         restoreFieldData(sys, data);
+        // Importar anexos desde Ficha de Terreno (si los trae)
+        if (Array.isArray(obj.anexos) && obj.anexos.length > 0) {
+          var existing = getAnexos(sys);
+          var existingIds = existing.map(function(a){ return a.id; });
+          var nuevos = obj.anexos.filter(function(a){ return existingIds.indexOf(a.id) === -1; });
+          if (nuevos.length > 0) {
+            setAnexos(sys, existing.concat(nuevos));
+            if (typeof renderAnexosUI === 'function') renderAnexosUI(sys);
+          }
+        }
         showToast('✓ Proyecto importado: ' + (obj.__name || 'sin nombre'));
       } catch(err) {
         showToast('⚠ Error al leer el archivo: ' + err.message);
