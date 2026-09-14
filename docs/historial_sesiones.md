@@ -1,3 +1,75 @@
+## Sesión sep-2026 — Respuestas: 3ª ronda opcional + botón Rechazar
+
+Dos pedidos del usuario, revisando la 2ª (última) ronda de un proyecto real:
+
+### 1. Botón "Reiterar — última ronda" → "Obs. No resuelta"
+
+En la última ronda, hacer clic ahí no reitera nada — cierra la observación como no resuelta sin
+más ciclos. El texto anterior ("Reiterar — última ronda") describía la acción de reiterar, no el
+resultado. Cambiado a "Obs. No resuelta" (texto del usuario, literal).
+
+### 2. Tercera ronda opcional por proyecto (Pequeña Agricultura permite hasta 3)
+
+No es automático por `programa == "pequena_agricultura"` — hay proyectos PEPA que se resuelven en
+2 rondas sin necesitar la 3ª, así que es un campo NUEVO e independiente:
+`proyecto["max_rondas_subsanacion"]` (2 por defecto cuando no existe, 2 o 3 al guardar).
+
+**Backend (`main.py`):**
+- `MAX_RONDAS_SUBSANACION = 2` queda como default/fallback, ya no como tope fijo.
+- `_estado_subsanacion(obs, max_rondas=MAX_RONDAS_SUBSANACION)` — recibe el tope como parámetro
+  en vez de leer la constante global directo. Los 4 lugares que la llaman
+  (`pagina_respuestas` ×2, `registrar_respuesta_subsanacion`, `aprobar_tecnicamente`) le pasan
+  `proyecto.get("max_rondas_subsanacion") or MAX_RONDAS_SUBSANACION`.
+  - Bug real evitado en `registrar_respuesta_subsanacion`: antes llamaba a `_estado_subsanacion(obs)`
+    SIN pasar el tope — con un proyecto en tope 3, al llegar a la ronda 3 el default (2) habría
+    hecho que `_estado_subsanacion` devolviera `estado="no_resuelta"`/`puede_responder=False` y
+    bloqueara al revisor de registrar esa 3ª ronda aunque el proyecto sí la permitiera. Corregido
+    ANTES de que llegara a producción (revisado en el diseño, no reportado por el usuario).
+- Ruta nueva `POST /proyecto/{id}/max-rondas` (`max_rondas: int`, valida 2 o 3, guarda, vuelve a
+  `/respuestas`) — mismo patrón que `/programa`.
+- Cambiar el tope a mitad de camino no necesita migración: si una obs. ya estaba "no_resuelta"
+  con 2 rondas y el revisor sube el tope a 3, `_estado_subsanacion` la vuelve a mostrar
+  "esperando" ronda 3 automáticamente (se deriva del tope vigente en cada carga, no se guarda un
+  estado congelado).
+
+**Frontend (`respuestas.html`):**
+- Selector simple "Rondas: [2/3]" en el encabezado (junto a Ficha/estado), siempre visible —
+  `<select onchange="this.form.submit()">`, mismo patrón que el selector de Programa en Resumen.
+  Tooltip: "Pequeña Agricultura permite hasta 3, opcional según lo necesite cada caso."
+- Botón "Obs. No resuelta" (antes "Reiterar — última ronda"): la condición pasó de
+  `sub.ronda_actual == 1` (hardcodeaba que la ronda 2 SIEMPRE era la última) a
+  `sub.ronda_actual == max_rondas` — con tope 3, la ronda 2 sigue diciendo "Reiterar (no la
+  resuelve)" porque todavía queda la 3ª.
+- Badge "No resuelta (2 rondas)" → "No resuelta ({{ sub.rondas|length }} rondas)": usa el conteo
+  REAL de rondas de esa observación (más robusto que reflejar el tope del proyecto, que pudo
+  haber cambiado después de que esa observación quedara no resuelta).
+
+### 3. Texto contradictorio "Aprobado Técnicamente" vs selector de estado (reportado de paso)
+
+El usuario notó que el texto "El botón 'Aprobado Técnicamente' se habilita cuando todas las
+observaciones estén resueltas" implicaba que ESE era el único camino — pero el selector de
+estado del encabezado ya permite elegir "Rechazado" en cualquier momento, sin ninguna validación
+contra el estado de las observaciones (útil cuando el consultor no respondió dentro del plazo).
+Contradicción real: el texto sonaba a que había que esperar, cuando "Rechazar" siempre estuvo
+disponible aparte.
+
+**Fix:** la franja superior de Respuestas ahora tiene 3 estados en vez de 2:
+- `todas_resueltas` → botón "Dar por Aprobado Técnicamente" (sin cambios).
+- `todas_finalizadas` (ninguna obs. "esperando"/"re-observada", pero no todas resueltas — o sea,
+  queda al menos una "no_resuelta") → botón NUEVO "Rechazar Proyecto", mismo endpoint
+  `POST /proyecto/{id}/estado` que ya usa el selector (`estado=Rechazado`), con confirm.
+- Si no (todavía queda algo pendiente de responder) → texto reescrito, aclara que Rechazar está
+  disponible en cualquier momento desde el selector, no solo al terminar las rondas.
+
+Se calcula `todas_finalizadas = total > 0 and (n_esperando + n_reobservadas) == 0` en
+`pagina_respuestas()`. Se eliminó el párrafo secundario viejo ("Hay N observación(es) que no se
+resolvieron tras las 2 rondas...") — quedó redundante con el botón nuevo y el texto reescrito.
+
+**Validado:** `python3 -m py_compile`/`ast.parse` de `main.py`, y parseo completo de
+`respuestas.html` con `jinja2.Environment` (filtros custom stubeados) — ambos sin errores.
+
+---
+
 ## Sesión sep-2026 — Diseñador de Riego actualizado a v133 (limpieza interna)
 
 El usuario subió `disenador_riego_v133.html` ("se corrigieron algunos errores internos"). Diff

@@ -50,6 +50,19 @@
     Generar Ficha de Revisión
   </a>
 
+  <!-- Tope de rondas de subsanación de ESTE proyecto — 2 por defecto, 3 opcional (Pequeña
+       Agricultura lo permite, pero no todos los proyectos PEPA lo necesitan). -->
+  <form method="post" action="/proyecto/{{ proyecto.id }}/max-rondas"
+        style="display:flex; align-items:center; gap:0.35rem; margin-left:0.5rem;">
+    <span style="font-size:0.8rem; color:var(--text-2); white-space:nowrap;">Rondas:</span>
+    <select name="max_rondas" onchange="this.form.submit()"
+            style="font-size:0.82rem; padding:0.3rem 0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer;"
+            title="Tope de rondas de subsanación para este proyecto — Pequeña Agricultura permite hasta 3, opcional según lo necesite cada caso.">
+      <option value="2" {% if max_rondas == 2 %}selected{% endif %}>2 rondas</option>
+      <option value="3" {% if max_rondas == 3 %}selected{% endif %}>3 rondas</option>
+    </select>
+  </form>
+
   <!-- Botón de estado — mismo patrón que el encabezado de proyecto.html, para cambiar el estado
        del proyecto sin salir de Respuestas una vez revisadas todas las rondas. -->
   <div style="position:relative; display:inline-block; margin-left:0.5rem;" id="menu-estado-wrapper">
@@ -107,19 +120,20 @@
           onsubmit="return confirm('¿Dar el proyecto por Aprobado Técnicamente? Todas las observaciones quedaron resueltas.')">
       <button type="submit" class="btn btn-success btn-sm">Dar por Aprobado Técnicamente</button>
     </form>
+    {% elif todas_finalizadas %}
+    <form method="post" action="/proyecto/{{ proyecto.id }}/estado"
+          onsubmit="return confirm('¿Declarar el proyecto Rechazado? Quedó al menos una observación no resuelta tras agotar las rondas de subsanación.')">
+      <input type="hidden" name="estado" value="Rechazado">
+      <button type="submit" class="btn btn-danger btn-sm">Rechazar Proyecto</button>
+    </form>
     {% else %}
     <span class="text-muted" style="font-size:0.82rem;">
-      El botón "Aprobado Técnicamente" se habilita cuando todas las observaciones estén resueltas.
+      Al terminar las rondas (sin observaciones esperando respuesta) aparece acá la opción de
+      aprobar o rechazar el proyecto — o puedes rechazarlo antes, en cualquier momento, desde el
+      selector de estado si el consultor no respondió a tiempo.
     </span>
     {% endif %}
   </div>
-  {% if n_no_resueltas %}
-  <p class="text-muted" style="font-size:0.82rem; margin:0.6rem 0 0;">
-    Hay {{ n_no_resueltas }} observación(es) que no se resolvieron tras las 2 rondas. Decide a mano
-    con el menú de estado del proyecto: <strong>Rechazar</strong>, o resolver la situación por otra
-    vía antes de aprobar.
-  </p>
-  {% endif %}
 </div>
 
 {% for grupo in grupos %}
@@ -150,7 +164,7 @@
       <span class="sub-badge
         {% if sub.estado == 'resuelta' %}sub-resuelta{% elif sub.estado == 'no_resuelta' %}sub-noresuelta{% elif sub.ronda_actual and sub.ronda_actual > 1 %}sub-reobservada{% else %}sub-esperando{% endif %}">
         {% if sub.estado == 'resuelta' %}Resuelta
-        {% elif sub.estado == 'no_resuelta' %}No resuelta (2 rondas)
+        {% elif sub.estado == 'no_resuelta' %}No resuelta ({{ sub.rondas|length }} rondas)
         {% elif sub.ronda_actual and sub.ronda_actual > 1 %}Re-observada
         {% else %}Esperando respuesta{% endif %}
       </span>
@@ -238,7 +252,7 @@
         <span style="flex:1;"></span>
         <button type="submit" name="evaluacion" value="resuelta" class="btn btn-success btn-sm">Marcar como resuelta</button>
         <button type="submit" name="evaluacion" value="reiterada" class="btn btn-danger btn-sm">
-          {% if sub.ronda_actual == 1 %}Reiterar (no la resuelve){% else %}Reiterar — última ronda{% endif %}
+          {% if sub.ronda_actual == max_rondas %}Obs. No resuelta{% else %}Reiterar (no la resuelve){% endif %}
         </button>
       </div>
       <div class="ia-box" id="ia-result-{{ obs.id }}"></div>

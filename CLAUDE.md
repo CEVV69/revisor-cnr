@@ -43,16 +43,15 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar.
 
 1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
-   `docs/`. Los 2 bugs del Diseñador que se creían pendientes (turno "cada X días", `reponeOk`
-   multi-día) en realidad YA estaban corregidos en v129/v131 — verificado línea por línea contra
-   el archivo real (sep-2026), la nota estaba desactualizada. Nada pendiente en el Diseñador.
+   `docs/`. Nada pendiente en el Diseñador (v129/v131/v133 ya traían los mismos fixes, verificado).
 
-2. **Sección Respuestas — implementado, usuario probando.** 3 rondas con estado por ronda
-   ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); "Contra Observación" encabeza la ronda
-   siguiente. Ítems colapsables: arrancan comprimidos con badges de conteo (incl.
-   "Re-observada", morado, vs "Esperando" naranja); al abrir uno a mano queda así
-   (sessionStorage) hasta que no quede obs. "Esperando". Botón Ficha + selector de estado en
-   el encabezado. Detalle en `docs/`.
+2. **Sección Respuestas — implementado, usuario probando.** Tope de rondas por proyecto (2 por
+   defecto, 3 opcional, selector "Rondas:" en el encabezado); última ronda dice "Obs. No
+   resuelta" en vez de "Reiterar". Botón "Rechazar Proyecto" cuando terminan las rondas sin que
+   todo quede resuelto (antes solo se mencionaba Aprobar, contradecía el selector de estado).
+   Estados por ronda ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); Contra Observación encabeza la
+   ronda siguiente; ítems colapsables con badges de conteo (incl. "Re-observada" vs "Esperando");
+   botón Ficha + selector de estado en el encabezado. Detalle en `docs/`.
 
 3. **PEPA + Ficha tacha resueltas — implementado, usuario probando.** PEPA: campo `programa`,
    badge, selector en Resumen, `ITEMS_PEPA_EXTRA` en `analyzer.py` (criterios Res. 585/2024).
