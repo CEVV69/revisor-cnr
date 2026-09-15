@@ -52,6 +52,14 @@ td input[type=text]{width:70px;padding:3px 5px;font-size:12.5px}
 td select{width:150px;font-size:12px;padding:3px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 16px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px 14px}
+.stat-label{font-size:11px;color:#6b7d90;text-transform:uppercase;line-height:1.3}
+.stat-value{font-size:16px;font-weight:700;font-family:"DM Mono",monospace;color:#16243a;margin-top:2px}
+.stat-value input.num{font-size:16px;font-weight:700;width:100%;max-width:170px}
+th.tt-th{position:relative;cursor:help}
+th.tt-th .tt-bubble{display:none;position:absolute;z-index:100;right:0;top:100%;background:var(--navy);color:#fff;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:400;text-transform:none;white-space:normal;width:230px;box-shadow:0 6px 16px rgba(0,0,0,.25);text-align:left;line-height:1.4}
+th.tt-th:hover .tt-bubble, th.tt-th.tt-open .tt-bubble{display:block}
+.tablewrap{overflow-y:visible}
 .result{background:var(--ice);border:1px solid var(--blue);border-radius:8px;padding:12px 16px;margin-top:8px}
 .result .big{font-size:22px;font-weight:800;color:var(--navy);font-family:"DM Mono",monospace}
 .badge-ok{color:var(--ok);font-weight:700;font-size:12px}
@@ -115,12 +123,14 @@ const METODOS = [
   {id:'tazas', nombre:'Tazas', ef:65, efCal:70},
   {id:'borboteo', nombre:'Borboteo', ef:70, efCal:null},
   {id:'aspersion', nombre:'Aspersión', ef:75, efCal:null},
+  {id:'carrete', nombre:'Carrete (aspersión móvil)', ef:75, efCal:null},
   {id:'microjet', nombre:'Microjet', ef:85, efCal:null},
   {id:'microaspersion', nombre:'Micro aspersión', ef:85, efCal:null},
   {id:'goteo', nombre:'Goteo', ef:90, efCal:null}
 ];
 // Tabla N1 (ITT-02). Nota: Californiana solo aplica a métodos gravitacionales.
 const CLASES = ['I','II','III','IV','V','VI','VII','VIII'];
+const FACTOR_POTENCIALIDAD = 1.00; // Cuadro N°1 letra b) del Reglamento vigente (D.S. 95/2014) — 1,00 para clases I-IV en todas las comunas
 const MESES = ['Jul','Ago','Sep','Oct','Nov','Dic','Ene','Feb','Mar','Abr','May','Jun'];
 const DIAS  = [31,31,30,31,30,31,31,28,31,30,31,30];
 const TEMPORADA_IDX = [2,3,4,5,6,7,8,9]; // Sep..Abr (ITT-02 punto 1: definición fija)
@@ -153,10 +163,10 @@ function estadoInicial(){
     tituloDominio:0,
     demanda:{fuente:'tabla', zona:'', isolinea:0, estacion:'', etoManualDia:0, etpManualTemporada:0, mesesManual:''},
     superficieProyecto:0,
-    actual:{disp:{canal:0,pozo:0,embalse:0}, metodos:[metodoVacio(),metodoVacio(),metodoVacio(),metodoVacio()]},
-    futuro:{disp:{canal:0,pozo:0,embalse:0}, metodos:[metodoVacio(),metodoVacio(),metodoVacio(),metodoVacio()]},
-    resultado:{efSistemaActualPct:null, ernc:false, pctP:0},
-    chequeo:{declSRA:null, declSRF:null, declSNR:null, declSENR:null, declPostulacion:null}
+    actual:{disp:{canal:0,pozo:0,embalse:0}, eventual:false, metodos:[metodoVacio(),metodoVacio(),metodoVacio(),metodoVacio()]},
+    futuro:{disp:{canal:0,pozo:0,embalse:0}, eventual:false, metodos:[metodoVacio(),metodoVacio(),metodoVacio(),metodoVacio()]},
+    resultado:{efSistemaActualPct:null, ernc:false, pctP:0, nuevosRecursos:false},
+    chequeo:{declSRA:null, declSRF:null, declSNR:null, declSENR:null, declPostulacion:null, declIncremento:null}
   };
 }
 let S = estadoInicial();
@@ -280,11 +290,20 @@ function calcEficienciaPonderadaAT11(detalleActual){
   if(denom<=0) return null;
   return round3(1/denom);
 }
+function calcDispEfectiva(sit){
+  return {
+    canal: sit.eventual ? round3((sit.disp.canal||0)*0.5) : (sit.disp.canal||0),
+    pozo: sit.eventual ? round3((sit.disp.pozo||0)*0.5) : (sit.disp.pozo||0),
+    embalse: sit.disp.embalse||0
+  };
+}
 function calcTodo(){
   const dem = calcDemanda();
   const predio = calcPredio();
   const actualCalc = calcSituacion(S.actual, dem.demandaLsHa, dem.etpTemporada);
   const futuroCalc = calcSituacion(S.futuro, dem.demandaLsHa, dem.etpTemporada);
+  const dispActualEf = calcDispEfectiva(S.actual);
+  const dispFuturoEf = calcDispEfectiva(S.futuro);
   const SRA = actualCalc.totalHa, SRF = futuroCalc.totalHa;
   const generaExcedente = (predio.regableMax<=SRF) || (SRF>=SRA);
   let qLibCanal=0, qLibPozo=0, qLibEmbalse=0;
@@ -297,7 +316,7 @@ function calcTodo(){
   const efUsadaFrac = (S.resultado.efSistemaActualPct!=null && S.resultado.efSistemaActualPct>0)
     ? S.resultado.efSistemaActualPct/100 : efSugerida;
   let SRQeCanal=0, SRQePozo=0, SRQeEmbalse=0;
-  if(efUsadaFrac && efUsadaFrac>0){
+  if(efUsadaFrac && efUsadaFrac>0 && !S.resultado.nuevosRecursos){
     const demExcCP = dem.demandaLsHa/efUsadaFrac;
     const demExcEmb = dem.etpTemporada/efUsadaFrac;
     SRQeCanal = demExcCP>0 ? round3(qLibCanal/demExcCP) : 0;
@@ -314,22 +333,40 @@ function calcTodo(){
   if(S.resultado.ernc){
     postulacionFinal = round3(postulacion*(1+(S.resultado.pctP||0)/100));
   }
+  const incrementoPotencialidad = round3(postulacionFinal*FACTOR_POTENCIALIDAD);
+
+  // Superficie máxima regable sugerida con el agua disponible (ITT-02 punto 4.a/4.b), según eficiencia del primer método activo
+  function sugerenciaMax(sit, dispEf, detalle){
+    const primero = detalle.find(d=>d.ef>0);
+    if(!primero) return null;
+    const ef = primero.ef;
+    return {
+      canal: ef>0 && dem.demandaLsHa>0 ? round3(dispEf.canal/(dem.demandaLsHa/ef)) : 0,
+      pozo: ef>0 && dem.demandaLsHa>0 ? round3(dispEf.pozo/(dem.demandaLsHa/ef)) : 0,
+      embalse: ef>0 && dem.etpTemporada>0 ? round3(dispEf.embalse/(dem.etpTemporada/ef)) : 0,
+      efUsada: ef
+    };
+  }
+  const sugerenciaActual = sugerenciaMax(S.actual, dispActualEf, actualCalc.detalle);
+  const sugerenciaFuturo = sugerenciaMax(S.futuro, dispFuturoEf, futuroCalc.detalle);
 
   // Validaciones
   const msgs = [];
   if(supProyecto>predio.regableMax+0.01) msgs.push({t:'err', m:'La superficie del proyecto no puede ser mayor a la superficie regable máxima.'});
   if(SRA>predio.regableMax-S.asimilacion+0.01) msgs.push({t:'warn', m:'La SRA no puede ser mayor a la superficie regable del predio menos la asimilación.'});
-  if(actualCalc.qCanal-0.03>S.actual.disp.canal) msgs.push({t:'err', m:'Agua insuficiente (canal, situación actual).'});
-  if(actualCalc.qPozo-0.03>S.actual.disp.pozo) msgs.push({t:'err', m:'Agua insuficiente (pozo, situación actual).'});
-  if(actualCalc.qEmbalse-300>S.actual.disp.embalse) msgs.push({t:'err', m:'Agua insuficiente (embalse, situación actual).'});
-  if(futuroCalc.qCanal-0.03>S.futuro.disp.canal) msgs.push({t:'err', m:'Agua insuficiente (canal, situación futura).'});
-  if(futuroCalc.qPozo-0.03>S.futuro.disp.pozo) msgs.push({t:'err', m:'Agua insuficiente (pozo, situación futura).'});
-  if(futuroCalc.qEmbalse-300>S.futuro.disp.embalse) msgs.push({t:'err', m:'Agua insuficiente (embalse, situación futura).'});
+  if(actualCalc.qCanal-0.03>dispActualEf.canal) msgs.push({t:'err', m:'Agua insuficiente (canal, situación actual)'+(S.actual.eventual?' — considerando factor 0,5 por derecho eventual':'')+'.'});
+  if(actualCalc.qPozo-0.03>dispActualEf.pozo) msgs.push({t:'err', m:'Agua insuficiente (pozo, situación actual)'+(S.actual.eventual?' — considerando factor 0,5 por derecho eventual':'')+'.'});
+  if(actualCalc.qEmbalse-300>dispActualEf.embalse) msgs.push({t:'err', m:'Agua insuficiente (embalse, situación actual).'});
+  if(futuroCalc.qCanal-0.03>dispFuturoEf.canal) msgs.push({t:'err', m:'Agua insuficiente (canal, situación futura)'+(S.futuro.eventual?' — considerando factor 0,5 por derecho eventual':'')+'.'});
+  if(futuroCalc.qPozo-0.03>dispFuturoEf.pozo) msgs.push({t:'err', m:'Agua insuficiente (pozo, situación futura)'+(S.futuro.eventual?' — considerando factor 0,5 por derecho eventual':'')+'.'});
+  if(futuroCalc.qEmbalse-300>dispFuturoEf.embalse) msgs.push({t:'err', m:'Agua insuficiente (embalse, situación futura).'});
   if(SRF<SRA-0.01) msgs.push({t:'warn', m:'La superficie de riego futura no puede ser menor que la actual.'});
   if(supProyecto>0 && postulacionFinal>supProyecto+0.01 && !S.resultado.ernc) msgs.push({t:'warn', m:'La superficie de postulación no puede ser mayor a la superficie física del proyecto.'});
+  if(S.resultado.nuevosRecursos && SRQe===0 && (qLibCanal>0||qLibPozo>0||qLibEmbalse>0)) msgs.push({t:'warn', m:'Se forzó SRQe=0 por incorporar nuevos recursos hídricos (ITT-02 punto 4.5.c) — el agua liberada no genera excedentario.'});
 
-  return {dem, predio, actualCalc, futuroCalc, SRA, SRF, qLibCanal:round3(qLibCanal), qLibPozo:round3(qLibPozo), qLibEmbalse:round3(qLibEmbalse),
-          efSugerida, efUsadaFrac, SRQeCanal, SRQePozo, SRQeEmbalse, SRQe, SNR, SENR, postulacion, postulacionFinal, msgs};
+  return {dem, predio, actualCalc, futuroCalc, dispActualEf, dispFuturoEf, sugerenciaActual, sugerenciaFuturo,
+          SRA, SRF, qLibCanal:round3(qLibCanal), qLibPozo:round3(qLibPozo), qLibEmbalse:round3(qLibEmbalse),
+          efSugerida, efUsadaFrac, SRQeCanal, SRQePozo, SRQeEmbalse, SRQe, SNR, SENR, postulacion, postulacionFinal, incrementoPotencialidad, msgs};
 }
 
 /* ===================== RENDER (con preservación de foco) ===================== */
@@ -341,7 +378,8 @@ function render(){
   }
   document.querySelectorAll('.tab').forEach(t=> t.classList.toggle('active', Number(t.dataset.tab)===TAB));
   const main = document.getElementById('main');
-  main.innerHTML = [renderPredio, renderDemanda, ()=>renderSituacion('actual','Situación Actual'), ()=>renderSituacion('futuro','Situación Futura'), renderResultado, renderInforme][TAB]();
+  const NOMBRES_TAB = ['Predio','Demanda','Situación Actual','Situación Futura','Resultado','Informe'];
+  main.innerHTML = [renderPredio, renderDemanda, ()=>renderSituacion('actual','Situación Actual'), ()=>renderSituacion('futuro','Situación Futura'), renderResultado, renderInforme][TAB]() + renderNav();
   bindGenericInputs();
   document.getElementById('inpCodigo').value = S.codigo;
   document.getElementById('inpCodigo').oninput = e=>{ S.codigo = e.target.value; };
@@ -386,6 +424,13 @@ function renderLight(){ render(); }
 
 /* ===================== INSTRUCTIVO (desplegable tipo Excel) ===================== */
 const INSTR_OPEN = new Set();
+function renderNav(){
+  const NOMBRES_TAB = ['Predio','Demanda','Situación Actual','Situación Futura','Resultado','Informe'];
+  const prev = TAB>0 ? `<button class="smallbtn" onclick="goTab(${TAB-1})">← Anterior: ${NOMBRES_TAB[TAB-1]}</button>` : `<span></span>`;
+  const next = TAB<5 ? `<button class="smallbtn" onclick="goTab(${TAB+1})">Siguiente: ${NOMBRES_TAB[TAB+1]} →</button>` : `<span></span>`;
+  return `<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 24px">${prev}${next}</div>`;
+}
+function goTab(i){ TAB = i; RAW = {}; render(); window.scrollTo({top:0, behavior:'smooth'}); }
 function toggleInstr(id){
   if(INSTR_OPEN.has(id)) INSTR_OPEN.delete(id); else INSTR_OPEN.add(id);
   render();
@@ -471,7 +516,7 @@ function renderDemanda(){
     <div class="row"><label>Zona ETp</label>
       <select data-key="demanda.zona"><option value="">— Seleccionar —</option>${Object.keys(ZONAS).map(z=>`<option value="${z}" ${d.zona===z?'selected':''}>Zona ${z}</option>`).join('')}</select>
     </div>
-    <div class="row"><label>Isolínea ETp</label><input type="text" class="num" data-key="demanda.isolinea" data-dec="0"><span>mm/año</span></div>
+    <div class="row"><label>Isolínea ETp</label><input type="text" class="num" data-key="demanda.isolinea"><span>mm/año</span></div>
     ` : ''}
     ${d.fuente==='estacion' ? `
     <div class="row"><label>Estación meteorológica</label>
@@ -482,7 +527,7 @@ function renderDemanda(){
     ` : ''}
     ${d.fuente==='manual' ? `
     <div class="row"><label title="ETo diario promedio de los 3 meses de mayor demanda — usado para el balance con canal/pozo">ETo prom. 3 meses máx.</label><input type="text" class="num" data-key="demanda.etoManualDia"><span>mm/día</span></div>
-    <div class="row"><label title="Suma de ETo de toda la temporada de riego (sept-abril) — usado para el balance con embalses">ETp temporada (Sep-Abr)</label><input type="text" class="num" data-key="demanda.etpManualTemporada" data-dec="0"><span>m³/ha</span></div>
+    <div class="row"><label title="Suma de ETo de toda la temporada de riego (sept-abril) — usado para el balance con embalses">ETp temporada (Sep-Abr)</label><input type="text" class="num" data-key="demanda.etpManualTemporada"><span>m³/ha</span></div>
     <div class="row"><label>Meses de máxima demanda (referencial)</label><input type="text" class="txt" data-key="demanda.mesesManual" placeholder="Diciembre / Enero / Febrero" style="width:180px;text-align:left"></div>
     ` : ''}
   </div>
@@ -490,7 +535,7 @@ function renderDemanda(){
     <div class="row"><label title="Los 3 meses del año con mayor demanda hídrica según la zona/isolínea seleccionada">Meses de máxima demanda</label><input type="text" value="${dem.top3Label}" disabled style="width:150px"></div>
     <div class="row"><label title="Promedio del ETo diario de los 3 meses de mayor demanda. Se usa para calcular la demanda en l/s/ha (fuentes de caudal continuo: canal/pozo)">ETo (3 meses máx.)</label><input type="text" value="${fmt(dem.etoDia)}" disabled><span>mm/día</span></div>
     <div class="row"><label>Demanda por ha <span style="font-weight:400;color:#6b7d90">(canal/pozo)</span></label><input type="text" value="${fmt(dem.demandaLsHa)}" disabled><span>l/s/ha</span></div>
-    <div class="row"><label title="Suma de ETo entre septiembre y abril (toda la temporada de riego). Se usa para el balance con fuentes de volumen acumulado (embalses) — NO es lo mismo que el ETo de los 3 meses máximos">ETp temporada <span style="font-weight:400;color:#6b7d90">(embalse)</span></label><input type="text" value="${fmt(dem.etpTemporada,0)}" disabled><span>m³/ha</span></div>
+    <div class="row"><label title="Suma de ETo entre septiembre y abril (toda la temporada de riego). Se usa para el balance con fuentes de volumen acumulado (embalses) — NO es lo mismo que el ETo de los 3 meses máximos">ETp temporada <span style="font-weight:400;color:#6b7d90">(embalse)</span></label><input type="text" value="${fmt(dem.etpTemporada)}" disabled><span>m³/ha</span></div>
   </div>
   <div class="card">
     <div class="row"><label>Superficie del proyecto</label><input type="text" class="num" data-key="superficieProyecto"><span>ha</span></div>
@@ -502,55 +547,84 @@ function renderSituacion(key, titulo){
   const sit = S[key];
   const dem = calcDemanda();
   const calc = calcSituacion(sit, dem.demandaLsHa, dem.etpTemporada);
+  const todo = calcTodo();
+  const dispEf = key==='actual' ? todo.dispActualEf : todo.dispFuturoEf;
+  const sugerencia = key==='actual' ? todo.sugerenciaActual : todo.sugerenciaFuturo;
+  const qLabel = key==='actual' ? 'QSRA' : 'QSRF';
   const metodoRows = sit.metodos.map((m,i)=>{
     const mDef = METODOS.find(x=>x.id===m.metodo);
     const admiteCal = mDef && mDef.efCal!=null;
     const calCell = admiteCal
       ? `<select data-key="${key}.metodos.${i}.cal"><option value="false" ${!m.cal?'selected':''}>No</option><option value="true" ${m.cal?'selected':''}>Sí</option></select>`
       : `<span style="color:#9aa8b8">No aplica</span>`;
+    const ef = m.metodo ? getEf(m.metodo,m.cal) : 0;
+    const qc = ef>0 ? round3((m.haCanal||0)*(dem.demandaLsHa/ef)) : 0;
+    const qp = ef>0 ? round3((m.haPozo||0)*(dem.demandaLsHa/ef)) : 0;
+    const qe = ef>0 ? round3((m.haEmbalse||0)*(dem.etpTemporada/ef)) : 0;
     return `
     <tr>
       <td><select data-key="${key}.metodos.${i}.metodo"><option value="">—</option>${METODOS.map(mm=>`<option value="${mm.id}" ${m.metodo===mm.id?'selected':''}>${mm.nombre}</option>`).join('')}</select></td>
       <td title="Solo aplica a métodos gravitacionales con aducción californiana (Tabla N°1, ITT-02)">${calCell}</td>
-      <td>${m.metodo? (getEf(m.metodo,m.cal)*100).toFixed(0)+'%' : '—'}</td>
+      <td>${m.metodo? (ef*100).toFixed(0)+'%' : '—'}</td>
       <td><input type="text" class="num" data-key="${key}.metodos.${i}.haCanal"></td>
       <td><input type="text" class="num" data-key="${key}.metodos.${i}.haPozo"></td>
       <td><input type="text" class="num" data-key="${key}.metodos.${i}.haEmbalse"></td>
+      <td style="background:var(--ice);font-family:'DM Mono',monospace">${m.metodo? `${fmt(qc)} / ${fmt(qp)} / ${fmt(qe)}` : '—'}</td>
     </tr>`;
   }).join('');
   const msgAgua = [];
-  if(calc.qCanal-0.03>sit.disp.canal) msgAgua.push('Agua insuficiente (canal).');
-  if(calc.qPozo-0.03>sit.disp.pozo) msgAgua.push('Agua insuficiente (pozo).');
-  if(calc.qEmbalse-300>sit.disp.embalse) msgAgua.push('Agua insuficiente (embalse).');
+  if(calc.qCanal-0.03>dispEf.canal) msgAgua.push('Agua insuficiente (canal)'+(sit.eventual?' — ya considerando factor 0,5 por derecho eventual':'')+'.');
+  if(calc.qPozo-0.03>dispEf.pozo) msgAgua.push('Agua insuficiente (pozo)'+(sit.eventual?' — ya considerando factor 0,5 por derecho eventual':'')+'.');
+  if(calc.qEmbalse-300>dispEf.embalse) msgAgua.push('Agua insuficiente (embalse).');
   return `
   ${renderInstr('sit-'+key, [
     'Ingrese la disponibilidad de agua Q85% de la situación '+(key==='actual'?'actual':'futura')+' por fuente: canal, pozo o embalse.',
-    'Por cada método de riego, indique la superficie (ha) regada según la fuente de agua que utiliza.',
+    'Si el derecho es <b>eventual</b> (ITT-01 punto 2), active el check — aplica el factor 0,5 automáticamente al canal/pozo declarado antes de comparar contra el consumo. Solo es válido en Zona Sur/Extremo Sur o con certificación de la organización de usuarios; verifique que su caso califica.',
+    'Por cada método de riego, indique la superficie (ha) regada según la fuente de agua que utiliza. La columna "'+qLabel+' por fila" muestra el caudal canal/pozo/embalse que consume esa fila.',
     'La eficiencia se obtiene automáticamente de la Tabla N°1 (ITT-02) según el método y si tiene conducción californiana.',
-    'Conducción californiana solo aplica a métodos gravitacionales (tendido, surcos, bordes, pretiles, tazas) — se oculta en métodos presurizados.'
+    'Conducción californiana solo aplica a métodos gravitacionales (tendido, surcos, bordes, pretiles, tazas) — se oculta en métodos presurizados.',
+    '"Superficie máxima sugerida" es orientativa: cuánta superficie regable da la disponibilidad ingresada, usando la eficiencia del primer método activo (ITT-02 punto 4.a/4.b). No reemplaza lo que usted ingresó abajo, solo ayuda a verificarlo.'
   ])}
   <div class="card">
     <h3>Disponibilidad Q85% — ${titulo}</h3>
     <div class="grid3">
       <div class="row"><label>Canal</label><input type="text" class="num" data-key="${key}.disp.canal"><span>l/s</span></div>
       <div class="row"><label>Pozo</label><input type="text" class="num" data-key="${key}.disp.pozo"><span>l/s</span></div>
-      <div class="row"><label>Embalse</label><input type="text" class="num" data-key="${key}.disp.embalse" data-dec="0"><span>m³/año</span></div>
+      <div class="row"><label>Embalse</label><input type="text" class="num" data-key="${key}.disp.embalse"><span>m³/año</span></div>
     </div>
+    <div class="row"><label title="ITT-01 punto 2: aplica factor 0,5 al canal/pozo declarado (Zona Sur/Extremo Sur o con certificación OUA)">¿Derecho eventual?</label>
+      <select data-key="${key}.eventual"><option value="false" ${!sit.eventual?'selected':''}>No</option><option value="true" ${sit.eventual?'selected':''}>Sí (aplica factor 0,5)</option></select>
+    </div>
+    ${sit.eventual ? `<div class="hint">Disponibilidad efectiva usada en el balance: canal ${fmt(dispEf.canal)} l/s · pozo ${fmt(dispEf.pozo)} l/s</div>` : ''}
+    ${sugerencia ? `<div class="hint">Superficie máxima sugerida con esta disponibilidad (ef. ${(sugerencia.efUsada*100).toFixed(0)}% del primer método activo): canal ${fmt(sugerencia.canal)} ha · pozo ${fmt(sugerencia.pozo)} ha · embalse ${fmt(sugerencia.embalse)} ha</div>` : ''}
   </div>
   <div class="card">
     <h3>Métodos de riego (hasta 4)</h3>
     <div class="tablewrap">
     <table>
-      <tr><th>Método</th><th>Conducc. californiana</th><th>Eficiencia</th><th>Ha (canal)</th><th>Ha (pozo)</th><th>Ha (embalse)</th></tr>
+      <tr><th>Método</th><th>Conducc. californiana</th><th>Eficiencia</th><th>Ha (canal)</th><th>Ha (pozo)</th><th>Ha (embalse)</th><th class="tt-th" onclick="this.classList.toggle('tt-open')">Q fila: canal/pozo/embalse<span class="tt-bubble">Caudal que consume esa fila: canal y pozo en l/s (continuo) · embalse en m³/año (volumen de temporada). No es una superficie, es el costo en agua de esa fila.</span></th></tr>
       ${metodoRows}
     </table>
     </div>
   </div>
   <div class="result">
-    <div class="grid3">
-      <div>Superficie total: <span class="big">${fmt(calc.totalHa)} ha</span></div>
-      <div style="font-size:12px">Q canal: ${fmt(calc.qCanal)} l/s</div>
-      <div style="font-size:12px">Q pozo: ${fmt(calc.qPozo)} l/s · Q embalse: ${fmt(calc.qEmbalse,0)} m³/año</div>
+    <div class="grid4">
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase">Superficie total (${key==='actual'?'SRA':'SRF'})</div>
+        <div class="big" style="font-size:19px">${fmt(calc.totalHa)} ha</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase" title="${qLabel} — caudal continuo, comparable contra la disponibilidad">Canal (${qLabel})</div>
+        <div class="big" style="font-size:19px">${fmt(calc.qCanal)} l/s</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase" title="${qLabel} — caudal continuo, comparable contra la disponibilidad">Pozo (${qLabel})</div>
+        <div class="big" style="font-size:19px">${fmt(calc.qPozo)} l/s</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase" title="${qLabel} — volumen de la temporada, comparable contra la disponibilidad">Embalse (${qLabel})</div>
+        <div class="big" style="font-size:19px">${fmt(calc.qEmbalse)} m³/año</div>
+      </div>
     </div>
     ${msgAgua.map(m=>`<div class="msg err">${m}</div>`).join('')}
   </div>`;
@@ -580,15 +654,21 @@ function renderResultado(){
   ${renderInstr('resultado', [
     'El agua liberada por la mejora de eficiencia (Actual→Futura) se calcula sola y define la superficie por caudal excedentario (SRQe, AT-11).',
     'La eficiencia ponderada AT-11 se sugiere automáticamente desde los métodos de Situación Actual; puede sobrescribirla si el proyecto declara otro valor.',
-    'Superficie de postulación = SNR + SENR (ITT-02, punto 4.2).'
+    'Superficie de postulación = SNR + SENR (ITT-02, punto 4.2).',
+    'Si el proyecto incorpora <b>nuevos recursos hídricos</b> (pozo o impulsión nueva), el ITT-02 punto 4.5.c prohíbe que el cálculo genere caudal excedentario — active el check para forzar SRQe=0.',
+    'Incremento de potencialidad de suelos = Superficie de postulación × factor del Cuadro N°1 letra b) del Reglamento vigente (hoy 1,00 para clases I-IV en todas las comunas — revisar si cambia con el nuevo Reglamento en elaboración).'
   ])}
-  <div class="card grid2">
-    <div class="row"><label>Q liberado (canal/pozo/embalse)</label><input type="text" value="${fmt(c.qLibCanal)} / ${fmt(c.qLibPozo)} / ${fmt(c.qLibEmbalse,0)}" disabled style="width:180px"></div>
-    <div class="row"><label>Eficiencia ponderada sugerida (AT-11)</label><input type="text" value="${c.efSugerida!=null? (c.efSugerida*100).toFixed(1)+'%':'—'}" disabled></div>
-    <div class="row"><label>Eficiencia sistema actual a usar</label><input type="text" class="num" data-key="resultado.efSistemaActualPct" placeholder="autocalc"><span>%</span></div>
-    <div class="row"><label>Superficie por Q excedentario (SRQe)</label><input type="text" value="${fmt(c.SRQe)}" disabled><span>ha</span></div>
-    <div class="row"><label>SNR = SRF − SRA</label><input type="text" value="${fmt(c.SNR)}" disabled><span>ha</span></div>
-    <div class="row"><label>SENR = SRQe</label><input type="text" value="${fmt(c.SENR)}" disabled><span>ha</span></div>
+  <div class="card grid3">
+    <div><div class="stat-label" title="Canal y pozo en l/s (caudal continuo) · embalse en m³/año (volumen de temporada)">Q liberado (canal l/s - pozo l/s - embalse m³/año)</div><div class="stat-value" style="font-size:13px">${fmt(c.qLibCanal)} - ${fmt(c.qLibPozo)} - ${fmt(c.qLibEmbalse)}</div></div>
+    <div><div class="stat-label">Eficiencia ponderada sugerida (AT-11)</div><div class="stat-value">${c.efSugerida!=null? (c.efSugerida*100).toFixed(1)+'%':'—'}</div></div>
+    <div><div class="stat-label" title="Opcional: si lo deja vacío, se usa la eficiencia ponderada AT-11 sugerida arriba">Eficiencia sistema actual a usar (%)</div><div class="stat-value"><input type="text" class="num" data-key="resultado.efSistemaActualPct"></div></div>
+    <div><div class="stat-label">Superficie por Q excedentario (SRQe)</div><div class="stat-value">${fmt(c.SRQe)} ha</div></div>
+    <div><div class="stat-label">SNR = SRF − SRA</div><div class="stat-value">${fmt(c.SNR)} ha</div></div>
+    <div><div class="stat-label">SENR = SRQe</div><div class="stat-value">${fmt(c.SENR)} ha</div></div>
+  </div>
+  <div class="card">
+    <h3 title="ITT-02 punto 4.5.c: si hay pozo o impulsión nueva, el agua liberada no puede generar superficie excedentaria">¿Incorpora nuevos recursos hídricos?</h3>
+    <div class="row"><label>Pozo o impulsión nueva en la situación futura</label><select data-key="resultado.nuevosRecursos"><option value="false" ${!S.resultado.nuevosRecursos?'selected':''}>No</option><option value="true" ${S.resultado.nuevosRecursos?'selected':''}>Sí (fuerza SRQe=0)</option></select></div>
   </div>
   <div class="card">
     <h3>Corrección ERNC (opcional)</h3>
@@ -596,8 +676,16 @@ function renderResultado(){
     ${S.resultado.ernc? `<div class="row"><label>% utilización ERNC (%P)</label><input type="text" class="num" data-key="resultado.pctP"><span>%</span></div>` : ''}
   </div>
   <div class="result">
-    <div>Superficie de postulación${S.resultado.ernc?' (con corrección ERNC)':''}:</div>
-    <div class="big">${fmt(c.postulacionFinal)} ha</div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase">Superficie de postulación${S.resultado.ernc?' (con ERNC)':''}</div>
+        <div class="big">${fmt(c.postulacionFinal)} ha</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7d90;text-transform:uppercase" title="Cuadro N°1 letra b) del Reglamento — factor ${FACTOR_POTENCIALIDAD.toFixed(2)}">Incremento de potencialidad de suelos</div>
+        <div class="big">${fmt(c.incrementoPotencialidad)} ha</div>
+      </div>
+    </div>
     ${c.msgs.length===0? `<div class="badge-ok">✓ sin observaciones</div>` : c.msgs.map(m=>`<div class="msg ${m.t}">${m.t==='err'?'✗':'⚠'} ${m.m}</div>`).join('')}
   </div>
   <div class="card">
@@ -610,6 +698,7 @@ function renderResultado(){
       ${deltaRow('SNR (ha)', c.SNR, 'declSNR')}
       ${deltaRow('SENR (ha)', c.SENR, 'declSENR')}
       ${deltaRow('Superficie de postulación (ha)', c.postulacionFinal, 'declPostulacion')}
+      ${deltaRow('Incremento potencialidad de suelos (ha)', c.incrementoPotencialidad, 'declIncremento')}
     </table>
     </div>
   </div>`;
@@ -627,7 +716,7 @@ function renderInforme(){
       <div><b>ETp (mm/mes prom. 3 máx.):</b> ${fmt(c.dem.etoDia*30,2)}</div>
       <div><b>ETp (mm/día):</b> ${fmt(c.dem.etoDia)}</div>
       <div><b>Demanda ha (l/s/ha):</b> ${fmt(c.dem.demandaLsHa)}</div>
-      <div><b>ETp (m³/ha temporada):</b> ${fmt(c.dem.etpTemporada,0)}</div>
+      <div><b>ETp (m³/ha temporada):</b> ${fmt(c.dem.etpTemporada)}</div>
       <div><b>Meses máx. demanda:</b> ${c.dem.top3Label}</div>
       <div><b>Superficie regable máxima:</b> ${fmt(p.regableMax)} ha</div>
     </div>
@@ -635,22 +724,22 @@ function renderInforme(){
   <div class="card">
     <h3>Agua disponible</h3>
     <table><tr><th></th><th>Canal (l/s)</th><th>Pozo (l/s)</th><th>Embalse (m³/año)</th></tr>
-      <tr><td>Situación actual</td><td>${fmt(S.actual.disp.canal)}</td><td>${fmt(S.actual.disp.pozo)}</td><td>${fmt(S.actual.disp.embalse,0)}</td></tr>
-      <tr><td>Situación futura</td><td>${fmt(S.futuro.disp.canal)}</td><td>${fmt(S.futuro.disp.pozo)}</td><td>${fmt(S.futuro.disp.embalse,0)}</td></tr>
+      <tr><td>Situación actual</td><td>${fmt(S.actual.disp.canal)}</td><td>${fmt(S.actual.disp.pozo)}</td><td>${fmt(S.actual.disp.embalse)}</td></tr>
+      <tr><td>Situación futura</td><td>${fmt(S.futuro.disp.canal)}</td><td>${fmt(S.futuro.disp.pozo)}</td><td>${fmt(S.futuro.disp.embalse)}</td></tr>
     </table>
   </div>
   <div class="card">
     <h3>Superficie de Riego Actual (SRA)</h3>
-    <table><tr><th>Método</th><th>Californ.</th><th>Eficiencia</th><th>Ha</th></tr>
-      ${c.actualCalc.detalle.map(d=>`<tr><td>${METODOS.find(m=>m.id===d.metodo).nombre}</td><td>${d.cal?'Sí':'No'}</td><td>${(d.ef*100).toFixed(0)}%</td><td>${fmt(d.ha)}</td></tr>`).join('')}
-      <tr style="font-weight:700"><td colspan="3">Total</td><td>${fmt(c.SRA)}</td></tr>
+    <table><tr><th>Método</th><th>Californ.</th><th>Eficiencia</th><th>Ha</th><th>Q canal (l/s)</th><th>Q pozo (l/s)</th><th>Q embalse (m³/año)</th></tr>
+      ${c.actualCalc.detalle.map(d=>`<tr><td>${METODOS.find(m=>m.id===d.metodo).nombre}</td><td>${d.cal?'Sí':'No'}</td><td>${(d.ef*100).toFixed(0)}%</td><td>${fmt(d.ha)}</td><td>${fmt(d.qc)}</td><td>${fmt(d.qp)}</td><td>${fmt(d.qe)}</td></tr>`).join('')}
+      <tr style="font-weight:700"><td colspan="3">Total (SRA / QSRA)</td><td>${fmt(c.SRA)}</td><td>${fmt(c.actualCalc.qCanal)}</td><td>${fmt(c.actualCalc.qPozo)}</td><td>${fmt(c.actualCalc.qEmbalse)}</td></tr>
     </table>
   </div>
   <div class="card">
     <h3>Superficie de Riego Futura (SRF)</h3>
-    <table><tr><th>Método</th><th>Californ.</th><th>Eficiencia</th><th>Ha</th></tr>
-      ${c.futuroCalc.detalle.map(d=>`<tr><td>${METODOS.find(m=>m.id===d.metodo).nombre}</td><td>${d.cal?'Sí':'No'}</td><td>${(d.ef*100).toFixed(0)}%</td><td>${fmt(d.ha)}</td></tr>`).join('')}
-      <tr style="font-weight:700"><td colspan="3">Total</td><td>${fmt(c.SRF)}</td></tr>
+    <table><tr><th>Método</th><th>Californ.</th><th>Eficiencia</th><th>Ha</th><th>Q canal (l/s)</th><th>Q pozo (l/s)</th><th>Q embalse (m³/año)</th></tr>
+      ${c.futuroCalc.detalle.map(d=>`<tr><td>${METODOS.find(m=>m.id===d.metodo).nombre}</td><td>${d.cal?'Sí':'No'}</td><td>${(d.ef*100).toFixed(0)}%</td><td>${fmt(d.ha)}</td><td>${fmt(d.qc)}</td><td>${fmt(d.qp)}</td><td>${fmt(d.qe)}</td></tr>`).join('')}
+      <tr style="font-weight:700"><td colspan="3">Total (SRF / QSRF)</td><td>${fmt(c.SRF)}</td><td>${fmt(c.futuroCalc.qCanal)}</td><td>${fmt(c.futuroCalc.qPozo)}</td><td>${fmt(c.futuroCalc.qEmbalse)}</td></tr>
     </table>
   </div>
   <div class="card" style="border:1px solid var(--navy)">
@@ -659,7 +748,9 @@ function renderInforme(){
       <div><b>SNR:</b> ${fmt(c.SNR)} ha</div>
       <div><b>SENR:</b> ${fmt(c.SENR)} ha</div>
       <div><b>Superficie de postulación:</b> ${fmt(c.postulacionFinal)} ha</div>
+      <div><b>Incremento potencialidad suelos:</b> ${fmt(c.incrementoPotencialidad)} ha</div>
       <div><b>¿Proyecto ERNC?:</b> ${S.resultado.ernc?'Sí':'No'}</div>
+      <div><b>¿Nuevos recursos hídricos?:</b> ${S.resultado.nuevosRecursos?'Sí (SRQe forzado a 0)':'No'}</div>
     </div>
   </div>`;
 }
