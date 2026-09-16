@@ -1,3 +1,42 @@
+## Sesión sep-2026 — Carrete: chequeos Q_necesario y TRD>24h (Diseñador v134)
+
+El usuario pidió agregar dos chequeos nuevos al sistema Carrete del Chequeo interactivo,
+replicando exactamente lo que hace `calcCarP()` en el Diseñador de Riego v134.
+
+**Chequeo 1 — Q mínimo necesario (demanda agronómica pura):**
+```
+Q_nec [l/s] = ETc × 10.000 × Sup / (Ef × TRD × 3600)
+```
+Fr se cancela algebraicamente — no interviene. Se compara contra Q_diseño (catálogo × (1 + margen)),
+ya calculado en `diseno_carrete()`. Si Q_diseño < Q_necesario → alerta de rechazo.
+
+**Chequeo 2 — Validación TRD ≤ 24 hr:**
+Si el TRD declarado supera 24 horas → alerta bloqueante: TRD es el tiempo de riego DIARIO, no el
+de una pasada completa del ciclo (eso lo calcula Días Necesarios).
+
+**Caso de prueba validado contra el Diseñador (ETc=4,70 mm/día, Sup=3,68 ha, Ef=75%, TRD=34,3 hr):**
+→ Q_necesario = 1,868 l/s ✓ · TRD>24h alerta ✓
+
+**Arquitectura:** Q_necesario requiere ETc de `cadena_agronomica()`, que se llama DESPUÉS de
+`diseno_carrete()`. Solución: nueva función `verificar_q_necesario_carrete()` en `calculos_riego.py`,
+llamada desde `main.py` inmediatamente después de `cadena_agronomica()`, que actualiza
+`carrete_check` con los campos `q_necesario_ls` y `equipo_cubre_demanda`. `trd_supera_24h` no
+necesita ETc, se calcula dentro de `diseno_carrete()` directamente.
+
+**Implementado en los tres lados (Regla 10):**
+- `calculos_riego.py`: `trd_supera_24h` en `diseno_carrete()` + nueva `verificar_q_necesario_carrete()`
+- `calculos.html`: 2 filas HTML nuevas `.campo-carrete` + JS (TRD en bloque Carrete; Q_nec post-ETc)
+- `informe_calculo.html` + `informe_calculo_completo.html`: bloques formula/compara/explica
+
+**No requirió cambios en `exportar_disenador.py`** — son chequeos de validación, no datos que
+se exportan al Diseñador.
+
+**Versión del Diseñador:** el usuario adjuntó v134 (mismo `calcCarP()`, con la Minuta Paso B que
+incluye Q_necesario). Se instaló como `static/disenador_riego_v134.html` en commit posterior (ver
+próxima entrada), pero los chequeos se implementaron en este commit.
+
+---
+
 ## Sesión sep-2026 — Nueva app "Cálculo de Superficies" en el menú Apps
 
 El usuario adjuntó `Superficies-Tecnificacion-V2.html`, una app standalone nueva (sin relación
