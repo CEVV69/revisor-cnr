@@ -1863,6 +1863,17 @@ def _agronomico_calculo(datos: dict):
         ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
     if capas_calc:
         r["capas_suelo_calc"] = capas_calc
+    # Q mínimo necesario del Carrete — requiere ETc de la cadena agronómica (r["etc_mm_dia"]).
+    # Se computa aquí (después de cadena_agronomica) porque diseno_carrete() se llama ANTES.
+    if datos.get("sistema_riego") == "Carrete" and carrete_check is not None:
+        q_nec = calculos_riego.verificar_q_necesario_carrete(
+            q_diseno_ls=carrete_check.get("q_diseno_ls"),
+            etc_mmdia=r.get("etc_mm_dia"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            eficiencia_pct=datos.get("eficiencia_pct"),
+            horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+        )
+        carrete_check.update(q_nec)
     # Recalcula Postura de Aspersión con la cadena agronómica completa (db_mm) ANTES de
     # verificacion_diseno_riego, para que posturas_dia/dias_necesarios ya estén disponibles.
     if postura_check and postura_check.get("va_mmhr"):
@@ -2226,6 +2237,7 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
             "q_diseno_m3h", "q_diseno_ls", "d_mojado_m", "espaciamiento_franjas_m",
             "pluviometria_mmhr", "superficie_postura_ha", "n_posturas", "tiempo_postura_hr",
             "posturas_dia", "dias_necesarios", "angulo_sector_deg", "angulo_sector_declarado",
+            "trd_supera_24h", "q_necesario_ls", "equipo_cubre_demanda",
         ))
 
     tramos = _tramos_con_calculo(tramos_raw)

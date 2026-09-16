@@ -1075,6 +1075,37 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
         r["angulo_sector_declarado"] = angulo_sector_deg is not None
         if angulo_sector_deg is not None and not (ANGULO_SECTOR_CARRETE_MIN <= angulo_sector_deg <= ANGULO_SECTOR_CARRETE_MAX):
             r["angulo_sector_fuera_rango"] = True
+
+    # TRD > 24h: validación bloqueante — TRD es tiempo de riego DIARIO, no de una pasada completa.
+    if horas_disponibles_dia is not None:
+        r["trd_supera_24h"] = horas_disponibles_dia > 24
+
+    return r
+
+
+def verificar_q_necesario_carrete(q_diseno_ls: float, etc_mmdia: float, superficie_ha: float,
+                                   eficiencia_pct: float, horas_disponibles_dia: float) -> dict:
+    """Q mínimo necesario para cubrir la demanda agronómica del Carrete (cañón viajero).
+
+    Minuta Paso B del Diseñador de Riego (calcCarP, v134):
+    Q_necesario [l/s] = ETc(mm/día) × 10.000(m²/ha) × Sup(ha) / (Ef × TRD(hr) × 3600)
+
+    Fr se cancela algebraicamente en la ecuación completa (aparece igual en numerador y
+    denominador) — no interviene. Se llama DESPUÉS de cadena_agronomica() para tener ETc.
+
+    Comparar contra Q_diseño_ls = Q_catálogo × (1 + margen/100), ya calculado en
+    diseno_carrete(). Igual que en el Diseñador: el equipo puede dar más que Q_necesario,
+    nunca menos.
+
+    Caso de prueba (v134): ETc=4,70 mm/día, Sup=3,68 ha, Ef=75%, TRD=34,3 hr
+    → Q_necesario = 1,868 l/s (y TRD>24h dispara alerta por separado)."""
+    r = {}
+    if etc_mmdia and superficie_ha and horas_disponibles_dia and eficiencia_pct is not None:
+        ef_frac = eficiencia_pct / 100
+        q_nec = (etc_mmdia * 10000 * superficie_ha) / (ef_frac * horas_disponibles_dia * 3600)
+        r["q_necesario_ls"] = round(q_nec, 3)
+        if q_diseno_ls is not None:
+            r["equipo_cubre_demanda"] = q_diseno_ls >= q_nec * 0.999
     return r
 
 

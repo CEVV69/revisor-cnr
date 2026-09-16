@@ -354,6 +354,20 @@
   <div class="formula">Tiempo por postura = <strong>{{ val(calc.carrete_check.tiempo_postura_hr, ' hr') }}</strong>{% if calc.carrete_check.posturas_dia is not none %} · Posturas/día = ⌊Horas disp. / (T.postura + T.cambio)⌋ = <strong>{{ calc.carrete_check.posturas_dia }}</strong>{% endif %}{% if calc.carrete_check.dias_necesarios is not none %} · Días necesarios = <strong>{{ calc.carrete_check.dias_necesarios }} días</strong>{% endif %}</div>
   <div class="explica">Tiempo de manguera + avance del cañón + retorno, para cubrir una postura completa; con las horas disponibles al día ({{ val(agro.horas_disponibles_dia, ' hr') }}) y el tiempo de cambio de postura ({{ val(agro.tiempo_cambio_postura_hr, ' hr') }}{% if agro.tiempo_cambio_postura_hr is none %}, 1,5 hr por defecto — no declarado{% endif %}), cuántas posturas caben en el día y en cuántos días se completa el ciclo.</div>
 </div>
+{% if calc.carrete_check.trd_supera_24h is not none %}
+<div class="paso">
+  <div class="compara">TRD declarado = {{ val(agro.horas_disponibles_dia, ' hr') }} — {% if calc.carrete_check.trd_supera_24h %}<span class="alerta">supera las 24 horas. TRD es tiempo de riego DIARIO, no el de una pasada completa del ciclo (eso lo entrega Días Necesarios).</span>{% else %}<span class="ok">dentro del límite de 24 hr.</span>{% endif %}</div>
+</div>
+{% endif %}
+{% if calc.carrete_check.q_necesario_ls is not none %}
+<div class="paso">
+  <div class="formula">Q mínimo necesario (demanda agronómica) = ETc×10.000×Sup / (Ef×TRD×3600) = {{ val(calc.etc_mm_dia) }}×10.000×{{ val(agro.superficie_riego_ha) }} / ({{ val(agro.eficiencia_pct) }}/100×{{ val(agro.horas_disponibles_dia) }}×3600) = <strong>{{ val(calc.carrete_check.q_necesario_ls, ' l/s') }}</strong></div>
+  <div class="explica">Caudal mínimo que exige la demanda agronómica pura. Fr se cancela algebraicamente — no interviene. El equipo puede entregar más, nunca menos.</div>
+  {% if calc.carrete_check.equipo_cubre_demanda is not none %}
+  <div class="compara">Q diseño elegido (catálogo + margen) = {{ val(calc.carrete_check.q_diseno_ls, ' l/s') }} — {% if calc.carrete_check.equipo_cubre_demanda %}<span class="ok">cubre la demanda agronómica.</span>{% else %}<span class="alerta">NO alcanza — el equipo elegido no cubre la demanda agronómica con la superficie y horas declaradas.</span>{% endif %}</div>
+  {% endif %}
+</div>
+{% endif %}
 {% endif %}
 {% endif %}
 

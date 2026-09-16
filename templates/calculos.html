@@ -286,6 +286,20 @@
             <td class="col-concepto" colspan="2">Posturas por día / Días necesarios (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-postdia-calc">—</td>
           </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto" colspan="2" title="TRD es tiempo de riego DIARIO — no el de una pasada completa del ciclo. Si supera 24 hr es un error.">TRD — horas de riego disponibles al día (Carrete)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-car-trd-calc">—</span>
+              <span id="{{ p }}agro-car-trd-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto" colspan="2" title="Q mínimo necesario = ETc×10.000×Sup / (Ef×TRD×3600). Fr se cancela algebraicamente — no interviene.">Q mínimo necesario — demanda agronómica (Carrete)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-car-qnec-calc">—</span>
+              <span id="{{ p }}agro-car-qnec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
           <tr>
             <td class="col-concepto" colspan="2">ETc (mm/día)</td>
             <td class="col-calc" id="{{ p }}agro-etc">—</td>
@@ -1331,6 +1345,25 @@
         setText(p + "agro-car-vib-calc", vib === null ? "Falta: VIB del suelo." : "—");
       }
       nota(p + "agro-car-vib-nota", vibNotaCar);
+
+      // TRD > 24h — validación bloqueante (TRD es tiempo DIARIO, no de una pasada completa)
+      if (horas !== null) {
+        if (horas > 24) {
+          setText(p + "agro-car-trd-calc", fmt(horas, 1) + " hr — SUPERA las 24 horas");
+          nota(p + "agro-car-trd-nota", "TRD (" + fmt(horas, 1) + " hr) es mayor a 24 horas — TRD es el tiempo de riego DIARIO, no el de una pasada completa (eso lo entrega Días Necesarios).");
+        } else {
+          setText(p + "agro-car-trd-calc", fmt(horas, 1) + " hr — dentro del límite de 24 hr");
+          nota(p + "agro-car-trd-nota", "");
+        }
+      } else {
+        setText(p + "agro-car-trd-calc", "Falta: horas disponibles al día.");
+        nota(p + "agro-car-trd-nota", "");
+      }
+      // Q_necesario: se completa más abajo (requiere ETc — ver bloque "if sistema === Carrete")
+      if (sistema !== "Carrete") {
+        setText(p + "agro-car-qnec-calc", "—");
+        nota(p + "agro-car-qnec-nota", "");
+      }
     }
 
     setText(p + "agro-sup-decl", sup === null ? "—" : fmt(sup, 2) + " ha");
@@ -1401,6 +1434,35 @@
     }
 
     setText(p + "agro-etc", fmt(etc, 3) + " mm/día");
+
+    // Q mínimo necesario Carrete — requiere ETc (calculado arriba) y los datos del cañón.
+    // Fórmula igual a calcCarP() del Diseñador: Q = ETc×10.000×Sup / (Ef×TRD×3600).
+    // Fr se cancela algebraicamente — no interviene.
+    if (sistema === "Carrete") {
+      if (etc !== null && sup !== null && horas !== null && ef !== null) {
+        var efFrac = ef / 100;
+        var qNecLs = (etc * 10000 * sup) / (efFrac * horas * 3600);
+        var qDisenoLsCar = qDisenoM3h !== null ? qDisenoM3h / 3.6 : null;
+        var equipoOkCar = qDisenoLsCar !== null ? (qDisenoLsCar >= qNecLs * 0.999) : null;
+        var txtQnec = "Q mínimo = " + fmt(qNecLs, 3) + " l/s";
+        if (qDisenoLsCar !== null) {
+          txtQnec += " · Q diseño = " + fmt(qDisenoLsCar, 3) + " l/s → " + (equipoOkCar ? "cubre la demanda" : "NO alcanza");
+        }
+        setText(p + "agro-car-qnec-calc", txtQnec);
+        nota(p + "agro-car-qnec-nota", equipoOkCar === false
+          ? "El caudal de diseño (" + fmt(qDisenoLsCar, 3) + " l/s) es MENOR al mínimo necesario (" + fmt(qNecLs, 3) + " l/s) — el equipo elegido no alcanza a cubrir la demanda agronómica."
+          : "");
+      } else {
+        var faltanQ = [];
+        if (etc === null || etc === 0) faltanQ.push("ETc (completa los datos agronómicos base)");
+        if (sup === null) faltanQ.push("superficie de riego");
+        if (horas === null) faltanQ.push("horas disponibles al día");
+        if (ef === null) faltanQ.push("eficiencia");
+        setText(p + "agro-car-qnec-calc", "Falta: " + faltanQ.join(", ") + ".");
+        nota(p + "agro-car-qnec-nota", "");
+      }
+    }
+
     setText(p + "agro-ad", esAltaFrecuencia ? "—" : fmt(ad, 2) + " mm");
     // Dn (AD×fa, "lámina neta" tal como la llama el Diseñador de Riego y la declara el
     // consultor) vs. Dn ajustada (ETc×Fr entero, la que realmente alimenta Db aguas abajo) —
