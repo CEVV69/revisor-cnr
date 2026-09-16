@@ -35,6 +35,13 @@ se exportan al Diseñador.
 incluye Q_necesario). Se instaló como `static/disenador_riego_v134.html` en commit posterior (ver
 próxima entrada), pero los chequeos se implementaron en este commit.
 
+## Sesión sep-2026 — Instalación Diseñador de Riego v134
+
+Se instaló `disenador_riego_v134.html` en `static/`, reemplazando v133. Sin cambios de IDs
+(diff de IDs v133↔v134 vacío → `exportar_disenador.py` no requirió ajustes). Se actualizaron
+referencias v133→v134 en: `_apps_menu.html`, `CLAUDE.md` (3 ocurrencias), `calculos_riego.py`,
+`exportar_disenador.py`.
+
 ---
 
 ## Sesión sep-2026 — Nueva app "Cálculo de Superficies" en el menú Apps

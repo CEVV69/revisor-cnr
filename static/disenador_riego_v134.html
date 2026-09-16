@@ -2566,8 +2566,16 @@ function calcCarP(){
   // Posturas/día factibles con las horas de riego disponibles (minuta Paso E)
   const nPostDia=Math.max(Math.floor(hrs/(trp+tras)),0);
   const diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null;
+  // Q medio de bombeo necesario (demanda agronómica pura, sin catálogo) — Minuta Paso B:
+  // Q = ETc×10.000(m²/ha)×A(ha) / (Ea×TRD(hr)×3600). Fr se cancela algebraicamente (no interviene).
+  // Requiere el Diseño Agronómico ya calculado (R.CA). Es un MÍNIMO: el equipo puede dar más, no menos.
+  const efFrac=v('c-ef',75)/100;
+  const etcCA=R.CA&&R.CA.etc>0?R.CA.etc:null;
+  const qNecesario=etcCA!=null?(etcCA*10000*supR)/(efFrac*hrs*3600):null; // l/s
+  const qDisenoLs=qCan*1000/3600; // qCan[m³/hr]→l/s
+  const equipoOk=qNecesario!=null?(qDisenoLs>=qNecesario*0.999):null;
   const dEf=espFranja; // mantener compatibilidad con R.CAR.dEf
-  R.CAR={qCan,dEf:espFranja,dMojado,espFranja,supPos,trp,nPost,lF,vA,pp,alfa,pctVv,hrs,tras,nPostDia,diasNec};
+  R.CAR={qCan,dEf:espFranja,dMojado,espFranja,supPos,trp,nPost,lF,vA,pp,alfa,pctVv,hrs,tras,nPostDia,diasNec,qNecesario,equipoOk};
   calcAcum('c'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('c-car-r').innerHTML=`
   <div class="calc-section">
@@ -2577,6 +2585,15 @@ function calcCarP(){
       {eq:`Q_diseño = Q_catálogo × (1 + ${fd(margQ*100,0)}%) = ${fd(qCanBase,1)} × ${fd(1+margQ,2)}`,res:`${fd(qCan,1)} m³/hr`},
       {note:'INIA-Carillanca: sobredimensionar 15-20% para viento fuerte, mayor demanda o averías. El resto del diseño usa Q_diseño.'}
     ])}
+    ${qNecesario!=null?fbox('Verificación — Caudal Mínimo Necesario (demanda agronómica)',[
+      {eq:`Q_necesario = ETc×10.000×Sup / (Ef×TRD×3600) = ${fd(etcCA,2)}×10.000×${fd(supR,2)} / (${fd(efFrac,2)}×${fd(hrs,1)}×3600)`,res:`${fd(qNecesario,3)} l/s`},
+      {eq:`Q_diseño elegido (catálogo+margen) = ${fd(qDisenoLs,3)} l/s`,res:equipoOk?'✓ cubre el mínimo':'✗ NO alcanza'},
+      {note:'Mínimo que exige la demanda agronómica, independiente de la frecuencia de riego (Fr se cancela algebraicamente). El equipo elegido puede entregar más que esto, nunca menos.'}
+    ]):fbox('Verificación — Caudal Mínimo Necesario (demanda agronómica)',[
+      {note:'⚠ Pendiente: calcule primero el Diseño Agronómico (Paso 2) para poder verificar el caudal mínimo necesario contra el equipo elegido.'}
+    ])}
+    ${hrs>24?al('⚠ Horas Riego Disp. ('+fd(hrs,1)+' hr) supera las 24 horas de un día — revise el dato: TRD es el tiempo de riego DIARIO, no el tiempo de una pasada completa (eso lo entrega Días Necesarios más abajo).','w'):''}
+    ${qNecesario!=null&&!equipoOk?al('⚠ El caudal de diseño ('+fd(qDisenoLs,3)+' l/s) es MENOR al mínimo necesario ('+fd(qNecesario,3)+' l/s) — el equipo elegido no alcanza a cubrir la demanda agronómica con las horas/superficie declaradas. Elija un cañón de mayor caudal, reduzca la superficie, o aumente las horas de riego disponibles.','w'):''}
     ${fbox('Diámetro Mojado y Espaciamiento entre Franjas',[
       {eq:`D_mojado = 2 × Radio = 2 × ${radio}`,res:`${fd(dMojado,1)} m`},
       {eq:`Viento ${vv} m/s → ${fd(pctVvSug*100,0)}% del D_mojado sugerido (INIA Cuadro 1) — editable en "Factor Esp. Viento"`,res:`${fd(pctVv*100,1)}% usado`},
