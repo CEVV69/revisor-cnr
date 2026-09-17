@@ -364,7 +364,7 @@
   <div class="formula">Q mínimo necesario (demanda agronómica) = ETc×10.000×Sup / (Ef×TRD×3600) = {{ val(calc.etc_mm_dia) }}×10.000×{{ val(agro.superficie_riego_ha) }} / ({{ val(agro.eficiencia_pct) }}/100×{{ val(agro.horas_disponibles_dia) }}×3600) = <strong>{{ val(calc.carrete_check.q_necesario_ls, ' l/s') }}</strong></div>
   <div class="explica">Caudal mínimo que exige la demanda agronómica pura. Fr se cancela algebraicamente — no interviene. El equipo puede entregar más, nunca menos.</div>
   {% if calc.carrete_check.equipo_cubre_demanda is not none %}
-  <div class="compara">Q diseño elegido (catálogo + margen) = {{ val(calc.carrete_check.q_diseno_ls, ' l/s') }} — {% if calc.carrete_check.equipo_cubre_demanda %}<span class="ok">cubre la demanda agronómica.</span>{% else %}<span class="alerta">NO alcanza — el equipo elegido no cubre la demanda agronómica con la superficie y horas declaradas.</span>{% endif %}</div>
+  <div class="compara">Q catálogo{% if calc.carrete_check.q_catalogo_ls is not none %} = {{ val(calc.carrete_check.q_catalogo_ls, ' l/s') }}{% elif calc.carrete_check.q_diseno_ls is not none %} = {{ val(calc.carrete_check.q_diseno_ls, ' l/s') }}{% endif %} — {% if calc.carrete_check.equipo_cubre_demanda %}<span class="ok">cubre la demanda agronómica.</span>{% else %}<span class="alerta">NO alcanza — el equipo elegido no cubre la demanda agronómica con la superficie y horas declaradas.</span>{% endif %}</div>
   {% endif %}
 </div>
 {% endif %}

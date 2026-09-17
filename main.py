@@ -1866,8 +1866,10 @@ def _agronomico_calculo(datos: dict):
     # Q mínimo necesario del Carrete — requiere ETc de la cadena agronómica (r["etc_mm_dia"]).
     # Se computa aquí (después de cadena_agronomica) porque diseno_carrete() se llama ANTES.
     if datos.get("sistema_riego") == "Carrete" and carrete_check is not None:
+        _q_cat_m3h = datos.get("caudal_canon_m3h")
         q_nec = calculos_riego.verificar_q_necesario_carrete(
             q_diseno_ls=carrete_check.get("q_diseno_ls"),
+            q_catalogo_ls=round(_q_cat_m3h / 3.6, 3) if _q_cat_m3h else None,
             etc_mmdia=r.get("etc_mm_dia"),
             superficie_ha=datos.get("superficie_riego_ha"),
             eficiencia_pct=datos.get("eficiencia_pct"),
@@ -1895,7 +1897,7 @@ def _agronomico_calculo(datos: dict):
     # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
     # verificacion_diseno_riego). posturas_dia/dias_necesarios también se traspasan, para que
     # Tiempo total del día refleje UN día real y no el ciclo completo (ago-2026).
-    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = caudal_postura_ext = None
+    n_posturas_ext = posturas_dia_ext = dias_necesarios_ext = caudal_postura_ext = tiempo_postura_ext = None
     if datos.get("sistema_riego") == "Aspersión" and postura_check:
         n_posturas_ext = postura_check.get("n_posturas")
         posturas_dia_ext = postura_check.get("posturas_dia")
@@ -1906,6 +1908,7 @@ def _agronomico_calculo(datos: dict):
         posturas_dia_ext = carrete_check.get("posturas_dia")
         dias_necesarios_ext = carrete_check.get("dias_necesarios")
         caudal_postura_ext = carrete_check.get("q_diseno_ls")
+        tiempo_postura_ext = carrete_check.get("tiempo_postura_hr")
     # Precipitación EFECTIVA (ago-2026, bug real): "Precipitación del sistema" era un dato
     # declarado a mano que alimentaba directo el Tiempo de riego/Caudal de operación/Diseño
     # Base, aunque en Aspersión/Carrete la app YA calcula el equivalente físico desde el marco
@@ -1939,6 +1942,7 @@ def _agronomico_calculo(datos: dict):
         es_fuente_superficial=_es_fuente_superficial(datos.get("tipo_fuente_agua")),
         fr_adj_dias=r.get("fr_adj_dias"),
         caudal_postura_ext=caudal_postura_ext,
+        tiempo_postura_ext=tiempo_postura_ext,
         horas_disponibles_turno=datos.get("horas_disponibles_turno"),
         periodo_turno_dias=datos.get("periodo_turno_dias"),
     ))
@@ -2237,7 +2241,7 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
             "q_diseno_m3h", "q_diseno_ls", "d_mojado_m", "espaciamiento_franjas_m",
             "pluviometria_mmhr", "superficie_postura_ha", "n_posturas", "tiempo_postura_hr",
             "posturas_dia", "dias_necesarios", "angulo_sector_deg", "angulo_sector_declarado",
-            "trd_supera_24h", "q_necesario_ls", "equipo_cubre_demanda",
+            "trd_supera_24h", "q_necesario_ls", "q_catalogo_ls", "equipo_cubre_demanda",
         ))
 
     tramos = _tramos_con_calculo(tramos_raw)

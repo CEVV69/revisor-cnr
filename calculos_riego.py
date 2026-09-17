@@ -465,7 +465,8 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
                               fr_adj_dias: int = None,
                               caudal_postura_ext: float = None,
                               horas_disponibles_turno: float = None,
-                              periodo_turno_dias: float = None) -> dict:
+                              periodo_turno_dias: float = None,
+                              tiempo_postura_ext: float = None) -> dict:
     """Recalcula los resultados base del diseño de riego a partir de la demanda bruta (Db) —
     misma relación que usan los sistemas localizados (goteo/microaspersión) del Diseñador de
     Riego. Aspersión/carrete usan ahí un modelo de "posturas" más elaborado (caudal y tiempo
@@ -561,9 +562,20 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     circula mientras opera una postura lo fija el marco de aspersores (N×Q_aspersor,
     `postura_aspersion()`) o el cañón elegido (Q_diseño, `diseno_carrete()`), no la cantidad de
     posturas que hacen falta para cubrir el predio. Si se pasa este valor (ya calculado por el
-    llamador), reemplaza a la división para `caudal_operacion_ls` cuando hay `n_posturas_ext`;
-    sin él, cae a la división de siempre (auditoría técnica ago-2026, diferencia confirmada con
-    datos reales — entre 0,5% y 30% según superficie/N° de posturas, no despreciable).
+    llamador), reemplaza a la división para `caudal_operacion_ls`; sin él, cae a la división de
+    siempre (auditoría técnica ago-2026, diferencia confirmada con datos reales — entre 0,5% y
+    30% según superficie/N° de posturas, no despreciable). Antes de sep-2026 requería que
+    `n_posturas_ext` también estuviera presente — se eliminó (bug: Carrete sin viento tiene
+    Q_cañón pero no N_posturas, y la condición compuesta lo dejaba caer a la división genérica).
+
+    **`tiempo_postura_ext` (sep-2026) — T_postura geométrico del Carrete en vez de Db/PP para
+    `tiempo_riego_hr`.** En Aspersión, T_riego = Db/PP (dosis ÷ tasa de aplicación). En Carrete,
+    PP es pluviometría media del cañón, no un parámetro libre: el tiempo de UNA postura lo fija
+    el modelo geométrico INIA-Carillanca (L_manguera/V_avance + Ti + Tfe). Si se pasa este valor
+    (de `diseno_carrete()`), se usa directamente como `tiempo_riego_hr`. Cuando `n_posturas_ext`
+    no está disponible (falta velocidad de viento) pero `caudal_postura_ext` sí, `n_sectores`
+    queda None — T_ciclo, días_necesarios y volumen_mínimo_estanque no se calculan; sí se
+    publican `caudal_operacion_ls` y `acumulador_requerido`.
 
     **`posturas_dia_ext`/`dias_necesarios_ext` (ago-2026) — corrige que Aspersión/Carrete
     regaban "todas las posturas en un día".** `postura_aspersion()`/`diseno_carrete()` ya
@@ -694,62 +706,77 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         r["balance_diario_ok"] = v_dia_requerido_l <= v_fuente_dia_l
 
     tiempo_riego = None
-    if precipitacion_mmhr:
+    if tiempo_postura_ext is not None:
+        # Carrete: tiempo geométrico de postura (INIA-Carillanca), no Db/PP — ver docstring.
+        tiempo_riego = tiempo_postura_ext
+        r["tiempo_riego_hr"] = round(tiempo_riego, 2)
+    elif precipitacion_mmhr:
         tiempo_riego = db_mm_dia / precipitacion_mmhr
         r["tiempo_riego_hr"] = round(tiempo_riego, 2)
 
     if tiempo_riego and superficie_ha:
-        q_requerido_total_ls = precipitacion_mmhr * superficie_ha * 10000 / 3600
-        r["q_requerido_total_ls"] = round(q_requerido_total_ls, 4)
+        q_requerido_total_ls = None
+        if precipitacion_mmhr:
+            q_requerido_total_ls = precipitacion_mmhr * superficie_ha * 10000 / 3600
+            r["q_requerido_total_ls"] = round(q_requerido_total_ls, 4)
 
         vol_litros = (volumen_acumulador_m3 or 0) * 1000
         q_estanque_ls = (vol_litros / (tiempo_riego * 3600)) if vol_litros else 0.0
 
+        # n_sectores: (1) posturas geométricas conocidas; (2) Carrete sin viento — Q de equipo
+        # disponible pero N no calculable, se omiten T_ciclo y bloques derivados; (3) por caudal
+        # (Goteo/Microaspersión, comportamiento histórico).
+        n_sectores = None
         if n_posturas_ext is not None:
             # Aspersión/Carrete: N° de posturas (geométrico/de equipo), fijo — no se recalcula
             # por caudal ni se reduce con el acumulador.
             n_sectores = max(1, int(n_posturas_ext))
+        elif caudal_postura_ext:
+            pass  # n_sectores = None: Carrete sin datos de viento
         else:
             if vol_litros:
                 r["caudal_estanque_ls"] = round(q_estanque_ls, 3)
-            if caudal_disponible_ls:
+            if q_requerido_total_ls is not None and caudal_disponible_ls:
                 n_sectores = max(1, math.ceil((q_requerido_total_ls - q_estanque_ls) / caudal_disponible_ls))
-            else:
+            elif q_requerido_total_ls is not None:
                 n_sectores = 1
-        r["n_sectores"] = n_sectores
 
-        # Tiempo total del CICLO completo (N° posturas/sectores × tiempo de riego) — base
-        # siempre válida, independiente de si una postura individual cabe en un día. Chequeo
-        # PRIMARIO de viabilidad temporal cuando se conoce la Fr ajustada del ciclo.
-        tiempo_total_ciclo = n_sectores * tiempo_riego
-        r["tiempo_total_ciclo_hr"] = round(tiempo_total_ciclo, 2)
-        if horas_disponibles_dia and fr_adj_dias:
-            horas_disponibles_ciclo = horas_disponibles_dia * fr_adj_dias
-            r["horas_disponibles_ciclo_hr"] = round(horas_disponibles_ciclo, 2)
-            r["cabe_en_ciclo_ok"] = tiempo_total_ciclo <= horas_disponibles_ciclo
+        if n_sectores is not None:
+            r["n_sectores"] = n_sectores
 
-        # Tiempo total de UN día real — para Aspersión/Carrete (posturas), NO son todas las
-        # posturas en un solo día: usa las posturas/día reales (ya limitadas por horas
-        # disponibles en postura_aspersion()/diseno_carrete()) y reporta cuántos días toma el
-        # ciclo completo. Si ni una postura cabe en un día (posturas_dia_ext == 0), no hay "día
-        # real" que describir — no se publica (en vez de comparar el ciclo completo contra un
-        # día, comparación inválida; el chequeo correcto para ese caso es cabe_en_ciclo_ok
-        # arriba), pero `tiempo_total_dia` sigue necesitando un valor para el volumen mínimo del
-        # acumulador de más abajo — cae al tiempo del ciclo completo (mismo criterio que ya
-        # usaba el caso Goteo/Microaspersión).
-        tiempo_total_dia = tiempo_total_ciclo
-        if n_posturas_ext is not None:
-            if posturas_dia_ext:
-                tiempo_total_dia = min(n_sectores, posturas_dia_ext) * tiempo_riego
-                r["dias_necesarios"] = (dias_necesarios_ext if dias_necesarios_ext is not None
-                                         else math.ceil(n_sectores / posturas_dia_ext))
+        # Bloques que requieren N° de sectores/posturas conocido.
+        tiempo_total_dia = None
+        if n_sectores is not None:
+            # Tiempo total del CICLO completo (N° posturas/sectores × tiempo de riego) — base
+            # siempre válida, independiente de si una postura individual cabe en un día. Chequeo
+            # PRIMARIO de viabilidad temporal cuando se conoce la Fr ajustada del ciclo.
+            tiempo_total_ciclo = n_sectores * tiempo_riego
+            r["tiempo_total_ciclo_hr"] = round(tiempo_total_ciclo, 2)
+            if horas_disponibles_dia and fr_adj_dias:
+                horas_disponibles_ciclo = horas_disponibles_dia * fr_adj_dias
+                r["horas_disponibles_ciclo_hr"] = round(horas_disponibles_ciclo, 2)
+                r["cabe_en_ciclo_ok"] = tiempo_total_ciclo <= horas_disponibles_ciclo
+
+            # Tiempo total de UN día real — para Aspersión/Carrete (posturas), NO son todas las
+            # posturas en un solo día: usa las posturas/día reales (ya limitadas por horas
+            # disponibles en postura_aspersion()/diseno_carrete()) y reporta cuántos días toma el
+            # ciclo completo. Si ni una postura cabe en un día (posturas_dia_ext == 0), no hay
+            # "día real" que describir — no se publica (el chequeo correcto es cabe_en_ciclo_ok),
+            # pero `tiempo_total_dia` sigue necesitando un valor para el volumen mínimo del
+            # acumulador de más abajo — cae al ciclo completo (mismo criterio que Goteo/Micro).
+            tiempo_total_dia = tiempo_total_ciclo
+            if n_posturas_ext is not None:
+                if posturas_dia_ext:
+                    tiempo_total_dia = min(n_sectores, posturas_dia_ext) * tiempo_riego
+                    r["dias_necesarios"] = (dias_necesarios_ext if dias_necesarios_ext is not None
+                                             else math.ceil(n_sectores / posturas_dia_ext))
+                    r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
+                    if horas_disponibles_dia:
+                        r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
+            else:
                 r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
                 if horas_disponibles_dia:
                     r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
-        else:
-            r["tiempo_total_dia_hr"] = round(tiempo_total_dia, 2)
-            if horas_disponibles_dia:
-                r["cabe_en_horas_disponibles"] = tiempo_total_dia <= horas_disponibles_dia
 
         # Caudal de operación de la red: para Aspersión/Carrete (posturas) es GEOMÉTRICO/de
         # equipo — N_aspersores × Q_aspersor (Aspersión) o Q_diseño del cañón (Carrete) — el
@@ -757,16 +784,14 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         # elegido, NO por cuántas posturas hacen falta para cubrir el predio. Dividir
         # Q_requerido/N_posturas (fórmula de "sectores" por caudal, correcta solo en Goteo/
         # Microaspersión) da un número distinto y conceptualmente equivocado para posturas —
-        # ago-2026, auditoría técnica: confirmado con datos reales, la brecha entre ambas
-        # fórmulas varía según superficie/N° de posturas (0,5% a 30% en los casos probados) y no
-        # es despreciable. Se usa la reconstrucción cuando el llamador la tiene
-        # (`caudal_postura_ext`, de `postura_aspersion()`/`diseno_carrete()`); si no, cae a la
-        # división de siempre (mismo resultado en Goteo/Microaspersión, donde SÍ corresponde).
-        if n_posturas_ext is not None and caudal_postura_ext:
+        # ago-2026, auditoría técnica, diferencia confirmada con datos reales (0,5% a 30%).
+        caudal_operacion_ls = None
+        if caudal_postura_ext:
             caudal_operacion_ls = caudal_postura_ext
-        else:
+        elif n_sectores is not None and q_requerido_total_ls is not None:
             caudal_operacion_ls = q_requerido_total_ls / n_sectores
-        r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
+        if caudal_operacion_ls is not None:
+            r["caudal_operacion_ls"] = round(caudal_operacion_ls, 3)
 
         # Acumulador REQUERIDO (ITT-03 §1): obligatorio si el caudal de operación del sector de
         # mayor gasto supera el caudal disponible — salvo, en aguas superficiales, si la
@@ -774,7 +799,7 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
         # en el tiempo): aunque el nominal alcance mientras el turno está abierto, si la fuente
         # no repone en promedio lo que exige la operación, igual hace falta acumular para cubrir
         # las horas sin turno.
-        if caudal_efectivo_ls:
+        if caudal_operacion_ls is not None and caudal_efectivo_ls:
             excede = caudal_operacion_ls > caudal_efectivo_ls
             if excede:
                 diff_pct = (caudal_operacion_ls - caudal_efectivo_ls) / caudal_efectivo_ls
@@ -786,24 +811,20 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
 
         # Volumen del ciclo completo — informativo (cuánta agua exige el ciclo entero), ya NO es
         # la base del volumen mínimo del estanque (ver docstring, bug corregido ago-2026).
-        v_ciclo_l = q_requerido_total_ls * tiempo_riego * 3600
-        r["v_ciclo_l"] = round(v_ciclo_l, 0)
-        if caudal_efectivo_ls and vol_litros:
+        if q_requerido_total_ls is not None:
+            v_ciclo_l = q_requerido_total_ls * tiempo_riego * 3600
+            r["v_ciclo_l"] = round(v_ciclo_l, 0)
+
+        if caudal_operacion_ls is not None and caudal_efectivo_ls and vol_litros and tiempo_total_dia is not None:
             # Volumen mínimo del estanque = ΔQ × Tiempo total de UN día × 3.600 — dimensiona para
             # sostener el déficit de UN día representativo del ciclo (la fuente, si es continua,
             # repone durante las horas sin riego y los días siguientes del ciclo — ver docstring).
-            # MISMA fórmula que los datos informativos de abajo (antes eran dos cálculos distintos
-            # que el código afirmaba "equivalentes" sin serlo en el caso multi-día).
             delta_q_ls = caudal_operacion_ls - caudal_efectivo_ls
             r["delta_q_estanque_ls"] = round(max(delta_q_ls, 0.0), 3)
             v_min_l = max(0.0, delta_q_ls) * tiempo_total_dia * 3600
             r["volumen_minimo_estanque_l"] = round(v_min_l, 0)
             r["acumulador_ok"] = vol_litros >= v_min_l
-
-            # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`), en unidades
-            # de tiempo (más intuitivo: "cuántas horas aguanta" en vez de solo litros). Equivalencia
-            # algebraica exacta con el volumen mínimo de arriba: autonomía ≥ Tiempo total de UN día
-            # ⟺ Vol ≥ Volumen mínimo (misma desigualdad, solo reordenada — ahora sí, siempre).
+            # Datos informativos del aporte del estanque (Diseñador v106, `evalAcum`).
             if delta_q_ls > 0:
                 r["autonomia_estanque_hr"] = round(vol_litros / (delta_q_ls * 3600), 2)
             r["tiempo_llenado_estanque_hr"] = round(vol_litros / (caudal_efectivo_ls * 3600), 2)
@@ -1084,7 +1105,8 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
 
 
 def verificar_q_necesario_carrete(q_diseno_ls: float, etc_mmdia: float, superficie_ha: float,
-                                   eficiencia_pct: float, horas_disponibles_dia: float) -> dict:
+                                   eficiencia_pct: float, horas_disponibles_dia: float,
+                                   q_catalogo_ls: float = None) -> dict:
     """Q mínimo necesario para cubrir la demanda agronómica del Carrete (cañón viajero).
 
     Minuta Paso B del Diseñador de Riego (calcCarP, v134):
@@ -1093,9 +1115,12 @@ def verificar_q_necesario_carrete(q_diseno_ls: float, etc_mmdia: float, superfic
     Fr se cancela algebraicamente en la ecuación completa (aparece igual en numerador y
     denominador) — no interviene. Se llama DESPUÉS de cadena_agronomica() para tener ETc.
 
-    Comparar contra Q_diseño_ls = Q_catálogo × (1 + margen/100), ya calculado en
-    diseno_carrete(). Igual que en el Diseñador: el equipo puede dar más que Q_necesario,
-    nunca menos.
+    Comparar contra Q_catálogo (sep-2026: antes comparaba contra Q_diseño = Q_catálogo×(1+margen)
+    — el margen de sobredimensionamiento ya compensa viento/averías; el criterio agronómico exige
+    que el equipo BASE alcance, no su versión sobredimensionada). `q_diseno_ls` se sigue
+    recibiendo para mostrarlo; la comparación usa `q_catalogo_ls` si se pasa, si no cae a
+    `q_diseno_ls` (compatibilidad con llamadas sin ese parámetro). `q_catalogo_ls` también se
+    agrega al dict de resultado para que las plantillas lo muestren con la etiqueta correcta.
 
     Caso de prueba (v134): ETc=4,70 mm/día, Sup=3,68 ha, Ef=75%, TRD=34,3 hr
     → Q_necesario = 1,868 l/s (y TRD>24h dispara alerta por separado)."""
@@ -1104,8 +1129,11 @@ def verificar_q_necesario_carrete(q_diseno_ls: float, etc_mmdia: float, superfic
         ef_frac = eficiencia_pct / 100
         q_nec = (etc_mmdia * 10000 * superficie_ha) / (ef_frac * horas_disponibles_dia * 3600)
         r["q_necesario_ls"] = round(q_nec, 3)
-        if q_diseno_ls is not None:
-            r["equipo_cubre_demanda"] = q_diseno_ls >= q_nec * 0.999
+        if q_catalogo_ls is not None:
+            r["q_catalogo_ls"] = round(q_catalogo_ls, 3)
+        q_comp = q_catalogo_ls if q_catalogo_ls is not None else q_diseno_ls
+        if q_comp is not None:
+            r["equipo_cubre_demanda"] = q_comp >= q_nec * 0.999
     return r
 
 

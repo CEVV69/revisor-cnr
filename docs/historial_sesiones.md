@@ -1,3 +1,45 @@
+## Sesión sep-2026 — Carrete: tres bugs en `verificacion_diseno_riego()` y Q_necesario
+
+**Bug 1 — `caudal_postura_ext` requería `n_posturas_ext` (no debería):**
+En `verificacion_diseno_riego()`, la condición para usar Q_equipo del Carrete era
+`if n_posturas_ext is not None and caudal_postura_ext:`. N_posturas solo se calcula cuando
+hay velocidad de viento (necesaria para el espaciamiento de franjas). Sin viento, `n_posturas_ext`
+queda `None` aunque Q_cañón sí esté disponible — la condición compuesta caía al genérico
+`Q_requerido / n_sectores`, que produce un Q_operación incorrecto. Ahora la condición es
+solo `if caudal_postura_ext:`.
+
+**Bug 2 — Sin viento, `n_sectores` se calculaba con la fórmula de Goteo/Microaspersión:**
+Cuando n_posturas_ext=None y caudal_postura_ext existe (Carrete sin viento), el código caía al
+branch `else` que divide `Q_requerido/Q_fuente`. No corresponde para Carrete: el N° de
+posturas es geométrico y sin viento no es calculable — no hay que inventarlo. Se agrega un
+branch `elif caudal_postura_ext: pass` → `n_sectores = None`. Los bloques T_ciclo,
+T_total_dia, días_necesarios y volumen_mínimo_estanque se omiten cuando `n_sectores is None`.
+
+**Bug 3 — `tiempo_riego` se derivaba de Db/PP en vez de T_postura geométrico:**
+Para Carrete, PP (pluviometría del cañón) es un dato de verificación, no de diseño. El tiempo
+que dura una postura lo fija el modelo INIA-Carillanca (L_manguera/V_avance + Ti + Tfe). Se agrega
+`tiempo_postura_ext` a la firma de `verificacion_diseno_riego()` — si se pasa (de
+`diseno_carrete()`), se usa directo como `tiempo_riego_hr` sin dividir Db por PP.
+
+**Bug 4 — Q_necesario comparaba contra Q_diseño (con margen) en vez de Q_catálogo:**
+`verificar_q_necesario_carrete()` recibía `q_diseno_ls = Q_catálogo × 1,15`. La comparación
+agronómica correcta es contra Q_catálogo puro: el margen de sobredimensionamiento ya compensa
+viento/averías, el criterio agrónómico exige que el equipo BASE alcance. Se agrega `q_catalogo_ls`
+a la función y al resultado dict (para que las plantillas lo muestren con la etiqueta correcta).
+En `main.py` se pasa `datos["caudal_canon_m3h"] / 3.6`. En los templates se muestra "Q catálogo"
+en vez de "Q diseño elegido (catálogo + margen)". El JS de `calculos.html` también usa
+`caudalCanon / 3.6` para la comparación en vivo.
+
+**Cambios en los tres lados (Regla 10):**
+- `calculos_riego.py`: `verificacion_diseno_riego()` + `verificar_q_necesario_carrete()`
+- `main.py`: inicialización de `tiempo_postura_ext`, extracción desde `carrete_check`,
+  paso a `verificacion_diseno_riego()`, paso de `q_catalogo_ls` a Q_necesario,
+  `q_catalogo_ls` en `_rellenar_none` de carrete_check
+- `templates/informe_calculo.html` + `informe_calculo_completo.html`: etiqueta "Q catálogo"
+- `templates/calculos.html` JS: comparación usa `caudalCanon / 3.6`
+
+---
+
 ## Sesión sep-2026 — Carrete: chequeos Q_necesario y TRD>24h (Diseñador v134)
 
 El usuario pidió agregar dos chequeos nuevos al sistema Carrete del Chequeo interactivo,
