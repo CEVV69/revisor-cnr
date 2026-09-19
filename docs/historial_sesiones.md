@@ -1,3 +1,12 @@
+## Sesión sep-2026 — Nueva app: Diseño de Invernadero v7
+
+Agregada app standalone `static/invernadero_diseno_v7.html` al ecosistema de apps de riego.
+La app cubre diseño de invernaderos que aparecen como obras anexas o complementarias en
+proyectos CNR. Se agrega al menú "Apps" en `templates/_apps_menu.html` con el ítem
+"Diseño de Invernadero". Se actualiza la lista de static/ en CLAUDE.md.
+
+---
+
 ## Sesión sep-2026 — Carrete: tres bugs en `verificacion_diseno_riego()` y Q_necesario
 
 **Bug 1 — `caudal_postura_ext` requería `n_posturas_ext` (no debería):**

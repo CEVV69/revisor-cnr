@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diseño Invernadero — CNR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16324F; --blue:#2F6FED; --ice:#EAF2FB; --frost:#F6FAFD;
+    --ink:#1B2733; --muted:#6B7A8C; --line:#D8E2EC; --ok:#2E8B57; --warn:#C0392B;
+    --bg:#FFFFFF; --card:#FFFFFF; --input-bg:#FFFFFF; --calc-bg:var(--ice);
+    font-family:'Nunito',system-ui,-apple-system,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0F1720; --card:#16202B; --ink:#E7EDF3; --muted:#93A3B5; --line:#28384A;
+      --ice:#16324F; --frost:#122030; --input-bg:#0F1720; --calc-bg:#1B2E42; --navy:#0E2338;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F1720; --card:#16202B; --ink:#E7EDF3; --muted:#93A3B5; --line:#28384A;
+    --ice:#16324F; --frost:#122030; --input-bg:#0F1720; --calc-bg:#1B2E42; --navy:#0E2338;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);}
+  .topbar{height:58px;background:var(--navy);display:flex;align-items:center;padding:0 20px;gap:14px;color:#fff;position:sticky;top:0;z-index:20;}
+  .topbar .logo{width:30px;height:30px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-weight:500;font-size:13px;}
+  .topbar h1{font-size:16px;font-weight:700;margin:0;letter-spacing:.2px;}
+  .topbar .sub{font-size:12px;color:#B9C9DC;font-family:'DM Mono',monospace;}
+  .topbar .spacer{flex:1;}
+  .topbar .proyecto{font-size:12px;font-family:'DM Mono',monospace;color:#DCE7F5;background:rgba(255,255,255,.08);padding:6px 10px;border-radius:8px;}
+  .topbtn{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.12);border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-family:'Nunito';}
+  .topbtn:hover{background:rgba(255,255,255,.22);}
+
+  .tabs{display:flex;gap:6px;padding:10px 16px;background:var(--frost);border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:58px;z-index:19;}
+  .tab{padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border:1px solid transparent;}
+  .tab.active{background:var(--blue);color:#fff;}
+  .tab:not(.active):hover{background:var(--ice);color:var(--navy);}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .grid2{display:grid;grid-template-columns:380px 1fr;gap:18px;}
+  .grid2b{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:860px){.grid2,.grid2b{grid-template-columns:1fr;}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+  .card h2{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 10px;letter-spacing:.2px;}
+  :root[data-theme="dark"] .card h2{color:#8FB3E0;}
+  @media (prefers-color-scheme: dark){.card h2{color:#8FB3E0;}}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);min-height:38px;}
+  .row:last-child{border-bottom:none;}
+  .row label{font-size:13px;color:var(--ink);flex:1;}
+  .fieldwrap{display:flex;align-items:center;gap:6px;}
+  input.f{width:96px;text-align:right;font-family:'DM Mono',monospace;font-size:13.5px;padding:6px 8px;border-radius:7px;border:1.5px solid var(--blue);background:var(--input-bg);color:var(--ink);}
+  input.f.wide{width:200px;text-align:left;}
+  input.f:focus{outline:none;box-shadow:0 0 0 3px rgba(47,111,237,.18);}
+  select.f{font-family:'DM Mono',monospace;font-size:13px;padding:6px 8px;border-radius:7px;border:1.5px solid var(--blue);background:var(--input-bg);color:var(--ink);max-width:220px;}
+  .unit{font-size:11.5px;color:var(--muted);width:28px;}
+
+  .calc{min-width:96px;text-align:right;font-family:'DM Mono',monospace;font-size:13.5px;padding:6px 8px;border-radius:7px;background:var(--calc-bg);color:var(--navy);font-weight:600;}
+  :root[data-theme="dark"] .calc{color:#CFE0F5;}
+  @media (prefers-color-scheme: dark){.calc{color:#CFE0F5;}}
+  .calc.big{font-size:20px;padding:10px 14px;}
+
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin:2px 0 12px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .sw{width:13px;height:13px;border-radius:4px;display:inline-block;}
+  .sw.input{border:1.5px solid var(--blue);background:var(--input-bg);}
+  .sw.calc{background:var(--calc-bg);}
+
+  .diagcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .diagtabs{display:flex;gap:6px;margin-bottom:10px;}
+  .dtab{font-size:12px;font-weight:700;color:var(--muted);padding:5px 12px;border-radius:999px;cursor:pointer;}
+  .dtab.active{background:var(--ice);color:var(--navy);}
+  :root[data-theme="dark"] .dtab.active{color:#CFE0F5;}
+  svg{width:100%;height:auto;display:block;}
+  .dim{font-family:'DM Mono',monospace;font-size:11px;fill:var(--muted);}
+  .dimline{stroke:var(--muted);stroke-width:1;}
+  .steel{fill:none;stroke:var(--navy);stroke-width:2.2;}
+  :root[data-theme="dark"] .steel{stroke:#8FB3E0;}
+  .steel-thin{fill:none;stroke:var(--navy);stroke-width:1.3;opacity:.75;}
+  :root[data-theme="dark"] .steel-thin{stroke:#8FB3E0;}
+  .poly{fill:var(--ice);opacity:.55;stroke:none;}
+  .ground{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;}
+  .tag{font-family:'DM Mono',monospace;font-size:10.5px;fill:var(--navy);}
+  :root[data-theme="dark"] .tag{fill:#CFE0F5;}
+
+  table.mat{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.mat th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--line);}
+  table.mat td{padding:4px 6px;border-bottom:1px solid var(--line);}
+  table.mat td.num{text-align:right;font-family:'DM Mono',monospace;}
+  table.matcat{font-size:11.5px;}
+  table.matcat th{white-space:nowrap;background:var(--frost);}
+  table.matcat td{white-space:nowrap;}
+  table.matcat tbody tr:nth-child(even){background:var(--frost);}
+
+  .instr{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .instr summary{cursor:pointer;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--navy);background:var(--frost);list-style:none;}
+  :root[data-theme="dark"] .instr summary{color:#8FB3E0;}
+  .instr summary::-webkit-details-marker{display:none;}
+  .instr[open] summary{border-bottom:1px solid var(--line);}
+  .instr .body{padding:10px 14px;font-size:12px;color:var(--muted);line-height:1.5;}
+  .instr .body ul{margin:4px 0;padding-left:18px;}
+
+  .result-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px;}
+  .result-strip .box{background:var(--calc-bg);border-radius:10px;padding:10px 12px;}
+  .result-strip .box .lbl{font-size:11px;color:var(--muted);}
+  .result-strip .box .val{font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:var(--navy);}
+  :root[data-theme="dark"] .result-strip .box .val{color:#CFE0F5;}
+
+  .warn-box{background:#FDECEA;border:1px solid #F1B5AE;color:#8A2E24;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:8px;}
+  :root[data-theme="dark"] .warn-box{background:#3A1E1B;border-color:#5C2E28;color:#F1B5AE;}
+  .ok-box{background:#EAF6EE;border:1px solid #A9D9B8;color:#1E5A34;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:8px;}
+  :root[data-theme="dark"] .ok-box{background:#173322;border-color:#2E5A3E;color:#A9D9B8;}
+
+  .hint{font-size:11px;color:var(--muted);margin-top:2px;}
+  .diag-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px;padding-left:2px;}
+  /* Tooltips */
+  .tip-wrap{position:relative;display:inline-block;}
+  .tip-icon{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--line);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;margin-left:5px;vertical-align:middle;flex-shrink:0;}
+  .tip-icon:hover{background:var(--blue);color:#fff;}
+  .tip-box{display:none;position:absolute;left:22px;top:-4px;width:240px;background:var(--navy);color:#e8f0f8;font-size:12px;line-height:1.45;padding:9px 11px;border-radius:9px;z-index:100;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
+  .tip-box::before{content:'';position:absolute;left:-6px;top:10px;border:6px solid transparent;border-right-color:var(--navy);border-left:none;}
+  .tip-icon:hover + .tip-box,.tip-wrap:hover .tip-box{display:block;}
+  /* Fix: campo + unidad siempre alineados */
+  .fieldwrap{align-items:center;}
+
+  .placeholder{padding:30px 10px;text-align:center;color:var(--muted);font-size:13px;}
+
+  @media print{
+    .topbar,.tabs,.noprint{display:none!important;}
+    .panel{display:none!important;}
+    .panel.printing{display:block!important;}
+    .panel-informe-svgs svg{display:block;width:100%;max-height:220px;}
+    body{background:#fff;color:#000;}
+    .card{border:1px solid #999;break-inside:avoid;}
+    @page{size:letter;margin:14mm;}
+  }
+
+  /* Plano de detalle */
+  .cotaLine{stroke:var(--blue);stroke-width:1;fill:none;}
+  .cotaArrow{fill:var(--blue);stroke:none;}
+  .cotaExt{stroke:var(--muted);stroke-width:.8;fill:none;stroke-dasharray:2 2;}
+  .dimExt{stroke:var(--muted);stroke-width:.7;fill:none;stroke-dasharray:3 3;}
+  .dimLabel{font-family:'DM Mono',monospace;font-size:10px;fill:var(--blue);font-weight:700;}
+  .dtxt{font-family:'DM Mono',monospace;font-size:10px;fill:var(--muted);}
+  .dtxtSm{font-family:'DM Mono',monospace;font-size:9px;fill:var(--muted);}
+  .viewLabel{font-family:'DM Mono',monospace;font-size:11px;fill:var(--muted);font-weight:700;letter-spacing:.5px;}
+  .titleTxt{font-family:'DM Mono',monospace;font-size:10px;fill:#fff;font-weight:700;}
+  .nivLine{stroke:var(--navy);stroke-width:.8;stroke-dasharray:5 3;opacity:.6;}
+  :root[data-theme="dark"] .nivLine{stroke:#8FB3E0;}
+  .nivTxt{font-family:'DM Mono',monospace;font-size:10.5px;font-weight:700;fill:var(--navy);}
+  :root[data-theme="dark"] .nivTxt{fill:#CFE0F5;}
+  .nivVal{font-family:'DM Mono',monospace;font-size:10px;fill:var(--muted);}
+  .fundBlock{fill:var(--muted);opacity:.35;stroke:var(--navy);stroke-width:.7;}
+  .axisCirc{fill:var(--frost);stroke:var(--navy);stroke-width:1.1;}
+  .axisTxt{font-family:'DM Mono',monospace;font-size:9.5px;font-weight:700;fill:var(--navy);}
+  .dimExtV{stroke:var(--muted);stroke-width:.7;stroke-dasharray:2 2;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">GH</div>
+  <div>
+    <h1>Diseño Invernadero</h1>
+    <div class="sub">CNR · Método 1 NCh432</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="proyecto" id="proyectoTag">Sin nombre de proyecto</div>
+  <button class="topbtn noprint" onclick="exportJSON()">Guardar .json</button>
+  <button class="topbtn noprint" onclick="document.getElementById('importFile').click()">Abrir .json</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+</div>
+
+<div class="tabs noprint" id="tabs">
+  <div class="tab active" data-tab="predio">1. Predio</div>
+  <div class="tab" data-tab="geometria">2. Geometría</div>
+  <div class="tab" data-tab="estructura">3. Estructura</div>
+  <div class="tab" data-tab="cargas">4. Cargas</div>
+  <div class="tab" data-tab="disenoest">5. Diseño Estructural</div>
+  <div class="tab" data-tab="cimentacion">6. Cimentación</div>
+  <div class="tab" data-tab="informe">7. Informe</div>
+</div>
+
+<div class="wrap">
+  <!-- PANEL 1: PREDIO -->
+  <div class="panel active" id="panel-predio">
+    <div class="card">
+      <h2>Datos del proyecto</h2>
+      <div class="row"><label>Nombre del proyecto</label><div class="fieldwrap"><input class="f wide" id="nombreProyecto" placeholder="Ej: Invernadero Fundo Los Alerces" oninput="onProyectoChange()"><span class="unit"></span></div></div>
+      <div class="row"><label>Ubicación (ciudad — Tabla NCh432)</label><div class="fieldwrap"><select class="f" id="ubicacion" onchange="recalc()"></select><span class="unit"></span></div></div>
+      <div class="row"><label>Latitud</label><div class="fieldwrap"><div class="calc" id="latOut">—</div><span class="unit">°S</span></div></div>
+      <div class="row"><label>Altitud</label><div class="fieldwrap"><div class="calc" id="altOut">—</div><span class="unit">m</span></div></div>
+    </div>
+    <div class="card">
+      <h2>Parámetros normativos (NCh432)</h2>
+      <div class="row"><label>Categoría de importancia<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Clasifica el uso y riesgo de la estructura.<br>• I (0,87): baja ocupación, bajo riesgo.<br>• <b>II (1,00)</b>: ocupación normal — aplica al invernadero.<br>• III/IV (1,15): alta ocupación, estructuras esenciales.</span></span></label><div class="fieldwrap"><select class="f" id="categoria" onchange="recalc()"><option value="I">I — 0,87</option><option value="II" selected>II — 1,00</option><option value="III">III — 1,15</option><option value="IV">IV — 1,15</option></select><span class="unit"></span></div></div>
+      <div class="row"><label>Exposición<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Rugosidad del entorno de barlovento.<br>• <b>B</b>: urbano/suburbano/arbolado.<br>• <b>C</b>: terreno abierto, obstrucciones &lt;9,1m (típico predio rural).<br>• <b>D</b>: plano despejado o agua.</span></span></label><div class="fieldwrap"><select class="f" id="exposicion" onchange="recalc()"><option value="B">B — urbano/arbolado</option><option value="C" selected>C — abierto rural</option><option value="D">D — plano/agua</option></select><span class="unit"></span></div></div>
+      <div class="row"><label>Factor topográfico Kzt<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Amplificación por topografía. Usar 1,0 en terreno plano. Aumentar solo si el invernadero está en la cima aislada de un cerro, escarpe o colina prominente (ver 7.7 NCh432).</span></span></label><div class="fieldwrap"><input class="f" id="kzt" value="1,00" oninput="recalc()"><span class="unit"></span></div></div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: GEOMETRIA -->
+  <div class="panel" id="panel-geometria">
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <h2>Dimensiones generales</h2>
+          <div class="row"><label>Ancho</label><div class="fieldwrap"><input class="f" id="ancho" value="6,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Largo</label><div class="fieldwrap"><input class="f" id="largo" value="20,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Área</label><div class="fieldwrap"><div class="calc" id="area">120,00</div><span class="unit">m²</span></div></div>
+          <div class="row"><label>N° de cerchas</label><div class="fieldwrap"><input class="f" id="ncerchas" value="11" oninput="recalc()"><span class="unit">un</span></div></div>
+          <div class="row"><label>Separación entre cerchas</label><div class="fieldwrap"><div class="calc" id="sepCerchas">2,00</div><span class="unit">m</span></div></div>
+        </div>
+        <div class="card">
+          <h2>Alturas y pendiente</h2>
+          <div class="row"><label>Altura de alero (h1)</label><div class="fieldwrap"><input class="f" id="h1" value="2,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Altura de cumbrera (h2)</label><div class="fieldwrap"><input class="f" id="h2" value="3,10" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Peralte</label><div class="fieldwrap"><div class="calc" id="peralte">1,10</div><span class="unit">m</span></div></div>
+          <div class="row"><label>Pendiente</label><div class="fieldwrap"><div class="calc" id="pendiente">36,7</div><span class="unit">%</span></div></div>
+          <div class="row"><label>Ángulo de techo (θ)</label><div class="fieldwrap"><div class="calc" id="angulo">20,1</div><span class="unit">°</span></div></div>
+          <div class="row"><label>Altura media techo</label><div class="fieldwrap"><div class="calc" id="hmedia">2,55</div><span class="unit">m</span></div></div>
+        </div>
+        <div class="card">
+          <h2>Vanos</h2>
+          <div class="row"><label>Ancho puerta</label><div class="fieldwrap"><input class="f" id="wpuerta" value="2,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Alto puerta</label><div class="fieldwrap"><input class="f" id="hpuerta" value="1,20" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>N° ventanas laterales</label><div class="fieldwrap"><input class="f" id="nvent" value="8" oninput="recalc()"><span class="unit">un</span></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="diagcard">
+            <div class="diag-label">Planta</div>
+            <svg id="svgPlanta" viewBox="0 0 640 220"></svg>
+            <div class="diag-label">Elevación frontal</div>
+            <svg id="svgElevacion" viewBox="0 0 640 280"></svg>
+            <div class="diag-label">Detalle cercha</div>
+            <svg id="svgCercha" viewBox="0 0 640 220"></svg>
+            <div class="hint">Los diagramas se actualizan con cada dato que ingreses.</div>
+          </div>
+      </div>
+    </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>Plano de detalle acotado</h2>
+        <svg id="svgPlanoDetalle" viewBox="0 0 900 540" style="width:100%;border-radius:8px;background:var(--frost)"></svg>
+        <div class="hint" style="margin-top:6px;margin-bottom:14px">Elevación acotada con niveles (N.T.N., N.S.EST., N.CUBIERTA, N.I.F.), estilo plano CNR. Se actualiza con cada cambio.</div>
+        <svg id="svgPlanoDetallePlanta" viewBox="0 0 900 320" style="width:100%;border-radius:8px;background:var(--frost)"></svg>
+        <div class="hint" style="margin-top:6px">Planta acotada — grilla de cerchas, separación entre ejes y ancho total. Se actualiza con cada cambio.</div>
+      </div>
+
+  </div>
+
+  <!-- PANEL 3: ESTRUCTURA -->
+  <div class="panel" id="panel-estructura">
+    <div class="card">
+      <h2>Selección de perfiles Metalcon por elemento</h2>
+      <table class="mat">
+        <thead><tr><th>Elemento</th><th>Perfil</th><th>Cantidad</th><th>Largo (m)</th><th>Largo total (m)</th><th>Peso total (kg)</th></tr></thead>
+        <tbody id="estructuraBody"></tbody>
+        <tfoot><tr><td colspan="5" style="text-align:right;font-weight:800;">SUBTOTAL ESTRUCTURA</td><td class="num" id="pesoEstructuraTotal" style="font-weight:800;">—</td></tr></tfoot>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Catálogo de referencia — Metalcon C (Cintac)</h2>
+      <div class="hint" style="margin-bottom:8px">Referencia permanente para elegir los perfiles de la tabla de arriba. La columna "Nomenclatura" es la que aparece en cada selector.</div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <svg viewBox="-18 -16 238 188" style="width:140px;flex:none;">
+          <polyline points="70,20 50,20 50,150 70,150" fill="none" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="50" y1="20" x2="50" y2="150" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="50" y1="20" x2="20" y2="20" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="20" y1="20" x2="20" y2="35" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="50" y1="150" x2="20" y2="150" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="20" y1="150" x2="20" y2="135" stroke="var(--navy)" stroke-width="3"/>
+          <line x1="8" y1="20" x2="8" y2="150" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <line x1="4" y1="20" x2="12" y2="20" stroke="var(--muted)" stroke-width="1"/>
+          <line x1="4" y1="150" x2="12" y2="150" stroke="var(--muted)" stroke-width="1"/>
+          <text x="0" y="90" font-size="12" fill="var(--navy)" font-weight="700" text-anchor="middle">A</text>
+          <line x1="20" y1="8" x2="50" y2="8" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="35" y="1" font-size="11" fill="var(--navy)" font-weight="700" text-anchor="middle">B</text>
+          <line x1="60" y1="10" x2="60" y2="20" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="66" y="16" font-size="11" fill="var(--navy)" font-weight="700">C</text>
+          <line x1="60" y1="150" x2="60" y2="160" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+          <text x="66" y="163" font-size="11" fill="var(--navy)" font-weight="700">C</text>
+          <text x="100" y="88" font-size="10.5" fill="var(--muted)">e = espesor</text>
+          <line x1="100" y1="92" x2="52" y2="92" stroke="var(--muted)" stroke-width="1"/>
+        </svg>
+        <div style="flex:1;min-width:150px;font-size:11.5px;color:var(--muted);line-height:1.6;">
+          Perfil C (canal) Metalcon: <b>A</b> = altura del alma, <b>B</b> = ancho del ala, <b>C</b> = largo del labio rigidizador, <b>e</b> = espesor de la plancha. Los "Perforado" llevan perforaciones de servicio en el alma, sin cambiar la sección.
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="mat matcat">
+        <thead><tr><th>Elemento</th><th>Nomenclatura</th><th class="num">A mm</th><th class="num">B mm</th><th class="num">C mm</th><th class="num">e mm</th><th class="num">Peso P Kg/m</th><th class="num">Largos (m)</th><th class="num">Código Cintac</th></tr></thead>
+        <tbody>
+          <tr><td>METALCON C 2x2x0,85</td><td>40CA085</td><td class="num">40</td><td class="num">38</td><td class="num">8</td><td class="num">0,85</td><td class="num">0,83</td><td class="num">6,00</td><td class="num">36000011</td></tr>
+          <tr><td>METALCON C 2x3x0,85</td><td>60CA085</td><td class="num">60</td><td class="num">38</td><td class="num">8</td><td class="num">0,85</td><td class="num">0,96</td><td class="num">2,40</td><td class="num">36000022</td></tr>
+          <tr><td>METALCON C 2x3x0,85</td><td>60CA085</td><td class="num">60</td><td class="num">38</td><td class="num">8</td><td class="num">0,85</td><td class="num">0,96</td><td class="num">4,00</td><td class="num">36000023</td></tr>
+          <tr><td>METALCON C 2x3x0,85</td><td>60CA085</td><td class="num">60</td><td class="num">38</td><td class="num">8</td><td class="num">0,85</td><td class="num">0,96</td><td class="num">6,00</td><td class="num">36000007</td></tr>
+          <tr><td>METALCON C 2x4x0,85 Perforado</td><td>90CA085</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,23</td><td class="num">2,50</td><td class="num">36000024</td></tr>
+          <tr><td>METALCON C 2x4x0,85 Perforado</td><td>90CA085</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,23</td><td class="num">3,00</td><td class="num">36000025</td></tr>
+          <tr><td>METALCON C 2x4x0,85 Perforado</td><td>90CA085</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,23</td><td class="num">6,00</td><td class="num">36000008</td></tr>
+          <tr><td>METALCON C 2x4x0,85</td><td>90CA085</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,23</td><td class="num">4,00</td><td class="num">36000026</td></tr>
+          <tr><td>METALCON C 2x4x0,85</td><td>90CA085</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,23</td><td class="num">6,00</td><td class="num">36000012</td></tr>
+          <tr><td>METALCON C 2x4x1,0 Perforado</td><td>90CA10</td><td class="num">90</td><td class="num">38</td><td class="num">12</td><td class="num">1,00</td><td class="num">1,44</td><td class="num">6,00</td><td class="num">36000009</td></tr>
+          <tr><td>METALCON C 2x5x0,85 Perforado</td><td>100CA085</td><td class="num">100</td><td class="num">40</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,32</td><td class="num">6,00</td><td class="num">36000010</td></tr>
+          <tr><td>METALCON C 2x6x0,85</td><td>150CA085</td><td class="num">150</td><td class="num">40</td><td class="num">12</td><td class="num">0,85</td><td class="num">1,64</td><td class="num">6,00</td><td class="num">36000013</td></tr>
+          <tr><td>METALCON C 2x6x1,0</td><td>150CA10</td><td class="num">150</td><td class="num">40</td><td class="num">12</td><td class="num">1,00</td><td class="num">1,94</td><td class="num">4,00</td><td class="num">36000027</td></tr>
+          <tr><td>METALCON C 2x6x1,0</td><td>150CA10</td><td class="num">150</td><td class="num">40</td><td class="num">12</td><td class="num">1,00</td><td class="num">1,94</td><td class="num">6,00</td><td class="num">36000014</td></tr>
+          <tr><td>METALCON C 2x6x1,6</td><td>150CA16</td><td class="num">150</td><td class="num">40</td><td class="num">12</td><td class="num">1,60</td><td class="num">3,06</td><td class="num">6,00</td><td class="num">36000015</td></tr>
+          <tr><td>METALCON C 2x8x1,6</td><td>200CA16</td><td class="num">200</td><td class="num">40</td><td class="num">12</td><td class="num">1,60</td><td class="num">3,67</td><td class="num">6,00</td><td class="num">36000109</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: CARGAS -->
+  <div class="panel" id="panel-cargas">
+    <details class="instr">
+      <summary>📖 Instructivo — cómo leer las zonas de presión</summary>
+      <div class="body">
+        Muros: A=barlovento, B=sotavento, C/D=laterales. Techo: E/G=términos (borde), F/H=interiores.
+        Revestimiento: 1=techo interior, 2=techo borde, 3=techo esquina, 4=muro interior, 5=muro borde.
+        <ul><li>Signo negativo = succión (hacia afuera)</li><li>Signo positivo = presión (hacia adentro)</li><li>Las esquinas (zona 3) siempre concentran la mayor succión — ahí suele fallar primero un revestimiento subdimensionado.</li></ul>
+      </div>
+    </details>
+
+    <div class="card">
+      <h2>Nieve — NCh432 anexo</h2>
+      <div class="result-strip">
+        <div class="box"><div class="lbl">Sobrecarga de diseño</div><div class="val" id="nieveResult">— kgf/m²</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Viento — Método 1 simplificado</h2>
+      <div class="row"><label>Velocidad básica V — zonificación (auto)<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Velocidad básica (ráfaga 3s a 10m en exposición C) según latitud, Tabla 6 NCh432. Se puede sobrescribir con dato de estación meteorológica cercana.</span></span></label><div class="fieldwrap"><div class="calc" id="vZonif">—</div><span class="unit">m/s</span></div></div>
+      <div class="row"><label>Velocidad básica V a utilizar</label><div class="fieldwrap"><select class="f" id="vInput" onchange="recalc()"></select><span class="unit">m/s</span></div></div>
+      <div class="row"><label>Factor de ajuste λ (Tabla 2)<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Ajusta la presión por la altura media del techo y la categoría de exposición. Se lee directamente de la Tabla 2 NCh432.</span></span></label><div class="fieldwrap"><div class="calc" id="lambdaOut">—</div><span class="unit"></span></div></div>
+      <div class="row"><label>Área tributaria panel/correa<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Área de influencia del elemento que se diseña (ej. separación entre correas × separación entre cerchas). Determina qué fila de la Tabla 3 NCh432 aplica.</span></span></label><div class="fieldwrap"><input class="f" id="areaTrib" value="4,65" oninput="recalc()"><span class="unit">m²</span></div></div>
+      <div class="hint" id="areaTribHint"></div>
+    </div>
+
+    <div class="grid2b">
+      <div class="card">
+        <h2>Presiones SPRFV — marco principal</h2>
+        <table class="mat"><thead><tr><th>Zona</th><th>Ps30 (kN/m²)</th><th>Ps diseño (kgf/m²)</th></tr></thead><tbody id="sprfvBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Presiones revestimiento</h2>
+        <table class="mat"><thead><tr><th>Zona</th><th>p(+) kgf/m²</th><th>p(−) kgf/m²</th></tr></thead><tbody id="revBody"></tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Resumen cargas de viento</h2>
+      <div class="result-strip">
+        <div class="box"><div class="lbl">Presión máx. muro barlovento</div><div class="val" id="rMuro">—</div></div>
+        <div class="box"><div class="lbl">Succión máx. techo (SPRFV)</div><div class="val" id="rSuccTecho">—</div></div>
+        <div class="box"><div class="lbl">Succión máx. revestimiento</div><div class="val" id="rSuccRev">—</div></div>
+        <div class="box"><div class="lbl">Presión máx. revestimiento</div><div class="val" id="rPresRev">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 5: DISEÑO ESTRUCTURAL -->
+  <div class="panel" id="panel-disenoest">
+    <div class="card">
+      <h2>Cargas consolidadas (kg/m²)</h2>
+      <div class="row"><label>Peso humano (carga viva mantención)</label><div class="fieldwrap"><input class="f" id="pesoHumano" value="70" oninput="recalc()"><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Peso cercha (estructura, sin correas)</label><div class="fieldwrap"><div class="calc" id="pesoCercha">—</div><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Peso costanera (correas)</label><div class="fieldwrap"><div class="calc" id="pesoCostanera">—</div><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Peso policarbonato</label><div class="fieldwrap"><input class="f" id="pesoPoli" value="0,80" oninput="recalc()"><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Carga de viento (succión techo)</label><div class="fieldwrap"><div class="calc" id="cargaViento">—</div><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Carga de nieve</label><div class="fieldwrap"><div class="calc" id="cargaNieve">—</div><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label style="font-weight:800;">CARGA MUERTA TOTAL D</label><div class="fieldwrap"><div class="calc big" id="cargaD">—</div><span class="unit">kg/m²</span></div></div>
+    </div>
+    <div class="card">
+      <h2>Combinaciones de carga (referencial, kg/m²)</h2>
+      <table class="mat" id="combosTable"><thead><tr><th>Combinación</th><th>Resultado</th></tr></thead><tbody></tbody></table>
+      <div class="warn-box" id="upliftWarn" style="display:none;">⚠ Combinación 0,9D+1,0W negativa: riesgo de levantamiento neto — revisar anclaje/cimentación.</div>
+    </div>
+  </div>
+
+  <!-- PANEL 6: CIMENTACION -->
+  <div class="panel" id="panel-cimentacion">
+    <div class="card">
+      <h2 style="color:#C0392B;">⚠ Verificación preliminar — no sustituye estudio de suelos ni revisión de un ingeniero</h2>
+      <div class="row"><label>Separación entre marcos/cerchas</label><div class="fieldwrap"><div class="calc" id="sepMarcosOut">—</div><span class="unit">m</span></div></div>
+      <div class="row"><label>Fuerza de viento por poste</label><div class="fieldwrap"><div class="calc" id="fuerzaPoste">—</div><span class="unit">kgf</span></div></div>
+      <div class="row"><label>Factor de seguridad momento volcador<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Relación entre el momento resistente y el momento volcante. Mínimo recomendado 1,5 para cimentaciones convencionales.</span></span></label><div class="fieldwrap"><input class="f" id="fsVolc" value="1,50" oninput="recalc()"><span class="unit"></span></div></div>
+      <div class="row"><label>Ángulo de fricción interna del suelo φ<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Parámetro de resistencia del suelo. Suelo agrícola suelto: 25-28°. Suelo granular compactado: 28-35°. Usar valor de estudio de suelos si existe.</span></span></label><div class="fieldwrap"><input class="f" id="phiSuelo" value="30" oninput="recalc()"><span class="unit">°</span></div></div>
+      <div class="row"><label>Peso específico del suelo γ<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Peso unitario del suelo natural. Rango típico: 1500-1800 kgf/m³ para suelo agrícola.</span></span></label><div class="fieldwrap"><input class="f" id="gammaSuelo" value="1600" oninput="recalc()"><span class="unit">kgf/m³</span></div></div>
+      <div class="row"><label>Diámetro del hoyo b<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Diámetro del hoyo de fundación (cilíndrico) en metros.</span></span></label><div class="fieldwrap"><input class="f" id="bHoyo" value="0,30" oninput="recalc()"><span class="unit">m</span></div></div>
+      <div class="row"><label style="font-weight:800;">Profundidad de empotramiento requerida</label><div class="fieldwrap"><div class="calc big" id="profReq">—</div><span class="unit">m</span></div></div>
+      <div class="row"><label>Profundidad adoptada en obra</label><div class="fieldwrap"><div class="calc" id="profAdopt">—</div><span class="unit">m</span></div></div>
+    </div>
+  </div>
+
+  <!-- PANEL 7: INFORME -->
+  <div class="panel" id="panel-informe">
+    <div class="card noprint">
+      <button class="topbtn" style="background:var(--blue);" onclick="imprimirInforme(event)">👁️ Vista previa del informe</button>
+      <div class="hint" style="margin-top:8px">Abre la vista previa del informe. Desde ahí puedes imprimir/guardar como PDF, descargar el HTML, o volver a la app.</div>
+    </div>
+    <div class="card" id="informeResumen"></div>
+    <div class="card">
+      <h2>Modo comparación — vs. diseño de terceros</h2>
+      <div class="hint" style="margin-bottom:8px;">Ingresa lo declarado por otro consultor y compáralo contra lo que calcula esta app.</div>
+      <table class="mat">
+        <thead><tr><th>Parámetro</th><th>Calculado (app)</th><th>Declarado (tercero)</th><th>Diferencia</th></tr></thead>
+        <tbody id="comparBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+<script>
+const TABLA1 = [{"V": 20, "ang": "0a5", "caso": 1, "vals": [0.15, -0.08, 0.1, -0.05, -0.18, -0.1, -0.13, -0.08, -0.25, -0.2]}, {"V": 20, "ang": "10", "caso": 1, "vals": [0.17, -0.07, 0.11, -0.04, -0.18, -0.11, -0.13, -0.08, -0.25, -0.2]}, {"V": 20, "ang": "15", "caso": 1, "vals": [0.19, -0.07, 0.12, -0.03, -0.18, -0.12, -0.13, -0.09, -0.25, -0.2]}, {"V": 20, "ang": "20", "caso": 1, "vals": [0.21, -0.06, 0.14, -0.03, -0.18, -0.13, -0.13, -0.1, -0.25, -0.2]}, {"V": 20, "ang": "25", "caso": 1, "vals": [0.19, 0.03, 0.14, 0.03, -0.08, -0.12, -0.06, -0.1, -0.16, -0.13]}, {"V": 20, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.03, -0.06, -0.01, -0.04, 0, 0]}, {"V": 20, "ang": "30a45", "caso": 1, "vals": [0.17, 0.12, 0.14, 0.1, 0.01, -0.1, 0.0, -0.09, -0.06, -0.07]}, {"V": 20, "ang": "30a45", "caso": 2, "vals": [0.17, 0.12, 0.14, 0.1, 0.07, -0.05, 0.06, -0.04, -0.06, -0.07]}, {"V": 25, "ang": "0a5", "caso": 1, "vals": [0.24, -0.12, 0.16, -0.07, -0.29, -0.16, -0.2, -0.13, -0.39, -0.31]}, {"V": 25, "ang": "10", "caso": 1, "vals": [0.27, -0.11, 0.18, -0.07, -0.29, -0.17, -0.2, -0.13, -0.39, -0.31]}, {"V": 25, "ang": "15", "caso": 1, "vals": [0.3, -0.1, 0.19, -0.05, -0.29, -0.19, -0.2, -0.14, -0.39, -0.31]}, {"V": 25, "ang": "20", "caso": 1, "vals": [0.33, -0.09, 0.22, -0.05, -0.29, -0.2, -0.2, -0.15, -0.39, -0.31]}, {"V": 25, "ang": "25", "caso": 1, "vals": [0.3, 0.05, 0.22, 0.05, -0.13, -0.18, -0.14, -0.15, -0.25, -0.21]}, {"V": 25, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.05, -0.1, -0.01, -0.06, 0, 0]}, {"V": 25, "ang": "30a45", "caso": 1, "vals": [0.27, 0.18, 0.21, 0.15, 0.02, -0.16, 0.01, -0.14, -0.09, -0.11]}, {"V": 25, "ang": "30a45", "caso": 2, "vals": [0.27, 0.18, 0.21, 0.15, 0.11, -0.08, 0.09, -0.06, -0.09, -0.11]}, {"V": 30, "ang": "0a5", "caso": 1, "vals": [0.34, -0.18, 0.23, -0.11, -0.41, -0.23, -0.29, -0.18, -0.56, -0.44]}, {"V": 30, "ang": "10", "caso": 1, "vals": [0.38, -0.16, 0.26, -0.09, -0.41, -0.25, -0.29, -0.19, -0.56, -0.44]}, {"V": 30, "ang": "15", "caso": 1, "vals": [0.43, -0.14, 0.27, -0.08, -0.41, -0.27, -0.29, -0.21, -0.56, -0.44]}, {"V": 30, "ang": "20", "caso": 1, "vals": [0.47, -0.13, 0.32, -0.07, -0.41, -0.29, -0.29, -0.22, -0.56, -0.44]}, {"V": 30, "ang": "25", "caso": 1, "vals": [0.43, 0.07, 0.31, 0.07, -0.19, -0.26, -0.14, -0.23, -0.36, -0.3]}, {"V": 30, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.07, -0.14, -0.02, -0.09, 0, 0]}, {"V": 30, "ang": "30a45", "caso": 1, "vals": [0.38, 0.26, 0.31, 0.21, 0.03, -0.23, 0.01, -0.2, -0.14, -0.16]}, {"V": 30, "ang": "30a45", "caso": 2, "vals": [0.38, 0.26, 0.31, 0.21, 0.15, -0.12, 0.13, -0.08, -0.14, -0.16]}, {"V": 35, "ang": "0a5", "caso": 1, "vals": [0.47, -0.24, 0.31, -0.14, -0.56, -0.32, -0.39, -0.25, -0.76, -0.61]}, {"V": 35, "ang": "10", "caso": 1, "vals": [0.52, -0.22, 0.35, -0.13, -0.56, -0.34, -0.39, -0.26, -0.76, -0.61]}, {"V": 35, "ang": "15", "caso": 1, "vals": [0.58, -0.2, 0.37, -0.11, -0.56, -0.36, -0.39, -0.28, -0.76, -0.61]}, {"V": 35, "ang": "20", "caso": 1, "vals": [0.64, -0.17, 0.43, -0.09, -0.56, -0.39, -0.39, -0.3, -0.76, -0.61]}, {"V": 35, "ang": "25", "caso": 1, "vals": [0.58, 0.09, 0.42, 0.1, -0.26, -0.35, -0.19, -0.31, -0.48, -0.41]}, {"V": 35, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.1, -0.19, -0.02, -0.12, 0, 0]}, {"V": 35, "ang": "30a45", "caso": 1, "vals": [0.52, 0.36, 0.42, 0.29, 0.04, -0.32, 0.01, -0.27, -0.18, -0.21]}, {"V": 35, "ang": "30a45", "caso": 2, "vals": [0.52, 0.36, 0.42, 0.29, 0.2, -0.16, 0.17, -0.11, -0.18, -0.21]}, {"V": 40, "ang": "0a5", "caso": 1, "vals": [0.61, -0.31, 0.4, -0.19, -0.73, -0.41, -0.51, -0.32, -0.99, -0.79]}, {"V": 40, "ang": "10", "caso": 1, "vals": [0.68, -0.29, 0.46, -0.17, -0.73, -0.45, -0.51, -0.34, -0.99, -0.79]}, {"V": 40, "ang": "15", "caso": 1, "vals": [0.76, -0.26, 0.48, -0.14, -0.73, -0.48, -0.51, -0.36, -0.99, -0.79]}, {"V": 40, "ang": "20", "caso": 1, "vals": [0.84, -0.22, 0.56, -0.12, -0.73, -0.51, -0.51, -0.39, -0.99, -0.79]}, {"V": 40, "ang": "25", "caso": 1, "vals": [0.76, 0.12, 0.55, 0.13, -0.34, -0.46, -0.25, -0.41, -0.63, -0.54]}, {"V": 40, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.13, -0.25, -0.03, -0.16, 0, 0]}, {"V": 40, "ang": "30a45", "caso": 1, "vals": [0.68, 0.47, 0.54, 0.38, 0.05, -0.41, 0.02, -0.36, -0.24, -0.28]}, {"V": 40, "ang": "30a45", "caso": 2, "vals": [0.68, 0.47, 0.54, 0.38, 0.27, -0.21, 0.23, -0.15, -0.24, -0.28]}, {"V": 45, "ang": "0a5", "caso": 1, "vals": [0.77, -0.4, 0.51, -0.24, -0.93, -0.52, -0.64, -0.41, -1.26, -1.0]}, {"V": 45, "ang": "10", "caso": 1, "vals": [0.87, -0.36, 0.58, -0.21, -0.93, -0.56, -0.64, -0.43, -1.26, -1.0]}, {"V": 45, "ang": "15", "caso": 1, "vals": [0.97, -0.32, 0.61, -0.18, -0.93, -0.6, -0.64, -0.46, -1.26, -1.0]}, {"V": 45, "ang": "20", "caso": 1, "vals": [1.07, -0.28, 0.71, -0.15, -0.93, -0.64, -0.64, -0.49, -1.26, -1.0]}, {"V": 45, "ang": "25", "caso": 1, "vals": [0.97, 0.15, 0.7, 0.16, -0.43, -0.58, -0.31, -0.52, -0.8, -0.68]}, {"V": 45, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.16, -0.32, -0.04, -0.2, 0, 0]}, {"V": 45, "ang": "30a45", "caso": 1, "vals": [0.87, 0.59, 0.69, 0.48, 0.07, -0.52, 0.02, -0.45, -0.3, -0.35]}, {"V": 45, "ang": "30a45", "caso": 2, "vals": [0.87, 0.59, 0.69, 0.48, 0.33, -0.26, 0.29, -0.18, -0.3, -0.35]}, {"V": 50, "ang": "0a5", "caso": 1, "vals": [0.95, -0.49, 0.63, -0.29, -1.14, -0.65, -0.79, -0.5, -1.55, -1.24]}, {"V": 50, "ang": "10", "caso": 1, "vals": [1.07, -0.44, 0.71, -0.26, -1.14, -0.7, -0.79, -0.54, -1.55, -1.24]}, {"V": 50, "ang": "15", "caso": 1, "vals": [1.19, -0.4, 0.76, -0.22, -1.14, -0.74, -0.79, -0.57, -1.55, -1.24]}, {"V": 50, "ang": "20", "caso": 1, "vals": [1.31, -0.35, 0.88, -0.19, -1.14, -0.79, -0.79, -0.6, -1.55, -1.24]}, {"V": 50, "ang": "25", "caso": 1, "vals": [1.19, 0.19, 0.86, 0.2, -0.53, -0.72, -0.38, -0.64, -0.99, -0.84]}, {"V": 50, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.2, -0.39, -0.05, -0.25, 0, 0]}, {"V": 50, "ang": "30a45", "caso": 1, "vals": [1.07, 0.73, 0.85, 0.59, 0.08, -0.65, 0.03, -0.56, -0.38, -0.43]}, {"V": 50, "ang": "30a45", "caso": 2, "vals": [1.07, 0.73, 0.85, 0.59, 0.36, -0.32, 0.29, -0.23, -0.38, -0.43]}, {"V": 55, "ang": "0a5", "caso": 1, "vals": [1.15, -0.6, 0.76, -0.35, -1.38, -0.79, -0.96, -0.61, -1.88, -1.5]}, {"V": 55, "ang": "10", "caso": 1, "vals": [1.3, -0.54, 0.86, -0.31, -1.38, -0.84, -0.96, -0.65, -1.88, -1.5]}, {"V": 55, "ang": "15", "caso": 1, "vals": [1.44, -0.48, 0.92, -0.27, -1.38, -0.9, -0.96, -0.69, -1.88, -1.5]}, {"V": 55, "ang": "20", "caso": 1, "vals": [1.59, -0.42, 1.06, -0.23, -1.38, -0.96, -0.96, -0.73, -1.88, -1.5]}, {"V": 55, "ang": "25", "caso": 1, "vals": [1.44, 0.23, 1.04, 0.24, -0.64, -0.87, -0.46, -0.78, -1.19, -1.02]}, {"V": 55, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.24, -0.47, -0.07, -0.3, 0, 0]}, {"V": 55, "ang": "30a45", "caso": 1, "vals": [1.3, 0.88, 1.03, 0.71, 0.1, -0.79, 0.04, -0.67, -0.45, -0.52]}, {"V": 55, "ang": "30a45", "caso": 2, "vals": [1.3, 0.88, 1.03, 0.71, 0.5, -0.39, 0.43, -0.28, -0.45, -0.52]}, {"V": 60, "ang": "0a5", "caso": 1, "vals": [1.37, -0.71, 0.91, -0.42, -1.64, -0.94, -1.15, -0.72, -2.24, -1.78]}, {"V": 60, "ang": "10", "caso": 1, "vals": [1.55, -0.64, 1.03, -0.37, -1.64, -1.0, -1.15, -0.77, -2.24, -1.78]}, {"V": 60, "ang": "15", "caso": 1, "vals": [1.72, -0.57, 1.09, -0.33, -1.64, -1.07, -1.15, -0.82, -2.24, -1.78]}, {"V": 60, "ang": "20", "caso": 1, "vals": [1.89, -0.5, 1.26, -0.28, -1.64, -1.15, -1.15, -0.86, -2.24, -1.78]}, {"V": 60, "ang": "25", "caso": 1, "vals": [1.72, 0.28, 1.24, 0.28, -0.76, -1.04, -0.55, -0.93, -1.42, -1.21]}, {"V": 60, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.29, -0.56, -0.08, -0.36, 0, 0]}, {"V": 60, "ang": "30a45", "caso": 1, "vals": [1.55, 1.05, 1.22, 0.84, 0.12, -0.94, 0.04, -0.8, -0.54, -0.62]}, {"V": 60, "ang": "30a45", "caso": 2, "vals": [1.55, 1.05, 1.22, 0.84, 0.59, -0.46, 0.51, -0.33, -0.54, -0.62]}, {"V": 65, "ang": "0a5", "caso": 1, "vals": [1.6, -0.84, 1.07, -0.49, -1.93, -1.1, -1.34, -0.85, -2.63, -2.09]}, {"V": 65, "ang": "10", "caso": 1, "vals": [1.82, -0.75, 1.21, -0.44, -1.93, -1.18, -1.34, -0.91, -2.63, -2.09]}, {"V": 65, "ang": "15", "caso": 1, "vals": [2.01, -0.67, 1.28, -0.38, -1.93, -1.26, -1.34, -0.96, -2.63, -2.09]}, {"V": 65, "ang": "20", "caso": 1, "vals": [2.22, -0.59, 1.48, -0.33, -1.93, -1.34, -1.34, -1.01, -2.63, -2.09]}, {"V": 65, "ang": "25", "caso": 1, "vals": [2.01, 0.33, 1.45, 0.33, -0.89, -1.22, -0.65, -1.09, -1.67, -1.42]}, {"V": 65, "ang": "25", "caso": 2, "vals": [0, 0, 0, 0, -0.34, -0.66, -0.09, -0.42, 0, 0]}, {"V": 65, "ang": "30a45", "caso": 1, "vals": [1.82, 1.24, 1.44, 0.98, 0.14, -1.1, 0.05, -0.94, -0.63, -0.72]}, {"V": 65, "ang": "30a45", "caso": 2, "vals": [1.82, 1.24, 1.44, 0.98, 0.69, -0.54, 0.6, -0.39, -0.63, -0.72]}];
+const TABLA3 = [{"ang": "0a7", "zona": "1", "area": 0.93, "V": 20, "pos": 0.07, "neg": -0.17}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 25, "pos": 0.11, "neg": -0.27}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 30, "pos": 0.16, "neg": -0.39}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 35, "pos": 0.21, "neg": -0.53}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 40, "pos": 0.28, "neg": -0.69}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 45, "pos": 0.35, "neg": -0.87}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 50, "pos": 0.44, "neg": -1.08}, {"ang": "0a7", "zona": "1", "area": 0.93, "V": 55, "pos": 0.53, "neg": -1.3}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 20, "pos": 0.07, "neg": -0.17}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 25, "pos": 0.1, "neg": -0.26}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 30, "pos": 0.15, "neg": -0.38}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 35, "pos": 0.2, "neg": -0.52}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 40, "pos": 0.26, "neg": -0.67}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 45, "pos": 0.3, "neg": -0.85}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 50, "pos": 0.41, "neg": -1.05}, {"ang": "0a7", "zona": "1", "area": 1.86, "V": 55, "pos": 0.5, "neg": -1.27}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 20, "pos": 0.06, "neg": -0.16}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 25, "pos": 0.09, "neg": -0.25}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 30, "pos": 0.13, "neg": -0.37}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 35, "pos": 0.18, "neg": -0.5}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 40, "pos": 0.24, "neg": -0.65}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 45, "pos": 0.3, "neg": -0.82}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 50, "pos": 0.38, "neg": -1.01}, {"ang": "0a7", "zona": "1", "area": 4.65, "V": 55, "pos": 0.45, "neg": -1.23}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 20, "pos": 0.06, "neg": -0.16}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 25, "pos": 0.09, "neg": -0.25}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 30, "pos": 0.13, "neg": -0.36}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 35, "pos": 0.17, "neg": -0.48}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 40, "pos": 0.23, "neg": -0.63}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 45, "pos": 0.28, "neg": -0.8}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 50, "pos": 0.35, "neg": -0.99}, {"ang": "0a7", "zona": "1", "area": 9.29, "V": 55, "pos": 0.42, "neg": -1.19}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 20, "pos": 0.07, "neg": -0.29}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 25, "pos": 0.11, "neg": -0.45}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 30, "pos": 0.16, "neg": -0.65}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 35, "pos": 0.21, "neg": -0.89}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 40, "pos": 0.28, "neg": -1.16}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 45, "pos": 0.35, "neg": -1.47}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 50, "pos": 0.44, "neg": -1.81}, {"ang": "0a7", "zona": "2", "area": 0.93, "V": 55, "pos": 0.53, "neg": -2.19}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 20, "pos": 0.07, "neg": -0.26}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 25, "pos": 0.1, "neg": -0.4}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 30, "pos": 0.15, "neg": -0.58}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 35, "pos": 0.2, "neg": -0.79}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 40, "pos": 0.26, "neg": -1.03}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 45, "pos": 0.33, "neg": -1.31}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 50, "pos": 0.41, "neg": -1.61}, {"ang": "0a7", "zona": "2", "area": 1.86, "V": 55, "pos": 0.5, "neg": -1.95}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 20, "pos": 0.06, "neg": -0.22}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 25, "pos": 0.09, "neg": -0.34}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 30, "pos": 0.13, "neg": -0.49}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 35, "pos": 0.18, "neg": -0.67}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 40, "pos": 0.24, "neg": -0.87}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 45, "pos": 0.3, "neg": -1.1}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 50, "pos": 0.38, "neg": -1.36}, {"ang": "0a7", "zona": "2", "area": 4.65, "V": 55, "pos": 0.45, "neg": -1.65}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 20, "pos": 0.06, "neg": -0.19}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 25, "pos": 0.09, "neg": -0.29}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 30, "pos": 0.13, "neg": -0.42}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 35, "pos": 0.17, "neg": -0.58}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 40, "pos": 0.23, "neg": -0.75}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 45, "pos": 0.28, "neg": -0.95}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 50, "pos": 0.35, "neg": -1.17}, {"ang": "0a7", "zona": "2", "area": 9.29, "V": 55, "pos": 0.42, "neg": -1.42}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 20, "pos": 0.07, "neg": -0.43}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 25, "pos": 0.11, "neg": -0.68}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 30, "pos": 0.16, "neg": -0.98}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 35, "pos": 0.21, "neg": -1.33}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 40, "pos": 0.28, "neg": -1.74}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 45, "pos": 0.35, "neg": -2.2}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 50, "pos": 0.44, "neg": -2.72}, {"ang": "0a7", "zona": "3", "area": 0.93, "V": 55, "pos": 0.53, "neg": -3.29}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 20, "pos": 0.07, "neg": -0.36}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 25, "pos": 0.1, "neg": -0.56}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 30, "pos": 0.15, "neg": -0.81}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 35, "pos": 0.2, "neg": -1.1}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 40, "pos": 0.26, "neg": -1.44}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 45, "pos": 0.33, "neg": -1.83}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 50, "pos": 0.41, "neg": -2.25}, {"ang": "0a7", "zona": "3", "area": 1.86, "V": 55, "pos": 0.5, "neg": -2.73}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 20, "pos": 0.06, "neg": -0.17}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 25, "pos": 0.09, "neg": -0.27}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 30, "pos": 0.13, "neg": -0.39}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 35, "pos": 0.18, "neg": -0.53}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 40, "pos": 0.24, "neg": -0.69}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 45, "pos": 0.3, "neg": -0.87}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 50, "pos": 0.38, "neg": -1.08}, {"ang": "0a7", "zona": "3", "area": 4.65, "V": 55, "pos": 0.45, "neg": -1.3}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 20, "pos": 0.06, "neg": -0.19}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 25, "pos": 0.09, "neg": -0.29}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 30, "pos": 0.13, "neg": -0.42}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 35, "pos": 0.17, "neg": -0.58}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 40, "pos": 0.23, "neg": -0.75}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 45, "pos": 0.28, "neg": -0.95}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 50, "pos": 0.35, "neg": -1.17}, {"ang": "0a7", "zona": "3", "area": 9.29, "V": 55, "pos": 0.42, "neg": -1.42}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 20, "pos": 0.1, "neg": -0.16}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 25, "pos": 0.16, "neg": -0.25}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 30, "pos": 0.22, "neg": -0.36}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 35, "pos": 0.3, "neg": -0.48}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 40, "pos": 0.4, "neg": -0.63}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 45, "pos": 0.5, "neg": -0.8}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 50, "pos": 0.62, "neg": -0.99}, {"ang": "7a27", "zona": "1", "area": 0.93, "V": 55, "pos": 0.75, "neg": -1.19}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 20, "pos": 0.09, "neg": -0.16}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 25, "pos": 0.14, "neg": -0.24}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 30, "pos": 0.21, "neg": -0.35}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 35, "pos": 0.28, "neg": -0.47}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 40, "pos": 0.36, "neg": -0.62}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 45, "pos": 0.46, "neg": -0.78}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 50, "pos": 0.57, "neg": -0.96}, {"ang": "7a27", "zona": "1", "area": 1.86, "V": 55, "pos": 0.69, "neg": -1.16}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 20, "pos": 0.08, "neg": -0.16}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 25, "pos": 0.12, "neg": -0.24}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 30, "pos": 0.18, "neg": -0.35}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 35, "pos": 0.24, "neg": -0.47}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 40, "pos": 0.31, "neg": -0.62}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 45, "pos": 0.39, "neg": -0.78}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 50, "pos": 0.48, "neg": -0.96}, {"ang": "7a27", "zona": "1", "area": 4.65, "V": 55, "pos": 0.58, "neg": -1.16}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 20, "pos": 0.07, "neg": -0.14}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 25, "pos": 0.11, "neg": -0.22}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 30, "pos": 0.16, "neg": -0.32}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 35, "pos": 0.21, "neg": -0.44}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 40, "pos": 0.28, "neg": -0.57}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 45, "pos": 0.35, "neg": -0.73}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 50, "pos": 0.44, "neg": -0.9}, {"ang": "7a27", "zona": "1", "area": 9.29, "V": 55, "pos": 0.53, "neg": -1.08}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 20, "pos": 0.1, "neg": -0.27}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 25, "pos": 0.16, "neg": -0.43}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 30, "pos": 0.22, "neg": -0.62}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 35, "pos": 0.3, "neg": -0.84}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 40, "pos": 0.4, "neg": -1.1}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 45, "pos": 0.5, "neg": -1.39}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 50, "pos": 0.62, "neg": -1.72}, {"ang": "7a27", "zona": "2", "area": 0.93, "V": 55, "pos": 0.75, "neg": -2.08}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 20, "pos": 0.09, "neg": -0.25}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 25, "pos": 0.14, "neg": -0.4}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 30, "pos": 0.21, "neg": -0.57}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 35, "pos": 0.28, "neg": -0.78}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 40, "pos": 0.36, "neg": -1.01}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 45, "pos": 0.46, "neg": -1.28}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 50, "pos": 0.57, "neg": -1.58}, {"ang": "7a27", "zona": "2", "area": 1.86, "V": 55, "pos": 0.69, "neg": -1.91}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 20, "pos": 0.08, "neg": -0.23}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 25, "pos": 0.12, "neg": -0.35}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 30, "pos": 0.18, "neg": -0.51}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 35, "pos": 0.24, "neg": -0.69}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 40, "pos": 0.31, "neg": -0.9}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 45, "pos": 0.39, "neg": -1.13}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 50, "pos": 0.48, "neg": -1.4}, {"ang": "7a27", "zona": "2", "area": 4.65, "V": 55, "pos": 0.58, "neg": -1.69}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 20, "pos": 0.07, "neg": -0.2}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 25, "pos": 0.11, "neg": -0.32}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 30, "pos": 0.16, "neg": -0.45}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 35, "pos": 0.21, "neg": -0.62}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 40, "pos": 0.28, "neg": -0.81}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 45, "pos": 0.35, "neg": -1.02}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 50, "pos": 0.44, "neg": -1.26}, {"ang": "7a27", "zona": "2", "area": 9.29, "V": 55, "pos": 0.53, "neg": -1.53}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 20, "pos": 0.1, "neg": -0.41}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 25, "pos": 0.16, "neg": -0.64}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 30, "pos": 0.22, "neg": -0.92}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 35, "pos": 0.3, "neg": -1.25}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 40, "pos": 0.4, "neg": -1.63}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 45, "pos": 0.5, "neg": -2.06}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 50, "pos": 0.62, "neg": -2.54}, {"ang": "7a27", "zona": "3", "area": 0.93, "V": 55, "pos": 0.75, "neg": -3.07}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 20, "pos": 0.09, "neg": -0.38}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 25, "pos": 0.14, "neg": -0.59}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 30, "pos": 0.21, "neg": -0.86}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 35, "pos": 0.28, "neg": -1.16}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 40, "pos": 0.36, "neg": -1.52}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 45, "pos": 0.46, "neg": -1.92}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 50, "pos": 0.57, "neg": -2.38}, {"ang": "7a27", "zona": "3", "area": 1.86, "V": 55, "pos": 0.69, "neg": -2.87}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 20, "pos": 0.08, "neg": -0.34}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 25, "pos": 0.12, "neg": -0.54}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 30, "pos": 0.18, "neg": -0.78}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 35, "pos": 0.24, "neg": -1.06}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 40, "pos": 0.31, "neg": -1.38}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 45, "pos": 0.39, "neg": -1.75}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 50, "pos": 0.48, "neg": -2.16}, {"ang": "7a27", "zona": "3", "area": 4.65, "V": 55, "pos": 0.58, "neg": -2.61}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 20, "pos": 0.07, "neg": -0.32}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 25, "pos": 0.11, "neg": -0.5}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 30, "pos": 0.16, "neg": -0.72}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 35, "pos": 0.21, "neg": -0.98}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 40, "pos": 0.28, "neg": -1.27}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 45, "pos": 0.35, "neg": -1.61}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 50, "pos": 0.44, "neg": -1.99}, {"ang": "7a27", "zona": "3", "area": 9.29, "V": 55, "pos": 0.53, "neg": -2.41}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 20, "pos": 0.16, "neg": -0.17}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 25, "pos": 0.25, "neg": -0.27}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 30, "pos": 0.36, "neg": -0.39}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 35, "pos": 0.48, "neg": -0.53}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 40, "pos": 0.63, "neg": -0.69}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 45, "pos": 0.8, "neg": -0.87}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 50, "pos": 0.99, "neg": -1.08}, {"ang": "27a45", "zona": "1", "area": 0.93, "V": 55, "pos": 1.19, "neg": -1.3}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.16}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 25, "pos": 0.24, "neg": -0.26}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 30, "pos": 0.35, "neg": -0.37}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 35, "pos": 0.47, "neg": -0.5}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 40, "pos": 0.62, "neg": -0.65}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 45, "pos": 0.78, "neg": -0.83}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 50, "pos": 0.96, "neg": -1.02}, {"ang": "27a45", "zona": "1", "area": 1.86, "V": 55, "pos": 1.16, "neg": -1.24}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 20, "pos": 0.15, "neg": -0.15}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 25, "pos": 0.23, "neg": -0.24}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 30, "pos": 0.33, "neg": -0.34}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 35, "pos": 0.45, "neg": -0.47}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 40, "pos": 0.59, "neg": -0.61}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 45, "pos": 0.75, "neg": -0.77}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 50, "pos": 0.92, "neg": -0.95}, {"ang": "27a45", "zona": "1", "area": 4.65, "V": 55, "pos": 1.12, "neg": -1.15}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 20, "pos": 0.14, "neg": -0.14}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 25, "pos": 0.22, "neg": -0.22}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 30, "pos": 0.32, "neg": -0.32}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 35, "pos": 0.44, "neg": -0.44}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 40, "pos": 0.57, "neg": -0.57}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 45, "pos": 0.73, "neg": -0.73}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 50, "pos": 0.9, "neg": -0.9}, {"ang": "27a45", "zona": "1", "area": 9.29, "V": 55, "pos": 1.08, "neg": -1.08}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 20, "pos": 0.16, "neg": -0.2}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 25, "pos": 0.25, "neg": -0.32}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 30, "pos": 0.36, "neg": -0.45}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 35, "pos": 0.48, "neg": -0.62}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 40, "pos": 0.63, "neg": -0.81}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 45, "pos": 0.8, "neg": -1.02}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 50, "pos": 0.99, "neg": -1.26}, {"ang": "27a45", "zona": "2", "area": 0.93, "V": 55, "pos": 1.19, "neg": -1.53}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.19}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 25, "pos": 0.24, "neg": -0.3}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 30, "pos": 0.35, "neg": -0.43}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 35, "pos": 0.47, "neg": -0.59}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 40, "pos": 0.62, "neg": -0.77}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 45, "pos": 0.78, "neg": -0.97}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 50, "pos": 0.96, "neg": -1.2}, {"ang": "27a45", "zona": "2", "area": 1.86, "V": 55, "pos": 1.16, "neg": -1.46}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 20, "pos": 0.15, "neg": -0.18}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 25, "pos": 0.23, "neg": -0.28}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 30, "pos": 0.33, "neg": -0.41}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 35, "pos": 0.45, "neg": -0.56}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 40, "pos": 0.59, "neg": -0.73}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 45, "pos": 0.75, "neg": -0.92}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 50, "pos": 0.92, "neg": -1.13}, {"ang": "27a45", "zona": "2", "area": 4.65, "V": 55, "pos": 1.12, "neg": -1.37}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 20, "pos": 0.14, "neg": -0.17}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 25, "pos": 0.22, "neg": -0.27}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 30, "pos": 0.32, "neg": -0.39}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 35, "pos": 0.44, "neg": -0.53}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 40, "pos": 0.57, "neg": -0.69}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 45, "pos": 0.73, "neg": -0.87}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 50, "pos": 0.9, "neg": -1.08}, {"ang": "27a45", "zona": "2", "area": 9.29, "V": 55, "pos": 1.08, "neg": -1.3}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 20, "pos": 0.16, "neg": -0.2}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 25, "pos": 0.25, "neg": -0.32}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 30, "pos": 0.36, "neg": -0.45}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 35, "pos": 0.48, "neg": -0.62}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 40, "pos": 0.63, "neg": -0.81}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 45, "pos": 0.8, "neg": -1.02}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 50, "pos": 0.99, "neg": -1.26}, {"ang": "27a45", "zona": "3", "area": 0.93, "V": 55, "pos": 1.19, "neg": -1.53}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.19}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 25, "pos": 0.24, "neg": -0.3}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 30, "pos": 0.35, "neg": -0.43}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 35, "pos": 0.47, "neg": -0.59}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 40, "pos": 0.62, "neg": -0.77}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 45, "pos": 0.78, "neg": -0.97}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 50, "pos": 0.96, "neg": -1.2}, {"ang": "27a45", "zona": "3", "area": 1.86, "V": 55, "pos": 1.16, "neg": -1.46}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 20, "pos": 0.15, "neg": -0.18}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 25, "pos": 0.23, "neg": -0.28}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 30, "pos": 0.33, "neg": -0.41}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 35, "pos": 0.45, "neg": -0.56}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 40, "pos": 0.59, "neg": -0.73}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 45, "pos": 0.75, "neg": -0.92}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 50, "pos": 0.92, "neg": -1.13}, {"ang": "27a45", "zona": "3", "area": 4.65, "V": 55, "pos": 1.12, "neg": -1.37}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 20, "pos": 0.14, "neg": -0.17}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 25, "pos": 0.22, "neg": -0.27}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 30, "pos": 0.32, "neg": -0.39}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 35, "pos": 0.44, "neg": -0.53}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 40, "pos": 0.57, "neg": -0.69}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 45, "pos": 0.73, "neg": -0.87}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 50, "pos": 0.9, "neg": -1.08}, {"ang": "27a45", "zona": "3", "area": 9.29, "V": 55, "pos": 1.08, "neg": -1.3}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.19}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.29}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.42}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.58}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.75}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 45, "pos": 0.87, "neg": -0.95}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.17}, {"ang": "0a7", "zona": "4", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.42}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.18}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.28}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.41}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.56}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.73}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 45, "pos": 0.83, "neg": -0.92}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.13}, {"ang": "0a7", "zona": "4", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.37}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.17}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.26}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.38}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.52}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.67}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.85}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.05}, {"ang": "0a7", "zona": "4", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.27}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.16}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.25}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.36}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.48}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.63}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.8}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 50, "pos": 0.92, "neg": -0.99}, {"ang": "0a7", "zona": "4", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.19}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "0a7", "zona": "4", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.23}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.35}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.51}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.69}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.9}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 45, "pos": 0.87, "neg": -1.13}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.4}, {"ang": "0a7", "zona": "5", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.69}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.22}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.34}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.49}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.67}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.87}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 45, "pos": 0.83, "neg": -1.1}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.36}, {"ang": "0a7", "zona": "5", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.65}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.19}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.3}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.43}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.59}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.77}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.97}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.2}, {"ang": "0a7", "zona": "5", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.46}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.18}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.28}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.41}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.56}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.73}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.92}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 50, "pos": 0.92, "neg": -1.13}, {"ang": "0a7", "zona": "5", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.37}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "0a7", "zona": "5", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.19}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.29}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.42}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.58}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.75}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 45, "pos": 0.87, "neg": -0.95}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.17}, {"ang": "7a27", "zona": "4", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.42}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.18}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.28}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.41}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.56}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.73}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 45, "pos": 0.83, "neg": -0.92}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.13}, {"ang": "7a27", "zona": "4", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.37}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.17}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.26}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.38}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.52}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.67}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.85}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.05}, {"ang": "7a27", "zona": "4", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.27}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.16}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.25}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.36}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.48}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.63}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.8}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 50, "pos": 0.92, "neg": -0.99}, {"ang": "7a27", "zona": "4", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.19}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "7a27", "zona": "4", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.23}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.35}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.51}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.69}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.9}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 45, "pos": 0.87, "neg": -1.13}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.4}, {"ang": "7a27", "zona": "5", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.69}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.22}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.34}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.49}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.67}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.87}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 45, "pos": 0.83, "neg": -1.1}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.36}, {"ang": "7a27", "zona": "5", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.65}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.19}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.3}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.43}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.59}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.77}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.97}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.2}, {"ang": "7a27", "zona": "5", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.46}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.18}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.28}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.41}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.56}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.73}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.92}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 50, "pos": 0.92, "neg": -1.13}, {"ang": "7a27", "zona": "5", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.37}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "7a27", "zona": "5", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.19}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.29}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.42}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.58}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.75}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 45, "pos": 0.87, "neg": -0.95}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.17}, {"ang": "27a45", "zona": "4", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.42}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.18}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.28}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.41}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.56}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.73}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 45, "pos": 0.83, "neg": -0.92}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.13}, {"ang": "27a45", "zona": "4", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.37}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.17}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.26}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.38}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.52}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.67}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.85}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.05}, {"ang": "27a45", "zona": "4", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.27}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.16}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.25}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.36}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.48}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.63}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.8}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 50, "pos": 0.92, "neg": -0.99}, {"ang": "27a45", "zona": "4", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.19}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "27a45", "zona": "4", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 20, "pos": 0.17, "neg": -0.23}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 25, "pos": 0.27, "neg": -0.35}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 30, "pos": 0.39, "neg": -0.51}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 35, "pos": 0.53, "neg": -0.69}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 40, "pos": 0.69, "neg": -0.9}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 45, "pos": 0.87, "neg": -1.13}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 50, "pos": 1.08, "neg": -1.4}, {"ang": "27a45", "zona": "5", "area": 0.93, "V": 55, "pos": 1.3, "neg": -1.69}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 20, "pos": 0.16, "neg": -0.22}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 25, "pos": 0.26, "neg": -0.34}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 30, "pos": 0.37, "neg": -0.49}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 35, "pos": 0.5, "neg": -0.67}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 40, "pos": 0.66, "neg": -0.87}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 45, "pos": 0.83, "neg": -1.1}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 50, "pos": 1.03, "neg": -1.36}, {"ang": "27a45", "zona": "5", "area": 1.86, "V": 55, "pos": 1.24, "neg": -1.65}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 20, "pos": 0.16, "neg": -0.19}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 25, "pos": 0.24, "neg": -0.3}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 30, "pos": 0.35, "neg": -0.43}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 35, "pos": 0.47, "neg": -0.59}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 40, "pos": 0.62, "neg": -0.77}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 45, "pos": 0.78, "neg": -0.97}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 50, "pos": 0.96, "neg": -1.2}, {"ang": "27a45", "zona": "5", "area": 4.65, "V": 55, "pos": 1.16, "neg": -1.46}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 20, "pos": 0.15, "neg": -0.18}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 25, "pos": 0.23, "neg": -0.28}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 30, "pos": 0.33, "neg": -0.41}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 35, "pos": 0.45, "neg": -0.56}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 40, "pos": 0.59, "neg": -0.73}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 45, "pos": 0.75, "neg": -0.92}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 50, "pos": 0.92, "neg": -1.13}, {"ang": "27a45", "zona": "5", "area": 9.29, "V": 55, "pos": 1.12, "neg": -1.37}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 20, "pos": 0.13, "neg": -0.14}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 25, "pos": 0.2, "neg": -0.22}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 30, "pos": 0.29, "neg": -0.32}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 35, "pos": 0.39, "neg": -0.44}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 40, "pos": 0.51, "neg": -0.57}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 45, "pos": 0.65, "neg": -0.73}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 50, "pos": 0.8, "neg": -0.9}, {"ang": "27a45", "zona": "5", "area": 46.45, "V": 55, "pos": 0.97, "neg": -1.08}];
+const NIEVE = {"alt": [0, 300, 600, 800, 1000, 1250, 1500, 1750, 2000, 2500, 3000], "lat": [17, 26, 32, 34, 38, 42, 48], "vals": [[0, 0, 25, 25, 25, 25, 50], [0, 0, 25, 25, 25, 25, 125], [0, 25, 50, 75, 75, 50, 125], [0, 25, 75, 100, 100, 100, 125], [0, 25, 100, 150, 150, 150, 125], [0, 25, 200, 300, 300, 200, 0], [0, 25, 300, 450, 450, 300, 0], [0, 50, 400, 600, 600, 0, 0], [0, 100, 500, 700, 0, 0, 0], [0, 200, 600, 0, 0, 0, 0], [0, 300, 700, 0, 0, 0, 0]]};
+const CIUDADES = [{"nombre": "Visviri", "lat": 17.6, "alt": 4700}, {"nombre": "Arica", "lat": 18.4667, "alt": 19}, {"nombre": "Iquique", "lat": 20.2167, "alt": 13}, {"nombre": "Pintados", "lat": 20.6167, "alt": 1233}, {"nombre": "Tocopilla", "lat": 22.1, "alt": 16}, {"nombre": "Calama", "lat": 22.45, "alt": 2259}, {"nombre": "Mejillones", "lat": 23.1, "alt": 0}, {"nombre": "Baquedano", "lat": 23.3333, "alt": 1027}, {"nombre": "Antofagasta", "lat": 23.6667, "alt": 12}, {"nombre": "Socompa", "lat": 24.45, "alt": 3876}, {"nombre": "Taltal", "lat": 25.4333, "alt": 14}, {"nombre": "Chañaral", "lat": 26.3333, "alt": 13}, {"nombre": "Pueblo Hundido", "lat": 26.4333, "alt": 787}, {"nombre": "Potrerillos", "lat": 26.65, "alt": 2880}, {"nombre": "Salvador", "lat": 26.25, "alt": 2250}, {"nombre": "Caldera", "lat": 27.0667, "alt": 19}, {"nombre": "Copiapo", "lat": 27.3667, "alt": 381}, {"nombre": "Huasco", "lat": 28.45, "alt": 11}, {"nombre": "Vallenar", "lat": 28.5833, "alt": 381}, {"nombre": "Domeyko", "lat": 28.9667, "alt": 777}, {"nombre": "Coquimbo", "lat": 29.95, "alt": 11}, {"nombre": "La Serena", "lat": 29.9, "alt": 132}, {"nombre": "Rivadavia", "lat": 29.9667, "alt": 618}, {"nombre": "Vicufía", "lat": 30.0333, "alt": 611}, {"nombre": "Ovalle", "lat": 30.6, "alt": 213}, {"nombre": "Illapel", "lat": 31.6333, "alt": 310}, {"nombre": "Los Vilos", "lat": 31.9333, "alt": 10}, {"nombre": "Petorca", "lat": 32.25, "alt": 501}, {"nombre": "Cabildo", "lat": 32.3833, "alt": 181}, {"nombre": "La Ligua", "lat": 32.9833, "alt": 71}, {"nombre": "San Felipe", "lat": 32.75, "alt": 637}, {"nombre": "Los Andes", "lat": 32.85, "alt": 816}, {"nombre": "La Calera", "lat": 32.8, "alt": 217}, {"nombre": "Portillo", "lat": 32.8333, "alt": 2885}, {"nombre": "Llay-Llay", "lat": 32.8333, "alt": 385}, {"nombre": "Quillota", "lat": 32.8167, "alt": 118}, {"nombre": "Quilpue", "lat": 33.05, "alt": 104}, {"nombre": "Valparaiso", "lat": 33.0167, "alt": 4}, {"nombre": "Limache", "lat": 33.0167, "alt": 120}, {"nombre": "Colina", "lat": 33.2, "alt": 909}, {"nombre": "Casablanca", "lat": 33.3333, "alt": 259}, {"nombre": "Curacaví", "lat": 33.4167, "alt": 200}, {"nombre": "Santiago", "lat": 33.45, "alt": 558}, {"nombre": "Farellones", "lat": 33.35, "alt": 2240}, {"nombre": "Puente Alto", "lat": 33.5833, "alt": 692}, {"nombre": "San Bernardo", "lat": 33.6, "alt": 574}, {"nombre": "San Antonio", "lat": 33.5833, "alt": 9}, {"nombre": "Melipilla", "lat": 33.7, "alt": 164}, {"nombre": "Talagante", "lat": 33.7167, "alt": 334}, {"nombre": "San José de maipo", "lat": 33.6667, "alt": 961}, {"nombre": "Volcan", "lat": 33.8667, "alt": 1419}, {"nombre": "Sewell", "lat": 34.0833, "alt": 2132}, {"nombre": "Rancagua", "lat": 34.1667, "alt": 500}, {"nombre": "San Fernando", "lat": 34.6, "alt": 339}, {"nombre": "Curicó", "lat": 34.9833, "alt": 208}, {"nombre": "Constitucion", "lat": 35.3333, "alt": 7}, {"nombre": "Talca", "lat": 35.4167, "alt": 110}, {"nombre": "San javier", "lat": 35.5833, "alt": 110}, {"nombre": "Cipreses", "lat": 35.7833, "alt": 905}, {"nombre": "Linares", "lat": 35.85, "alt": 154}, {"nombre": "Cauquenes", "lat": 35.9833, "alt": 144}, {"nombre": "Parral", "lat": 36.1167, "alt": 171}, {"nombre": "Cobquecura", "lat": 36.1667, "alt": 0}, {"nombre": "Termas Catillo", "lat": 36.2667, "alt": 350}, {"nombre": "Chillan", "lat": 36.6, "alt": 118}, {"nombre": "Torne", "lat": 36.6167, "alt": 4}, {"nombre": "Talcahuano", "lat": 36.7167, "alt": 4}, {"nombre": "Penco", "lat": 36.7333, "alt": 7}, {"nombre": "Recinto", "lat": 36.8, "alt": 800}, {"nombre": "Concepción", "lat": 36.8333, "alt": 13}, {"nombre": "Termas Chillan", "lat": 36.95, "alt": 1723}, {"nombre": "Coronel", "lat": 37.95, "alt": 5}, {"nombre": "Monte Aguila", "lat": 37.0667, "alt": 113}, {"nombre": "Yumbel", "lat": 37.0833, "alt": 90}, {"nombre": "Lota", "lat": 37.0833, "alt": 0}, {"nombre": "San Rosendo", "lat": 37.25, "alt": 46}, {"nombre": "Polcura", "lat": 37.3, "alt": 460}, {"nombre": "Los Angeles", "lat": 37.4667, "alt": 134}, {"nombre": "Lago Laja", "lat": 37.4833, "alt": 1380}, {"nombre": "Lebu", "lat": 37.6167, "alt": 3}, {"nombre": "Santa Barbara", "lat": 37.6667, "alt": 225}, {"nombre": "Mulchén", "lat": 37.7167, "alt": 128}, {"nombre": "Angol", "lat": 37.7833, "alt": 74}, {"nombre": "Cafilete", "lat": 37.8, "alt": 25}, {"nombre": "Los sauces", "lat": 37.9667, "alt": 112}, {"nombre": "Victoria", "lat": 38.2167, "alt": 346}, {"nombre": "Traiguén", "lat": 38.2333, "alt": 177}, {"nombre": "Curacautín", "lat": 38.4333, "alt": 521}, {"nombre": "Lonquimay", "lat": 38.5667, "alt": 914}, {"nombre": "Cherquenco", "lat": 38.6833, "alt": 526}, {"nombre": "Carahue", "lat": 38.7, "alt": 10}, {"nombre": "Temuco", "lat": 38.7333, "alt": 114}, {"nombre": "Freire", "lat": 38.95, "alt": 104}, {"nombre": "Tolten", "lat": 39.1833, "alt": 5}, {"nombre": "Pucón", "lat": 39.2667, "alt": 230}, {"nombre": "Antilhue", "lat": 39.7833, "alt": 15}, {"nombre": "Valdivia", "lat": 39.8167, "alt": 12}, {"nombre": "Corral", "lat": 39.8833, "alt": 0}, {"nombre": "Llifen", "lat": 40.2, "alt": 125}, {"nombre": "La Union", "lat": 40.3, "alt": 24}, {"nombre": "Rio Bueno", "lat": 40.3167, "alt": 55}, {"nombre": "Bahía Mansa", "lat": 40.55, "alt": 0}, {"nombre": "Osorno", "lat": 40.5833, "alt": 32}, {"nombre": "Puyehue", "lat": 48.6667, "alt": 314}, {"nombre": "Antillanca", "lat": 40.7333, "alt": 988}, {"nombre": "Petrohue", "lat": 41.0667, "alt": 770}, {"nombre": "Ensenada", "lat": 41.2, "alt": 61}, {"nombre": "Pto. Varas", "lat": 41.3167, "alt": 66}, {"nombre": "Rali1n", "lat": 41.4167, "alt": 0}, {"nombre": "Puerto Montt", "lat": 41.4667, "alt": 5}, {"nombre": "Maullín", "lat": 41.6333, "alt": 0}, {"nombre": "Ancud", "lat": 41.8667, "alt": 30}, {"nombre": "Achao", "lat": 42.4667, "alt": 0}, {"nombre": "Futalelfu", "lat": 43.1667, "alt": 330}, {"nombre": "Castro", "lat": 43.4833, "alt": 30}, {"nombre": "Melinka", "lat": 43.8833, "alt": 0}, {"nombre": "Aysén", "lat": 45.4, "alt": 10}, {"nombre": "Coyhaique", "lat": 45.4667, "alt": 771}, {"nombre": "Balmaceda", "lat": 45.9167, "alt": 520}, {"nombre": "Chile Chico", "lat": 46.5333, "alt": 326}, {"nombre": "Puerto Eden", "lat": 49.1333, "alt": 0}, {"nombre": "Guarello", "lat": 50.4, "alt": 0}, {"nombre": "Puerto Natales", "lat": 51.6667, "alt": 0}, {"nombre": "Evangelistas", "lat": 52.3667, "alt": 0}, {"nombre": "Pta. Arenas", "lat": 53.1667, "alt": 10}, {"nombre": "Porvenir", "lat": 53.2833, "alt": 21}, {"nombre": "Dosolacion", "lat": 54.7833, "alt": 0}, {"nombre": "Pto.Willoams", "lat": 54.95, "alt": 8}, {"nombre": "Navarino", "lat": 55.1667, "alt": 8}];
+const PERFILES = [{"nombre": "METALCON C 2x2x0,85", "nomenclatura": "40CA085", "dim": "40x38x8x0,85", "espesor": 0.85, "pesoP": 0.83, "largo": 6, "codigo": 36000011}, {"nombre": "METALCON C 2x3x0,85", "nomenclatura": "60CA085", "dim": "60x38x8x0,85", "espesor": 0.85, "pesoP": 0.96, "largo": 2.4, "codigo": 36000022}, {"nombre": "METALCON C 2x3x0,85", "nomenclatura": "60CA085", "dim": "60x38x8x0,85", "espesor": 0.85, "pesoP": 0.96, "largo": 4, "codigo": 36000023}, {"nombre": "METALCON C 2x3x0,85", "nomenclatura": "60CA085", "dim": "60x38x8x0,85", "espesor": 0.85, "pesoP": 0.96, "largo": 6, "codigo": 36000007}, {"nombre": "METALCON C 2x4x0,85 Perforado", "nomenclatura": "90CA085", "dim": "90x38x12x0,85", "espesor": 0.85, "pesoP": 1.23, "largo": 2.5, "codigo": 36000024}, {"nombre": "METALCON C 2x4x0,85 Perforado", "nomenclatura": "90CA085", "dim": "90x38x12x0,85", "espesor": 0.85, "pesoP": 1.23, "largo": 3, "codigo": 36000025}, {"nombre": "METALCON C 2x4x0,85 Perforado", "nomenclatura": "90CA085", "dim": "90x38x12x0,85", "espesor": 0.85, "pesoP": 1.23, "largo": 6, "codigo": 36000008}, {"nombre": "METALCON C 2x4x0,85", "nomenclatura": "90CA085", "dim": "90x38x12x0,85", "espesor": 0.85, "pesoP": 1.23, "largo": 4, "codigo": 36000026}, {"nombre": "METALCON C 2x4x0,85", "nomenclatura": "90CA085", "dim": "90x38x12x0,85", "espesor": 0.85, "pesoP": 1.23, "largo": 6, "codigo": 36000012}, {"nombre": "METALCON C 2x4x1,0 Perforado", "nomenclatura": "90CA10", "dim": "90x38x12x1,00", "espesor": 1, "pesoP": 1.44, "largo": 6, "codigo": 36000009}, {"nombre": "METALCON C 2x5x0,85 Perforado", "nomenclatura": "100CA085", "dim": "100x40x12x0,85", "espesor": 0.85, "pesoP": 1.32, "largo": 6, "codigo": 36000010}, {"nombre": "METALCON C 2x6x0,85", "nomenclatura": "150CA085", "dim": "150x40x12x0,85", "espesor": 0.85, "pesoP": 1.64, "largo": 6, "codigo": 36000013}, {"nombre": "METALCON C 2x6x1,0", "nomenclatura": "150CA10", "dim": "150x40x12x1,00", "espesor": 1, "pesoP": 1.94, "largo": 4, "codigo": 36000027}, {"nombre": "METALCON C 2x6x1,0", "nomenclatura": "150CA10", "dim": "150x40x12x1,00", "espesor": 1, "pesoP": 1.94, "largo": 6, "codigo": 36000014}, {"nombre": "METALCON C 2x6x1,6", "nomenclatura": "150CA16", "dim": "150x40x12x1,60", "espesor": 1.6, "pesoP": 3.06, "largo": 6, "codigo": 36000015}, {"nombre": "METALCON C 2x8x1,6", "nomenclatura": "200CA16", "dim": "200x40x12x1,60", "espesor": 1.6, "pesoP": 3.67, "largo": 6, "codigo": 36000109}];
+
+// ---------- utilidades ----------
+function pd(v){
+  if(typeof v!=="string") return v;
+  v=v.trim().replace(/\./g,'').replace(',', '.');
+  const n=parseFloat(v);
+  return isNaN(n)?0:n;
+}
+function fmt(n,dec=2){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  return n.toLocaleString('es-CL',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function val(id){ const e=document.getElementById(id); return e? pd(e.value):0; }
+function setTxt(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+
+// ---------- poblar selects ----------
+function initSelects(){
+  const ub=document.getElementById('ubicacion');
+  CIUDADES.forEach(c=>{ const o=document.createElement('option'); o.value=c.nombre; o.textContent=c.nombre; ub.appendChild(o); });
+  ub.value='Victoria';
+  const vi=document.getElementById('vInput');
+  [20,25,30,35,40,45,50,55,60,65].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; vi.appendChild(o); });
+}
+
+// ---------- nieve ----------
+function nieveKgfM2(lat,alt){
+  let ia=-1; for(let i=0;i<NIEVE.alt.length;i++){ if(alt>=NIEVE.alt[i]) ia=i; }
+  if(ia<0) ia=0;
+  let il=-1; for(let i=0;i<NIEVE.lat.length;i++){ if(lat>=NIEVE.lat[i]) il=i; }
+  if(il<0) il=0;
+  const row = NIEVE.vals[Math.min(ia,NIEVE.vals.length-1)];
+  return row ? (row[Math.min(il,row.length-1)]||0) : 0;
+}
+
+// ---------- viento: lookups ----------
+function bucket1(theta){
+  if(theta<=5) return "0a5";
+  if(theta<=10) return "10";
+  if(theta<=15) return "15";
+  if(theta<=20) return "20";
+  if(theta<=25) return "25";
+  return "30a45";
+}
+function bucket3(theta){
+  if(theta<=7) return "0a7";
+  if(theta<=27) return "7a27";
+  return "27a45";
+}
+function lookupT1(V,ang,caso){
+  const r = TABLA1.find(x=>x.V===V && x.ang===ang && x.caso===caso);
+  return r? r.vals : [0,0,0,0,0,0,0,0,0,0];
+}
+function nearestArea(a){
+  const opts=[0.93,1.86,4.65,9.29];
+  let best=opts[0], d=Math.abs(a-opts[0]);
+  opts.forEach(o=>{ const dd=Math.abs(a-o); if(dd<d){d=dd;best=o;} });
+  return best;
+}
+function lookupT3(ang,zona,area,V){
+  const r = TABLA3.find(x=>x.ang===ang && x.zona===zona && x.area===area && x.V===V);
+  return r? [r.pos,r.neg] : [0,0];
+}
+const LAMBDA = {
+  h:[4.6,6.1,7.6,9.1,10.7,12.2,13.7,15.2,16.8,18.3],
+  B:[1.00,1.00,1.00,1.00,1.05,1.09,1.12,1.16,1.19,1.22],
+  C:[1.21,1.29,1.35,1.40,1.45,1.49,1.53,1.56,1.59,1.62],
+  D:[1.47,1.55,1.61,1.66,1.70,1.74,1.78,1.81,1.84,1.87]
+};
+function lambdaLookup(h,exp){
+  const hh=Math.max(h,4.6);
+  let idx=0; for(let i=0;i<LAMBDA.h.length;i++){ if(hh>=LAMBDA.h[i]) idx=i; }
+  return LAMBDA[exp][idx];
+}
+const IMPORTANCIA = {I:0.87, II:1.00, III:1.15, IV:1.15};
+const VEL_ZONIF = {bounds:[17.4833,27,35,42,50], vals:[30,35,40,50,55]};
+function vZonificacion(lat){
+  let idx=0; for(let i=0;i<VEL_ZONIF.bounds.length;i++){ if(lat>=VEL_ZONIF.bounds[i]) idx=i; }
+  return VEL_ZONIF.vals[idx];
+}
+
+// ---------- geometria: diagramas SVG (igual que mockup previo) ----------
+function drawPlanta(ancho,largo,n){
+  const svg=document.getElementById('svgPlanta'); if(!svg) return;
+  const W=640,H=260,pad=50;
+  const horiz = largo>=ancho ? largo : ancho;
+  const vert = largo>=ancho ? ancho : largo;
+  const scale = Math.min((W-2*pad)/horiz,(H-2*pad)/vert);
+  const pw = horiz*scale, ph = vert*scale;
+  const x0=(W-pw)/2, y0=(H-ph)/2;
+  let s=`<rect class="poly" x="${x0}" y="${y0}" width="${pw}" height="${ph}"/>`;
+  s+=`<rect class="steel" x="${x0}" y="${y0}" width="${pw}" height="${ph}"/>`;
+  const nn=Math.max(2,Math.round(n));
+  for(let i=0;i<nn;i++){
+    const x=x0+pw*(i/(nn-1));
+    s+=`<line class="steel-thin" x1="${x}" y1="${y0}" x2="${x}" y2="${y0+ph}"/>`;
+  }
+  s+=`<line class="dimline" x1="${x0}" y1="${y0+ph+18}" x2="${x0+pw}" y2="${y0+ph+18}"/>`;
+  s+=`<text class="dim" x="${x0+pw/2}" y="${y0+ph+32}" text-anchor="middle">${fmt(horiz,2)} m</text>`;
+  s+=`<line class="dimline" x1="${x0-18}" y1="${y0}" x2="${x0-18}" y2="${y0+ph}"/>`;
+  s+=`<text class="dim" x="${x0-26}" y="${y0+ph/2}" text-anchor="end">${fmt(vert,2)} m</text>`;
+  s+=`<text class="tag" x="${x0+8}" y="${y0-8}">${nn} cerchas @ ${fmt(largo/((nn-1)||1),2)} m</text>`;
+  svg.innerHTML=s;
+}
+function drawElevacion(ancho,h1,h2,wpuerta,hpuerta){
+  const svg=document.getElementById('svgElevacion'); if(!svg) return;
+  const W=640,H=300,padB=60,padT=30,padS=70;
+  const maxH = Math.max(h2,1)*1.15;
+  const scale = Math.min((W-2*padS)/ancho,(H-padB-padT)/maxH);
+  const w=ancho*scale, hh1=h1*scale, hh2=h2*scale;
+  const x0=(W-w)/2, yBase=H-padB;
+  const yEave=yBase-hh1, yRidge=yBase-hh2;
+  let s=`<line class="ground" x1="${x0-30}" y1="${yBase}" x2="${x0+w+30}" y2="${yBase}"/>`;
+  s+=`<line class="steel" x1="${x0}" y1="${yBase}" x2="${x0}" y2="${yEave}"/>`;
+  s+=`<line class="steel" x1="${x0+w}" y1="${yBase}" x2="${x0+w}" y2="${yEave}"/>`;
+  s+=`<polyline class="steel" points="${x0},${yEave} ${x0+w/2},${yRidge} ${x0+w},${yEave}"/>`;
+  s+=`<polygon class="poly" points="${x0},${yBase} ${x0},${yEave} ${x0+w/2},${yRidge} ${x0+w},${yEave} ${x0+w},${yBase}"/>`;
+  const pw=wpuerta*scale, ph=hpuerta*scale, px=x0+w/2-pw/2;
+  s+=`<rect class="steel-thin" x="${px}" y="${yBase-ph}" width="${pw}" height="${ph}"/>`;
+  const niveles=[["N.T.N. ±0,00",yBase],["N.S.EST. +"+fmt(h1,2),yEave],["N.CUBIERTA +"+fmt(h2,2),yRidge]];
+  niveles.forEach(([label,y])=>{
+    s+=`<line class="dimline" x1="${x0+w+14}" y1="${y}" x2="${x0+w+26}" y2="${y}"/>`;
+    s+=`<text class="dim" x="${x0+w+30}" y="${y+4}">${label}</text>`;
+  });
+  s+=`<line class="dimline" x1="${x0}" y1="${yBase+22}" x2="${x0+w}" y2="${yBase+22}"/>`;
+  s+=`<text class="dim" x="${x0+w/2}" y="${yBase+36}" text-anchor="middle">${fmt(ancho,2)} m</text>`;
+  svg.innerHTML=s;
+}
+function drawCercha(ancho,h1,h2){
+  const svg=document.getElementById('svgCercha'); if(!svg) return;
+  const W=640,H=260,pad=60;
+  const peralte=h2-h1;
+  const scale=(W-2*pad)/ancho;
+  const w=ancho*scale, pk=peralte*scale;
+  const x0=pad, y0=H-70, yTop=y0-pk;
+  let s='';
+  s+=`<line class="steel" x1="${x0}" y1="${y0}" x2="${x0+w}" y2="${y0}"/>`;
+  s+=`<polyline class="steel" points="${x0},${y0} ${x0+w/2},${yTop} ${x0+w},${y0}"/>`;
+  s+=`<line class="steel-thin" x1="${x0+w/2}" y1="${y0}" x2="${x0+w/2}" y2="${yTop}"/>`;
+  // Cercha tipo Fink: pendolones verticales en los cuartos + diagonales hacia la cumbrera
+  const xL1=x0+w/4, xL2=x0+w*3/4;
+  const yMidRafter=(y0+yTop)/2;
+  s+=`<line class="steel-thin" x1="${xL1}" y1="${y0}" x2="${xL1}" y2="${yMidRafter}"/>`;
+  s+=`<line class="steel-thin" x1="${xL2}" y1="${y0}" x2="${xL2}" y2="${yMidRafter}"/>`;
+  s+=`<line class="steel-thin" x1="${xL1}" y1="${y0}" x2="${x0+w/2}" y2="${yTop}"/>`;
+  s+=`<line class="steel-thin" x1="${xL2}" y1="${y0}" x2="${x0+w/2}" y2="${yTop}"/>`;
+  s+=`<text class="tag" x="${x0+w/2}" y="${yTop-10}" text-anchor="middle">Cuerda superior</text>`;
+  s+=`<text class="tag" x="${x0+w/2}" y="${y0+18}" text-anchor="middle">Cuerda inferior</text>`;
+  s+=`<line class="dimline" x1="${x0}" y1="${y0+34}" x2="${x0+w}" y2="${y0+34}"/>`;
+  s+=`<text class="dim" x="${x0+w/2}" y="${y0+48}" text-anchor="middle">${fmt(ancho,2)} m</text>`;
+  svg.innerHTML=s;
+}
+
+// ---------- Estructura: elementos ----------
+const ELEMENTOS = [
+  {key:'columnas', nombre:'Columnas', cant:2, largoKey:'h1'},
+  {key:'cuerdaSup', nombre:'Cuerda Superior', cant:2, largoFn:(g)=>Math.sqrt((g.ancho/2)**2+(g.h2-g.h1)**2)},
+  {key:'cuerdaInf', nombre:'Cuerda Inferior', cant:1, largoKey:'ancho'},
+  {key:'correas', nombre:'Correas de techo', cant:4, largoKey:'largo'},
+  {key:'puertaCol', nombre:'Puerta — columnas', cant:2, largoKey:'hpuerta'},
+  {key:'puertaViga', nombre:'Puerta — viga', cant:1, largoKey:'wpuerta'},
+];
+let estructuraSel = {};
+function initEstructura(){
+  const tb=document.getElementById('estructuraBody');
+  tb.innerHTML='';
+  ELEMENTOS.forEach(el=>{
+    if(!estructuraSel[el.key]) estructuraSel[el.key]=String(PERFILES[7].codigo); // default 90CA085 L=4m
+    const tr=document.createElement('tr');
+    const opts = PERFILES.map(p=>`<option value="${p.codigo}" ${String(p.codigo)===String(estructuraSel[el.key])?'selected':''}>${p.nomenclatura} — L=${fmt(p.largo,2)}m</option>`).join('');
+    tr.innerHTML = `<td>${el.nombre}</td>
+      <td><select class="f" style="width:250px" onchange="estructuraSel['${el.key}']=this.value;recalc()">${opts}</select></td>
+      <td><input class="f" style="width:60px" id="cant_${el.key}" value="${el.cant}" oninput="recalc()"></td>
+      <td class="num" id="largo_${el.key}">—</td>
+      <td class="num" id="largoTot_${el.key}">—</td>
+      <td class="num" id="pesoTot_${el.key}">—</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// ---------- RECALC PRINCIPAL ----------
+function recalc(){
+  // --- predio ---
+  const ubNombre = document.getElementById('ubicacion').value;
+  const ciudad = CIUDADES.find(c=>c.nombre===ubNombre) || CIUDADES[0];
+  setTxt('latOut', fmt(ciudad.lat,2));
+  setTxt('altOut', fmt(ciudad.alt,0));
+  const categoria = document.getElementById('categoria').value;
+  const exposicion = document.getElementById('exposicion').value;
+  const I = IMPORTANCIA[categoria];
+  const kzt = val('kzt')||1;
+
+  // --- geometria ---
+  const ancho=val('ancho'), largo=val('largo'), n=val('ncerchas');
+  const h1=val('h1'), h2=val('h2');
+  const area=ancho*largo;
+  const sep = n>1 ? largo/(n-1) : largo;
+  const peralte = h2-h1;
+  const pendiente = ancho>0 ? (peralte/(ancho/2))*100 : 0;
+  const angulo = ancho>0 ? Math.atan(peralte/(ancho/2))*180/Math.PI : 0;
+  const hmedia = angulo<=10 ? h1 : h1+peralte/2;
+  setTxt('area',fmt(area)); setTxt('sepCerchas',fmt(sep));
+  setTxt('peralte',fmt(peralte)); setTxt('pendiente',fmt(pendiente,1));
+  setTxt('angulo',fmt(angulo,1)); setTxt('hmedia',fmt(hmedia));
+  drawPlanta(ancho,largo,n);
+  drawElevacion(ancho,h1,h2,val('wpuerta'),val('hpuerta'));
+  drawCercha(ancho,h1,h2);
+
+  // --- estructura ---
+  const g={ancho,largo,h1,h2,hpuerta:val('hpuerta'),wpuerta:val('wpuerta')};
+  let pesoTotalEstructura=0, pesoCorreas=0;
+  ELEMENTOS.forEach(el=>{
+    const perfilCod = estructuraSel[el.key];
+    const perfil = PERFILES.find(p=>String(p.codigo)===String(perfilCod)) || PERFILES[7];
+    const cant = val('cant_'+el.key)||0;
+    const largoEl = el.largoFn ? el.largoFn(g) : g[el.largoKey];
+    const largoTot = cant*largoEl;
+    const pesoTot = largoTot*perfil.pesoP;
+    setTxt('largo_'+el.key, fmt(largoEl));
+    setTxt('largoTot_'+el.key, fmt(largoTot));
+    setTxt('pesoTot_'+el.key, fmt(pesoTot));
+    pesoTotalEstructura += pesoTot;
+    if(el.key==='correas') pesoCorreas=pesoTot;
+  });
+  setTxt('pesoEstructuraTotal', fmt(pesoTotalEstructura));
+
+  // --- viento: geometria dependiente ---
+  const bkt1=bucket1(angulo), bkt3=bucket3(angulo);
+  const areaTribRaw = val('areaTrib');
+  const areaTrib = nearestArea(areaTribRaw);
+  document.getElementById('areaTribHint').textContent = (Math.abs(areaTrib-areaTribRaw)>0.001)
+    ? `Usando área tabulada más cercana: ${fmt(areaTrib,2)} m² (Tabla 3 NCh432)` : '';
+  const lat=ciudad.lat, alt=ciudad.alt;
+  const vZon = vZonificacion(lat);
+  setTxt('vZonif', vZon);
+  const vSel=document.getElementById('vInput');
+  if(!vSel.dataset.touched){ vSel.value=vZon; }
+  vSel.addEventListener('change',()=>{vSel.dataset.touched='1';},{once:true});
+  const V = parseInt(vSel.value)||vZon;
+  const lambda = lambdaLookup(hmedia, exposicion);
+  setTxt('lambdaOut', fmt(lambda,2));
+  const factor = lambda*kzt*I;
+
+  // nieve
+  const nieveVal = nieveKgfM2(lat,alt);
+  setTxt('nieveResult', fmt(nieveVal,0)+' kgf/m²');
+
+  // SPRFV
+  const zonasSPRFV=[["A","Muro barlovento",0],["B","Muro sotavento",1],["C","Muro lateral",2],["D","Muro interior",3],
+                     ["E","Techo barlov. término",4],["F","Techo barlov. interior",5],["G","Techo sotav. término",6],["H","Techo sotav. interior",7]];
+  const tvals = lookupT1(V,bkt1,1);
+  const sprfvBody=document.getElementById('sprfvBody'); sprfvBody.innerHTML='';
+  let pDiseno=[];
+  zonasSPRFV.forEach(([z,desc,idx])=>{
+    const ps30=tvals[idx]||0;
+    const pk = ps30*factor*101.97;
+    pDiseno.push(pk);
+    sprfvBody.innerHTML += `<tr><td>${z} — ${desc}</td><td class="num">${fmt(ps30,2)}</td><td class="num">${fmt(pk,1)}</td></tr>`;
+  });
+  const rMuro=pDiseno[0];
+  const rSuccTecho=Math.min(pDiseno[4],pDiseno[5],pDiseno[6],pDiseno[7]);
+  setTxt('rMuro', fmt(rMuro,1)+' kgf/m²');
+  setTxt('rSuccTecho', fmt(rSuccTecho,1)+' kgf/m²');
+
+  // Revestimiento
+  const zonasRev=[["1","Techo interior"],["2","Techo borde"],["3","Techo esquina"],["4","Muro interior"],["5","Muro borde"]];
+  const revBody=document.getElementById('revBody'); revBody.innerHTML='';
+  let revPos=[],revNeg=[];
+  zonasRev.forEach(([z,desc])=>{
+    const [pos,neg]=lookupT3(bkt3,z,areaTrib,V);
+    const pk=pos*factor*101.97, nk=neg*factor*101.97;
+    revPos.push(pk); revNeg.push(nk);
+    revBody.innerHTML += `<tr><td>${z} — ${desc}</td><td class="num">${fmt(pk,1)}</td><td class="num">${fmt(nk,1)}</td></tr>`;
+  });
+  const rSuccRev=Math.min(...revNeg), rPresRev=Math.max(...revPos);
+  setTxt('rSuccRev', fmt(rSuccRev,1)+' kgf/m²');
+  setTxt('rPresRev', fmt(rPresRev,1)+' kgf/m²');
+
+  // --- Diseño Estructural ---
+  const pesoCerchaKgM2 = area>0 ? (pesoTotalEstructura-pesoCorreas)/area : 0;
+  const pesoCostaneraKgM2 = area>0 ? pesoCorreas/area : 0;
+  const pesoPoli = val('pesoPoli');
+  setTxt('pesoCercha', fmt(pesoCerchaKgM2));
+  setTxt('pesoCostanera', fmt(pesoCostaneraKgM2));
+  setTxt('cargaViento', fmt(rSuccRev,1));
+  setTxt('cargaNieve', fmt(nieveVal,0));
+  const D = pesoCerchaKgM2+pesoCostaneraKgM2+pesoPoli;
+  setTxt('cargaD', fmt(D));
+  const pesoHumano=val('pesoHumano');
+  const combos=[
+    ["1,4D", 1.4*D],
+    ["1,2D + 1,6Lr + 0,5S", 1.2*D+1.6*pesoHumano+0.5*nieveVal],
+    ["1,2D + 1,6S + 0,5Lr", 1.2*D+1.6*nieveVal+0.5*pesoHumano],
+    ["1,2D + 1,0W + Lr + 0,5S", 1.2*D+Math.abs(rSuccRev)+pesoHumano+0.5*nieveVal],
+    ["0,9D + 1,0W (succión/levantamiento)", 0.9*D-Math.abs(rSuccRev)],
+  ];
+  const ctb=document.querySelector('#combosTable tbody'); ctb.innerHTML='';
+  combos.forEach(([l,v])=>{ ctb.innerHTML+=`<tr><td>${l}</td><td class="num">${fmt(v)}</td></tr>`; });
+  document.getElementById('upliftWarn').style.display = combos[4][1]<0 ? 'block':'none';
+
+  // --- Cimentación ---
+  const sepMarcos=sep;
+  setTxt('sepMarcosOut', fmt(sepMarcos));
+  const fPoste = Math.abs(rMuro)*h1*sepMarcos;
+  setTxt('fuerzaPoste', fmt(fPoste,1));
+  const fs=val('fsVolc')||1.5, phi=val('phiSuelo')||30, gamma=val('gammaSuelo')||1600, b=val('bHoyo')||0.3;
+  const Kp=Math.pow(Math.tan((45+phi/2)*Math.PI/180),2);
+  const M = fs*fPoste*h1;
+  const D_req = Math.sqrt((4.25*M)/(Kp*gamma*b));
+  setTxt('profReq', fmt(D_req));
+  setTxt('profAdopt', fmt(Math.ceil(D_req*10)/10));
+  drawPlanoDetalle(ancho,largo,h1,h2,n,val('wpuerta'),val('hpuerta'),D_req);
+  drawPlanoDetallePlanta(ancho,largo,n);
+
+  // --- Informe ---
+  buildInforme({ancho,largo,area,n,h1,h2,angulo,peralte,pendiente,hmedia,sep,ubNombre,lat,alt,categoria,I,exposicion,kzt,
+    vZon,V,lambda,factor,areaTrib,nieveVal,rMuro,rSuccTecho,rSuccRev,rPresRev,D,pesoCerchaKgM2,pesoCostaneraKgM2,pesoPoli,pesoHumano,combos,
+    sepMarcos,fPoste,fs,phi,gamma,b,Kp,M,D_req,pesoTotalEstructura});
+}
+
+function buildInforme(r){
+  window.ULTIMO = r;
+  const el=document.getElementById('informeResumen');
+  el.innerHTML = `<h2>Resumen del diseño — ${document.getElementById('nombreProyecto').value||'(sin nombre)'}</h2>
+  <table class="mat">
+    <tr><td>Ubicación</td><td class="num">${r.ubNombre}</td></tr>
+    <tr><td>Dimensiones</td><td class="num">${fmt(r.ancho)} × ${fmt(r.largo)} m (${fmt(r.area)} m²)</td></tr>
+    <tr><td>N° cerchas</td><td class="num">${r.n}</td></tr>
+    <tr><td>Ángulo de techo</td><td class="num">${fmt(r.angulo,1)}°</td></tr>
+    <tr><td>Velocidad de viento de diseño</td><td class="num">${r.V} m/s</td></tr>
+    <tr><td>Sobrecarga de nieve</td><td class="num">${fmt(r.nieveVal,0)} kgf/m²</td></tr>
+    <tr><td>Presión máx. muro (SPRFV)</td><td class="num">${fmt(r.rMuro,1)} kgf/m²</td></tr>
+    <tr><td>Succión máx. techo (SPRFV)</td><td class="num">${fmt(r.rSuccTecho,1)} kgf/m²</td></tr>
+    <tr><td>Succión máx. revestimiento</td><td class="num">${fmt(r.rSuccRev,1)} kgf/m²</td></tr>
+    <tr><td>Carga muerta total D</td><td class="num">${fmt(r.D)} kg/m²</td></tr>
+    <tr><td>Peso total estructura metálica</td><td class="num">${fmt(r.pesoTotalEstructura)} kg</td></tr>
+    <tr><td>Profundidad de empotramiento requerida</td><td class="num">${fmt(r.D_req)} m</td></tr>
+  </table>`;
+
+  const compar = [
+    ["Perfil pie derecho / columna", (PERFILES.find(p=>String(p.codigo)===String(estructuraSel['columnas']))||{}).nomenclatura||'—'],
+    ["Presión de viento sobre muro (kgf/m²)", fmt(r.rMuro,1)],
+    ["Sobrecarga de nieve (kgf/m²)", fmt(r.nieveVal,0)],
+    ["Profundidad de fundación (m)", fmt(r.D_req)],
+  ];
+  const cb=document.getElementById('comparBody'); cb.innerHTML='';
+  compar.forEach(([label,calc])=>{
+    cb.innerHTML += `<tr><td>${label}</td><td class="num">${calc}</td>
+      <td><input class="f" style="width:110px" placeholder="—" oninput="checkDiff(this)"></td>
+      <td class="num diffcell">—</td></tr>`;
+  });
+}
+function checkDiff(inputEl){
+  const row=inputEl.closest('tr');
+  const calcTxt=row.children[1].textContent.replace(/\./g,'').replace(',','.');
+  const calc=parseFloat(calcTxt);
+  const decl=pd(inputEl.value);
+  const cell=row.querySelector('.diffcell');
+  if(!inputEl.value || isNaN(calc)){ cell.textContent='—'; return; }
+  const diffPct = calc!==0 ? ((decl-calc)/Math.abs(calc))*100 : 0;
+  cell.textContent = fmt(diffPct,1)+'%';
+  cell.style.color = Math.abs(diffPct)>15 ? 'var(--warn)' : 'var(--ok)';
+  cell.style.fontWeight='700';
+}
+
+// ---------- guardar / cargar JSON ----------
+function exportJSON(){
+  const ids=['nombreProyecto','ubicacion','categoria','exposicion','kzt','ancho','largo','ncerchas','h1','h2','wpuerta','hpuerta','nvent','areaTrib','pesoHumano','pesoPoli','fsVolc','phiSuelo','gammaSuelo','bHoyo','vInput'];
+  const data={formato:'invernadero-cnr-proyecto',version:1,campos:{},estructura:estructuraSel};
+  ids.forEach(id=>{ const e=document.getElementById(id); if(e) data.campos[id]=e.value; });
+  const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(document.getElementById('nombreProyecto').value||'invernadero')+'.json';
+  a.click();
+}
+function importJSON(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const data=JSON.parse(e.target.result);
+    Object.entries(data.campos||{}).forEach(([id,v])=>{ const el=document.getElementById(id); if(el){ el.value=v; if(id==='vInput') el.dataset.touched='1'; } });
+    estructuraSel = data.estructura || estructuraSel;
+    initEstructura();
+    onProyectoChange();
+    recalc();
+  };
+  reader.readAsText(f);
+}
+function onProyectoChange(){
+  document.getElementById('proyectoTag').textContent = document.getElementById('nombreProyecto').value || 'Sin nombre de proyecto';
+}
+
+// ---------- Informe descargable (HTML autocontenido, imprimible) ----------
+function svgFor(id){ const e=document.getElementById(id); return e? e.outerHTML : ''; }
+function iconTecho(){
+  return `<svg viewBox="0 0 110 76" style="width:100%;height:auto;display:block">
+    <polyline points="14,66 14,40 55,10 96,40 96,66" fill="none" stroke="#0B1F33" stroke-width="2.4"/>
+    <line x1="14" y1="66" x2="96" y2="66" stroke="#0B1F33" stroke-width="2.4"/>
+    <line x1="55" y1="52" x2="86" y2="52" stroke="#0B1F33" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="70" y="49" font-size="11" font-weight="700" fill="#0B1F33" text-anchor="middle">h</text>
+  </svg>`;
+}
+function iconPoste(){
+  return `<svg viewBox="0 0 130 90" style="width:100%;height:auto;display:block">
+    <rect x="18" y="68" width="16" height="10" fill="none" stroke="#0B1F33" stroke-width="1.6"/>
+    <rect x="96" y="68" width="16" height="10" fill="none" stroke="#0B1F33" stroke-width="1.6"/>
+    <line x1="26" y1="68" x2="26" y2="16" stroke="#0B1F33" stroke-width="2.4"/>
+    <line x1="104" y1="68" x2="104" y2="16" stroke="#0B1F33" stroke-width="2.4"/>
+    <line x1="10" y1="16" x2="10" y2="68" stroke="#0B1F33" stroke-width=".8" stroke-dasharray="2 2"/>
+    <text x="6" y="45" font-size="11" font-weight="700" fill="#0B1F33" text-anchor="middle">h1</text>
+    <line x1="26" y1="84" x2="104" y2="84" stroke="#0B1F33" stroke-width=".8" stroke-dasharray="2 2"/>
+    <text x="65" y="82" font-size="11" font-weight="700" fill="#0B1F33" text-anchor="middle">s</text>
+  </svg>`;
+}
+function buildMemoriaCalculoHTML(){
+  const u = window.ULTIMO;
+  if(!u) return '<p>Complete los datos del proyecto para generar la memoria de cálculo.</p>';
+  const bkt1 = bucket1(u.angulo);
+  return `
+  <div class="memo-sec">
+    <h3>1. Antecedentes y parámetros normativos</h3>
+    <p>Invernadero de ${fmt(u.ancho)} × ${fmt(u.largo)} m (${fmt(u.area)} m²), ${u.n} cerchas separadas cada ${fmt(u.sep)} m, ubicado en <b>${u.ubNombre}</b> (latitud ${fmt(u.lat,2)}°S, altitud ${fmt(u.alt,0)} m). Techo a dos aguas: altura de alero h1 = ${fmt(u.h1)} m, altura de cumbrera h2 = ${fmt(u.h2)} m, peralte = ${fmt(u.peralte)} m, pendiente = ${fmt(u.pendiente,1)}% (θ = ${fmt(u.angulo,1)}°), altura media de techo = ${fmt(u.hmedia)} m.</p>
+    <p>Parámetros NCh432.Of2010: categoría de ocupación <b>${u.categoria}</b> → factor de importancia I = ${fmt(u.I,2)}; categoría de exposición <b>${u.exposicion}</b>; factor topográfico Kzt = ${fmt(u.kzt,2)}.</p>
+  </div>
+  <div class="memo-sec">
+    <h3>2. Carga de nieve</h3>
+    <p>Sobrecarga de nieve de diseño obtenida por interpolación de la tabla de zonificación NCh432 (anexo) según latitud y altitud del emplazamiento:</p>
+    <p class="memo-formula">p<sub>nieve</sub> = f(latitud, altitud) → <b>${fmt(u.nieveVal,0)} kgf/m²</b></p>
+  </div>
+  <div class="memo-sec">
+    <h3>3. Carga de viento — Método 1 simplificado (NCh432 cap. 7)</h3>
+    <p>Velocidad básica de viento V, zonificada automáticamente por latitud (V<sub>zonif</sub> = ${u.vZon} m/s) y adoptada V = <b>${u.V} m/s</b>.</p>
+    <div class="memo-formula-row">
+      <p class="memo-formula" style="flex:1">Factor de ajuste λ (Tabla 2) según altura media de techo h = ${fmt(u.hmedia)} m y exposición ${u.exposicion}: <b>λ = ${fmt(u.lambda,2)}</b></p>
+      <div class="memo-icon">${iconTecho()}</div>
+    </div>
+    <p>Factor combinado de presión de diseño:</p>
+    <p class="memo-formula">factor = λ · Kzt · I = ${fmt(u.lambda,2)} × ${fmt(u.kzt,2)} × ${fmt(u.I,2)} = <b>${fmt(u.factor,3)}</b></p>
+    <p>Presión de diseño por zona (Sistema Principal Resistente a Fuerzas de Viento, SPRFV), a partir de la presión simplificada de Tabla 1 (p<sub>s30</sub>, en kN/m²) según ángulo de techo (bucket ${bkt1}°) y V:</p>
+    <p class="memo-formula">p<sub>diseño</sub> = p<sub>s30</sub> · factor · 101,97 &nbsp;[kgf/m²]</p>
+    <table class="mat"><tr><td>Presión máx. sobre muro barlovento (zona A)</td><td class="num">${fmt(u.rMuro,1)} kgf/m²</td></tr>
+    <tr><td>Succión máx. sobre techo (zonas E–H)</td><td class="num">${fmt(u.rSuccTecho,1)} kgf/m²</td></tr></table>
+    <p>Revestimiento y elementos secundarios (Tabla 3 NCh432, según área tributaria ${fmt(u.areaTrib,2)} m²): presión máx. ${fmt(u.rPresRev,1)} kgf/m², succión máx. ${fmt(u.rSuccRev,1)} kgf/m².</p>
+  </div>
+  <div class="memo-sec">
+    <h3>4. Combinaciones de carga (LRFD) y verificación de levantamiento</h3>
+    <p>Carga muerta total D = peso propio cercha (${fmt(u.pesoCerchaKgM2)} kg/m²) + costaneras (${fmt(u.pesoCostaneraKgM2)} kg/m²) + revestimiento policarbonato (${fmt(u.pesoPoli)} kg/m²) = <b>${fmt(u.D)} kg/m²</b>.</p>
+    <table class="mat"><thead><tr><th>Combinación</th><th>Resultado (kg/m²)</th></tr></thead><tbody>
+    ${u.combos.map(([l,v])=>`<tr><td>${l}</td><td class="num">${fmt(v)}</td></tr>`).join('')}
+    </tbody></table>
+    ${u.combos[4][1]<0 ? '<p class="memo-warn">⚠ La combinación 0,9D+1,0W resulta negativa: existe riesgo de levantamiento neto de la estructura ante succión de viento — el anclaje/cimentación debe resistir esta tracción.</p>' : ''}
+  </div>
+  <div class="memo-sec">
+    <h3>5. Selección de perfiles y peso de estructura</h3>
+    <p>Perfiles Metalcon seleccionados por elemento (columnas, cuerdas de cercha, correas de techo, marco de puerta) según catálogo Cintac — ver tabla de estructura. Peso total de estructura metálica: <b>${fmt(u.pesoTotalEstructura)} kg</b> (${fmt(u.area>0?u.pesoTotalEstructura/u.area:0)} kg/m²).</p>
+  </div>
+  <div class="memo-sec">
+    <h3>6. Cimentación — empotramiento de postes (verificación preliminar)</h3>
+    <p>Fuerza de viento por poste, con área tributaria = altura de alero × separación entre marcos:</p>
+    <div class="memo-formula-row">
+      <p class="memo-formula" style="flex:1">F = |P<sub>muro</sub>| · h1 · s = ${fmt(u.rMuro,1)} × ${fmt(u.h1)} × ${fmt(u.sepMarcos)} = <b>${fmt(u.fPoste,1)} kgf</b></p>
+      <div class="memo-icon">${iconPoste()}</div>
+    </div>
+    <p>Momento volcador de diseño (brazo = h1, factor de seguridad FS = ${fmt(u.fs,2)}):</p>
+    <p class="memo-formula">M = FS · F · h1 = ${fmt(u.fs,2)} × ${fmt(u.fPoste,1)} × ${fmt(u.h1)} = <b>${fmt(u.M,1)} kgf·m</b></p>
+    <p>Coeficiente de empuje pasivo de Rankine, con ángulo de fricción interna del suelo φ = ${fmt(u.phi,1)}°:</p>
+    <p class="memo-formula">Kp = tan²(45° + φ/2) = <b>${fmt(u.Kp,2)}</b></p>
+    <p>Profundidad de empotramiento requerida (método de equilibrio de momentos ante empuje pasivo del suelo, poste aislado — γ<sub>suelo</sub> = ${fmt(u.gamma,0)} kgf/m³, diámetro del hoyo b = ${fmt(u.b,2)} m):</p>
+    <p class="memo-formula">D<sub>req</sub> = √(4,25·M / (Kp·γ·b)) = <b>${fmt(u.D_req)} m</b></p>
+    <p class="memo-warn">⚠ Verificación preliminar — no sustituye un estudio de suelos ni la revisión de un ingeniero civil/estructural.</p>
+  </div>`;
+}
+
+function tablaEstructuraEstatica(){
+  let rows='';
+  document.querySelectorAll('#estructuraBody tr').forEach(tr=>{
+    const nombre = tr.children[0].textContent;
+    const sel = tr.children[1].querySelector('select');
+    const perfil = sel ? sel.options[sel.selectedIndex].text : '—';
+    const cant = tr.children[2].querySelector('input').value;
+    const largo = tr.children[3].textContent;
+    const largoTot = tr.children[4].textContent;
+    const pesoTot = tr.children[5].textContent;
+    rows += `<tr><td>${nombre}</td><td>${perfil}</td><td class="num">${cant}</td><td class="num">${largo}</td><td class="num">${largoTot}</td><td class="num">${pesoTot}</td></tr>`;
+  });
+  const subtotal = document.getElementById('pesoEstructuraTotal').textContent;
+  return `<table class="mat"><thead><tr><th>Elemento</th><th>Perfil</th><th>Cant.</th><th>Largo (m)</th><th>Largo total (m)</th><th>Peso total (kg)</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="5" style="text-align:right;font-weight:800;">SUBTOTAL ESTRUCTURA</td><td class="num" style="font-weight:800;">${subtotal}</td></tr></tfoot></table>`;
+}
+function tablaComparacionEstatica(){
+  let rows='';
+  document.querySelectorAll('#comparBody tr').forEach(tr=>{
+    const label = tr.children[0].textContent;
+    const calc = tr.children[1].textContent;
+    const decl = tr.children[2].querySelector('input')?.value || '—';
+    const diff = tr.children[3].textContent;
+    rows += `<tr><td>${label}</td><td class="num">${calc}</td><td class="num">${decl}</td><td class="num">${diff}</td></tr>`;
+  });
+  return `<table class="mat"><thead><tr><th>Parámetro</th><th>Calculado (app)</th><th>Declarado (tercero)</th><th>Diferencia</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function buildInformeStandaloneHTML(){
+  const proyecto = document.getElementById('nombreProyecto').value || '(sin nombre)';
+  const fecha = new Date().toLocaleDateString('es-CL');
+  const resumen = document.getElementById('informeResumen').innerHTML;
+  const nombreArchivo = (proyecto||'invernadero').trim().replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]/g,'').replace(/\s+/g,'_')+'_informe.html';
+  const svgs = `<div class="svgrow">
+      <div><div class="diag-label">Planta</div>${svgFor('svgPlanta')}</div>
+      <div><div class="diag-label">Elevación frontal</div>${svgFor('svgElevacion')}</div>
+    </div>
+    <div class="svgrow" style="margin-top:12px">
+      <div><div class="diag-label">Detalle cercha</div>${svgFor('svgCercha')}</div>
+      <div></div>
+    </div>
+    <div class="diag-label" style="margin-top:16px">Plano de detalle acotado — Elevación</div>
+    ${svgFor('svgPlanoDetalle')}
+    <div class="diag-label" style="margin-top:10px">Plano de detalle acotado — Planta</div>
+    ${svgFor('svgPlanoDetallePlanta')}`;
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Informe — ${proyecto}</title>
+<style>
+  :root{--navy:#16324F;--blue:#2F6FED;--ice:#EAF2FB;--frost:#F6FAFD;--ink:#0F1720;--muted:#1E2A36;--line:#D8E2EC;}
+  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);margin:0;padding:24px 24px 24px 43px;background:#fff;text-align:justify;}
+  h1{font-size:19px;color:var(--navy);margin:0 0 2px;text-align:left;}
+  .sub{font-size:12px;color:var(--muted);margin-bottom:18px;text-align:left;}
+  h2{font-size:13px;font-weight:800;color:var(--navy);margin:22px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--ice);text-align:left;}
+  table.mat{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px;}
+  table.mat th{text-align:left;font-size:10.5px;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--line);}
+  table.mat td{padding:4px 6px;border-bottom:1px solid var(--line);}
+  table.mat td.num,table.mat th.num{text-align:right;font-family:'DM Mono',monospace;}
+  .svgrow{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+  .diag-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:6px 0 4px;text-align:left;}
+  svg{width:100%;height:auto;display:block;}
+  .steel{fill:none;stroke:#0B1F33;stroke-width:2.6;}
+  .steel-thin{fill:none;stroke:#0B1F33;stroke-width:1.7;opacity:.9;}
+  .poly{fill:var(--ice);opacity:.55;stroke:none;}
+  .ground{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;}
+  .dim,.dtxt{font-size:10px;fill:var(--muted);}
+  .dtxtSm{font-size:9px;fill:var(--muted);}
+  .dimline{stroke:var(--muted);stroke-width:1;}
+  .tag{font-size:10.5px;fill:var(--navy);}
+  .nivLine{stroke:var(--navy);stroke-width:.9;stroke-dasharray:5 3;opacity:.85;}
+  .nivTxt{font-size:10.5px;font-weight:700;fill:var(--navy);}
+  .nivVal{font-size:10px;fill:var(--muted);}
+  .fundBlock{fill:var(--muted);opacity:.35;stroke:var(--navy);stroke-width:.7;}
+  .axisCirc{fill:var(--frost);stroke:var(--navy);stroke-width:1.2;}
+  .axisTxt{font-size:9.5px;font-weight:700;fill:var(--navy);}
+  .dimExtV{stroke:var(--muted);stroke-width:.7;stroke-dasharray:2 2;}
+  .cotaLine{stroke:var(--navy);stroke-width:1.2;fill:none;}
+  .cotaArrow{fill:var(--navy);stroke:none;}
+  .cotaExt{stroke:var(--muted);stroke-width:.8;fill:none;stroke-dasharray:2 2;}
+  .titleTxt{font-size:10px;fill:#fff;font-weight:700;}
+  @media print{ @page{size:letter;margin:14mm;margin-left:19mm;} body{padding:0;} .memo-warn{display:none!important;} }
+  @media print{ .printbar{display:none!important;} }
+  .printbar{position:sticky;top:0;background:#fff;padding:10px 0 16px;text-align:right;border-bottom:1px solid var(--line);margin-bottom:12px;}
+  .printbar button{font-size:13px;font-weight:700;color:#fff;background:var(--blue);border:none;border-radius:8px;padding:9px 16px;cursor:pointer;margin-left:8px;}
+  .printbar button.secondary{background:var(--navy);}
+  .memo-sec{margin-bottom:16px;}
+  .memo-sec p{font-size:12.5px;line-height:1.5;margin:6px 0;text-align:justify;color:var(--ink);}
+  .memo-formula-row{display:flex;align-items:center;gap:12px;}
+  .memo-formula-row .memo-formula{flex:1;margin:8px 0!important;}
+  .memo-icon{width:76px;flex:none;}
+  .memo-formula{font-family:'DM Mono',monospace;background:var(--frost);padding:6px 10px;margin:8px 0!important;text-align:left;color:var(--ink);}
+  .memo-warn{color:#C0392B;font-weight:700;text-align:left;}
+  h3{font-size:12.5px;color:var(--navy);margin:14px 0 4px;text-align:left;}
+</style></head><body>
+<div class="printbar">
+  <button class="secondary" onclick="if(history.length>1){history.back();}else{window.close();}">⬅️ Volver a la app</button>
+  <button class="secondary" onclick="(function(){var b=new Blob(['<'+'!DOCTYPE html>'+document.documentElement.outerHTML],{type:'text/html'});var a=document.createElement('a');a.href=window.URL.createObjectURL(b);a.download='${nombreArchivo}';a.click();})()">💾 Descargar HTML</button>
+  <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+</div>
+<h1>Informe de diseño — Invernadero CNR</h1>
+<div class="sub">Proyecto: ${proyecto} · Generado: ${fecha} · Método NCh432 Método 1</div>
+<h2>Resumen del diseño</h2>
+${resumen}
+<h2>Memoria de cálculo</h2>
+${buildMemoriaCalculoHTML()}
+<h2>Estructura — perfiles Metalcon</h2>
+${tablaEstructuraEstatica()}
+<h2>Diagramas</h2>
+${svgs}
+</body></html>`;
+}
+function imprimirInforme(ev){
+  const html = buildInformeStandaloneHTML();
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  // En Safari/iOS un blob: URL no se puede abrir en una pestaña nueva (contexto distinto);
+  // navegamos la misma pestaña — es universalmente confiable. Se vuelve a la app con el botón "Volver".
+  window.location.href = url;
+}
+
+// ---------- navegación ----------
+document.addEventListener('DOMContentLoaded',()=>{
+  initSelects(); initEstructura(); recalc();
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  }));
+  // diagtabs eliminados (SVGs siempre visibles)
+});
+
+
+
+function drawPlanoDetalle(ancho, largo, h1, h2, n, wpuerta, hpuerta, Dreq){
+  const svg = document.getElementById('svgPlanoDetalle');
+  if(!svg) return;
+  // Canvas grande — una sola elevación acotada a todo el ancho, estilo plano CNR
+  const W=900, H=540;
+  const labelColW=118;   // columna de niveles a la izquierda (N.CUBIERTA, N.S.EST, etc.)
+  const rightPad=34;
+  const topPad=14;
+  const bottomPad=30;
+  const fundVis=Math.max(h1*0.22,0.35); // profundidad esquemática de fundación bajo N.T.N. (no a escala real)
+
+  function line(x1,y1,x2,y2,cls){ return `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }
+  function txt(x,y,t,anchor='middle',cls='dtxt'){ return `<text class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}">${t}</text>`; }
+  function arrow(x1,y1,x2,y2,lbl){
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+    if(len<1) return '';
+    const nx=dx/len, ny=dy/len, as=6;
+    let s=`<line class="cotaLine" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    s+=`<polygon class="cotaArrow" points="${x1.toFixed(1)},${y1.toFixed(1)} ${(x1+nx*as-ny*as*0.4).toFixed(1)},${(y1+ny*as+nx*as*0.4).toFixed(1)} ${(x1+nx*as+ny*as*0.4).toFixed(1)},${(y1+ny*as-nx*as*0.4).toFixed(1)}"/>`;
+    s+=`<polygon class="cotaArrow" points="${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-nx*as-ny*as*0.4).toFixed(1)},${(y2-ny*as+nx*as*0.4).toFixed(1)} ${(x2-nx*as+ny*as*0.4).toFixed(1)},${(y2-ny*as-nx*as*0.4).toFixed(1)}"/>`;
+    const mx=(x1+x2)/2, my=(y1+y2)/2, px=-ny*11, py=nx*11;
+    s+=txt(mx+px, my+py+4, lbl);
+    return s;
+  }
+  function dimH(x1,x2,y,lbl,offset=26){
+    let s=`<line class="cotaExt" x1="${x1.toFixed(1)}" y1="${(y+3).toFixed(1)}" x2="${x1.toFixed(1)}" y2="${(y+offset+3).toFixed(1)}"/>`;
+    s+=`<line class="cotaExt" x1="${x2.toFixed(1)}" y1="${(y+3).toFixed(1)}" x2="${x2.toFixed(1)}" y2="${(y+offset+3).toFixed(1)}"/>`;
+    s+=arrow(x1, y+offset, x2, y+offset, lbl);
+    return s;
+  }
+
+  // Escala: ajusta al ancho disponible (descontando columna de niveles) y a la altura total (cumbrera + fundación esquemática)
+  const availW = W-labelColW-rightPad;
+  const totalV = (h2+fundVis)*1.12;
+  const sc = Math.min(availW/Math.max(ancho,1), (H-topPad-bottomPad)/Math.max(totalV,1), 78);
+
+  const ew=ancho*sc, eh1=h1*sc, eh2=h2*sc, efund=fundVis*sc;
+  const ex0 = labelColW + (availW-ew)/2;
+  // Centrado vertical: el contenido real (cumbrera+fundación+márgenes de etiqueta) casi siempre
+  // es más bajo que el alto disponible (porque sc se limita por el ancho) — repartimos el sobrante arriba/abajo
+  const contentH = eh2 + efund;
+  const freeV = Math.max(0, (H-topPad-bottomPad) - contentH - 46); // 46 = margen para etiqueta superior + cota inferior
+  const yRidge = topPad + 30 + freeV/2;
+  const yEave = yRidge + (eh2-eh1);
+  const yBase = yRidge + eh2;
+  const yFund = yBase + efund;
+
+  let s='';
+  // Terreno natural (rayado) y fundación esquemática bajo cada pie derecho
+  s+=`<line class="ground" x1="${(ex0-24).toFixed(1)}" y1="${yBase.toFixed(1)}" x2="${(ex0+ew+24).toFixed(1)}" y2="${yBase.toFixed(1)}"/>`;
+  [ex0, ex0+ew].forEach(px=>{
+    s+=`<rect class="fundBlock" x="${(px-13).toFixed(1)}" y="${yBase.toFixed(1)}" width="26" height="${efund.toFixed(1)}"/>`;
+  });
+  // Pies derechos
+  s+=line(ex0,yBase,ex0,yEave,'steel');
+  s+=line(ex0+ew,yBase,ex0+ew,yEave,'steel');
+  // Cubierta a dos aguas
+  s+=`<polyline class="steel" points="${ex0.toFixed(1)},${yEave.toFixed(1)} ${(ex0+ew/2).toFixed(1)},${yRidge.toFixed(1)} ${(ex0+ew).toFixed(1)},${yEave.toFixed(1)}"/>`;
+  s+=`<polygon class="poly" points="${ex0.toFixed(1)},${yBase.toFixed(1)} ${ex0.toFixed(1)},${yEave.toFixed(1)} ${(ex0+ew/2).toFixed(1)},${yRidge.toFixed(1)} ${(ex0+ew).toFixed(1)},${yEave.toFixed(1)} ${(ex0+ew).toFixed(1)},${yBase.toFixed(1)}"/>`;
+  // Pie derecho central adicional si el ancho es grande (referencial, cada ~3m)
+  const nPostes = Math.max(0, Math.round(ancho/3)-1);
+  for(let i=1;i<=nPostes;i++){
+    const px = ex0 + ew*(i/(nPostes+1));
+    const t = Math.abs(px-(ex0+ew/2))/(ew/2||1);
+    const py = yEave - (yEave-yRidge)*(1-t);
+    s+=line(px,yBase,px,py,'steel-thin');
+  }
+  // Puerta
+  const pw=Math.min(wpuerta*sc, ew*0.3), ph=hpuerta*sc;
+  s+=`<rect class="steel-thin" x="${(ex0+ew/2-pw/2).toFixed(1)}" y="${(yBase-ph).toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}"/>`;
+
+  // ---- Niveles (estilo CNR: etiqueta a la izquierda + línea de nivel punteada) ----
+  const niveles=[
+    ['N.CUBIERTA', '+'+fmt(h2,2), yRidge],
+    ['N.S.EST.', '+'+fmt(h1,2), yEave],
+    ['N.T.N.', '±0,00', yBase],
+    ['N.I.F.', '−'+fmt(Dreq||0,2), yFund],
+  ];
+  niveles.forEach(([nom,val,y])=>{
+    s+=`<line class="nivLine" x1="${labelColW.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(ex0+ew+18).toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    s+=`<text class="nivTxt" x="${(labelColW-8).toFixed(1)}" y="${(y-3).toFixed(1)}" text-anchor="end">${nom}</text>`;
+    s+=`<text class="nivVal" x="${(labelColW-8).toFixed(1)}" y="${(y+11).toFixed(1)}" text-anchor="end">${val}</text>`;
+  });
+
+  // Cota de ancho total
+  s+=dimH(ex0, ex0+ew, yFund, 'ANCHO = '+fmt(ancho,2)+' m', 24);
+  // Etiqueta cerchas
+  s+=txt(ex0+ew/2, yRidge-10, n+' cerchas @ '+fmt(largo/((Math.max(2,Math.round(n)))-1||1),2)+' m', 'middle', 'dtxtSm');
+
+  svg.innerHTML = s;
+}
+
+function drawPlanoDetallePlanta(ancho, largo, n){
+  const svg = document.getElementById('svgPlanoDetallePlanta');
+  if(!svg) return;
+  const W=900, H=320;
+  const leftPad=56, rightPad=30, topPad=44, bottomPad=54;
+  function line(x1,y1,x2,y2,cls){ return `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }
+  function txt(x,y,t,anchor='middle',cls='dtxt'){ return `<text class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}">${t}</text>`; }
+  function arrow(x1,y1,x2,y2,lbl,fs=10){
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+    if(len<1) return '';
+    const nx=dx/len, ny=dy/len, as=5;
+    let s2=`<line class="cotaLine" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    s2+=`<polygon class="cotaArrow" points="${x1.toFixed(1)},${y1.toFixed(1)} ${(x1+nx*as-ny*as*0.4).toFixed(1)},${(y1+ny*as+nx*as*0.4).toFixed(1)} ${(x1+nx*as+ny*as*0.4).toFixed(1)},${(y1+ny*as-nx*as*0.4).toFixed(1)}"/>`;
+    s2+=`<polygon class="cotaArrow" points="${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-nx*as-ny*as*0.4).toFixed(1)},${(y2-ny*as+nx*as*0.4).toFixed(1)} ${(x2-nx*as+ny*as*0.4).toFixed(1)},${(y2-ny*as-nx*as*0.4).toFixed(1)}"/>`;
+    const mx=(x1+x2)/2, my=(y1+y2)/2, px=-ny*10, py=nx*10;
+    s2+=`<text class="dtxt" style="font-size:${fs}px" x="${(mx+px).toFixed(1)}" y="${(my+py+3).toFixed(1)}" text-anchor="middle">${lbl}</text>`;
+    return s2;
+  }
+
+  const availW=W-leftPad-rightPad, availH=H-topPad-bottomPad;
+  const sc=Math.min(availW/Math.max(largo,1), availH/Math.max(ancho,1), 42);
+  const pw=largo*sc, ph=ancho*sc;
+  const x0=leftPad+(availW-pw)/2, y0=topPad+(availH-ph)/2+8;
+  const nn=Math.max(2,Math.round(n));
+  const sepReal = nn>1 ? largo/(nn-1) : largo;
+
+  let s='';
+  s+=`<rect class="poly" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}"/>`;
+  s+=`<rect class="steel" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}" fill="none"/>`;
+  // costaneras de muro (líneas horizontales representativas)
+  for(let k=1;k<=2;k++){
+    const cy=y0+ph*(k/3);
+    s+=`<line class="steel-thin" x1="${x0.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(x0+pw).toFixed(1)}" y2="${cy.toFixed(1)}" stroke-dasharray="4 3" opacity=".5"/>`;
+  }
+  // ejes de cerchas (verticales) + numeración 1..n
+  for(let i=0;i<nn;i++){
+    const cx=x0+pw*(i/(nn-1));
+    s+=line(cx,y0,cx,y0+ph,'steel-thin');
+    s+=`<circle class="axisCirc" cx="${cx.toFixed(1)}" cy="${(y0-16).toFixed(1)}" r="9"/>`;
+    s+=txt(cx,y0-12.5,i+1,'middle','axisTxt');
+    s+=line(cx,y0-6,cx,y0-25,'dimExtV');
+  }
+  // filas A / B a la izquierda
+  ['A','B'].forEach((L,i)=>{
+    const cy=y0+ph*i;
+    s+=`<circle class="axisCirc" cx="${(x0-18).toFixed(1)}" cy="${cy.toFixed(1)}" r="9"/>`;
+    s+=txt(x0-18,cy+3.5,L,'middle','axisTxt');
+  });
+  // cadena de cotas por tramo (arriba)
+  for(let i=0;i<nn-1;i++){
+    const xa=x0+pw*(i/(nn-1)), xb=x0+pw*((i+1)/(nn-1));
+    s+=arrow(xa,y0-34,xb,y0-34, fmt(sepReal,2), 8.5);
+  }
+  // cota total (abajo) y ancho (izquierda)
+  s+=`<line class="cotaExt" x1="${x0.toFixed(1)}" y1="${(y0+ph+3).toFixed(1)}" x2="${x0.toFixed(1)}" y2="${(y0+ph+30).toFixed(1)}"/>`;
+  s+=`<line class="cotaExt" x1="${(x0+pw).toFixed(1)}" y1="${(y0+ph+3).toFixed(1)}" x2="${(x0+pw).toFixed(1)}" y2="${(y0+ph+30).toFixed(1)}"/>`;
+  s+=arrow(x0,y0+ph+26,x0+pw,y0+ph+26,'L = '+fmt(largo,2)+' m');
+  s+=`<line class="cotaExt" x1="${(x0-3).toFixed(1)}" y1="${y0.toFixed(1)}" x2="${(x0-40).toFixed(1)}" y2="${y0.toFixed(1)}"/>`;
+  s+=`<line class="cotaExt" x1="${(x0-3).toFixed(1)}" y1="${(y0+ph).toFixed(1)}" x2="${(x0-40).toFixed(1)}" y2="${(y0+ph).toFixed(1)}"/>`;
+  s+=arrow(x0-36,y0,x0-36,y0+ph,'A = '+fmt(ancho,2)+' m');
+
+  svg.innerHTML = s;
+}
+
+</script>
+</body>
+</html>
