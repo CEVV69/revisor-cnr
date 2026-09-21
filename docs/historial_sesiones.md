@@ -1,3 +1,10 @@
+## Sesión sep-2026 — Actualización app: Diseño de Invernadero v7 → v14
+
+Reemplazada `static/invernadero_diseno_v7.html` por `invernadero_diseno_v14.html` (188KB).
+Enlace en `_apps_menu.html` y CLAUDE.md actualizados a v14.
+
+---
+
 ## Sesión sep-2026 — Nueva app: Diseño de Invernadero v7
 
 Agregada app standalone `static/invernadero_diseno_v7.html` al ecosistema de apps de riego.
