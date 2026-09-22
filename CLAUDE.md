@@ -40,7 +40,10 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 
 **Cerrado, probado y OK** (detalle en `docs/`): auditoría motor Aspersión; doble bombeo; menú
 "Apps"; precios de la API corregidos contra la consola real (Sonnet 5 sigue en USD 2/10, no
-volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar.
+volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar;
+Memoria COMPLETA con paridad total (confirmado sep-2026); costo de API en Memorias standalone
+(confirmado sep-2026); Evaluación del Consultor — funciona ok, fix de truncación aplicado
+sep-2026 (`_limitar_texto`: umbral bajado de `maxlen//2` a `> 10`).
 
 1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
    `docs/`. Nada pendiente en el Diseñador (v129/v131/v133/v134 ya traían los mismos fixes, verificado).
@@ -58,12 +61,16 @@ volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin 
    badge, selector en Resumen, `ITEMS_PEPA_EXTRA` en `analyzer.py` (criterios Res. 585/2024).
    Ficha: `.obs-resuelta` tacha lo resuelto, igual al SEP. Detalle en `docs/`.
 
-4. **Pendientes de sesiones anteriores** (detalle en `docs/`): caudal del emisor por sistema;
-   Word con presupuesto en tabla; Memoria COMPLETA con paridad total; Evaluación del Consultor
-   (nunca probada); costo de API en Memorias standalone (sin confirmar).
+4. **Pendientes de sesiones anteriores — esperando confirmación en producción** (detalle en `docs/`):
+   - **Caudal del emisor por sistema**: campo "Caudal emisor" se muestra solo en Goteo/Micro
+     (l/hr); Aspersión usa `caudal_aspersor_m3h`; Carrete usa `caudal_canon_m3h`. Pusheado
+     ago-2026, no confirmado en expediente real.
+   - **Word con presupuesto en tabla**: extracción de tablas de presupuesto desde `.docx`.
+     Pusheado ago-2026, no confirmado en expediente real.
 
-**Pendiente:** chequeos del Revisor Fotovoltaico en la Memoria Completa — bloqueado, depende del
-perfil solar horario que solo vive en `static/fotovoltaico_riego_v15.html`.
+**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — depende del
+perfil solar horario que solo vive en `static/fotovoltaico_riego_v15.html`. El usuario no
+recuerda el contexto (sep-2026); ver `docs/` para detalle.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).

@@ -1089,9 +1089,10 @@ def _limitar_texto(texto: str, maxlen: int) -> str:
     se normalizan los valores devueltos por la IA, así vale para cualquier campo que declare
     `maxlen` en `RESUMEN_SECCIONES`, no solo el actual.
 
-    Orden de preferencia del corte: (1) el último final de oración que quepa, para que el texto
-    lea completo; (2) si no hay ninguno en la segunda mitad, la última palabra entera + "…". El
-    resultado NUNCA supera `maxlen`."""
+    Orden de preferencia del corte: (1) el último final de oración que quepa (. ; \\n),
+    siempre que exista alguno past los primeros 10 chars — así una oración que termina
+    temprano igual cierra limpio en vez de quedar con "…"; (2) si no hay ningún límite
+    natural, la última palabra entera + "…". El resultado NUNCA supera `maxlen`."""
     texto = (texto or "").strip()
     if len(texto) <= maxlen:
         return texto
@@ -1101,7 +1102,7 @@ def _limitar_texto(texto: str, maxlen: int) -> str:
                         recorte.rfind(".\n"), recorte.rfind("\n"))
     if recorte.endswith("."):
         corte_oracion = max(corte_oracion, len(recorte) - 1)
-    if corte_oracion >= maxlen // 2:                 # hay una oración completa razonable
+    if corte_oracion > 10:                            # cualquier fin de oración razonable
         return recorte[:corte_oracion + 1].strip()
 
     corte_palabra = recorte[:maxlen - 1].rfind(" ")   # -1: deja lugar para el "…"

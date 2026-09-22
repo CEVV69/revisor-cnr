@@ -1,3 +1,17 @@
+## Sesión sep-2026 — Evaluación del Consultor: fix truncación de observaciones
+
+`_limitar_texto()` en `analyzer.py` tenía el umbral para usar límite de oración en `>= maxlen//2`
+(125 chars para maxlen=250). Si la primera oración terminaba antes de los 125 chars, caía al
+fallback `palabra + "…"`, dejando el texto truncado mid-idea. Bajado el umbral a `> 10`:
+cualquier fin de oración (`. `, `; `, `.\n`, `\n`) pasado los primeros 10 chars se usa como
+punto de corte, completando la idea correctamente.
+
+Confirmados como OK en producción (sep-2026): Memoria COMPLETA con paridad total; costo de API
+en Memorias standalone. Sin confirmar en expediente real: caudal del emisor por sistema; Word
+con presupuesto en tabla.
+
+---
+
 ## Sesión sep-2026 — Actualización app: Diseño de Invernadero v14 → v20
 
 Reemplazada `static/invernadero_diseno_v14.html` por `invernadero_diseno_v20.html` (199KB).
