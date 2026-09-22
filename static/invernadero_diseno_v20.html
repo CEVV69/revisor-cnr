@@ -100,11 +100,19 @@
   .mem{fill:var(--ice);stroke:var(--navy);stroke-width:1.3;}
   .plate{fill:var(--frost);stroke:var(--navy);stroke-width:1.3;}
   .scr{fill:var(--navy);}
+  #svgUniones text.tag{font-size:13px;}
+  #svgUniones text.dim{font-size:13.5px;}
+  .chip{fill:var(--blue);stroke:#fff;stroke-width:1.5;}
+  .chiptxt{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;fill:#fff;text-anchor:middle;}
   :root[data-theme="dark"] .mem,:root[data-theme="dark"] .plate{stroke:#8FB3E0;}
   :root[data-theme="dark"] .scr{fill:#CFE0F5;}
   .ground{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;}
   .tag{font-family:'DM Mono',monospace;font-size:10.5px;fill:var(--navy);}
   :root[data-theme="dark"] .tag{fill:#CFE0F5;}
+  .door{stroke:var(--navy);stroke-width:2.4;stroke-dasharray:7 5;stroke-linecap:butt;}
+  .window{stroke:var(--navy);stroke-width:2.2;stroke-dasharray:6 4;stroke-linecap:butt;opacity:.9;}
+  :root[data-theme="dark"] .door{stroke:#8FB3E0;}
+  :root[data-theme="dark"] .window{stroke:#8FB3E0;}
 
   table.mat{width:100%;border-collapse:collapse;font-size:12.5px;}
   table.mat th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--line);}
@@ -185,7 +193,7 @@
   <img class="logo" alt="Diseño Invernadero" src="data:image/png;base64,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">
   <div>
     <h1>Diseño Invernadero</h1>
-    <div class="sub">CNR · Método 1 NCh432 · v14</div>
+    <div class="sub">CNR · Método 1 NCh432 · v20</div>
   </div>
   <div class="spacer"></div>
   <div class="proyecto" id="proyectoTag">Sin nombre de proyecto</div>
@@ -247,7 +255,12 @@
           <h2>Vanos</h2>
           <div class="row"><label>Ancho puerta</label><div class="fieldwrap"><input class="f" id="wpuerta" value="2,00" oninput="recalc()"><span class="unit">m</span></div></div>
           <div class="row"><label>Alto puerta</label><div class="fieldwrap"><input class="f" id="hpuerta" value="1,20" oninput="recalc()"><span class="unit">m</span></div></div>
-          <div class="row"><label>N° ventanas laterales</label><div class="fieldwrap"><input class="f" id="nvent" value="8" oninput="recalc()"><span class="unit">un</span></div></div>
+          <div class="row"><label>N° de puertas</label><div class="fieldwrap"><input class="f" id="npuertas" value="2" oninput="recalc()"><span class="unit">un</span></div></div>
+          <div class="row"><label>N° total de ventanas</label><div class="fieldwrap"><input class="f" id="nvent" value="8" oninput="recalc()"><span class="unit">un</span></div></div>
+          <div class="row"><label>Ancho ventana</label><div class="fieldwrap"><input class="f" id="wVent" value="1,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Alto ventana</label><div class="fieldwrap"><input class="f" id="hVent" value="1,20" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Altura antepecho (desde piso)</label><div class="fieldwrap"><input class="f" id="antepechoVent" value="1,00" oninput="recalc()"><span class="unit">m</span></div></div>
+          <div class="row"><label>Ventanas por lado / separación</label><div class="fieldwrap"><div class="calc" id="ventInfo">—</div></div></div>
         </div>
       </div>
       <div>
@@ -259,7 +272,7 @@
             <div class="diag-label">Detalle cercha</div>
             <svg id="svgCercha" viewBox="0 0 640 280"></svg>
             <div class="diag-label">Detalle de uniones</div>
-            <svg id="svgUniones" viewBox="0 0 640 330"></svg>
+            <svg id="svgUniones" viewBox="0 0 1300 175"></svg>
             <div class="hint">Los diagramas se actualizan con cada dato que ingreses.</div>
           </div>
       </div>
@@ -278,13 +291,31 @@
   <!-- PANEL 3: ESTRUCTURA -->
   <div class="panel" id="panel-estructura">
     <div class="card">
+      <h2>Esquema de la cercha</h2>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:stretch">
+        <div style="flex:1;min-width:280px;display:flex;align-items:flex-end"><svg id="svgEsquema" viewBox="0 0 640 230"></svg></div>
+        <table class="mat" style="width:auto;min-width:220px">
+          <thead><tr><th>Código</th><th>Elemento</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>Columnas V1</td></tr>
+            <tr><td>B</td><td>Cuerda superior</td></tr>
+            <tr><td>C</td><td>Cuerda inferior</td></tr>
+            <tr><td>D</td><td>Montantes C.S.A.</td></tr>
+            <tr><td>E</td><td>Diagonales exteriores</td></tr>
+            <tr><td>F</td><td>Diagonales centrales</td></tr>
+            <tr><td>G</td><td>Correas de techo</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
       <h2>Selección de perfiles Metalcon por elemento</h2>
       <table class="mat">
         <thead><tr><th>Elemento</th><th>Perfil</th><th>Cantidad</th><th>Largo (m)</th><th>Largo total (m)</th><th>Peso total (kg)</th></tr></thead>
         <tbody id="estructuraBody"></tbody>
         <tfoot><tr><td colspan="5" style="text-align:right;font-weight:800;">SUBTOTAL ESTRUCTURA</td><td class="num" id="pesoEstructuraTotal" style="font-weight:800;">—</td></tr></tfoot>
       </table>
-      <div class="hint" style="margin-top:8px">Los elementos «por cercha» multiplican su largo total y peso por el N° de cerchas.</div>
+      <div class="hint" style="margin-top:8px">Los elementos «por cercha» multiplican por el N° de cerchas; «por puerta»/«por ventana», por el N° de puertas/ventanas declarado en Predio.</div>
     </div>
     <div class="card">
       <h2>Catálogo de referencia — Metalcon C (Cintac)</h2>
@@ -475,6 +506,8 @@
       <div class="row"><label>Peso cercha (cuerdas, montantes y diagonales)</label><div class="fieldwrap"><div class="calc" id="pesoCercha">—</div><span class="unit">kg/m²</span></div></div>
       <div class="row"><label>Peso costanera (correas)</label><div class="fieldwrap"><div class="calc" id="pesoCostanera">—</div><span class="unit">kg/m²</span></div></div>
       <div class="row"><label>Peso policarbonato</label><div class="fieldwrap"><input class="f" id="pesoPoli" value="0,80" oninput="recalc()"><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Peso marcos de ventana (repartido en el área)</label><div class="fieldwrap"><div class="calc" id="pesoVentanasD">—</div><span class="unit">kg/m²</span></div></div>
+      <div class="row"><label>Peso marcos de puerta (repartido en el área)</label><div class="fieldwrap"><div class="calc" id="pesoPuertasD">—</div><span class="unit">kg/m²</span></div></div>
       <div class="row"><label>Carga de viento (succión techo)</label><div class="fieldwrap"><div class="calc" id="cargaViento">—</div><span class="unit">kg/m²</span></div></div>
       <div class="row"><label>Carga de nieve</label><div class="fieldwrap"><div class="calc" id="cargaNieve">—</div><span class="unit">kg/m²</span></div></div>
       <div class="row"><label style="font-weight:800;">CARGA MUERTA TOTAL D</label><div class="fieldwrap"><div class="calc big" id="cargaD">—</div><span class="unit">kg/m²</span></div></div>
@@ -510,7 +543,7 @@
       <div class="row"><label>Carga axial máxima admisible</label><div class="fieldwrap"><div class="calc" id="pMaxCol">—</div><span class="unit">kgf</span></div></div>
       <div class="row"><label>Momento solicitante Mu = F·h1/2 (voladizo)</label><div class="fieldwrap"><div class="calc" id="muCol">—</div><span class="unit">kgf·cm</span></div></div>
       <div class="row"><label>Momento máximo admisible (Mx)</label><div class="fieldwrap"><div class="calc" id="mMaxCol">—</div><span class="unit">kgf·cm</span></div></div>
-      <div class="row"><label style="font-weight:800;">Estado</label><div class="fieldwrap"><div class="calc big" id="estadoCol" style="text-align:right;width:100%">—</div></div></div>
+      <div class="row"><label style="font-weight:800;">Estado</label><div class="fieldwrap"><div class="calc" id="estadoCol" style="text-align:right;width:100%;font-size:14px;">—</div></div></div>
     </div>
   </div>
 
@@ -639,7 +672,26 @@ function vZonificacion(lat){
 }
 
 // ---------- geometria: diagramas SVG (igual que mockup previo) ----------
-function drawPlanta(ancho,largo,n){
+function sideOpenings(fixed,a0,a1,openings,horizontal){
+  // Dibuja un lado del rectángulo como tramos sólidos + tramos punteados (aberturas),
+  // reemplazando la línea continua en vez de superponerse a ella.
+  const ops = openings.slice().sort((p,q)=>p[0]-q[0]);
+  let s='', cur=a0;
+  function seg(a,b,cls){
+    if(b<=a) return;
+    s += horizontal
+      ? `<line class="${cls}" x1="${a.toFixed(1)}" y1="${fixed.toFixed(1)}" x2="${b.toFixed(1)}" y2="${fixed.toFixed(1)}"/>`
+      : `<line class="${cls}" x1="${fixed.toFixed(1)}" y1="${a.toFixed(1)}" x2="${fixed.toFixed(1)}" y2="${b.toFixed(1)}"/>`;
+  }
+  ops.forEach(([a,b,cls])=>{
+    seg(cur, a, 'steel');
+    seg(Math.max(a,cur), b, cls);
+    cur = Math.max(cur, b);
+  });
+  seg(cur, a1, 'steel');
+  return s;
+}
+function drawPlanta(ancho,largo,n,wpuerta,npuertas,nvent,wVent){
   const svg=document.getElementById('svgPlanta'); if(!svg) return;
   const W=640,H=260,pad=50;
   const horiz = largo>=ancho ? largo : ancho;
@@ -648,7 +700,23 @@ function drawPlanta(ancho,largo,n){
   const pw = horiz*scale, ph = vert*scale;
   const x0=(W-pw)/2, y0=(H-ph)/2;
   let s=`<rect class="poly" x="${x0}" y="${y0}" width="${pw}" height="${ph}"/>`;
-  s+=`<rect class="steel" x="${x0}" y="${y0}" width="${pw}" height="${ph}"/>`;
+
+  // Aberturas: puertas en los testeros (lados verticales x0 / x0+pw), ventanas en los muros largos (y0 / y0+ph)
+  const pw2 = Math.min((wpuerta||0)*scale, ph*0.9);
+  const nP = Math.max(0, Math.min(2, Math.round(npuertas||0)));
+  const nV=Math.max(0,Math.round(nvent||0));
+  const perSideL=Math.ceil(nV/2), perSideR=Math.floor(nV/2);
+  const wv2=Math.min((wVent||0)*scale, pw/(Math.max(perSideL,perSideR,1))*0.7);
+  const leftOps  = nP>=1 ? [[y0+ph/2-pw2/2, y0+ph/2+pw2/2, 'door']] : [];
+  const rightOps = nP>=2 ? [[y0+ph/2-pw2/2, y0+ph/2+pw2/2, 'door']] : [];
+  function ventOps(count){
+    const arr=[]; for(let i=0;i<count;i++){ const vx=x0+pw*(i+1)/(count+1); arr.push([vx-wv2/2, vx+wv2/2, 'window']); } return arr;
+  }
+  s += sideOpenings(x0, y0, y0+ph, leftOps, false);
+  s += sideOpenings(x0+pw, y0, y0+ph, rightOps, false);
+  s += sideOpenings(y0, x0, x0+pw, ventOps(perSideL), true);
+  s += sideOpenings(y0+ph, x0, x0+pw, ventOps(perSideR), true);
+
   const nn=Math.max(2,Math.round(n));
   for(let i=0;i<nn;i++){
     const x=x0+pw*(i/(nn-1));
@@ -659,6 +727,13 @@ function drawPlanta(ancho,largo,n){
   s+=`<line class="dimline" x1="${x0-18}" y1="${y0}" x2="${x0-18}" y2="${y0+ph}"/>`;
   s+=`<text class="dim" x="${x0-24}" y="${y0+ph/2}" text-anchor="middle" transform="rotate(-90 ${x0-24} ${y0+ph/2})">${fmt(vert,2)} m</text>`;
   s+=`<text class="tag" x="${x0+8}" y="${y0-8}">${nn} cerchas @ ${fmt(largo/((nn-1)||1),2)} m</text>`;
+  function ventLabel(count,lblY){
+    if(count<=0) return;
+    const sep = count>1 ? (pw*(2/(count+1)))/scale : 0;
+    s+=`<text class="tag" x="${(x0+pw/2).toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle">${count} ventanas/lado @ ${fmt(sep,2)} m</text>`;
+  }
+  ventLabel(perSideL, y0-20);
+  ventLabel(perSideR, y0+ph+46);
   svg.innerHTML=s;
 }
 function drawElevacion(ancho,h1,h2,wpuerta,hpuerta){
@@ -759,6 +834,52 @@ function drawCercha(ancho,h1,h2,nomSup,nomInf,nomMont,nomDiagExt,nomDiagCen){
   svg.innerHTML=s;
 }
 
+function drawEsquemaCercha(ancho,h1,h2){
+  const svg=document.getElementById('svgEsquema'); if(!svg) return;
+  const W=640,H=230,pad=60;
+  const peralte=Math.max(h2-h1,0);
+  const scale=(W-2*pad)/ancho;
+  const w=ancho*scale, pk=Math.max(peralte*scale,40);
+  const x0=pad, y0=140, yTop=y0-pk, yGnd=y0+50;
+  const xc=x0+w/2;
+  const yRaf=(x)=> y0-pk*(1-Math.abs(x-xc)/(w/2));
+  const ridge={x:xc,y:yTop};
+  const vL={x:x0,y:y0}, vR={x:x0+w,y:y0};
+  const q1={x:x0+w/3,y:y0}, q2={x:x0+w*2/3,y:y0};
+  const m1={x:q1.x,y:yRaf(q1.x)}, m2={x:q2.x,y:yRaf(q2.x)};
+  const d1={x:x0+w/6,y:yRaf(x0+w/6)}, d2={x:x0+w*5/6,y:yRaf(x0+w*5/6)};
+  function L(a,b,cls){ return `<line class="${cls}" x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"/>`; }
+  function mid(a,b,t=0.5){ return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}; }
+  function chip(x,y,code){ return `<circle class="chip" cx="${x}" cy="${y}" r="10"/><text class="chiptxt" x="${x}" y="${y+3.5}" text-anchor="middle">${code}</text>`; }
+  let s='';
+  s+=L(vL,ridge,'steel'); s+=L(ridge,vR,'steel');
+  s+=L(vL,vR,'steel');
+  s+=L(q1,m1,'steel-thin'); s+=L(q2,m2,'steel-thin');
+  s+=L(d1,q1,'steel-thin'); s+=L(d2,q2,'steel-thin');
+  s+=L(q1,ridge,'steel-thin'); s+=L(q2,ridge,'steel-thin');
+  s+=L(vL,{x:vL.x,y:yGnd},'steel'); s+=L(vR,{x:vR.x,y:yGnd},'steel');
+  s+=`<line class="ground" x1="${x0-20}" y1="${yGnd}" x2="${x0+w+20}" y2="${yGnd}"/>`;
+  // correas: trazos cortos perpendiculares sobre el faldón izquierdo
+  [0.25,0.45,0.65,0.85].forEach(t=>{
+    const p=mid(vL,ridge,t), n=mid(vL,ridge,t+0.001);
+    const dx=ridge.x-vL.x, dy=ridge.y-vL.y, len=Math.hypot(dx,dy)||1, nx=-dy/len*7, ny=dx/len*7;
+    s+=`<line class="steel-thin" x1="${(p.x-nx).toFixed(1)}" y1="${(p.y-ny).toFixed(1)}" x2="${(p.x+nx).toFixed(1)}" y2="${(p.y+ny).toFixed(1)}"/>`;
+  });
+  s+=chip(mid(vL,ridge,0.72).x, mid(vL,ridge,0.72).y, 'G');
+  s+=chip(mid(vL,ridge,0.3).x, mid(vL,ridge,0.3).y, 'B');
+  s+=chip(mid(ridge,vR,0.7).x, mid(ridge,vR,0.7).y, 'B');
+  s+=chip(mid(vL,vR,0.5).x, mid(vL,vR,0.5).y, 'C');
+  s+=chip(mid(q1,m1).x, mid(q1,m1).y, 'D');
+  s+=chip(mid(q2,m2).x, mid(q2,m2).y, 'D');
+  s+=chip(mid(d1,q1).x, mid(d1,q1).y, 'E');
+  s+=chip(mid(d2,q2).x, mid(d2,q2).y, 'E');
+  s+=chip(mid(q1,ridge,0.3).x, mid(q1,ridge,0.3).y, 'F');
+  s+=chip(mid(q2,ridge,0.3).x, mid(q2,ridge,0.3).y, 'F');
+  s+=chip(vL.x, mid(vL,{x:vL.x,y:yGnd}).y, 'A');
+  s+=chip(vR.x, mid(vR,{x:vR.x,y:yGnd}).y, 'A');
+  svg.innerHTML=s;
+}
+
 // Detalle de uniones (esquema según Figura 1)
 function drawUniones(nSup,nInf,nMont,nDiagE,nDiagC){
   const svg=document.getElementById('svgUniones'); if(!svg) return;
@@ -770,6 +891,7 @@ function drawUniones(nSup,nInf,nMont,nDiagE,nDiagC){
   function plate(x,y,w,h){ return `<rect class="plate" x="${x}" y="${y}" width="${w}" height="${h}"/>`; }
   function scr(pts){ return pts.map(p=>`<circle class="scr" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6"/>`).join(''); }
   function T(x,y,t,a='start'){ return `<text class="tag" x="${x}" y="${y}" text-anchor="${a}">${t}</text>`; }
+  function Trot(x,y,t,angDeg,a='middle'){ return `<text class="tag" x="${x}" y="${y}" text-anchor="${a}" transform="rotate(${angDeg.toFixed(1)} ${x} ${y})">${t}</text>`; }
   function ttl(x,y,t){ return `<text class="dim" x="${x}" y="${y}" font-weight="700">${t}</text>`; }
   function ld(x1,y1,x2,y2){ return `<line class="dimline" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`; }
   let s='';
@@ -790,7 +912,7 @@ function drawUniones(nSup,nInf,nMont,nDiagE,nDiagC){
   s+=T(ox+4,oy+152,'4×4 autoperf. #10×3/4″ (TIP)');
 
   // 2. Cuerda superior – diagonal
-  ox=330; oy=0;
+  ox=340; oy=0;
   s+=ttl(ox,oy+12,'2. Unión cuerda – diagonal');
   s+=mem([ox+50,oy+135],[ox+225,oy+60],10);
   s+=mem([ox+20,oy+92],[ox+240,oy+56],16);
@@ -800,23 +922,30 @@ function drawUniones(nSup,nInf,nMont,nDiagE,nDiagC){
   s+=T(ox+4,oy+152,'3 autoperf. #10×3/4″');
 
   // 3. Pie de montante C.S.A.
-  ox=10; oy=165;
+  ox=660; oy=0;
   s+=ttl(ox,oy+12,'3. Pie de montante C.S.A.');
   s+=mem([ox+150,oy+108],[ox+66,oy+62],9);
   s+=mem([ox+150,oy+108],[ox+234,oy+62],9);
   s+=mem([ox+20,oy+112],[ox+280,oy+112],12);
-  s+=mem([ox+150,oy+106],[ox+150,oy+56],12);
-  s+=mem([ox+80,oy+46],[ox+220,oy+46],14);
-  s+=plate(ox+141,oy+52,18,10);
+  s+=mem([ox+150,oy+106],[ox+150,oy+46],12);
+  s+=mem([ox+55,oy+68],[ox+245,oy+24],14);
+  s+=plate(ox+141,oy+41,18,10);
   s+=scr([[ox+150,oy+88],[ox+150,oy+96],[ox+150,oy+104],[ox+132.5,oy+98.4],[ox+121.9,oy+92.6],[ox+111.4,oy+86.9],[ox+167.5,oy+98.4],[ox+178.1,oy+92.6],[ox+188.6,oy+86.9]]);
-  s+=T(ox+150,oy+34,nSup,'middle');
+  {
+    const bx1=ox+55,by1=oy+68,bx2=ox+245,by2=oy+24;
+    const bdx=bx2-bx1,bdy=by2-by1,blen=Math.hypot(bdx,bdy)||1;
+    const bang=Math.atan2(bdy,bdx)*180/Math.PI;
+    const bt=0.26, ptx=bx1+bdx*bt, pty=by1+bdy*bt;
+    const nx=-bdy/blen, ny=bdx/blen; // normal hacia arriba de la pendiente
+    s+=Trot(ptx-nx*10, pty-ny*10, nSup, bang);
+  }
   s+=T(ox+150,oy+132,'C.S.A. ('+nMont+')','middle');
   s+=T(ox+262,oy+100,nInf,'middle');
   s+=T(ox+30,oy+92,nDiagE);
   s+=T(ox+4,oy+152,'3×3×3 autoperf. #10×3/4″');
 
   // 4. Cumbrera
-  ox=330; oy=165;
+  ox=1000; oy=0;
   s+=ttl(ox,oy+12,'4. Cumbrera');
   s+=mem([ox+88,oy+132],[ox+142,oy+68],9);
   s+=mem([ox+212,oy+132],[ox+158,oy+68],9);
@@ -842,8 +971,11 @@ const ELEMENTOS = [
   {key:'diagonalesExt', nombre:'Diagonales exteriores (por cercha)', cant:2, largoFn:(g)=>Math.hypot(g.ancho/6,Math.max(g.h2-g.h1,0)/3), porCercha:true, cercha:true, def:0},
   {key:'diagonalesCen', nombre:'Diagonales centrales (por cercha)', cant:2, largoFn:(g)=>Math.hypot(g.ancho/6,Math.max(g.h2-g.h1,0)), porCercha:true, cercha:true, def:0},
   {key:'correas', nombre:'Correas de techo', cant:4, largoKey:'largo'},
-  {key:'puertaCol', nombre:'Puerta — columnas', cant:2, largoKey:'hpuerta'},
-  {key:'puertaViga', nombre:'Puerta — viga', cant:1, largoKey:'wpuerta'},
+  {key:'puertaCol', nombre:'Puerta — columnas', cant:2, largoKey:'hpuerta', porPuertas:true},
+  {key:'puertaViga', nombre:'Puerta — viga', cant:1, largoKey:'wpuerta', porPuertas:true},
+  {key:'ventVert', nombre:'Marco ventana — verticales (por ventana)', cant:2, largoKey:'hVent', porVentana:true, def:0},
+  {key:'ventHoriz', nombre:'Marco ventana — horizontales (por ventana)', cant:2, largoKey:'wVent', porVentana:true, def:0},
+  {key:'ventDiag', nombre:'Arriostre ventana — diagonal (por ventana)', cant:1, largoFn:(g)=>Math.hypot(g.wVent,g.hVent), porVentana:true, def:0},
 ];
 let estructuraSel = {};
 function initEstructura(){
@@ -885,23 +1017,32 @@ function recalc(){
   const angulo = ancho>0 ? Math.atan(peralte/(ancho/2))*180/Math.PI : 0;
   const hmedia = angulo<=10 ? h1 : h1+peralte/2;
   setTxt('area',fmt(area)); setTxt('sepCerchas',fmt(sep));
+  {
+    const nVv=Math.max(0,Math.round(val('nvent')||0));
+    const pL=Math.ceil(nVv/2), pR=Math.floor(nVv/2);
+    const sepV = pL>1 ? largo*2/(pL+1) : 0;
+    setTxt('ventInfo', `${pL}+${pR} · sep ${fmt(sepV,2)} m`);
+  }
   setTxt('peralte',fmt(peralte)); setTxt('pendiente',fmt(pendiente,1));
   setTxt('angulo',fmt(angulo,1)); setTxt('hmedia',fmt(hmedia));
-  drawPlanta(ancho,largo,n);
+  drawPlanta(ancho,largo,n,val('wpuerta'),val('npuertas'),val('nvent'),val('wVent'));
   drawElevacion(ancho,h1,h2,val('wpuerta'),val('hpuerta'));
   function nomFor(key){ const p=PERFILES.find(p=>String(p.codigo)===String(estructuraSel[key])); return p?p.nomenclatura:'—'; }
   drawCercha(ancho,h1,h2,nomFor('cuerdaSup'),nomFor('cuerdaInf'),nomFor('montantes'),nomFor('diagonalesExt'),nomFor('diagonalesCen'));
   drawUniones(nomFor('cuerdaSup'),nomFor('cuerdaInf'),nomFor('montantes'),nomFor('diagonalesExt'),nomFor('diagonalesCen'));
+  drawEsquemaCercha(ancho,h1,h2);
 
   // --- estructura ---
-  const g={ancho,largo,h1,h2,hpuerta:val('hpuerta'),wpuerta:val('wpuerta')};
-  let pesoTotalEstructura=0, pesoCorreas=0, pesoCerchas=0;
+  const g={ancho,largo,h1,h2,hpuerta:val('hpuerta'),wpuerta:val('wpuerta'),wVent:val('wVent'),hVent:val('hVent')};
+  const npuertas=Math.max(0,val('npuertas')||0);
+  const nvent=Math.max(0,Math.round(val('nvent')||0));
+  let pesoTotalEstructura=0, pesoCorreas=0, pesoCerchas=0, pesoVentanas=0, pesoPuertas=0;
   ELEMENTOS.forEach(el=>{
     const perfilCod = estructuraSel[el.key];
     const perfil = PERFILES.find(p=>String(p.codigo)===String(perfilCod)) || PERFILES[7];
     const cant = val('cant_'+el.key)||0;
     const largoEl = el.largoFn ? el.largoFn(g) : g[el.largoKey];
-    const largoTot = cant*largoEl*(el.porCercha ? n : 1);
+    const largoTot = cant*largoEl*(el.porCercha ? n : 1)*(el.porPuertas ? npuertas : 1)*(el.porVentana ? nvent : 1);
     const pesoTot = largoTot*perfil.pesoP;
     setTxt('largo_'+el.key, fmt(largoEl));
     setTxt('largoTot_'+el.key, fmt(largoTot));
@@ -909,6 +1050,8 @@ function recalc(){
     pesoTotalEstructura += pesoTot;
     if(el.key==='correas') pesoCorreas=pesoTot;
     if(el.cercha) pesoCerchas+=pesoTot;
+    if(el.porVentana) pesoVentanas+=pesoTot;
+    if(el.porPuertas) pesoPuertas+=pesoTot;
   });
   setTxt('pesoEstructuraTotal', fmt(pesoTotalEstructura));
 
@@ -968,12 +1111,16 @@ function recalc(){
   // --- Diseño Estructural ---
   const pesoCerchaKgM2 = area>0 ? pesoCerchas/area : 0;
   const pesoCostaneraKgM2 = area>0 ? pesoCorreas/area : 0;
+  const pesoVentanasKgM2 = area>0 ? pesoVentanas/area : 0;
+  const pesoPuertasKgM2 = area>0 ? pesoPuertas/area : 0;
   const pesoPoli = val('pesoPoli');
   setTxt('pesoCercha', fmt(pesoCerchaKgM2));
   setTxt('pesoCostanera', fmt(pesoCostaneraKgM2));
+  setTxt('pesoVentanasD', fmt(pesoVentanasKgM2));
+  setTxt('pesoPuertasD', fmt(pesoPuertasKgM2));
   setTxt('cargaViento', fmt(rSuccRev,1));
   setTxt('cargaNieve', fmt(nieveVal,0));
-  const D = pesoCerchaKgM2+pesoCostaneraKgM2+pesoPoli;
+  const D = pesoCerchaKgM2+pesoCostaneraKgM2+pesoPoli+pesoVentanasKgM2+pesoPuertasKgM2;
   setTxt('cargaD', fmt(D));
   const pesoHumano=val('pesoHumano');
   const combos=[
@@ -1012,19 +1159,19 @@ function recalc(){
   let estadoCol='Sin datos de capacidad para este perfil';
   if(capCol){
     const okP = PuCol<=capCol.P, okM = MuCol<=capCol.Mx;
-    estadoCol = (okP&&okM) ? '✅ Cumple' : '⚠ No cumple';
+    estadoCol = (okP&&okM) ? 'Cumple' : 'No cumple';
     setTxt('pMaxCol', fmt(capCol.P,0)); setTxt('mMaxCol', fmt(capCol.Mx,0));
   } else { setTxt('pMaxCol','—'); setTxt('mMaxCol','—'); }
   setTxt('estadoCol', estadoCol);
   const elEstadoCol=document.getElementById('estadoCol');
-  if(elEstadoCol) elEstadoCol.style.color = estadoCol.indexOf('✅')===0 ? '#1a7f37' : (estadoCol.indexOf('⚠')===0 ? '#C0392B' : 'var(--muted)');
+  if(elEstadoCol) elEstadoCol.style.color = estadoCol==='Cumple' ? '#1a7f37' : (estadoCol==='No cumple' ? '#C0392B' : 'var(--muted)');
 
   drawPlanoDetalle(ancho,largo,h1,h2,n,val('wpuerta'),val('hpuerta'),D_req);
-  drawPlanoDetallePlanta(ancho,largo,n);
+  drawPlanoDetallePlanta(ancho,largo,n,val('wpuerta'),val('npuertas'),val('nvent'),val('wVent'));
 
   // --- Informe ---
   buildInforme({ancho,largo,area,n,h1,h2,angulo,peralte,pendiente,hmedia,sep,ubNombre,lat,alt,categoria,I,exposicion,kzt,
-    vZon,V,lambda,factor,areaTrib,nieveVal,rMuro,rSuccTecho,rSuccRev,rPresRev,D,pesoCerchaKgM2,pesoCostaneraKgM2,pesoPoli,pesoHumano,combos,
+    vZon,V,lambda,factor,areaTrib,nieveVal,rMuro,rSuccTecho,rSuccRev,rPresRev,D,pesoCerchaKgM2,pesoCostaneraKgM2,pesoPoli,pesoVentanasKgM2,pesoPuertasKgM2,pesoHumano,combos,
     sepMarcos,fPoste,fs,phi,gamma,b,Kp,M,D_req,pesoTotalEstructura,
     areaTribCol,PuCol,MuCol,colNom,capCol,estadoCol});
 }
@@ -1076,7 +1223,7 @@ function checkDiff(inputEl){
 
 // ---------- guardar / cargar JSON ----------
 function exportJSON(){
-  const ids=['nombreProyecto','ubicacion','categoria','exposicion','kzt','ancho','largo','ncerchas','h1','h2','wpuerta','hpuerta','nvent','areaTrib','pesoHumano','pesoPoli','fsVolc','phiSuelo','gammaSuelo','bHoyo','vInput'];
+  const ids=['nombreProyecto','ubicacion','categoria','exposicion','kzt','ancho','largo','ncerchas','h1','h2','wpuerta','hpuerta','nvent','wVent','hVent','antepechoVent','npuertas','areaTrib','pesoHumano','pesoPoli','fsVolc','phiSuelo','gammaSuelo','bHoyo','vInput'];
   const data={formato:'invernadero-cnr-proyecto',version:1,campos:{},estructura:estructuraSel};
   ids.forEach(id=>{ const e=document.getElementById(id); if(e) data.campos[id]=e.value; });
   const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
@@ -1167,7 +1314,7 @@ function buildMemoriaCalculoHTML(){
   </div>
   <div class="memo-sec">
     <h3>4. Combinaciones de carga (LRFD) y verificación de levantamiento</h3>
-    <p>Carga muerta total D = peso propio cercha (${fmt(u.pesoCerchaKgM2)} kg/m²) + costaneras (${fmt(u.pesoCostaneraKgM2)} kg/m²) + revestimiento policarbonato (${fmt(u.pesoPoli)} kg/m²) = <b>${fmt(u.D)} kg/m²</b>.</p>
+    <p>Carga muerta total D = peso propio cercha (${fmt(u.pesoCerchaKgM2)} kg/m²) + costaneras (${fmt(u.pesoCostaneraKgM2)} kg/m²) + revestimiento policarbonato (${fmt(u.pesoPoli)} kg/m²) + marcos de ventana (${fmt(u.pesoVentanasKgM2)} kg/m²) + marcos de puerta (${fmt(u.pesoPuertasKgM2)} kg/m²) = <b>${fmt(u.D)} kg/m²</b>.</p>
     <table class="mat"><thead><tr><th>Combinación</th><th>Resultado (kg/m²)</th></tr></thead><tbody>
     ${u.combos.map(([l,v])=>`<tr><td>${l}</td><td class="num">${fmt(v)}</td></tr>`).join('')}
     </tbody></table>
@@ -1175,7 +1322,8 @@ function buildMemoriaCalculoHTML(){
   </div>
   <div class="memo-sec">
     <h3>5. Selección de perfiles y peso de estructura</h3>
-    <p>Perfiles Metalcon seleccionados por elemento (columnas, cuerdas, montantes y diagonales de cercha, correas de techo, marco de puerta) según catálogo Cintac — ver tabla de estructura. Peso total de estructura metálica: <b>${fmt(u.pesoTotalEstructura)} kg</b> (${fmt(u.area>0?u.pesoTotalEstructura/u.area:0)} kg/m²).</p>
+    <p>Perfiles Metalcon seleccionados según catálogo Cintac. Peso total de estructura metálica: <b>${fmt(u.pesoTotalEstructura)} kg</b> (${fmt(u.area>0?u.pesoTotalEstructura/u.area:0)} kg/m²).</p>
+    ${tablaEstructuraEstatica()}
   </div>
   <div class="memo-sec">
     <h3>6. Cimentación — empotramiento de postes (verificación preliminar)</h3>
@@ -1256,13 +1404,13 @@ function buildInformeStandaloneHTML(){
 <title>Informe — ${proyecto}</title>
 <style>
   :root{--navy:#16324F;--blue:#2F6FED;--ice:#EAF2FB;--frost:#F6FAFD;--ink:#0F1720;--muted:#1E2A36;--line:#D8E2EC;}
-  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);margin:0;padding:24px 24px 24px 43px;background:#fff;text-align:justify;}
+  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);margin:0;padding:24px 35px 24px 46px;background:#fff;text-align:justify;}
   h1{font-size:19px;color:var(--navy);margin:0 0 2px;text-align:left;}
   .sub{font-size:12px;color:var(--muted);margin-bottom:18px;text-align:left;}
-  h2{font-size:13px;font-weight:800;color:var(--navy);margin:22px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--ice);text-align:left;}
+  h2{font-size:13px;font-weight:800;color:var(--navy);margin:22px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--line);text-align:left;}
   table.mat{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px;}
-  table.mat th{text-align:left;font-size:10.5px;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--line);}
-  table.mat td{padding:4px 6px;border-bottom:1px solid var(--line);}
+  table.mat th{text-align:left;font-size:10.5px;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:2px solid var(--navy);}
+  table.mat td{padding:4px 6px;border-bottom:1px solid #BDC9D4;}
   table.mat td.num,table.mat th.num{text-align:right;font-family:'DM Mono',monospace;}
   .svgrow{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
   .diag-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:6px 0 4px;text-align:left;}
@@ -1270,6 +1418,8 @@ function buildInformeStandaloneHTML(){
   .steel{fill:none;stroke:#0B1F33;stroke-width:2.6;}
   .steel-thin{fill:none;stroke:#0B1F33;stroke-width:1.7;opacity:.9;}
   .poly{fill:var(--ice);opacity:.55;stroke:none;}
+  .door{stroke:#0B1F33;stroke-width:2.4;stroke-dasharray:7 5;stroke-linecap:butt;}
+  .window{stroke:#0B1F33;stroke-width:2.2;stroke-dasharray:6 4;stroke-linecap:butt;opacity:.9;}
   .ground{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;}
   .dim,.dtxt{font-size:10px;fill:var(--muted);}
   .dtxtSm{font-size:9px;fill:var(--muted);}
@@ -1308,14 +1458,11 @@ function buildInformeStandaloneHTML(){
   <button class="secondary" onclick="(function(){var b=new Blob(['<'+'!DOCTYPE html>'+document.documentElement.outerHTML],{type:'text/html'});var a=document.createElement('a');a.href=window.URL.createObjectURL(b);a.download='${nombreArchivo}';a.click();})()">💾 Descargar HTML</button>
   <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
 </div>
-<h1>Informe de diseño — Invernadero CNR</h1>
-<div class="sub">Proyecto: ${proyecto} · Generado: ${fecha} · Método NCh432 Método 1</div>
-<h2>Resumen del diseño</h2>
+<h1 style="text-align:center;font-size:20px;">Informe diseño Invernadero — ${proyecto}</h1>
+<div class="sub" style="text-align:center;">Generado: ${fecha} · Método NCh432 Método 1</div>
 ${resumen}
 <h2>Memoria de cálculo</h2>
 ${buildMemoriaCalculoHTML()}
-<h2>Estructura — perfiles Metalcon</h2>
-${tablaEstructuraEstatica()}
 <h2>Diagramas</h2>
 ${svgs}
 </body></html>`;
@@ -1438,11 +1585,11 @@ function drawPlanoDetalle(ancho, largo, h1, h2, n, wpuerta, hpuerta, Dreq){
   svg.innerHTML = s;
 }
 
-function drawPlanoDetallePlanta(ancho, largo, n){
+function drawPlanoDetallePlanta(ancho, largo, n, wpuerta, npuertas, nvent, wVent){
   const svg = document.getElementById('svgPlanoDetallePlanta');
   if(!svg) return;
   const W=900, H=320;
-  const leftPad=56, rightPad=30, topPad=44, bottomPad=54;
+  const leftPad=70, rightPad=64, topPad=60, bottomPad=80;
   function line(x1,y1,x2,y2,cls){ return `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }
   function txt(x,y,t,anchor='middle',cls='dtxt'){ return `<text class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}">${t}</text>`; }
   function arrow(x1,y1,x2,y2,lbl,fs=10){
@@ -1464,9 +1611,23 @@ function drawPlanoDetallePlanta(ancho, largo, n){
   const nn=Math.max(2,Math.round(n));
   const sepReal = nn>1 ? largo/(nn-1) : largo;
 
+  const pw3 = Math.min((wpuerta||0)*sc, ph*0.9);
+  const nP2 = Math.max(0, Math.min(2, Math.round(npuertas||0)));
+  const nV2=Math.max(0,Math.round(nvent||0));
+  const pL2=Math.ceil(nV2/2), pR2=Math.floor(nV2/2);
+  const wv3=Math.min((wVent||0)*sc, pw/(Math.max(pL2,pR2,1))*0.7);
+  const leftOps2  = nP2>=1 ? [[y0+ph/2-pw3/2, y0+ph/2+pw3/2, 'door']] : [];
+  const rightOps2 = nP2>=2 ? [[y0+ph/2-pw3/2, y0+ph/2+pw3/2, 'door']] : [];
+  function ventOps2(count){
+    const arr=[]; for(let i=0;i<count;i++){ const vx=x0+pw*(i+1)/(count+1); arr.push([vx-wv3/2, vx+wv3/2, 'window']); } return arr;
+  }
+
   let s='';
   s+=`<rect class="poly" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}"/>`;
-  s+=`<rect class="steel" x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}" fill="none"/>`;
+  s+=sideOpenings(x0, y0, y0+ph, leftOps2, false);
+  s+=sideOpenings(x0+pw, y0, y0+ph, rightOps2, false);
+  s+=sideOpenings(y0, x0, x0+pw, ventOps2(pL2), true);
+  s+=sideOpenings(y0+ph, x0, x0+pw, ventOps2(pR2), true);
   // costaneras de muro (líneas horizontales representativas)
   for(let k=1;k<=2;k++){
     const cy=y0+ph*(k/3);
@@ -1498,6 +1659,14 @@ function drawPlanoDetallePlanta(ancho, largo, n){
   s+=`<line class="cotaExt" x1="${(x0-3).toFixed(1)}" y1="${y0.toFixed(1)}" x2="${(x0-40).toFixed(1)}" y2="${y0.toFixed(1)}"/>`;
   s+=`<line class="cotaExt" x1="${(x0-3).toFixed(1)}" y1="${(y0+ph).toFixed(1)}" x2="${(x0-40).toFixed(1)}" y2="${(y0+ph).toFixed(1)}"/>`;
   s+=arrow(x0-36,y0,x0-36,y0+ph,'A = '+fmt(ancho,2)+' m');
+
+  function ventLabel2(count,lblY){
+    if(count<=0) return;
+    const sep = count>1 ? (pw*(2/(count+1)))/sc : 0;
+    s+=txt(x0+pw/2, lblY, count+' ventanas/lado @ '+fmt(sep,2)+' m', 'middle', 'dtxtSm');
+  }
+  ventLabel2(pL2, y0-48);
+  ventLabel2(pR2, y0+ph+56);
 
   svg.innerHTML = s;
 }
