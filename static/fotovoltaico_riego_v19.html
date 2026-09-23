@@ -140,7 +140,13 @@ svg.chart{display:block;width:100%}
 .vhDel{width:26px;height:26px;border-radius:6px;border:1px solid var(--fog);background:var(--white);color:var(--mist);cursor:pointer;font-size:.9rem;line-height:1}
 .vhDel:hover{color:var(--err);border-color:var(--err)}
 #vhCropsBody select,#vhCropsBody input{font-family:var(--mono);font-size:.78rem;padding:5px 7px;border:1.5px solid var(--fog);border-radius:6px;background:var(--white);color:var(--ink);width:100%}
-#vhCropsBody .vhSup{max-width:80px;text-align:right}
+#vhCropsBody input[type=checkbox]{width:auto;flex:none;margin:0}
+#vhCropsBody .vhSup{max-width:80px}
+#vhCropsBody .vhTri{max-width:190px}
+.vhCropsTable th,.vhCropsTable td{text-align:left}
+.vhKcCell{white-space:nowrap}
+.vhKcCell .vhKcChk{vertical-align:middle}
+.vhKcCell .vhKcVal{vertical-align:middle}
 .foot{max-width:1240px;margin:0 auto;padding:4px 20px 34px;font-size:.68rem;color:var(--mist);font-family:var(--mono);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ov{position:fixed;inset:0;background:rgba(10,22,40,.72);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
 .ov.v{display:flex}
@@ -261,8 +267,8 @@ svg.chart{display:block;width:100%}
  <div class="card" style="margin-bottom:12px">
   <div class="ctitle">Cultivos regados por este equipo</div>
   <div class="scroll" style="margin-bottom:9px">
-   <table class="rt" style="min-width:640px">
-    <thead><tr><th style="text-align:left">Cultivo</th><th style="text-align:left">Trimestre productivo</th><th style="text-align:left">Método de riego</th><th>Superficie ha</th><th></th></tr></thead>
+   <table class="rt vhCropsTable" style="min-width:720px">
+    <thead><tr><th>Cultivo</th><th>Kc fijo</th><th>Trimestre</th><th>Método de riego</th><th>Superficie ha</th><th></th></tr></thead>
     <tbody id="vhCropsBody"></tbody>
    </table>
   </div>
@@ -279,7 +285,10 @@ svg.chart{display:block;width:100%}
  </div>
  <div id="vhResumen"></div>
 
- <div class="bn" style="margin-top:16px"><button type="button" class="btn bp" id="btnVhClose">Cerrar</button></div>
+ <div class="bn" style="margin-top:16px">
+  <button type="button" class="btn bc" id="btnVhUsar">↓ Usar estas horas en el paso 2</button>
+  <button type="button" class="btn bp" id="btnVhClose">Cerrar</button>
+ </div>
 </div></div>
 
 
@@ -779,7 +788,7 @@ function construirProyectoJSON(){
  };
  doc.bombeo.verificacionKc={
   estacion:vhEstacion,
-  cultivos:vhCrops.map(c=>({cultivo:c.cul, trimestre:c.tri, metodo:c.met, superficieHa:c.sup}))
+  cultivos:vhCrops.map(c=>({cultivo:c.cul, trimestre:c.tri, metodo:c.met, superficieHa:c.sup, kcFijo:!!c.kcFijo, kcValor:c.kcVal}))
  };
  if(GU!==null){
   doc.fotovoltaico.recursoSolar={ kwp:1, horas:HORAS, matriz:GU, nota:GU_NOTA };
@@ -830,15 +839,15 @@ function vhKcPorTrimestre(kcAnual,tri){
 }
 
 let vhCropSeq=0;
-let vhCrops=[{id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:1}];
+let vhCrops=[{id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:1,kcFijo:false,kcVal:1}];
 let vhEstacion=VH_ESTACIONES.includes('Santiago')?'Santiago':VH_ESTACIONES[0];
 
 function vhCalcular(){
  const eto=VH_DATA.eto[vhEstacion]||Array(12).fill(0);
  const volDia=Array(12).fill(0); // m3/día, sumado entre todos los cultivos
  vhCrops.forEach(c=>{
-   const kcAnual=VH_DATA.kc[c.cul]||Array(12).fill(0);
-   const kcMes=vhKcPorTrimestre(kcAnual,c.tri);
+   const kcMes = c.kcFijo ? Array(12).fill(pn(c.kcVal))
+     : vhKcPorTrimestre(VH_DATA.kc[c.cul]||Array(12).fill(0), c.tri);
    const ef=VH_METODOS[c.met][1];
    for(let i=0;i<12;i++){
      const etcMes=eto[i]*kcMes[i];                  // mm/mes (la tabla de ETo ya es un total mensual)
@@ -877,7 +886,11 @@ function vhRender(){
  $("vhCropsBody").innerHTML=vhCrops.map(c=>`
    <tr data-row="${c.id}">
      <td><select class="vhCul" data-id="${c.id}"></select></td>
-     <td><select class="vhTri" data-id="${c.id}"></select></td>
+     <td class="vhKcCell">
+       <input type="checkbox" class="vhKcChk" data-id="${c.id}" ${c.kcFijo?'checked':''}>
+       <input type="text" inputmode="decimal" class="vhKcVal" data-id="${c.id}" value="${tf(c.kcVal)}" style="width:42px;display:inline-block;margin-left:4px" ${c.kcFijo?'':'disabled'}>
+     </td>
+     <td><select class="vhTri" data-id="${c.id}" ${c.kcFijo?'disabled':''}></select></td>
      <td><select class="vhMet" data-id="${c.id}"></select></td>
      <td><input type="text" inputmode="decimal" class="vhSup" data-id="${c.id}" value="${tf(c.sup)}"></td>
      <td><button type="button" class="vhDel" data-id="${c.id}" title="Eliminar">×</button></td>
@@ -919,7 +932,7 @@ function vhRender(){
  vhRenderEto();
 }
 
-function vhAddRow(){ vhCrops.push({id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:0}); vhRender(); }
+function vhAddRow(){ vhCrops.push({id:vhCropSeq++,cul:VH_CULTIVOS[0],tri:'anual',met:5,sup:0,kcFijo:false,kcVal:1}); vhRender(); }
 
 $("btnVhOpen").onclick=()=>{
  $("vhEst").innerHTML=VH_ESTACIONES.map(e=>`<option value="${e}" ${e===vhEstacion?'selected':''}>${e}</option>`).join('');
@@ -927,18 +940,28 @@ $("btnVhOpen").onclick=()=>{
  $("ovVh").classList.add("v");
 };
 $("btnVhClose").onclick=()=>$("ovVh").classList.remove("v");
+$("btnVhUsar").onclick=()=>{
+ const qLs=pn($("qDiseno").value);
+ if(qLs<=0){ alert("Ingrese el caudal de diseño (paso 1) antes de usar estas horas."); return; }
+ const {horasCalc}=vhCalcular();
+ horasCalc.forEach((h,i)=>{ $("h"+i).value=tf(h===null?0:h); });
+ $("ovVh").classList.remove("v");
+ render();
+};
 $("ovVh").onclick=e=>{ if(e.target===$("ovVh")) $("ovVh").classList.remove("v"); };
 $("vhEst").addEventListener("change",e=>{ vhEstacion=e.target.value; vhRender(); });
 $("btnVhAddCrop").onclick=vhAddRow;
 $("vhCropsBody").addEventListener("input",e=>{
  const id=+e.target.dataset.id; const c=vhCrops.find(x=>x.id===id); if(!c) return;
  if(e.target.classList.contains("vhSup")) c.sup=pn(e.target.value);
+ if(e.target.classList.contains("vhKcVal")) c.kcVal=pn(e.target.value);
 });
 $("vhCropsBody").addEventListener("change",e=>{
  const id=+e.target.dataset.id; const c=vhCrops.find(x=>x.id===id); if(!c) return;
  if(e.target.classList.contains("vhCul")) c.cul=e.target.value;
  if(e.target.classList.contains("vhTri")) c.tri=e.target.value;
  if(e.target.classList.contains("vhMet")) c.met=+e.target.value;
+ if(e.target.classList.contains("vhKcChk")) c.kcFijo=e.target.checked;
  vhRender();
 });
 $("vhCropsBody").addEventListener("click",e=>{
@@ -976,7 +999,8 @@ function aplicarProyectoJSON(doc){
    const nuevos=vk.cultivos.map(c=>({id:vhCropSeq++,
      cul:VH_CULTIVOS.includes(c.cultivo)?c.cultivo:VH_CULTIVOS[0],
      tri:c.trimestre||"anual", met:isFinite(c.metodo)?c.metodo:5,
-     sup:numAuto(c.superficieHa)||0}));
+     sup:numAuto(c.superficieHa)||0,
+     kcFijo:!!c.kcFijo, kcVal:numAuto(c.kcValor)!==null?numAuto(c.kcValor):1}));
    if(nuevos.length){ vhCrops=nuevos; cargados.push("verificación por Kc (cultivos y estación)"); }
  }
  if(Array.isArray(b.horasRiegoDiarias)&&b.horasRiegoDiarias.length===12){

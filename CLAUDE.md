@@ -52,7 +52,7 @@ Caudal del emisor por sistema (confirmado sep-2026).
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
 necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
-`fotovoltaico_riego_v15.html` (importado desde solar.minenergia.cl). Sin ese dato, no se puede
+`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl). Sin ese dato, no se puede
 recalcular generación ni cobertura. No hay forma de desbloquearlo sin exportar esos datos
 desde el Revisor FV.
 
@@ -88,7 +88,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v134.html, scall_diseno_v21.html, fotovoltaico_riego_v15.html
+                 disenador_riego_v134.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v11.html,
                  invernadero_diseno_v30.html (obras anexas CNR, diseño de invernaderos)
