@@ -39,38 +39,22 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 
 **Cerrado, probado y OK** (detalle en `docs/`): auditoría motor Aspersión; doble bombeo; menú
-"Apps"; precios de la API corregidos contra la consola real (Sonnet 5 sigue en USD 2/10, no
-volvió a precio de lista); costo en Respuestas ahora se actualiza en vivo, sin recargar;
-Memoria COMPLETA con paridad total (confirmado sep-2026); costo de API en Memorias standalone
-(confirmado sep-2026); Evaluación del Consultor — funciona ok, fix de truncación aplicado
-sep-2026 (`_limitar_texto`: umbral bajado de `maxlen//2` a `> 10`).
+"Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total;
+costo API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026);
+Sección Respuestas (confirmado sep-2026); PEPA + Ficha tacha (confirmado sep-2026);
+Caudal del emisor por sistema (confirmado sep-2026).
 
-1. **Caudal por turnos + CDT por ruta crítica — implementado, usuario probando.** Detalle en
-   `docs/`. Nada pendiente en el Diseñador (v129/v131/v133/v134 ya traían los mismos fixes, verificado).
+1. **Caudal por turnos + CDT por ruta crítica — implementado, pendiente de prueba.** Detalle en
+   `docs/`. Nada pendiente en el Diseñador (v134 ya traía los mismos fixes).
 
-2. **Sección Respuestas — implementado, usuario probando.** Tope de rondas por proyecto (2 por
-   defecto, 3 opcional, selector "Rondas:" en el encabezado); última ronda dice "Obs. No
-   resuelta" en vez de "Reiterar". Selector de estado (Aprobado/Rechazado/etc.) vive en la fila
-   del conteo de observaciones, alineado a la derecha — único control ahí, sin botones ni texto
-   aparte condicionados al avance de las rondas (se eliminó `/aprobar-tecnicamente`, sin uso).
-   Estados por ronda ("Resp. Obs.1"/"Obs. Ronda 2"/"Resp. Obs.2"); Contra Observación encabeza la
-   ronda siguiente; ítems colapsables con badges de conteo (incl. "Re-observada" vs "Esperando");
-   botón Ficha en el encabezado. Detalle en `docs/`.
+2. **Word con presupuesto en tabla — implementado, pendiente de prueba.** Sin expediente real
+   con presupuesto en `.docx` disponible aún.
 
-3. **PEPA + Ficha tacha resueltas — implementado, usuario probando.** PEPA: campo `programa`,
-   badge, selector en Resumen, `ITEMS_PEPA_EXTRA` en `analyzer.py` (criterios Res. 585/2024).
-   Ficha: `.obs-resuelta` tacha lo resuelto, igual al SEP. Detalle en `docs/`.
-
-4. **Pendientes de sesiones anteriores — esperando confirmación en producción** (detalle en `docs/`):
-   - **Caudal del emisor por sistema**: campo "Caudal emisor" se muestra solo en Goteo/Micro
-     (l/hr); Aspersión usa `caudal_aspersor_m3h`; Carrete usa `caudal_canon_m3h`. Pusheado
-     ago-2026, no confirmado en expediente real.
-   - **Word con presupuesto en tabla**: extracción de tablas de presupuesto desde `.docx`.
-     Pusheado ago-2026, no confirmado en expediente real.
-
-**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — depende del
-perfil solar horario que solo vive en `static/fotovoltaico_riego_v15.html`. El usuario no
-recuerda el contexto (sep-2026); ver `docs/` para detalle.
+**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
+necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
+`fotovoltaico_riego_v15.html` (importado desde solar.minenergia.cl). Sin ese dato, no se puede
+recalcular generación ni cobertura. No hay forma de desbloquearlo sin exportar esos datos
+desde el Revisor FV.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).

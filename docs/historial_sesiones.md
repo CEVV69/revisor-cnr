@@ -1,3 +1,13 @@
+## Sesión sep-2026 — Cierre de pendientes confirmados por el usuario
+
+Confirmados OK en producción (sep-2026): Sección Respuestas (rondas, estados, badges);
+PEPA + Ficha tacha resueltas; Caudal del emisor por sistema.
+Pendientes sin probar aún: Caudal por turnos + CDT ruta crítica; Word presupuesto tabla.
+Bloqueado explicado: FV en Memoria Completa requiere perfil solar horario que solo existe
+dentro de fotovoltaico_riego_v15.html — no hay forma de desbloquearlo sin exportar esos datos.
+
+---
+
 ## Sesión sep-2026 — Evaluación del Consultor: fix truncación de observaciones
 
 `_limitar_texto()` en `analyzer.py` tenía el umbral para usar límite de oración en `>= maxlen//2`
