@@ -4428,6 +4428,28 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         docs_grupo = docs_grupo + [d for d in documentos
                                    if d.get("id") in ids_extra and d.get("id") not in ya]
 
+    # Ordenar por fecha de subida (ascendente: más antiguo primero, más reciente al final).
+    # Cuando hay varias versiones del mismo tipo_doc, el expediente las acumula — el orden temporal
+    # le da a la IA una señal clara de cuál es la vigente sin tener que adivinar por el contenido.
+    docs_grupo.sort(key=lambda d: d.get("fecha_subida", ""))
+
+    # Anotar la etiqueta de versión en cada documento cuando hay más de uno del mismo tipo_doc,
+    # para que la IA sepa explícitamente cuál es versión anterior y cuál es la vigente.
+    from collections import Counter as _Counter
+    _tipo_total = _Counter(d.get("tipo_doc", "") for d in docs_grupo)
+    _tipo_visto: dict = {}
+    docs_grupo_etiq = []
+    for d in docs_grupo:
+        tipo = d.get("tipo_doc", "")
+        total = _tipo_total[tipo]
+        if total > 1:
+            _tipo_visto[tipo] = _tipo_visto.get(tipo, 0) + 1
+            n = _tipo_visto[tipo]
+            sufijo = " [versión más reciente]" if n == total else f" [versión anterior {n} de {total}]"
+            d = {**d, "nombre_original": (d.get("nombre_original") or "") + sufijo}
+        docs_grupo_etiq.append(d)
+    docs_grupo = docs_grupo_etiq
+
     # Separar texto vs imagen — MISMO criterio que `_analizar_grupo`: un documento va a imagen si
     # es un PDF escaneado o tiene muy poco texto extraíble, o si su tipo está SIEMPRE en visión
     # (TIPOS_SIEMPRE_VISION: planos + pruebas de bombeo), aunque tenga texto — ese texto se suma
@@ -4529,9 +4551,7 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
 
     prompt = f"""{bloque_resumen}
 Estás revisando la RESPUESTA del consultor a una observación de un proyecto CNR (Ley 18.450).
-Determina si la respuesta, CONSIDERANDO LOS ANTECEDENTES ACTUALES del expediente (que ya
-incluyen cualquier documento nuevo o corregido que el consultor haya presentado), RESUELVE la
-observación.
+Determina si la respuesta RESUELVE la observación, evaluando los antecedentes del expediente.
 
 OBSERVACIÓN ORIGINAL (ítem: {nombre_item}):
 {observacion_texto}
@@ -4548,6 +4568,11 @@ CRITERIOS:
   el punto, de forma verificable en los antecedentes.
 - "no_resuelta": no resuelve, resuelve solo parcialmente, o no aporta evidencia suficiente. Si
   resuelve a medias, es "no_resuelta" y explica qué falta.
+- VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
+  para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
+  mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
+  vigente. NO concluyas "no_resuelta" solo porque el documento original con el problema observado
+  siga presente en el expediente; evalúa únicamente si la versión más reciente subsana el punto.
 Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), pero exige respaldo
 REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
 refleja en los antecedentes.
