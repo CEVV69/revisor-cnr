@@ -1,3 +1,45 @@
+## Sesión sep-2026 — Chequeo de Cálculos: extracción usa solo la presentación vigente
+
+Pedido del usuario: los ítems núcleo (Diseño Agronómico/Hidráulico, Fotovoltaico) pueden cambiar
+casi por completo tras una ronda de subsanación — el consultor corrige parámetros que derivan en
+un diseño distinto. Preguntó si era posible un botón para re-extraer del documento de RESPUESTA
+específicamente, y re-chequear los cálculos con rigurosidad, sin confundir al revisor sobre qué
+datos está viendo (originales vs. corregidos).
+
+**Hallazgo al investigar:** las tres funciones de extracción numérica del Chequeo de Cálculos
+(`_extraer_datos_hidraulicos`, `_extraer_datos_agronomicos`, `_extraer_datos_fv`) usaban
+`_documentos_para_verificacion()`, que junta TODOS los documentos de cada tipo sin fecha ni
+orden — el mismo problema de versiones múltiples ya corregido en la evaluación de respuestas,
+pero sin arreglar acá. Si el consultor sube una Memoria corregida, el original (nunca se borra,
+queda de historial) se mezclaba con el corregido en el mismo contexto de extracción.
+
+**Decisión de diseño — sin botón ni estado nuevo:** en vez de un botón "Extraer de respuesta"
+separado (requiere clasificar qué documento es "de respuesta" — frágil, ya que el mismo archivo
+puede subirse por la pestaña Respuestas o directamente en Documentos) y guardar dos copias del
+cálculo (original vs. respuesta, más UI para compararlas), se optó por corregir el botón
+existente "Extraer de los documentos" para que SIEMPRE use la presentación vigente:
+
+- **`_solo_version_vigente()`** (analyzer.py): filtra dejando, por `tipo_doc`, solo los
+  documentos de la presentación más reciente (agrupa por día calendario, igual que
+  `_etiquetar_versiones_docs` de la sesión anterior). A diferencia de la evaluación de
+  respuestas, acá se FILTRA en vez de etiquetar: es extracción numérica pura, no hay ganancia en
+  que la IA "vea y descarte" el dato viejo — es más seguro no dárselo, evita que mezcle cifras de
+  dos presentaciones distintas de un mismo campo.
+- Las tres rutas `/calculos/{hidraulico,agronomico,energetico}/extraer` (main.py) aplican el
+  filtro antes de extraer, y guardan `fuente_docs` (nombre + fecha de cada documento usado) junto
+  a los datos extraídos. `_normalizar_verif_multisistema()` se extendió para no descartar esa
+  clave (antes solo dejaba pasar sistemas/validado/fecha_validado/validado_por).
+- `fuente_docs` se resetea a None si el revisor guarda manualmente (`/guardar`) — una vez
+  editado/validado a mano, ya no corresponde seguir mostrando "extraído de X".
+- `calculos.html`: nota "Datos extraídos de: {nombre} ({fecha})" bajo cada botón "Extraer de los
+  documentos" — resuelve la necesidad de "no confundir al revisor" sin una vista/estado paralelo.
+
+**Efecto práctico:** el mismo botón de siempre, al re-hacer clic tras una corrección del
+consultor, ahora trae los datos del documento corregido (antes podía mezclar ambos sin avisar) y
+resetea "validado" — obliga a revalidar con los datos nuevos.
+
+---
+
 ## Sesión sep-2026 — Fix: versiones se etiquetaban por documento, no por presentación
 
 El usuario reportó ver "documento 2 de 5" en una sugerencia de la IA cuando en realidad solo
