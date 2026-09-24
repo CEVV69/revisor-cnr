@@ -1235,6 +1235,50 @@ del _sin_item
 MAX_TOKENS_EXTRACCION = 1500
 
 
+def _etiquetar_versiones_docs(docs_grupo: list) -> list:
+    """Ordena `docs_grupo` por `fecha_subida` (ascendente) y, dentro de cada `tipo_doc`, etiqueta
+    en `nombre_original` a qué PRESENTACIÓN pertenece cada documento cuando hay más de una.
+
+    Agrupa por DÍA CALENDARIO de subida, no por documento individual: dos documentos del mismo
+    tipo subidos el mismo día (ej. "Memoria" + "Anexo de curvas" de una misma entrega, con
+    segundos de diferencia) son COMPLEMENTARIOS — ninguno reemplaza al otro, así que no se
+    etiquetan entre sí. Solo cuando hay días distintos de por medio se etiqueta la presentación
+    más antigua como "versión anterior" y la del día más reciente como "versión más reciente" —
+    en este flujo, entre una presentación y una corrección median días o semanas (todo el ciclo
+    de revisar → observar → que el consultor corrija → responder), así que un salto de día
+    calendario separa ambos casos con margen suficiente.
+
+    Bug real corregido sep-2026: la versión anterior etiquetaba por documento individual, así que
+    3 archivos subidos el mismo día (mismo tipo_doc, ej. uno por cada adjunto a distintas
+    observaciones) se leían como "presentación 1 de 3", "2 de 3", "3 de 3" — el usuario reportó
+    ver "documento 2 de 5" cuando en realidad eran solo 2 presentaciones reales (la inicial y la
+    de respuesta), cada una con varios archivos."""
+    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida", ""))
+    dias_por_tipo: dict = {}
+    for d in docs_ordenados:
+        tipo = d.get("tipo_doc", "")
+        dia = (d.get("fecha_subida") or "")[:10]
+        dias = dias_por_tipo.setdefault(tipo, [])
+        if not dias or dias[-1] != dia:
+            dias.append(dia)
+
+    resultado = []
+    for d in docs_ordenados:
+        tipo = d.get("tipo_doc", "")
+        dias = dias_por_tipo.get(tipo, [])
+        total_dias = len(dias)
+        if total_dias > 1:
+            dia_doc = (d.get("fecha_subida") or "")[:10]
+            n_dia = dias.index(dia_doc) + 1
+            if n_dia == total_dias:
+                sufijo = " [versión más reciente]"
+            else:
+                sufijo = f" [presentación {n_dia} de {total_dias} — versión anterior]"
+            d = {**d, "nombre_original": (d.get("nombre_original") or "") + sufijo}
+        resultado.append(d)
+    return resultado
+
+
 def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 60000) -> str:
     """Texto combinado del grupo para una extracción numérica (Haiku). El presupuesto se
     reparte de forma ADAPTATIVA entre los documentos (`_repartir_presupuesto`, water-filling) —
@@ -4428,27 +4472,10 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
         docs_grupo = docs_grupo + [d for d in documentos
                                    if d.get("id") in ids_extra and d.get("id") not in ya]
 
-    # Ordenar por fecha de subida (ascendente: más antiguo primero, más reciente al final).
-    # Cuando hay varias versiones del mismo tipo_doc, el expediente las acumula — el orden temporal
-    # le da a la IA una señal clara de cuál es la vigente sin tener que adivinar por el contenido.
-    docs_grupo.sort(key=lambda d: d.get("fecha_subida", ""))
-
-    # Anotar la etiqueta de versión en cada documento cuando hay más de uno del mismo tipo_doc,
-    # para que la IA sepa explícitamente cuál es versión anterior y cuál es la vigente.
-    from collections import Counter as _Counter
-    _tipo_total = _Counter(d.get("tipo_doc", "") for d in docs_grupo)
-    _tipo_visto: dict = {}
-    docs_grupo_etiq = []
-    for d in docs_grupo:
-        tipo = d.get("tipo_doc", "")
-        total = _tipo_total[tipo]
-        if total > 1:
-            _tipo_visto[tipo] = _tipo_visto.get(tipo, 0) + 1
-            n = _tipo_visto[tipo]
-            sufijo = " [versión más reciente]" if n == total else f" [versión anterior {n} de {total}]"
-            d = {**d, "nombre_original": (d.get("nombre_original") or "") + sufijo}
-        docs_grupo_etiq.append(d)
-    docs_grupo = docs_grupo_etiq
+    # Ordena por fecha de subida y etiqueta versión anterior/reciente agrupando por día calendario
+    # (dos documentos del mismo tipo subidos el mismo día son complementarios, no versiones
+    # sucesivas) — ver `_etiquetar_versiones_docs`.
+    docs_grupo = _etiquetar_versiones_docs(docs_grupo)
 
     # Separar texto vs imagen — MISMO criterio que `_analizar_grupo`: un documento va a imagen si
     # es un PDF escaneado o tiene muy poco texto extraíble, o si su tipo está SIEMPRE en visión
@@ -4578,10 +4605,14 @@ CRITERIOS:
   y explica el error encontrado: el objetivo es que el diseño final quede técnicamente correcto,
   no solo que el documento haya cambiado.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
-  para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
-  mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
-  vigente. NO concluyas "no_resuelta" solo porque el documento original con el problema observado
-  siga presente en el expediente; evalúa únicamente si la versión más reciente subsana el punto.
+  para mantener el historial y permitir comparar cambios. Los documentos del mismo tipo llevan
+  una etiqueta entre corchetes que indica su presentación: "[versión más reciente]" es la
+  vigente; "[presentación N de M — versión anterior]" quedó reemplazada por una presentación
+  posterior. Documentos del mismo tipo SIN esa etiqueta, o etiquetados con el mismo número de
+  presentación, fueron subidos el mismo día y son COMPLEMENTARIOS entre sí (ej. una Memoria y su
+  Anexo de la misma entrega) — ninguno reemplaza al otro, úsalos en conjunto. NO concluyas
+  "no_resuelta" solo porque una presentación anterior con el problema observado siga presente en
+  el expediente; evalúa únicamente si la presentación más reciente subsana el punto.
 Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), pero exige respaldo
 REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
 refleja en los antecedentes.
@@ -4692,21 +4723,7 @@ async def evaluar_respuestas_item(observaciones: list, item_key: str, documentos
                                    if d.get("id") in ids_extra and d.get("id") not in ya]
 
     # Mismo criterio de orden y etiquetado de versiones que evaluar_respuesta_subsanacion.
-    docs_grupo.sort(key=lambda d: d.get("fecha_subida", ""))
-    from collections import Counter as _Counter
-    _tipo_total = _Counter(d.get("tipo_doc", "") for d in docs_grupo)
-    _tipo_visto: dict = {}
-    docs_grupo_etiq = []
-    for d in docs_grupo:
-        tipo = d.get("tipo_doc", "")
-        total = _tipo_total[tipo]
-        if total > 1:
-            _tipo_visto[tipo] = _tipo_visto.get(tipo, 0) + 1
-            n = _tipo_visto[tipo]
-            sufijo = " [versión más reciente]" if n == total else f" [versión anterior {n} de {total}]"
-            d = {**d, "nombre_original": (d.get("nombre_original") or "") + sufijo}
-        docs_grupo_etiq.append(d)
-    docs_grupo = docs_grupo_etiq
+    docs_grupo = _etiquetar_versiones_docs(docs_grupo)
 
     # Mismo criterio de separación texto/imagen que evaluar_respuesta_subsanacion.
     import os as _os
@@ -4814,10 +4831,14 @@ CRITERIOS (aplican a cada observación por separado, pero razonando sobre el con
   observación original —, es "no_resuelta" y explica el error encontrado: el objetivo es que el
   diseño final quede técnicamente correcto, no solo que el documento haya cambiado.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
-  para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
-  mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
-  vigente. NO concluyas "no_resuelta" solo porque el documento original con el problema observado
-  siga presente en el expediente; evalúa únicamente si la versión más reciente subsana el punto.
+  para mantener el historial y permitir comparar cambios. Los documentos del mismo tipo llevan
+  una etiqueta entre corchetes que indica su presentación: "[versión más reciente]" es la
+  vigente; "[presentación N de M — versión anterior]" quedó reemplazada por una presentación
+  posterior. Documentos del mismo tipo SIN esa etiqueta, o etiquetados con el mismo número de
+  presentación, fueron subidos el mismo día y son COMPLEMENTARIOS entre sí (ej. una Memoria y su
+  Anexo de la misma entrega) — ninguno reemplaza al otro, úsalos en conjunto. NO concluyas
+  "no_resuelta" solo porque una presentación anterior con el problema observado siga presente en
+  el expediente; evalúa únicamente si la presentación más reciente subsana el punto.
 Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), pero exige respaldo
 REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
 refleja en los antecedentes.
