@@ -1,3 +1,28 @@
+## Sesión sep-2026 — Fix: guardar una observación borraba las sugerencias de las demás
+
+Perdida de datos real reportada por el usuario: evaluó las 8 observaciones de Diseño Hidráulico
+con "Evaluar ítem con IA", luego hizo clic en "Marcar como resuelta" en la primera — y las
+sugerencias de las otras 7 desaparecieron al recargarse la página.
+
+**Causa:** el formulario de "Marcar como resuelta"/"Reiterar" es un POST normal (no AJAX) que
+termina en `RedirectResponse` → recarga completa de la página. Los textarea de "respuesta" de
+las observaciones AÚN NO guardadas vuelven a renderizarse vacíos (nunca se persisten en el
+servidor hasta que el revisor decide esa observación puntual). `restaurarIA()` sí tenía guardada
+la evaluación en `sessionStorage` (sobrevive la recarga, misma pestaña), pero la descartaba
+porque comparaba `textarea.value` (ahora vacío) contra el texto que se evaluó — nunca calzaban,
+así que borraba la entrada en silencio sin avisar. Este problema YA EXISTÍA en el flujo
+individual (evaluar de a una sin guardar), pero pasaba inadvertido porque ese flujo no invita a
+acumular varios borradores sin guardar; el botón nuevo "Evaluar ítem con IA" sí lo hace por
+diseño, así que lo volvió doloroso y visible.
+
+**Fix — 100% client-side, sin tocar backend ni modelo de datos:** en `restaurarIA()`
+(`respuestas.html`), si el textarea está vacío al comparar, se restaura primero el texto de la
+respuesta guardado en `sessionStorage` y LUEGO se compara/restaura la sugerencia — completa la
+intención original de la función (ya decía en su comentario que debía sobrevivir recargas) sin
+tocar `evaluar_respuesta_subsanacion`, `evaluar_respuestas_item` ni ninguna ruta.
+
+---
+
 ## Sesión sep-2026 — Fixes tras primera prueba de la evaluación conjunta
 
 Dos ajustes reportados por el usuario en su primera prueba del botón "Evaluar ítem con IA":
