@@ -4568,6 +4568,15 @@ CRITERIOS:
   el punto, de forma verificable en los antecedentes.
 - "no_resuelta": no resuelve, resuelve solo parcialmente, o no aporta evidencia suficiente. Si
   resuelve a medias, es "no_resuelta" y explica qué falta.
+- VERIFICACIÓN TÉCNICA REAL, NO SOLO PRESENCIA: no des por resuelta una observación solo porque
+  el documento reemplazado "toque" el punto o incluya un valor nuevo. Verifica en los
+  antecedentes que ese valor/fórmula/resultado sea correcto y consistente con el resto del
+  diseño (unidades, relaciones entre variables — ej. si cambió un caudal, que el resto de los
+  cálculos que dependen de él se hayan actualizado en consecuencia; que las fórmulas usadas sean
+  las correctas para el método declarado). Si detectas una inconsistencia NUEVA en la versión
+  corregida — aunque no sea exactamente lo que pedía la observación original —, es "no_resuelta"
+  y explica el error encontrado: el objetivo es que el diseño final quede técnicamente correcto,
+  no solo que el documento haya cambiado.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
   para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
   mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
@@ -4793,6 +4802,17 @@ CRITERIOS (aplican a cada observación por separado, pero razonando sobre el con
   el punto, de forma verificable en los antecedentes.
 - "no_resuelta": no resuelve, resuelve solo parcialmente, o no aporta evidencia suficiente. Si
   resuelve a medias, es "no_resuelta" y explica qué falta.
+- VERIFICACIÓN TÉCNICA REAL, NO SOLO PRESENCIA: no des por resuelta una observación solo porque
+  el documento reemplazado "toque" el punto o incluya un valor nuevo. Verifica en los
+  antecedentes que ese valor/fórmula/resultado sea correcto y consistente con el resto del
+  diseño (unidades, relaciones entre variables — ej. si cambió un caudal, que el resto de los
+  cálculos que dependen de él se hayan actualizado en consecuencia; que las fórmulas usadas sean
+  las correctas para el método declarado). Como estás viendo VARIAS observaciones del mismo
+  ítem a la vez, esto es especialmente relevante: un cambio que resuelve una observación puede
+  dejar otra parte del diseño inconsistente — revísalo explícitamente. Si detectas una
+  inconsistencia NUEVA en la versión corregida — aunque no sea exactamente lo que pedía la
+  observación original —, es "no_resuelta" y explica el error encontrado: el objetivo es que el
+  diseño final quede técnicamente correcto, no solo que el documento haya cambiado.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
   para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
   mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
