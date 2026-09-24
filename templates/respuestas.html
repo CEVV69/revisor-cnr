@@ -128,7 +128,16 @@
     <span class="grupo-chevron"></span>
     {{ grupo.nombre }}
     <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.reobs %}<span class="sub-badge sub-reobservada">{{ cnt.reobs }} re-observada{{ 's' if cnt.reobs > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
+    {% if grupo.key in items_evaluacion_conjunta %}
+    <button type="button" class="btn btn-outline btn-sm" id="eval-grupo-btn-{{ loop.index }}"
+            onclick="event.stopPropagation(); evaluarGrupoIA('{{ grupo.key }}', {{ loop.index }})"
+            style="border-color:#2b6cb0; color:#2b6cb0; flex-shrink:0;"
+            title="Evalúa con IA todas las observaciones de este ítem en una sola pasada, considerando el diseño como un conjunto (las observaciones de este ítem no son independientes entre sí).">
+      Evaluar ítem con IA
+    </button>
+    {% endif %}
   </h2>
+  <div class="ia-box" id="eval-grupo-msg-{{ loop.index }}" style="margin:0 0 0.6rem;"></div>
   <div class="grupo-body" hidden>
   {% for par in grupo.obs %}
   {% set obs = par.obs %}
@@ -439,6 +448,70 @@ async function evaluarIA(obsId) {
   } catch (e) {
     box.className = 'ia-box ia-neutral';
     box.textContent = 'Error al evaluar: ' + e;
+  }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+// Evalúa TODAS las observaciones de un ítem "núcleo" (Diseño Hidráulico, Diseño Fotovoltaico) en
+// una sola llamada — esos ítems no son independientes entre sí (ver botón "Evaluar ítem con IA"
+// en su encabezado). Reutiliza las MISMAS funciones que la evaluación individual
+// (mostrarResultadoIA/guardarIA) para que el resto del flujo (guardar, deshacer, etc.) no cambie
+// en nada — la única diferencia es que UNA llamada llena varias observaciones a la vez.
+async function evaluarGrupoIA(itemKey, grupoIndex) {
+  var card = document.getElementById('grupo-' + grupoIndex);
+  var msg = document.getElementById('eval-grupo-msg-' + grupoIndex);
+  var btn = document.getElementById('eval-grupo-btn-' + grupoIndex);
+  var datos = {};
+  var faltantes = 0;
+  card.querySelectorAll('.form-resp').forEach(function(form) {
+    var textarea = form.querySelector('textarea[name=respuesta]');
+    if (!textarea) return;
+    var obsId = form.id.replace('form-resp-', '');
+    var resp = textarea.value.trim();
+    if (resp) { datos[obsId] = resp; } else { faltantes++; }
+  });
+  if (!Object.keys(datos).length) {
+    msg.className = 'ia-box ia-neutral';
+    msg.textContent = 'Transcribe primero la respuesta del consultor en al menos una observación de este ítem.';
+    msg.style.display = 'block';
+    return;
+  }
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Evaluando…';
+  msg.className = 'ia-box ia-neutral';
+  msg.textContent = 'La IA está evaluando ' + Object.keys(datos).length + ' observación(es) de este ítem en conjunto…'
+    + (faltantes ? ' (' + faltantes + ' sin respuesta transcrita, se omiten)' : '');
+  msg.style.display = 'block';
+  try {
+    var fd = new FormData();
+    fd.append('datos', JSON.stringify(datos));
+    var r = await fetch('/proyecto/{{ proyecto.id }}/item/' + itemKey + '/evaluar-respuestas-item',
+      { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
+    var data = await r.json();
+    if (!data.ok) {
+      msg.className = 'ia-box ia-neutral';
+      msg.textContent = 'No se pudo evaluar: ' + (data.error || 'error desconocido');
+      msg.style.display = 'block';
+    } else {
+      msg.style.display = 'none';
+      Object.keys(data.resultados).forEach(function(obsId) {
+        var res = data.resultados[obsId];
+        var rec = res.recomendacion || '';
+        var fund = res.fundamento || '';
+        var recEl = document.getElementById('ia-rec-' + obsId);
+        var fundEl = document.getElementById('ia-fund-' + obsId);
+        if (!recEl || !fundEl) return;
+        recEl.value = rec;
+        fundEl.value = fund;
+        mostrarResultadoIA(obsId, rec, fund);
+        guardarIA(obsId, datos[obsId] || '', rec, fund);
+      });
+      actualizarCostoApi(data.costo_api);
+    }
+  } catch (e) {
+    msg.className = 'ia-box ia-neutral';
+    msg.textContent = 'Error al evaluar: ' + e;
+    msg.style.display = 'block';
   }
   btn.disabled = false; btn.textContent = orig;
 }

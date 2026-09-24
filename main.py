@@ -32,7 +32,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
-                      sintetizar_evaluacion_item)
+                      sintetizar_evaluacion_item, evaluar_respuestas_item,
+                      ITEMS_EVALUACION_CONJUNTA)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -3716,6 +3717,8 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         "n_reobservadas": n_reobservadas, "max_rondas": max_rondas,
         # Selector de estado del encabezado — mismo formato que usa proyecto.html.
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
+        # Ítems con botón de "evaluar en conjunto" (sep-2026) — el resto del panel no lo muestra.
+        "items_evaluacion_conjunta": ITEMS_EVALUACION_CONJUNTA,
     })
 
 
@@ -3873,6 +3876,100 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
     except Exception as e:
         import traceback
         print(f"❌ ERROR en evaluar-respuesta {obs_id}: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
+
+
+@app.post("/proyecto/{proyecto_id}/item/{item_key}/evaluar-respuestas-item")
+async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_key: str):
+    """AJAX: evalúa TODAS las observaciones aprobadas de un mismo ítem en una sola llamada a la
+    IA, en vez de una por una — solo para ítems donde las observaciones no son independientes
+    entre sí (`ITEMS_EVALUACION_CONJUNTA`: Diseño Hidráulico y Diseño Fotovoltaico). Ruta NUEVA e
+    independiente de `/observacion/{obs_id}/evaluar-respuesta`, que sigue intacta para el resto
+    de los ítems del panel.
+
+    El cliente manda, en el campo `datos` (JSON), un mapa {obs_id: respuesta} con las respuestas
+    (aún sin guardar) que el revisor ya transcribió para ese ítem — mismo patrón que la
+    evaluación individual, que tampoco guarda nada hasta que el revisor decide 'Marcar como
+    resuelta'/'Reiterar'."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
+    if item_key not in ITEMS_EVALUACION_CONJUNTA:
+        return JSONResponse({"ok": False, "error": "ítem no habilitado para evaluación conjunta"},
+                            status_code=400)
+    try:
+        proyecto = db.get_proyecto(proyecto_id)
+        if not proyecto:
+            return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
+        form = await request.form()
+        try:
+            respuestas_por_obs = json.loads(form.get("datos") or "{}")
+        except json.JSONDecodeError:
+            return JSONResponse({"ok": False, "error": "datos inválidos"}, status_code=400)
+        if not respuestas_por_obs:
+            return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
+
+        concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+        concurso = db.get_concurso(concurso_id)
+        bases_texto = concurso.get("bases_texto", "") if concurso else ""
+
+        await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
+                                proyecto.get("documentos", []))
+        documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+
+        # Arma la lista de observaciones a evaluar — mismo criterio de "Contra Observación" que
+        # la ruta individual (si ya hubo una ronda reiterada, ese comentario del revisor se suma
+        # al texto de la observación para que la IA evalúe la ronda nueva contra el foco real).
+        observaciones_lote = []
+        for obs_id, respuesta in respuestas_por_obs.items():
+            obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
+            if not obs or obs.get("item") != item_key:
+                continue
+            respuesta = (respuesta or "").strip()
+            if not respuesta:
+                continue
+            observacion_texto = obs.get("texto", "")
+            rondas_previas = (obs.get("subsanacion") or {}).get("rondas", [])
+            if rondas_previas:
+                ultima_ronda = rondas_previas[-1]
+                contra_obs = (ultima_ronda.get("comentario") or "").strip()
+                if ultima_ronda.get("evaluacion") == "reiterada" and contra_obs:
+                    observacion_texto += (f"\n\nContra Observación del revisor (ronda "
+                                          f"{ultima_ronda.get('ronda')}, tras la respuesta "
+                                          f"anterior): {contra_obs}")
+            pendientes_obs = (obs.get("subsanacion") or {}).get("adjuntos_pendientes", [])
+            observaciones_lote.append({
+                "obs_id": obs_id, "texto": observacion_texto,
+                "referencia": obs.get("referencia_normativa", ""),
+                "respuesta_consultor": respuesta,
+                "doc_ids_extra": [a.get("id") for a in pendientes_obs],
+            })
+        if not observaciones_lote:
+            return JSONResponse({"ok": False, "error": "sin observaciones válidas para evaluar"},
+                                status_code=400)
+
+        acc_costo = iniciar_costo()
+        resultados = await evaluar_respuestas_item(
+            observaciones=observaciones_lote, item_key=item_key,
+            documentos=documentos_con_texto, resumen=proyecto.get("resumen", {}),
+            bases_texto=bases_texto, concurso_id=concurso_id,
+            ruta_uploads=str(UPLOAD_DIR / proyecto_id),
+        )
+
+        proyecto_fresco = db.get_proyecto(proyecto_id)
+        costo_api = None
+        if proyecto_fresco:
+            _registrar_costo(proyecto_fresco, "subsanacion", acc_costo)
+            db.save_proyecto(proyecto_fresco)
+            costo_api = _costo_para_vista(proyecto_fresco)
+            if costo_api:
+                costo_api["actualizado"] = _fmt_fecha(costo_api["actualizado"], con_hora=True)
+
+        return JSONResponse({"ok": True, "resultados": resultados, "costo_api": costo_api})
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en evaluar-respuestas-item {item_key}: {type(e).__name__}: {e}")
         print(traceback.format_exc())
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
 

@@ -4622,3 +4622,240 @@ Responde SOLO este JSON, sin texto adicional:
         print(f"⚠️ evaluar_respuesta_subsanacion: respuesta vacía — stop_reason={response.stop_reason}")
         fund = "La IA no devolvió una evaluación clara. Revísalo manualmente."
     return {"recomendacion": rec, "fundamento": fund}
+
+
+# Ítems donde las observaciones del mismo ítem casi nunca son independientes entre sí — son
+# facetas de UN mismo rediseño (ej. un caudal recalculado cambia CDT, potencia de bomba y
+# diámetro a la vez), así que evaluarlas una por una con `evaluar_respuesta_subsanacion` puede
+# dar veredictos inconsistentes sobre el mismo cambio de fondo. `evaluar_respuestas_item` las
+# evalúa todas juntas, en una sola llamada, contra los mismos antecedentes. Sep-2026, pedido del
+# usuario. Función NUEVA e independiente — no toca `evaluar_respuesta_subsanacion`, que sigue
+# siendo el camino normal para el resto de los ítems.
+ITEMS_EVALUACION_CONJUNTA = {"diseno_hidraulico", "diseno_fotovoltaico"}
+
+# Cuota de imágenes para `evaluar_respuestas_item` — más alta que MAX_IMG_SUBSANACION porque acá
+# UNA sola llamada cubre varias observaciones del ítem a la vez (antes eran N llamadas, cada una
+# con su propia cuota de 6); no hace falta N×6, pero sí algo más que 6 para no quedar más corta
+# que la suma de lo que veían las llamadas individuales que reemplaza.
+MAX_IMG_EVAL_ITEM = 10
+
+
+async def evaluar_respuestas_item(observaciones: list, item_key: str, documentos: list,
+                                  resumen: dict = None, bases_texto: str = "",
+                                  concurso_id: str = "", ruta_uploads: str = None) -> dict:
+    """Evalúa TODAS las observaciones de un mismo ítem en una sola llamada a la IA, contra los
+    mismos antecedentes — pensada para ítems donde las observaciones no son independientes
+    (`ITEMS_EVALUACION_CONJUNTA`: hoy Diseño Hidráulico y Diseño Fotovoltaico). Reutiliza el
+    mismo criterio de selección/orden/versión de documentos e imágenes que
+    `evaluar_respuesta_subsanacion`, pero UNA vez para todas las observaciones en vez de una vez
+    por observación.
+
+    `observaciones`: lista de {"obs_id", "texto", "referencia", "respuesta_consultor",
+    "doc_ids_extra"}. Las que no traigan `respuesta_consultor` con contenido se excluyen antes de
+    llamar a la IA (mismo criterio que la versión individual: sin respuesta no hay nada que
+    evaluar).
+
+    Devuelve {obs_id: {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}} — una
+    entrada por cada observación recibida (incluidas las excluidas, con fundamento explicando
+    por qué no se evaluó), para que el llamador pueda mapear 1:1 sin lógica adicional."""
+    pendientes = [o for o in observaciones if (o.get("respuesta_consultor") or "").strip()]
+    resultado = {o.get("obs_id"): {"recomendacion": "", "fundamento":
+                 "No hay respuesta del consultor para evaluar."} for o in observaciones}
+    if not pendientes:
+        return resultado
+
+    client = _get_client()
+
+    item = ITEMS_SEP.get(item_key)
+    if item and item_key != "coherencia" and item.get("tipo_docs"):
+        tipos = set(item["tipo_docs"])
+        docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    else:
+        docs_grupo = list(documentos)
+    # Adjuntos de CUALQUIERA de las respuestas del lote — es el mismo ítem/rediseño, así que
+    # todos los respaldos entran al mismo contexto compartido.
+    ids_extra = set()
+    for o in pendientes:
+        ids_extra.update(o.get("doc_ids_extra") or [])
+    if ids_extra:
+        ya = {d.get("id") for d in docs_grupo}
+        docs_grupo = docs_grupo + [d for d in documentos
+                                   if d.get("id") in ids_extra and d.get("id") not in ya]
+
+    # Mismo criterio de orden y etiquetado de versiones que evaluar_respuesta_subsanacion.
+    docs_grupo.sort(key=lambda d: d.get("fecha_subida", ""))
+    from collections import Counter as _Counter
+    _tipo_total = _Counter(d.get("tipo_doc", "") for d in docs_grupo)
+    _tipo_visto: dict = {}
+    docs_grupo_etiq = []
+    for d in docs_grupo:
+        tipo = d.get("tipo_doc", "")
+        total = _tipo_total[tipo]
+        if total > 1:
+            _tipo_visto[tipo] = _tipo_visto.get(tipo, 0) + 1
+            n = _tipo_visto[tipo]
+            sufijo = " [versión más reciente]" if n == total else f" [versión anterior {n} de {total}]"
+            d = {**d, "nombre_original": (d.get("nombre_original") or "") + sufijo}
+        docs_grupo_etiq.append(d)
+    docs_grupo = docs_grupo_etiq
+
+    # Mismo criterio de separación texto/imagen que evaluar_respuesta_subsanacion.
+    import os as _os
+    docs_texto = []
+    docs_imagen = []
+    for d in docs_grupo:
+        t = d.get("texto_extraido", "").strip()
+        es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
+        es_siempre_vision = d.get("tipo_doc") in TIPOS_SIEMPRE_VISION
+        fp = _os.path.join(ruta_uploads, d.get("filename", "")) if ruta_uploads else ""
+        pdf_disponible = (fp and d.get("filename", "").lower().endswith(".pdf")
+                          and _os.path.exists(fp))
+        if pdf_disponible and (es_imagen or es_siempre_vision):
+            docs_imagen.append((d, fp))
+            if es_imagen:
+                continue
+        if t not in ("", "__PDF_ESCANEADO__"):
+            docs_texto.append(d)
+
+    max_chars_ctx = min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))
+    contexto_docs = _texto_grupo_para_extraccion(docs_texto, max_chars=max_chars_ctx)
+
+    imagenes_por_doc = []
+    if docs_imagen:
+        from extractor import render_pdf_as_images
+        cuota_por_doc = max(1, MAX_IMG_EVAL_ITEM // len(docs_imagen))
+        restante = MAX_IMG_EVAL_ITEM
+        for d, fp in docs_imagen:
+            if restante <= 0:
+                break
+            cuota_doc = min(cuota_por_doc, restante)
+            try:
+                pags = min(cuota_doc, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 3))
+                crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
+                imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
+            except Exception as e:
+                print(f"⚠️ evaluar_respuestas_item: error renderizando imagen de "
+                      f"'{d.get('nombre_original','')}': {e}")
+                imgs = []
+            if imgs:
+                label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
+                imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
+                restante -= len(imgs)
+
+    bloque_resumen = _construir_bloque_resumen(resumen)
+    system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
+    bloque_bases = _construir_bloque_bases(bases_texto, concurso_id)
+    if bloque_bases.strip():
+        system_con_cache.append({"type": "text", "text": bloque_bases,
+                                 "cache_control": {"type": "ephemeral", "ttl": "1h"}})
+
+    nombre_item = item["nombre"] if item else item_key
+    seccion_antecedentes = contexto_docs.strip() or (
+        "(Sin antecedentes con texto extraíble — se adjuntan documentos como imágenes más abajo.)"
+        if imagenes_por_doc else "(No hay antecedentes con texto extraíble para este ítem.)")
+
+    nota_imagenes = ""
+    if imagenes_por_doc:
+        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
+        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
+                         f"(planos, pruebas de bombeo o escaneados) — analízalos visualmente: "
+                         f"{nombres_img}. Lee SOLO lo efectivamente anotado/rotulado en la "
+                         f"imagen (diámetros, cotas, valores de tablas, forma de curvas o "
+                         f"gráficos); nunca midas a escala ni estimes a ojo.")
+
+    bloque_obs = []
+    for i, o in enumerate(pendientes, 1):
+        ref = f"\nReferencia citada: {o['referencia']}" if o.get("referencia") else ""
+        bloque_obs.append(
+            f"### Observación {i} (obs_id: {o['obs_id']})\n{o.get('texto', '')}{ref}\n"
+            f"Respuesta del consultor (transcrita por el revisor):\n"
+            f"{o['respuesta_consultor'].strip()}")
+    texto_obs = "\n\n".join(bloque_obs)
+
+    prompt = f"""{bloque_resumen}
+Estás revisando las RESPUESTAS del consultor a un GRUPO de observaciones del mismo ítem de un
+proyecto CNR (Ley 18.450). Las observaciones de este ítem NO son independientes entre sí: suelen
+ser facetas de un mismo rediseño (ej. un caudal recalculado cambia a la vez la CDT, la potencia
+de bomba y el diámetro de tubería). Evalúa cada una CONSIDERANDO el conjunto — un mismo documento
+o cambio puede resolver varias a la vez, o dejar una a medias mientras resuelve otra.
+
+ÍTEM: {nombre_item}
+
+OBSERVACIONES Y RESPUESTAS ({len(pendientes)}):
+{texto_obs}
+
+ANTECEDENTES ACTUALES DEL ÍTEM:
+{seccion_antecedentes}{nota_imagenes}
+
+CRITERIOS (aplican a cada observación por separado, pero razonando sobre el conjunto):
+- "resuelta": la respuesta aporta lo que faltaba, corrige lo observado o aclara satisfactoriamente
+  el punto, de forma verificable en los antecedentes.
+- "no_resuelta": no resuelve, resuelve solo parcialmente, o no aporta evidencia suficiente. Si
+  resuelve a medias, es "no_resuelta" y explica qué falta.
+- VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
+  para mantener el historial y permitir comparar cambios. Si aparecen dos o más documentos del
+  mismo tipo (p. ej. dos "Memoria de Cálculo"), el MÁS RECIENTEMENTE SUBIDO es la versión
+  vigente. NO concluyas "no_resuelta" solo porque el documento original con el problema observado
+  siga presente en el expediente; evalúa únicamente si la versión más reciente subsana el punto.
+Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), pero exige respaldo
+REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
+refleja en los antecedentes.
+
+Responde SOLO este JSON, sin texto adicional, con una entrada por cada observación (mismo orden,
+usa el obs_id tal cual aparece arriba):
+{{"evaluaciones": [{{"obs_id": "...", "recomendacion": "resuelta"|"no_resuelta", "fundamento": "2-4 líneas explicando por qué, citando la norma/base si aplica"}}]}}"""
+
+    content_blocks = [{"type": "text", "text": prompt}]
+    for label, nombre_img, imgs in imagenes_por_doc:
+        content_blocks.append({"type": "text",
+                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
+        for etiqueta, b64 in imgs:
+            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
+            content_blocks.append({"type": "image",
+                                   "source": {"type": "base64", "media_type": "image/jpeg",
+                                              "data": b64}})
+
+    hay_imagenes = any(b.get("type") == "image" for b in content_blocks)
+    modelo_analisis = MODELO_SONNET if hay_imagenes else MODELO_SONNET_TEXTO
+    # Tope de salida proporcional al N° de observaciones del lote (cada fundamento son 2-4
+    # líneas) — con una sola observación se comporta igual que la versión individual (2500).
+    max_tokens = min(8000, 2000 + 500 * len(pendientes))
+
+    def _stream_final():
+        with client.messages.stream(
+            model=modelo_analisis, max_tokens=max_tokens, system=system_con_cache,
+            messages=[{"role": "user", "content": content_blocks}],
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+        ) as stream:
+            return stream.get_final_message()
+
+    try:
+        response = await asyncio.to_thread(_stream_final)
+    except Exception as e:
+        print(f"⚠️ evaluar_respuestas_item: {e}")
+        for o in pendientes:
+            resultado[o["obs_id"]] = {"recomendacion": "",
+                                      "fundamento": f"No se pudo evaluar con IA: {e}"}
+        return resultado
+
+    _log_uso(f"9 · Respuestas del ítem (conjunto) · '{nombre_item}'", response, modelo_analisis)
+    content = _texto_respuesta(response)
+    data = _extraer_json_tolerante(content)
+    evaluaciones = data.get("evaluaciones", []) if isinstance(data, dict) else []
+    por_id = {str(e.get("obs_id", "")): e for e in evaluaciones if isinstance(e, dict)}
+    for o in pendientes:
+        e = por_id.get(str(o["obs_id"]))
+        if not e:
+            resultado[o["obs_id"]] = {"recomendacion": "",
+                                      "fundamento": "La IA no devolvió una evaluación clara para "
+                                                    "esta observación. Revísala manualmente."}
+            continue
+        rec = e.get("recomendacion", "")
+        if rec not in ("resuelta", "no_resuelta"):
+            rec = ""
+        fund = (e.get("fundamento", "") or "").strip()
+        if not rec and not fund:
+            fund = "La IA no devolvió una evaluación clara. Revísalo manualmente."
+        resultado[o["obs_id"]] = {"recomendacion": rec, "fundamento": fund}
+    return resultado
