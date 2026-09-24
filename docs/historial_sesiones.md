@@ -1,3 +1,35 @@
+## Sesión sep-2026 — Fix: versiones se etiquetaban por documento, no por presentación
+
+El usuario reportó ver "documento 2 de 5" en una sugerencia de la IA cuando en realidad solo
+había 2 presentaciones (inicial y respuesta a observaciones) — la confusión venía de que cada
+presentación traía varios archivos complementarios (ej. Memoria + Anexo de curvas), subidos el
+mismo día con segundos de diferencia, y `fecha_subida` tiene precisión de microsegundos: la
+lógica anterior contaba y ordenaba por DOCUMENTO individual, así que 3 archivos del mismo día
+quedaban etiquetados "1 de 5", "2 de 5", "3 de 5" como si cada uno reemplazara al anterior.
+
+**Fix — nueva función compartida `_etiquetar_versiones_docs()`:** agrupa por DÍA CALENDARIO de
+`fecha_subida` (no por documento) dentro de cada `tipo_doc`. Documentos del mismo tipo subidos
+el mismo día son COMPLEMENTARIOS (sin etiqueta entre sí); solo un salto de día calendario indica
+una presentación nueva. Se eligió "mismo día = complementario" porque en este flujo el ciclo
+completo entre una presentación y su corrección (revisar → observar → el consultor corrige →
+responde) media días o semanas — un salto de un día separa ambos casos con margen sin falsos
+positivos previsibles.
+
+Esta función REEMPLAZA el código de ordenar+etiquetar que estaba duplicado a propósito en
+`evaluar_respuesta_subsanacion` y `evaluar_respuestas_item` (duplicado la sesión anterior para no
+arriesgar tocar una función al arreglar la otra) — ahora que había que corregir un bug real en
+esa lógica, mantenerla en un solo lugar evita que quede desincronizada entre las dos otra vez.
+Actualizado también el criterio "VERSIONES MÚLTIPLES" del prompt en ambas funciones para explicar
+el nuevo formato de etiqueta ("[versión más reciente]" / "[presentación N de M — versión
+anterior]").
+
+**Pendiente:** aplicar el mismo criterio (agrupar por día, no por documento) cuando se diseñe la
+extracción de datos para el Chequeo de Cálculos que reflexionamos en esta sesión (ver más abajo
+la conversación sobre "Extraer de documentos respuesta") — la función ya queda lista para
+reutilizarse ahí.
+
+---
+
 ## Sesión sep-2026 — Fix: guardar una observación borraba las sugerencias de las demás
 
 Perdida de datos real reportada por el usuario: evaluó las 8 observaciones de Diseño Hidráulico
