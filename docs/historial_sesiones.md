@@ -1,3 +1,22 @@
+## Sesión sep-2026 — Fix: nota de procedencia se perdía al Guardar
+
+El usuario probó el fix anterior y reportó que el mensaje "Datos extraídos de: ..." desaparecía
+al hacer clic en "Guardar" (incluso solo para marcar "validado", sin cambiar ningún valor).
+Causa: las tres rutas `/calculos/{hidraulico,agronomico,energetico}/guardar` reconstruyen el
+dict de `verificacion_calculos[...]` desde cero con los campos del formulario, y "fuente_docs"
+nunca viaja en ese formulario — se perdía sin querer, no a propósito (el diseño original SÍ
+pretendía resetearlo solo cuando ya no correspondía, pero en la práctica se perdía siempre).
+
+**Fix:** las tres rutas de guardar ahora leen el `fuente_docs` que ya estaba guardado y lo
+preservan en el nuevo dict. Además, a pedido del usuario: el mensaje se simplifica a "Datos del
+dd/mm/aaaa" (la fecha más reciente entre los documentos usados, vía el nuevo filtro Jinja
+`fecha` — ya existía, solo no se usaba acá) y se mueve a la MISMA fila que el botón "Extraer de
+los documentos" (antes quedaba en una línea aparte debajo). El detalle de qué archivos
+específicos se usaron queda en el `title` (tooltip), sin agregar texto visible de más —
+consistente con la instrucción de minimalismo UI del usuario.
+
+---
+
 ## Sesión sep-2026 — Chequeo de Cálculos: extracción usa solo la presentación vigente
 
 Pedido del usuario: los ítems núcleo (Diseño Agronómico/Hidráulico, Fotovoltaico) pueden cambiar
