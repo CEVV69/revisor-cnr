@@ -396,7 +396,8 @@ function bindGenericInputs(){
     inp.oninput = e=>{
       RAW[key] = e.target.value;
       setPath(S, key, parseDecimalFlex(e.target.value));
-      renderLight();
+      // No se reconstruye el DOM mientras se escribe (evita perder el cursor / desordenar dígitos).
+      // Los campos dependientes se recalculan al salir del campo (onblur).
     };
     inp.onblur = ()=>{ delete RAW[key]; render(); };
   });
