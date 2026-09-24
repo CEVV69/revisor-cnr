@@ -1279,6 +1279,24 @@ def _etiquetar_versiones_docs(docs_grupo: list) -> list:
     return resultado
 
 
+def _solo_version_vigente(docs_grupo: list) -> list:
+    """Filtra `docs_grupo` dejando, por cada `tipo_doc`, SOLO los documentos de la presentación
+    más reciente — agrupando por día calendario de `fecha_subida`, mismo criterio que
+    `_etiquetar_versiones_docs`. Las presentaciones anteriores quedan afuera por completo.
+
+    Pensada para EXTRACCIÓN NUMÉRICA (Chequeo de Cálculos, sep-2026): a diferencia de la
+    evaluación de respuestas — donde el documento viejo sigue siendo antecedente útil para juzgar
+    si una observación quedó resuelta —, acá no aporta nada tener el dato antiguo en el contexto:
+    es más seguro no dárselo, así no hay riesgo de que la IA mezcle cifras de dos presentaciones
+    distintas de un mismo tipo de documento (ej. Db original vs. Db recalculado tras observar)."""
+    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida", ""))
+    ultimo_dia_por_tipo: dict = {}
+    for d in docs_ordenados:
+        ultimo_dia_por_tipo[d.get("tipo_doc", "")] = (d.get("fecha_subida") or "")[:10]
+    return [d for d in docs_ordenados
+            if (d.get("fecha_subida") or "")[:10] == ultimo_dia_por_tipo.get(d.get("tipo_doc", ""))]
+
+
 def _texto_grupo_para_extraccion(docs_grupo: list, max_chars: int = 60000) -> str:
     """Texto combinado del grupo para una extracción numérica (Haiku). El presupuesto se
     reparte de forma ADAPTATIVA entre los documentos (`_repartir_presupuesto`, water-filling) —

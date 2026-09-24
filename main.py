@@ -28,6 +28,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       CONCEPTOS_METODOLOGIA, CONCEPTOS_METODOLOGIA_FV,
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
+                      _solo_version_vigente,
                       MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
@@ -1718,15 +1719,28 @@ def _n_sistemas_proyecto(verif: dict) -> int:
     return legacy if legacy in (1, 2) else 1
 
 
+def _fuente_docs_para_vista(docs_grupo: list) -> list:
+    """Lista {nombre, fecha} de los documentos que alimentaron una extracción del Chequeo de
+    Cálculos — se guarda junto a los datos extraídos para que el revisor sepa de qué documento
+    salieron los números, sin tener que adivinar (sep-2026, ver `_solo_version_vigente`)."""
+    return [{"nombre": d.get("nombre_original", ""), "fecha": d.get("fecha_subida", "")}
+            for d in docs_grupo]
+
+
 def _normalizar_verif_multisistema(datos: dict, n_sistemas: int, campo_legacy: str = None) -> dict:
     """Normaliza un bloque de verificación (agronomico o hidraulico) a la forma
-    {"sistemas": [...], "validado", "fecha_validado", "validado_por"}, ajustado al N° de
-    sistemas GLOBAL del proyecto (`n_sistemas`, ver `_n_sistemas_proyecto`).
+    {"sistemas": [...], "validado", "fecha_validado", "validado_por", "fuente_docs"}, ajustado al
+    N° de sistemas GLOBAL del proyecto (`n_sistemas`, ver `_n_sistemas_proyecto`).
 
     Datos guardados ANTES de jul-2026 (multi-sistema) son un dict plano de un solo sistema, sin
     clave "sistemas": en Agronómico son campos sueltos (cc_pct, kc, ...); en Hidráulico están
     bajo una clave propia (`campo_legacy="tramos"`). Ambos se envuelven en una lista de 1 para
-    no perder proyectos ya cargados."""
+    no perder proyectos ya cargados.
+
+    `fuente_docs`: lista {nombre, fecha} de los documentos que alimentaron la última extracción
+    automática (sep-2026, ver `_fuente_docs_para_vista`) — None si los datos vienen de un
+    "Guardar" manual del revisor, que no la escribe (una vez editado/validado a mano, ya no
+    corresponde seguir mostrando "extraído de X")."""
     datos = datos or {}
     if isinstance(datos.get("sistemas"), list) and datos["sistemas"]:
         sistemas = list(datos["sistemas"])
@@ -1734,14 +1748,16 @@ def _normalizar_verif_multisistema(datos: dict, n_sistemas: int, campo_legacy: s
         sistemas = [{campo_legacy: datos[campo_legacy]}]
     elif datos:
         sistemas = [{k: v for k, v in datos.items()
-                      if k not in ("validado", "fecha_validado", "validado_por", "n_sistemas", "sistemas")}]
+                      if k not in ("validado", "fecha_validado", "validado_por", "n_sistemas",
+                                   "sistemas", "fuente_docs")}]
     else:
         sistemas = [{}]
     while len(sistemas) < n_sistemas:
         sistemas.append({})
     sistemas = sistemas[:n_sistemas]
     return {"sistemas": sistemas, "validado": datos.get("validado"),
-            "fecha_validado": datos.get("fecha_validado"), "validado_por": datos.get("validado_por")}
+            "fecha_validado": datos.get("fecha_validado"), "validado_por": datos.get("validado_por"),
+            "fuente_docs": datos.get("fuente_docs")}
 
 
 def _es_alta_frecuencia(datos: dict) -> bool:
@@ -2022,14 +2038,14 @@ async def pagina_calculos(request: Request, proyecto_id: str):
         "n_sistemas": n_sistemas,
         "hid_sistemas": hid_sistemas,
         "hid_validado": hid_norm.get("validado"), "hid_fecha": hid_norm.get("fecha_validado"),
-        "hid_por": hid_norm.get("validado_por"),
+        "hid_por": hid_norm.get("validado_por"), "hid_fuente_docs": hid_norm.get("fuente_docs"),
         "tubos_catalogo": calculos_riego.TUBOS_CATALOGO,
         "agro_sistemas": agro_sistemas,
         "agro_validado": agro_norm.get("validado"), "agro_fecha": agro_norm.get("fecha_validado"),
-        "agro_por": agro_norm.get("validado_por"),
+        "agro_por": agro_norm.get("validado_por"), "agro_fuente_docs": agro_norm.get("fuente_docs"),
         "fv": fv, "fv_calc": _fv_calculo(fv),
         "fv_validado": fv.get("validado"), "fv_fecha": fv.get("fecha_validado"),
-        "fv_por": fv.get("validado_por"),
+        "fv_por": fv.get("validado_por"), "fv_fuente_docs": fv.get("fuente_docs"),
     })
 
 
@@ -2062,13 +2078,13 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
-    docs_grupo = _documentos_para_verificacion("hidraulico", documentos_con_texto)
+    docs_grupo = _solo_version_vigente(_documentos_para_verificacion("hidraulico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_hidraulicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
-        "sistemas": sistemas, "validado": False,
+        "sistemas": sistemas, "validado": False, "fuente_docs": _fuente_docs_para_vista(docs_grupo),
     }
     _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
@@ -2678,13 +2694,13 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
-    docs_grupo = _documentos_para_verificacion("agronomico", documentos_con_texto)
+    docs_grupo = _solo_version_vigente(_documentos_para_verificacion("agronomico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = {
-        "sistemas": sistemas, "validado": False,
+        "sistemas": sistemas, "validado": False, "fuente_docs": _fuente_docs_para_vista(docs_grupo),
     }
     _registrar_costo(proyecto, "chequeo", acc_costo)
     db.save_proyecto(proyecto)
@@ -2768,10 +2784,11 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     if not proyecto:
         raise HTTPException(status_code=404)
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
-    docs_grupo = _documentos_para_verificacion("energetico", documentos_con_texto)
+    docs_grupo = _solo_version_vigente(_documentos_para_verificacion("energetico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_fv(docs_grupo)
     datos["validado"] = False
+    datos["fuente_docs"] = _fuente_docs_para_vista(docs_grupo)
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["energetico"] = datos
     _registrar_costo(proyecto, "chequeo", acc_costo)

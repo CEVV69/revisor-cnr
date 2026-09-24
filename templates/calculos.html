@@ -105,6 +105,11 @@
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
     <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
+    {% if agro_fuente_docs %}
+    <div class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
+      Datos extraídos de: {% for f in agro_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/guardar" id="form-agro">
@@ -448,6 +453,11 @@
         style="margin-bottom:0.9rem;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
     <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
+    {% if hid_fuente_docs %}
+    <div class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
+      Datos extraídos de: {% for f in hid_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
   </form>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/guardar" id="form-hid">
@@ -568,6 +578,11 @@
       <a href="https://solar.minenergia.cl/inicio" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Explorador Solar</a>
     </div>
   </div>
+  {% if fv_fuente_docs %}
+  <div class="text-muted" style="font-size:0.78rem; margin:-0.6rem 0 0.9rem;">
+    Datos extraídos de: {% for f in fv_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+  </div>
+  {% endif %}
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y sitio</div>
