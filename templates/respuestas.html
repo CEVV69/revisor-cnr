@@ -360,7 +360,22 @@ function restaurarIA(obsId) {
   var data;
   try { data = JSON.parse(raw); } catch (e) { return; }
   var textarea = form.querySelector('textarea[name=respuesta]');
-  if (!textarea || textarea.value.trim() !== data.respuesta) { borrarIAGuardada(obsId); return; }
+  if (!textarea) return;
+  // Si el textarea está VACÍO, es una recarga completa de la página (ej. tras guardar OTRA
+  // observación del mismo ítem con "Marcar como resuelta"/"Reiterar" — el POST hace redirect y
+  // recarga todo, y el borrador de las demás nunca se guarda en el servidor). Antes, al estar
+  // vacío no calzaba con `data.respuesta` y la evaluación guardada se descartaba en silencio —
+  // bug real reportado sep-2026: "Evaluar ítem con IA" evalúa varias observaciones de una vez,
+  // pero guardar la primera hacía desaparecer visualmente las sugerencias de las demás, aunque
+  // seguían intactas en sessionStorage. Se restaura también el texto de la respuesta en ese caso.
+  // Si el textarea YA tiene un texto distinto (el revisor está escribiendo un borrador nuevo), se
+  // mantiene el criterio de antes: esa evaluación vieja ya no corresponde y se descarta.
+  if (!textarea.value.trim()) {
+    textarea.value = data.respuesta;
+  } else if (textarea.value.trim() !== data.respuesta) {
+    borrarIAGuardada(obsId);
+    return;
+  }
   document.getElementById('ia-rec-' + obsId).value = data.rec || '';
   document.getElementById('ia-fund-' + obsId).value = data.fundamento || '';
   mostrarResultadoIA(obsId, data.rec, data.fundamento);
