@@ -1,3 +1,31 @@
+## Sesión sep-2026 — Fixes tras primera prueba de la evaluación conjunta
+
+Dos ajustes reportados por el usuario en su primera prueba del botón "Evaluar ítem con IA":
+
+**1. Botón mal ubicado.** Quedaba DESPUÉS de las badges de conteo (`grupo-resumen`), que tienen
+`margin-left:auto` — el botón terminaba empujado más a la derecha que las badges, rompiendo la
+alineación consistente con el resto de los ítems. Movido a ANTES de `grupo-resumen`, junto al
+nombre del ítem: las badges vuelven a quedar pegadas al borde derecho, igual que siempre.
+
+**2. Evaluación superficial (el hallazgo más importante).** El usuario subió el documento de
+diseño agronómico corregido a otra IA y esta encontró inconsistencias de fórmulas/datos; sin
+embargo la app había dado por resueltas TODAS las observaciones de ese ítem. Causa: el prompt de
+`evaluar_respuesta_subsanacion` y `evaluar_respuestas_item` solo pedía comprobar que el documento
+reemplazado "tocara" el punto observado (presencia), sin pedir verificar si el valor/fórmula
+corregido es correcto y consistente con el resto del diseño. Se agregó el criterio
+"VERIFICACIÓN TÉCNICA REAL, NO SOLO PRESENCIA" en AMBAS funciones: exige revisar unidades,
+relaciones entre variables y coherencia de fórmulas contra el método declarado, y marcar
+"no_resuelta" si aparece una inconsistencia NUEVA en la versión corregida aunque no sea
+exactamente lo que pedía la observación original. En la versión batch se agregó además una
+frase explícita: un cambio que resuelve una observación puede dejar otra parte del diseño
+inconsistente, y hay que revisarlo porque se están viendo varias observaciones a la vez.
+
+**Pendiente de confirmar:** el usuario debe volver a probar con el mismo documento/observaciones
+que generaron el hallazgo, para verificar que el nuevo criterio efectivamente detecta las
+inconsistencias que la IA externa sí encontró.
+
+---
+
 ## Sesión sep-2026 — Evaluación conjunta con IA para ítems núcleo (Respuestas)
 
 **Problema planteado por el usuario:** en Diseño Hidráulico y Diseño Fotovoltaico, las
