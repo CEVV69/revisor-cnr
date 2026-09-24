@@ -102,13 +102,14 @@
   </div>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/agronomico/extraer"
-        style="margin-bottom:0.9rem;"
+        style="margin-bottom:0.9rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
     <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
     {% if agro_fuente_docs %}
-    <div class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
-      Datos extraídos de: {% for f in agro_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-    </div>
+    <span class="text-muted" style="font-size:0.78rem;"
+          title="{% for f in agro_fuente_docs %}{{ f.nombre }}{% if not loop.last %}, {% endif %}{% endfor %}">
+      Datos del {{ (agro_fuente_docs | map(attribute='fecha') | list | max) | fecha }}
+    </span>
     {% endif %}
   </form>
 
@@ -450,13 +451,14 @@
   </p>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/hidraulico/extraer"
-        style="margin-bottom:0.9rem;"
+        style="margin-bottom:0.9rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;"
         onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
     <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
     {% if hid_fuente_docs %}
-    <div class="text-muted" style="font-size:0.78rem; margin-top:0.4rem;">
-      Datos extraídos de: {% for f in hid_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-    </div>
+    <span class="text-muted" style="font-size:0.78rem;"
+          title="{% for f in hid_fuente_docs %}{{ f.nombre }}{% if not loop.last %}, {% endif %}{% endfor %}">
+      Datos del {{ (hid_fuente_docs | map(attribute='fecha') | list | max) | fecha }}
+    </span>
     {% endif %}
   </form>
 
@@ -570,19 +572,21 @@
 
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.9rem;">
     <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/extraer"
+          style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;"
           onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
       <button type="submit" class="btn btn-outline btn-sm" title="Sobrescribe los campos de abajo con lo que encuentre la IA">Extraer de los documentos</button>
+      {% if fv_fuente_docs %}
+      <span class="text-muted" style="font-size:0.78rem;"
+            title="{% for f in fv_fuente_docs %}{{ f.nombre }}{% if not loop.last %}, {% endif %}{% endfor %}">
+        Datos del {{ (fv_fuente_docs | map(attribute='fecha') | list | max) | fecha }}
+      </span>
+      {% endif %}
     </form>
     <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
       <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-revisor-fv" class="btn btn-outline btn-sm" title="Exporta los datos FV al formato del Revisor Fotovoltaico (.json)">Exportar al Revisor FV (.json)</a>
       <a href="https://solar.minenergia.cl/inicio" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Explorador Solar</a>
     </div>
   </div>
-  {% if fv_fuente_docs %}
-  <div class="text-muted" style="font-size:0.78rem; margin:-0.6rem 0 0.9rem;">
-    Datos extraídos de: {% for f in fv_fuente_docs %}{{ f.nombre }}{% if f.fecha %} ({{ f.fecha | fecha_hora }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-  </div>
-  {% endif %}
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y sitio</div>

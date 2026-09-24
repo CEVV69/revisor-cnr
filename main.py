@@ -2131,10 +2131,15 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
 
     validado = form.get("validar") == "on"
     proyecto.setdefault("verificacion_calculos", {})
+    # `fuente_docs` NO se pierde al guardar a mano — el revisor puede corregir un campo puntual
+    # sin que eso invalide de qué documento salió el resto de los datos (reportado sep-2026: el
+    # mensaje "Datos extraídos de..." desaparecía con cada "Guardar").
+    fuente_docs_previo = (proyecto["verificacion_calculos"].get("hidraulico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["hidraulico"] = {
         "sistemas": sistemas, "validado": validado,
         "fecha_validado": _ahora().isoformat() if validado else None,
         "validado_por": user["nombre"] if validado else None,
+        "fuente_docs": fuente_docs_previo,
     }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -2765,11 +2770,13 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
 
     validado = form.get("validar") == "on"
     proyecto.setdefault("verificacion_calculos", {})
+    fuente_docs_previo = (proyecto["verificacion_calculos"].get("agronomico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["agronomico"] = {
         "sistemas": sistemas,
         "validado": validado,
         "fecha_validado": _ahora().isoformat() if validado else None,
         "validado_por": user["nombre"] if validado else None,
+        "fuente_docs": fuente_docs_previo,
     }
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -2823,6 +2830,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     datos["fecha_validado"] = _ahora().isoformat() if validado else None
     datos["validado_por"] = user["nombre"] if validado else None
     proyecto.setdefault("verificacion_calculos", {})
+    datos["fuente_docs"] = (proyecto["verificacion_calculos"].get("energetico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["energetico"] = datos
     db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
