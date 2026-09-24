@@ -50,6 +50,11 @@ Caudal del emisor por sistema (confirmado sep-2026).
 2. **Word con presupuesto en tabla — implementado, pendiente de prueba.** Sin expediente real
    con presupuesto en `.docx` disponible aún.
 
+3. **Evaluación conjunta con IA (Respuestas) — implementado, pendiente de prueba.** Botón
+   "Evaluar ítem con IA" solo en Diseño Hidráulico y Fotovoltaico (`ITEMS_EVALUACION_CONJUNTA`):
+   evalúa TODAS las observaciones del ítem en una sola llamada (no son independientes entre sí).
+   No toca la evaluación individual del resto de los ítems. Detalle en `docs/`.
+
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
 necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
 `fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl). Sin ese dato, no se puede

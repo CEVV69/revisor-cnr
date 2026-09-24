@@ -1,3 +1,38 @@
+## Sesión sep-2026 — Evaluación conjunta con IA para ítems núcleo (Respuestas)
+
+**Problema planteado por el usuario:** en Diseño Hidráulico y Diseño Fotovoltaico, las
+observaciones del mismo ítem casi nunca son independientes — son facetas de un mismo rediseño
+(ej. un caudal recalculado cambia a la vez la CDT, la potencia de bomba y el diámetro de
+tubería). Evaluarlas una por una con `evaluar_respuesta_subsanacion()` (una llamada IA por
+observación) podía dar veredictos inconsistentes sobre el mismo cambio de fondo, además de ser
+más caro (N llamadas en vez de una).
+
+**Solución implementada — 100% aditiva, no se tocó nada existente:**
+- `analyzer.py`: nueva función `evaluar_respuestas_item()`, independiente de
+  `evaluar_respuesta_subsanacion()` (duplica su lógica de selección/orden/versión de documentos
+  e imágenes a propósito, para no arriesgar la función que ya funcionaba bien). Recibe una LISTA
+  de observaciones del mismo ítem, arma un solo prompt que las enumera contra los mismos
+  antecedentes, y pide de vuelta `{"evaluaciones": [{"obs_id", "recomendacion", "fundamento"}]}`.
+  Mismo criterio de versiones múltiples que la función individual (ver sesión anterior).
+  `ITEMS_EVALUACION_CONJUNTA = {"diseno_hidraulico", "diseno_fotovoltaico"}` — gatilla en qué
+  ítems se ofrece esta evaluación conjunta.
+- `main.py`: nueva ruta AJAX `POST /proyecto/{id}/item/{item_key}/evaluar-respuestas-item`,
+  hermana de `/observacion/{obs_id}/evaluar-respuesta` (que queda intacta). Recibe del cliente
+  un mapa `{obs_id: respuesta}` vía `FormData` (campo `datos` en JSON), arma la lista de
+  observaciones con el mismo criterio de "Contra Observación" que la ruta individual, llama una
+  vez a `evaluar_respuestas_item()`, devuelve `{resultados: {obs_id: {...}}}`.
+- `respuestas.html`: botón "Evaluar ítem con IA" en el encabezado de grupo (`grupo-h2`), visible
+  SOLO si `grupo.key in items_evaluacion_conjunta` (pasado desde `pagina_respuestas()`). Nueva
+  función JS `evaluarGrupoIA()` que junta las respuestas transcritas (aún sin guardar) de todas
+  las observaciones abiertas del grupo, llama a la ruta nueva, y por cada resultado reutiliza
+  TAL CUAL `mostrarResultadoIA()`/`guardarIA()` — el resto del flujo (guardar, deshacer,
+  sessionStorage) no cambió en absoluto.
+
+**Estado:** pusheado, pendiente de prueba del usuario en un proyecto real con observaciones
+abiertas en Diseño Hidráulico o Fotovoltaico.
+
+---
+
 ## Sesión sep-2026 — Cierre de pendientes confirmados por el usuario
 
 Confirmados OK en producción (sep-2026): Sección Respuestas (rondas, estados, badges);
