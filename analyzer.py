@@ -348,7 +348,7 @@ Responde SIEMPRE en formato JSON exacto:
       "numero": 1,
       "categoria": "técnica|legal|presupuesto|administrativa",
       "severidad": "mayor|menor|informativa",
-      "texto": "Descripción directa de qué falta o qué está incorrecto y por qué importa",
+      "texto": "Párrafo de análisis + salto de línea + párrafo de propuesta de observación (ver formato abajo)",
       "referencia_normativa": "Manual/Instructivo/Base que respalda la observación (ver prioridad abajo)"
     }}
   ],
@@ -360,17 +360,27 @@ Severidades:
 - menor: debe corregirse pero no impide la admisión
 - informativa: recomendación sin impacto en admisión (úsala con moderación)
 
-REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO):
-- BREVE y DIRECTO: máximo 2-3 líneas. No relates antecedentes largos ni contexto;
-  ve directo a qué falta o qué está mal. Escribe como un revisor CNR redacta una
-  observación para el SEP, no como un informe.
-- CIERRE OBLIGATORIO: cada observación (mayor o menor) DEBE terminar con una de estas
-  instrucciones explícitas, según corresponda:
-    • "Debe aclarar."   → cuando se requiere precisar o resolver una discrepancia/ambigüedad.
-    • "Debe justificar." → cuando se requiere fundamento técnico o normativo adicional.
+REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO) — DOS PÁRRAFOS, separados por un salto de línea en blanco:
+
+1º párrafo — ANÁLISIS: el sustento técnico/numérico de la observación (qué revisaste, qué
+  cálculo o comparación lo evidencia, por qué importa). Este párrafo es para que el revisor
+  entienda y contraste su propio análisis — el revisor lo recorta a mano antes de subir la
+  observación al SEP, así que puede ser algo más extenso y detallado que el segundo párrafo.
+
+2º párrafo — PROPUESTA DE OBSERVACIÓN: BREVE y DIRECTO (máximo 2-3 líneas), sin repetir el
+  detalle numérico del primer párrafo. Escribe como un revisor CNR redacta una observación para
+  el SEP, no como un informe. Este es el párrafo que efectivamente se sube al SEP.
+  CIERRE OBLIGATORIO (solo mayor o menor): termina SIEMPRE con una instrucción explícita al
+  consultor, la más pertinente al caso — usa una de estas como referencia y elige otra
+  equivalente si ninguna calza bien:
+    • "Debe aclarar."   → precisar o resolver una discrepancia/ambigüedad.
+    • "Debe justificar." → fundamento técnico o normativo adicional.
+    • "Debe corregir/subsanar [lo puntual]." → cuando el defecto tiene una corrección concreta.
+    • "Debe presentar nuevos antecedentes." → cuando falta evidencia o un documento de respaldo.
     • "Se sugiere declarar no admitido." → SOLO cuando falta un documento obligatorio
       exigido por las bases como imprescindible para postular.
-  Las notas informativas no requieren este cierre.
+
+  Las notas informativas no requieren el 1er párrafo ni el cierre — una sola frase directa basta.
 
 PRIORIDAD DE LA "referencia_normativa" (OBLIGATORIO — esta cita se copia al SEP):
 La observación se sube al SEP y el consultor debe poder ir a la fuente citada. Por eso, al
@@ -4635,8 +4645,19 @@ Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), per
 REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
 refleja en los antecedentes.
 
+FORMATO DE "fundamento" — DOS PÁRRAFOS, separados por un salto de línea en blanco:
+
+1º párrafo — ANÁLISIS DEL CASO: qué dice la observación original, qué respondió el consultor, y
+  por qué eso resuelve o no resuelve el punto (citando la norma/base si aplica). Puede incluir
+  el detalle técnico/numérico que sustenta la conclusión.
+
+2º párrafo — PROPUESTA DE OBSERVACIÓN: breve y directa. Si "no_resuelta", termina SIEMPRE con una
+  instrucción explícita al consultor, la más pertinente al caso (ej. "Se reitera observación.",
+  "Debe aclarar.", "Debe presentar nuevos antecedentes.", "Debe justificar.", u otra equivalente
+  si ninguna calza bien). Si "resuelta", una frase breve de cierre basta, sin forzar un mandato.
+
 Responde SOLO este JSON, sin texto adicional:
-{{"recomendacion": "resuelta"|"no_resuelta", "fundamento": "2-4 líneas explicando por qué, citando la norma/base si aplica"}}"""
+{{"recomendacion": "resuelta"|"no_resuelta", "fundamento": "párrafo de análisis + salto de línea + párrafo de propuesta (ver formato arriba)"}}"""
 
     # Contenido: texto + imágenes de los documentos escaneados/planos/pruebas de bombeo.
     content_blocks = [{"type": "text", "text": prompt}]
@@ -4861,9 +4882,20 @@ Aplica el criterio de ingeniero (ante la duda razonable, no exijas de más), per
 REAL: no des por resuelto un punto solo porque el consultor afirme haberlo hecho, si eso no se
 refleja en los antecedentes.
 
+FORMATO de cada "fundamento" — DOS PÁRRAFOS, separados por un salto de línea en blanco:
+
+1º párrafo — ANÁLISIS DEL CASO: qué dice la observación original, qué respondió el consultor, y
+  por qué eso resuelve o no resuelve el punto (citando la norma/base si aplica). Puede incluir
+  el detalle técnico/numérico que sustenta la conclusión.
+
+2º párrafo — PROPUESTA DE OBSERVACIÓN: breve y directa. Si "no_resuelta", termina SIEMPRE con una
+  instrucción explícita al consultor, la más pertinente al caso (ej. "Se reitera observación.",
+  "Debe aclarar.", "Debe presentar nuevos antecedentes.", "Debe justificar.", u otra equivalente
+  si ninguna calza bien). Si "resuelta", una frase breve de cierre basta, sin forzar un mandato.
+
 Responde SOLO este JSON, sin texto adicional, con una entrada por cada observación (mismo orden,
 usa el obs_id tal cual aparece arriba):
-{{"evaluaciones": [{{"obs_id": "...", "recomendacion": "resuelta"|"no_resuelta", "fundamento": "2-4 líneas explicando por qué, citando la norma/base si aplica"}}]}}"""
+{{"evaluaciones": [{{"obs_id": "...", "recomendacion": "resuelta"|"no_resuelta", "fundamento": "párrafo de análisis + salto de línea + párrafo de propuesta (ver formato arriba)"}}]}}"""
 
     content_blocks = [{"type": "text", "text": prompt}]
     for label, nombre_img, imgs in imagenes_por_doc:
