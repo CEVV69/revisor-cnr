@@ -1,3 +1,47 @@
+## Sesión sep-2026 — Observaciones en dos párrafos: análisis + propuesta
+
+**Pedido del usuario:** la IA (tanto en el análisis inicial por ítem como en la evaluación de
+respuestas) debería estructurar su salida en dos partes: un análisis del caso (considerando
+Proyecto/Observación/Respuesta/Resuelve-No resuelve) y una propuesta de observación breve que
+cierre siempre con una sentencia-mandato pertinente ("Se reitera observación", "Debe aclarar",
+"Presentar nuevos antecedentes", etc. — no limitado a un set fijo).
+
+**Aclaración clave del usuario, tras una primera propuesta mía que iba a agregar un campo nuevo
+`analisis` al modelo de datos:** no quería dos campos separados ni nueva UI — solo que el MISMO
+campo (`texto` en el análisis inicial, `fundamento` en la evaluación de respuestas) quedara
+internamente organizado en dos párrafos. Contexto que dio el giro: hoy, para el análisis inicial,
+el usuario YA recorta a mano el análisis numérico de cada observación antes de subirla al SEP
+(la observación final solo debe llevar lo esencial) — el análisis completo le sirve a él para
+entender y contrastar su propio criterio, pero no es pertinente para el consultor. Formalizar el
+texto en dos párrafos (análisis primero, propuesta después) simplemente hace ese recorte manual
+más fácil, sin automatizarlo ni agregar nada al modelo de datos.
+
+**Implementación — 100% en los PROMPTS, cero cambios de esquema:**
+- `_analizar_grupo` (análisis inicial, todos los ítems): la instrucción "REDACCIÓN DEL CAMPO
+  texto" ahora pide DOS párrafos separados por salto de línea en blanco — 1º análisis técnico/
+  numérico (más extenso, el revisor lo recorta), 2º propuesta breve con cierre-mandato. El set de
+  cierres obligatorios se amplió de 3 frases fijas a un criterio abierto con 5 ejemplos de
+  referencia ("Debe aclarar.", "Debe justificar.", "Debe corregir/subsanar [lo puntual].", "Debe
+  presentar nuevos antecedentes.", "Se sugiere declarar no admitido."). Las notas informativas
+  siguen sin necesitar el 1er párrafo ni cierre.
+- `evaluar_respuesta_subsanacion` y `evaluar_respuestas_item`: mismo tratamiento en "fundamento"
+  — 1er párrafo análisis del caso (observación original + respuesta del consultor + por qué
+  resuelve o no), 2º párrafo propuesta con el mismo criterio de cierre abierto (solo si
+  "no_resuelta"; si "resuelta" no se fuerza un mandato).
+- **Fix de CSS necesario:** `.ia-box`/`.ia-ronda` (respuestas.html) y `.obs-texto` (ficha.html) no
+  tenían `white-space:pre-wrap` — sin eso, el salto de línea entre párrafos se perdía visualmente
+  en HTML (aunque el dato SÍ lo traía). El `<textarea>` editable de proyecto.html no necesitó
+  tocarse: ya preserva saltos de línea de forma nativa.
+- **Nada más se tocó**: sin campos nuevos en el modelo de datos, sin cambios en main.py (parseo
+  de observaciones ya pasa cualquier campo del JSON tal cual, sin whitelist), sin cambios en las
+  rutas de subsanación ni en los hidden inputs de respuestas.html (`ia_recomendacion`/
+  `ia_fundamento` siguen siendo los mismos dos campos de siempre).
+
+**Pendiente:** que el usuario pruebe con un ítem real y confirme que el recorte manual antes del
+SEP queda efectivamente más fácil.
+
+---
+
 ## Sesión sep-2026 — Fix: nota de procedencia se perdía al Guardar
 
 El usuario probó el fix anterior y reportó que el mensaje "Datos extraídos de: ..." desaparecía

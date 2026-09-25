@@ -44,20 +44,17 @@ costo API Memorias standalone; Evaluación del Consultor (fix truncación sep-20
 Sección Respuestas (confirmado sep-2026); PEPA + Ficha tacha (confirmado sep-2026);
 Caudal del emisor por sistema (confirmado sep-2026).
 
-1. **Caudal por turnos + CDT por ruta crítica** — implementado, pendiente de prueba. Nada
-   pendiente en el Diseñador (v134 ya traía los mismos fixes). Detalle en `docs/`.
+1. **Caudal por turnos + CDT ruta crítica** — implementado, pendiente de prueba (`docs/`).
+2. **Word con presupuesto en tabla** — implementado, pendiente de prueba, sin expediente real aún.
+3. **Evaluación conjunta con IA (Respuestas)** — botón "Evaluar ítem con IA" solo en
+   Hidráulico/Fotovoltaico (`ITEMS_EVALUACION_CONJUNTA`). Varios fixes ya aplicados. Detalle `docs/`.
+4. **Chequeo de Cálculos: solo presentación vigente** — `_solo_version_vigente()` + nota "Datos
+   extraídos de: ...". Re-extraer tras corrección resetea "validado". Detalle `docs/`.
+5. **Observaciones en dos párrafos (análisis + propuesta)** — mismo campo `texto`/`fundamento`,
+   sin esquema nuevo: 1er párrafo análisis técnico (el revisor lo recorta antes del SEP), 2º
+   párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
 
-2. **Word con presupuesto en tabla** — implementado, pendiente de prueba (sin expediente real
-   con presupuesto en `.docx` disponible aún).
-
-3. **Evaluación conjunta con IA (Respuestas)** — implementado, pendiente de prueba. Botón
-   "Evaluar ítem con IA" solo en Hidráulico/Fotovoltaico (`ITEMS_EVALUACION_CONJUNTA`). Varios
-   fixes ya aplicados (botón, verificación técnica real, persistencia, versiones por día
-   calendario — `_etiquetar_versiones_docs`). Detalle en `docs/`.
-
-4. **Chequeo de Cálculos: extracción usa solo la presentación vigente** — implementado, pendiente
-   de prueba. `_solo_version_vigente()` (mismo criterio por día) + nota "Datos extraídos de: ...".
-   Re-extraer tras una corrección trae los datos nuevos y resetea "validado". Detalle en `docs/`.
+Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
 necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
