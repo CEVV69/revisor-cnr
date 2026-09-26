@@ -70,8 +70,22 @@
   <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">Revisión por Ítems SEP</a>
   <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
   <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas</a>
+  <a href="/proyecto/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
   {% include "_apps_menu.html" %}
 </nav>
+
+{% if presupuesto_resumen.diferencia_total %}
+<div class="card" style="border-left:4px solid #c0392b; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
+  <p style="margin:0; font-size:0.88rem; flex:1;">
+    <strong>El presupuesto general cambió entre versiones:</strong>
+    {{ '+' if presupuesto_resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(presupuesto_resumen.diferencia_total) }}
+    respecto del presupuesto inicial. Registra estos cambios ítem por ítem en el SEP antes de
+    aprobar o rechazar el proyecto.
+  </p>
+  <a href="/proyecto/{{ proyecto.id }}/presupuesto" class="btn btn-outline btn-sm"
+     style="border-color:#c0392b; color:#c0392b;">Ver detalle por ítem</a>
+</div>
+{% endif %}
 
 {% if total == 0 %}
 <div class="card">

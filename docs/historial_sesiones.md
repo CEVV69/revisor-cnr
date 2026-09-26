@@ -1,3 +1,51 @@
+## Sesión sep-2026 — Presupuesto general: comparación entre versiones
+
+El usuario pidió una forma de saber si el presupuesto cambió entre versiones (ítem por ítem del
+**presupuesto general/resumen**, no del detallado con precios unitarios) — porque si cambia, el
+revisor debe registrar esos cambios en el SEP antes de aprobar/rechazar. Propuso dos ideas
+(extraer en la misma sección Respuestas, o una sección nueva) y pidió análisis honesto orientado
+a minimizar gasto de API antes de elegir. Se recomendó la sección nueva, porque la idea 1 no tenía
+forma de comparar sin guardar la versión inicial en algún lado — no existía ese dato.
+
+**Diseño implementado:**
+- `analyzer.extraer_presupuesto_general(docs_grupo)` (Haiku): extrae el CUADRO RESUMEN del
+  presupuesto (categorías y montos, ej. Obras Civiles, Gastos Generales, Imprevistos, Estudio,
+  ITO, IVA, Total) **tal como el consultor las rotula** — sin normalizar nombres, porque el
+  emparejamiento entre versiones depende de comparar esos nombres literales. Distinta de
+  `_extraer_partidas_presupuesto` (detallado, con unidad/cantidad/precio unitario, usado para
+  comparar contra la tabla de precios referenciales — sigue igual, sin tocar).
+- `analyzer.comparar_presupuesto_general(items_inicial, items_final)`: empareja por similitud de
+  nombre (mismo Jaccard de tokens que `_mejor_match_precio`) — sin costo de API, es solo lectura
+  de lo ya extraído. Filas sin match en la otra versión (ítems agregados o eliminados) igual
+  aparecen, con el lado faltante en `None`.
+- Modelo de datos nuevo: `proyecto["presupuesto_general"]["versiones"]`, lista de
+  `{fecha, origen, items:[{item, monto}], total}`. `origen` es `"revision_item"` (versión 0) o
+  `"subsanacion:{obs_id}"` (versión N). Solo importan la **primera** (versión 0) y la **última**
+  (`versiones[-1]`) — pueden existir intermedias, se ignoran para la comparación.
+- **Cuándo se extrae, sin gasto redundante:**
+  - Versión 0: en `_analizar_item_fondo` (main.py), al analizar el ítem `presupuesto`, SOLO si
+    `proyecto["presupuesto_general"]["versiones"]` está vacío (`necesita_presupuesto_general`).
+    Reanalizar el ítem después NO vuelve a extraerla — evitaría reemplazar la versión inicial
+    real por un reanálisis posterior. Corre como tarea en paralelo al análisis principal
+    (mismo patrón que la invalidación cruzada), sin agregar latencia.
+  - Versión N: en `registrar_respuesta_subsanacion` (main.py), solo si la observación es del
+    ítem `presupuesto` Y alguno de los adjuntos de esa respuesta tiene `tipo_doc=="presupuesto"`
+    (no `"cubicaciones"`, que es el detalle de cantidades). El `tipo_doc` se resuelve cruzando
+    el id del adjunto contra `proyecto["documentos"]` — los adjuntos guardados en
+    `adjuntos_pendientes` no traen ese campo, solo `tipo_label`.
+- **Página nueva `/proyecto/{id}/presupuesto`** (`presupuesto.html`, pestaña nueva en
+  `proyecto.html`/`calculos.html`/`respuestas.html`): tabla Ítem/Costo inicial/Costo final/
+  Diferencia + fila de totales. Si solo existe la versión 0, muestra el presupuesto sin columna
+  de comparación y un aviso de que aún no hay respuesta con presupuesto nuevo.
+- **Aviso en Respuestas**: banner rojo si `presupuesto_resumen.diferencia_total` es distinto de
+  cero, con link a la página nueva. `_resumen_presupuesto_general(proyecto)` (main.py) es el
+  helper compartido entre ambas rutas — sin costo de API, solo arma la comparación desde lo
+  guardado.
+- Validado con render de Jinja en los 3 escenarios (sin versión 0 / solo versión 0 / con
+  comparación) y con un caso de fuzzy-match manual (`comparar_presupuesto_general`) — pendiente
+  de prueba real del usuario con un expediente que tenga una respuesta de subsanación de
+  Presupuesto con adjunto nuevo.
+
 ## Sesión sep-2026 — Observaciones en dos párrafos: análisis + propuesta
 
 **Pedido del usuario:** la IA (tanto en el análisis inicial por ítem como en la evaluación de

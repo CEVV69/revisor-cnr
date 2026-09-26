@@ -53,6 +53,11 @@ Caudal del emisor por sistema (confirmado sep-2026).
 5. **Observaciones en dos párrafos (análisis + propuesta)** — mismo campo `texto`/`fundamento`,
    sin esquema nuevo: 1er párrafo análisis técnico (el revisor lo recorta antes del SEP), 2º
    párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
+6. **Presupuesto general: comparación entre versiones (sep-2026, recién implementado, sin
+   probar)** — nueva pestaña `/proyecto/{id}/presupuesto` (Ítem/Costo inicial/Costo final/
+   Diferencia del CUADRO RESUMEN, no el detallado). Versión 0 al analizar el ítem `presupuesto`;
+   versión N al registrar una respuesta de subsanación con adjunto `tipo_doc=="presupuesto"`.
+   Aviso en Respuestas si cambió el total. Detalle de diseño en `docs/`.
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 
@@ -121,6 +126,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
 - `/proyecto/{id}/calculos` Chequeo de cálculos hidráulico/agronómico
 - `/proyecto/{id}/ficha` Ficha de revisión (PDF imprimible)
 - `/proyecto/{id}/respuestas` Subsanación (respuestas del consultor)
+- `/proyecto/{id}/presupuesto` Comparación de versiones del presupuesto general
 - `/admin/concursos` Gestión de bases de concurso
 
 ---

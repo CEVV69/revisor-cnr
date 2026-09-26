@@ -34,7 +34,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       _rango_eficiencia_oficial,
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
                       sintetizar_evaluacion_item, evaluar_respuestas_item,
-                      ITEMS_EVALUACION_CONJUNTA)
+                      ITEMS_EVALUACION_CONJUNTA,
+                      extraer_presupuesto_general, comparar_presupuesto_general)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -1153,6 +1154,15 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             precios_data = db.get_precios()
             tabla_precios = precios_data.get("items") if precios_data else None
 
+        # Versión inicial del cuadro resumen del presupuesto general (para comparar más adelante
+        # contra la última versión que entregue el consultor en subsanación) — se extrae solo la
+        # PRIMERA vez que se analiza el ítem Presupuesto de este proyecto, nunca de nuevo al
+        # reanalizar (evitaría reemplazar la versión inicial real por un reanálisis posterior).
+        necesita_presupuesto_general = (
+            item_key == "presupuesto"
+            and not (proyecto.get("presupuesto_general") or {}).get("versiones")
+        )
+
         # Lo ya observado en los OTROS ítems, para que este no lo repita (ver `_analizar_grupo`).
         # Antes solo se le pasaba a Coherencia Global; desde ago-2026 lo recibe todo ítem, porque
         # la repetición también se daba entre ítems normales (ej. el espesor no declarado de un
@@ -1202,6 +1212,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             tipo_revision=proyecto.get("tipo_revision", "tecnica"),
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
             programa=proyecto.get("programa", "pequena_agricultura"),
+            necesita_presupuesto_general=necesita_presupuesto_general,
         )
     except Exception as e:
         import traceback
@@ -1225,6 +1236,16 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
             "Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.",
             sin_docs=True, proyecto_ya_cargado=proyecto)
         return
+
+    # Versión 0 del presupuesto general: guardarla recién acá (proyecto fresco), y solo si sigue
+    # sin existir — si otra pestaña ya la guardó mientras este análisis corría, no se pisa.
+    datos_pg = resultado.get("presupuesto_general")
+    if datos_pg and datos_pg.get("items") and \
+       not (proyecto.get("presupuesto_general") or {}).get("versiones"):
+        proyecto.setdefault("presupuesto_general", {})["versiones"] = [{
+            "fecha": _ahora().isoformat(), "origen": "revision_item",
+            "items": datos_pg["items"], "total": datos_pg.get("total"),
+        }]
 
     # Reemplazar observaciones previas de este ítem — las AGREGADAS A MANO por el revisor
     # (obs["manual"]) se conservan: no son un resultado del análisis, así que re-analizar no
@@ -3693,6 +3714,37 @@ def _estado_subsanacion(obs: dict, max_rondas: int = MAX_RONDAS_SUBSANACION) -> 
     return {"estado": "esperando", "ronda_actual": len(rondas) + 1, "puede_responder": True, "rondas": rondas}
 
 
+def _resumen_presupuesto_general(proyecto: dict) -> dict:
+    """Compara la versión INICIAL (extraída al revisar el ítem Presupuesto) contra la ÚLTIMA
+    versión guardada del cuadro resumen del presupuesto (la más reciente entregada en una
+    respuesta de subsanación) — usado tanto por la página Presupuesto como por el aviso en
+    Respuestas. Sin costo de API: solo lee y compara lo ya extraído (`comparar_presupuesto_general`
+    es matemática pura de emparejamiento de nombres, no una llamada a la IA)."""
+    versiones = (proyecto.get("presupuesto_general") or {}).get("versiones") or []
+    if not versiones:
+        return {"tiene_v0": False, "hay_comparacion": False, "filas": [],
+                "total_inicial": None, "total_final": None, "diferencia_total": None,
+                "n_versiones": 0}
+    v0, vf = versiones[0], versiones[-1]
+    hay_comparacion = len(versiones) > 1
+    if hay_comparacion:
+        filas = comparar_presupuesto_general(v0.get("items", []), vf.get("items", []))
+        total_final = vf.get("total")
+    else:
+        filas = [{"item": it.get("item"), "costo_inicial": it.get("monto"),
+                  "costo_final": None, "diferencia": None} for it in v0.get("items", [])]
+        total_final = None
+    total_inicial = v0.get("total")
+    diferencia_total = (
+        total_final - total_inicial
+        if (hay_comparacion and total_inicial is not None and total_final is not None) else None
+    )
+    return {"tiene_v0": True, "hay_comparacion": hay_comparacion, "filas": filas,
+            "total_inicial": total_inicial, "total_final": total_final,
+            "diferencia_total": diferencia_total, "n_versiones": len(versiones),
+            "fecha_inicial": v0.get("fecha"), "fecha_final": vf.get("fecha") if hay_comparacion else None}
+
+
 @app.get("/proyecto/{proyecto_id}/respuestas", response_class=HTMLResponse)
 async def pagina_respuestas(request: Request, proyecto_id: str):
     user = get_current_user(request)
@@ -3752,6 +3804,28 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         # Ítems con botón de "evaluar en conjunto" (sep-2026) — el resto del panel no lo muestra.
         "items_evaluacion_conjunta": ITEMS_EVALUACION_CONJUNTA,
+        "presupuesto_resumen": _resumen_presupuesto_general(proyecto),
+    })
+
+
+@app.get("/proyecto/{proyecto_id}/presupuesto", response_class=HTMLResponse)
+async def pagina_presupuesto(request: Request, proyecto_id: str):
+    """Compara ítem por ítem el cuadro RESUMEN GENERAL del presupuesto entre la versión inicial
+    (revisada al analizar el ítem Presupuesto) y la última versión entregada por el consultor en
+    una respuesta de subsanación — para que el revisor registre en el SEP los cambios de
+    presupuesto entre versiones antes de dar por admitido o rechazado el proyecto. NO es el
+    presupuesto detallado (partidas con precio unitario, comparado aparte contra la tabla de
+    precios referenciales en el propio ítem Presupuesto)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse("presupuesto.html", {
+        "request": request, "user": user, "proyecto": proyecto,
+        "costo_api": _costo_para_vista(proyecto),
+        "resumen": _resumen_presupuesto_general(proyecto),
     })
 
 
@@ -3814,6 +3888,28 @@ async def registrar_respuesta_subsanacion(
             ronda["adjuntos"] = pendientes
             obs["subsanacion"]["adjuntos_pendientes"] = []
         obs["subsanacion"]["rondas"].append(ronda)
+
+        # Nueva versión del presupuesto general: si esta respuesta es a una observación del ítem
+        # Presupuesto y trae un adjunto clasificado como tipo_doc "presupuesto" (no "cubicaciones",
+        # que es el detalle de cantidades, no el cuadro resumen), se extrae y se agrega como
+        # versión nueva — la comparación en /presupuesto siempre usa la ÚLTIMA versión guardada.
+        if obs.get("item") == "presupuesto" and pendientes:
+            docs_by_id = {d["id"]: d for d in proyecto.get("documentos", [])}
+            ids_presupuesto = [a["id"] for a in pendientes
+                               if (docs_by_id.get(a["id"]) or {}).get("tipo_doc") == "presupuesto"]
+            if ids_presupuesto:
+                await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
+                                        proyecto.get("documentos", []))
+                documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+                docs_nuevo = [d for d in documentos_con_texto if d.get("id") in ids_presupuesto]
+                datos_pg = await extraer_presupuesto_general(docs_nuevo)
+                if datos_pg.get("items"):
+                    proyecto.setdefault("presupuesto_general", {}).setdefault(
+                        "versiones", []).append({
+                            "fecha": _ahora().isoformat(), "origen": f"subsanacion:{obs_id}",
+                            "items": datos_pg["items"], "total": datos_pg.get("total"),
+                        })
+
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
 

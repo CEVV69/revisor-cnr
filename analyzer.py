@@ -2815,6 +2815,99 @@ PRESUPUESTO:
         return {}
 
 
+async def extraer_presupuesto_general(docs_grupo: list) -> dict:
+    """Extrae el CUADRO RESUMEN GENERAL del presupuesto (categorías y totales, ej. Obras
+    Civiles/Sistema de Riego, Gastos Generales, Utilidad, Imprevistos, Estudio, ITO, IVA, Total)
+    tal como el consultor las presenta en su documento — NO normaliza nombres ni fuerza
+    categorías fijas, porque cada consultor las rotula distinto y el emparejamiento entre
+    versiones (`comparar_presupuesto_general`) depende de comparar esos nombres literales.
+
+    Distinto de `_extraer_partidas_presupuesto` (presupuesto DETALLADO: partidas con unidad/
+    cantidad/precio unitario, usado para comparar contra la tabla de precios referenciales).
+    Este extrae el resumen general — sirve además para verificar los mínimos de las reglas
+    b/c/d/f/h del checklist de `presupuesto` (Gastos Generales, Imprevistos, Estudio, ITO, tope
+    del 15%). Nunca inventa: si un ítem no aparece explícitamente, no se incluye."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    prompt = f"""Extrae del siguiente presupuesto el CUADRO RESUMEN GENERAL — la tabla de totales
+por categoría tal como el consultor la presenta (por ejemplo: Sistema de Riego/Obras Civiles,
+Gastos Generales, Utilidad, Imprevistos, Estudio/Diseño, Inspección Técnica de Obras (ITO), IVA,
+Total). NO es el detalle de partidas con precio unitario — es el cuadro resumen/totales, casi
+siempre una tabla corta aparte del detalle. Usa los nombres EXACTOS que aparecen en el documento,
+sin normalizar ni traducir. NO inventes ni calcules nada — si un ítem no aparece explícitamente,
+no lo incluyas.
+Responde SOLO este JSON, sin texto adicional:
+{{"items": [{{"item": "nombre tal como aparece en el documento", "monto": number}}],
+"total": number|null}}
+
+⚠️ NOTACIÓN CHILENA: coma (,) = decimal · punto (.) = miles. Ej: "1.234,56" = 1234.56. Convierte
+todos los montos a número plano sin separador de miles.
+
+PRESUPUESTO:
+{texto}"""
+    try:
+        client = _get_client()
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=MODELO_HAIKU, max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        _log_uso("3 · Revisión · presupuesto general (resumen)", response, MODELO_HAIKU)
+        data = _extraer_json_tolerante(_texto_respuesta(response))
+        items = data.get("items") or []
+        total = data.get("total")
+        if total is None and items:
+            total = sum(i.get("monto") or 0 for i in items if i.get("monto") is not None)
+        return {"items": items, "total": total}
+    except Exception as e:
+        print(f"⚠️ extraer_presupuesto_general: {e}")
+        return {}
+
+
+def comparar_presupuesto_general(items_inicial: list, items_final: list) -> list:
+    """Empareja los ítems del presupuesto general entre la versión INICIAL (la primera extraída,
+    al revisar el ítem Presupuesto) y la ÚLTIMA (la más reciente entregada en una respuesta de
+    subsanación) por similitud de nombre — mismo criterio de Jaccard sobre tokens que usa
+    `_mejor_match_precio` para las partidas detalladas, porque cada consultor rotula sus
+    categorías con palabras distintas ("Gastos Generales" vs "G.G.").
+
+    Devuelve una fila por cada ítem de cualquiera de las dos versiones (incluye los que solo
+    aparecen en una — agregados o eliminados entre versiones), con `diferencia = final - inicial`
+    cuando ambos montos existen."""
+    usados_final = set()
+    filas = []
+    for a in items_inicial:
+        nombre_a = (a.get("item") or "").strip()
+        if not nombre_a:
+            continue
+        monto_a = a.get("monto")
+        mejor, mejor_score, idx_mejor = None, 0.0, None
+        for idx, b in enumerate(items_final):
+            if idx in usados_final:
+                continue
+            score = _similitud_item_precio(nombre_a, b.get("item") or "")
+            if score > mejor_score:
+                mejor, mejor_score, idx_mejor = b, score, idx
+        if mejor and mejor_score >= 0.35:
+            usados_final.add(idx_mejor)
+            monto_b = mejor.get("monto")
+        else:
+            monto_b = None
+        diferencia = (monto_b - monto_a) if (monto_a is not None and monto_b is not None) else None
+        filas.append({"item": nombre_a, "costo_inicial": monto_a, "costo_final": monto_b,
+                      "diferencia": diferencia})
+    for idx, b in enumerate(items_final):
+        if idx in usados_final:
+            continue
+        nombre_b = (b.get("item") or "").strip()
+        if not nombre_b:
+            continue
+        filas.append({"item": nombre_b, "costo_inicial": None, "costo_final": b.get("monto"),
+                      "diferencia": None})
+    return filas
+
+
 def _extraer_json_tolerante(content: str) -> dict:
     """Como _extraer_json_simple, pero si el JSON quedó cortado a mitad (lista larga de
     partidas y el thinking se comió el cupo), reintenta cerrando llaves/corchetes abiertos."""
@@ -3439,8 +3532,15 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         observaciones_previas: list = None,
                         observaciones_pendientes_otros: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None,
-                        programa: str = "") -> dict:
+                        programa: str = "",
+                        necesita_presupuesto_general: bool = False) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
+
+    `necesita_presupuesto_general`: solo aplica a item_key == "presupuesto" — True cuando el
+    proyecto todavía no tiene guardada la versión inicial del cuadro resumen del presupuesto
+    (ver `extraer_presupuesto_general`). Dispara UNA extracción Haiku adicional y la devuelve en
+    `resultado["presupuesto_general"]`; el llamador (`main.py`) la guarda como versión 0. No
+    depende de `tabla_precios` — es independiente de la verificación de precios detallada.
 
     `resumen`: lo que el revisor ya completó en la página Resumen del proyecto
     (`proyecto["resumen"]`) — se inyecta como contexto YA VALIDADO en TODO ítem (ver
@@ -3537,6 +3637,15 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     except Exception as e:
         print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
 
+    # Presupuesto general (resumen): independiente de `tabla_precios` (que gobierna solo la
+    # verificación de precios detallada de arriba) y solo se dispara una vez por proyecto — el
+    # llamador (`main.py`) pasa `necesita_presupuesto_general=True` únicamente si todavía no hay
+    # versión inicial guardada. Se lanza YA como tarea para que corra en paralelo con el análisis
+    # principal (Sonnet) en vez de sumarle latencia.
+    tarea_presupuesto_general = None
+    if item_key == "presupuesto" and necesita_presupuesto_general:
+        tarea_presupuesto_general = asyncio.create_task(extraer_presupuesto_general(docs_grupo))
+
     checklist_item = item["checklist"]
     if programa == "pequena_agricultura":
         extra_pepa = ITEMS_PEPA_EXTRA.get(item_key, "")
@@ -3567,6 +3676,11 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         invalidadas = []
 
     resultado["invalidadas"] = invalidadas
+    if tarea_presupuesto_general is not None:
+        try:
+            resultado["presupuesto_general"] = await tarea_presupuesto_general
+        except Exception as e:
+            print(f"⚠️ extraer_presupuesto_general (tarea): {e}")
     return resultado
 
 

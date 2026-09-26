@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Presupuesto — {{ proyecto.codigo_sep }} — Revisor CNR{% endblock %}
+{% block content %}
+
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border); flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+
+  .ppto-alerta { color:#c0392b; font-weight:700; }
+  .ppto-baja { color:#276749; font-weight:700; }
+  .ppto-sin-dato { color:var(--text-2); font-style:italic; }
+  .ppto-tbl { width:100%; border-collapse:collapse; font-size:0.88rem; }
+  .ppto-tbl th, .ppto-tbl td { padding:0.55rem 0.7rem; border-bottom:1px solid var(--border); text-align:right; }
+  .ppto-tbl th:first-child, .ppto-tbl td:first-child { text-align:left; }
+  .ppto-tbl th { font-weight:700; color:var(--text-2); text-transform:none; letter-spacing:normal;
+    background:rgba(128,128,128,0.05); }
+  .ppto-tbl tfoot td { font-weight:700; border-top:2px solid var(--border); border-bottom:none; }
+  .ppto-resumen-card { display:flex; gap:1.5rem; flex-wrap:wrap; }
+  .ppto-resumen-item .lbl { font-size:0.78rem; color:var(--text-2); }
+  .ppto-resumen-item .val { font-size:1.15rem; font-weight:700; }
+</style>
+
+<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
+  <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Presupuesto</h1>
+  {% include "_costo_api.html" %}
+</div>
+
+<nav class="proj-nav">
+  <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
+  <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">Documentos</a>
+  <a href="/proyecto/{{ proyecto.id }}/items" class="proj-tab">Revisión por Ítems SEP</a>
+  <a href="/proyecto/{{ proyecto.id }}/calculos" class="proj-tab">Chequeo de Cálculos</a>
+  <a href="/proyecto/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas</a>
+  <a href="/proyecto/{{ proyecto.id }}/presupuesto" class="proj-tab activa">Presupuesto</a>
+  {% include "_apps_menu.html" %}
+</nav>
+
+{% if not resumen.tiene_v0 %}
+<div class="card">
+  <p style="margin:0; font-size:0.9rem;">
+    Aún no hay un presupuesto general extraído para este proyecto. Se guarda automáticamente al
+    revisar el ítem <strong>Presupuesto detallado de obras</strong> en
+    <a href="/proyecto/{{ proyecto.id }}/items">Revisión por Ítems SEP</a>.
+  </p>
+</div>
+{% else %}
+
+<div class="card ppto-resumen-card">
+  <div class="ppto-resumen-item">
+    <div class="lbl">Presupuesto inicial{% if resumen.fecha_inicial %} · {{ resumen.fecha_inicial | fecha }}{% endif %}</div>
+    <div class="val">{% if resumen.total_inicial is not none %}${{ '{:,.0f}'.format(resumen.total_inicial) }}{% else %}—{% endif %}</div>
+  </div>
+  {% if resumen.hay_comparacion %}
+  <div class="ppto-resumen-item">
+    <div class="lbl">Última versión{% if resumen.fecha_final %} · {{ resumen.fecha_final | fecha }}{% endif %}</div>
+    <div class="val">{% if resumen.total_final is not none %}${{ '{:,.0f}'.format(resumen.total_final) }}{% else %}—{% endif %}</div>
+  </div>
+  <div class="ppto-resumen-item">
+    <div class="lbl">Diferencia</div>
+    <div class="val {% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
+      {% if resumen.diferencia_total is not none %}
+        {{ '+' if resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(resumen.diferencia_total) }}
+      {% else %}—{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if not resumen.hay_comparacion %}
+<div class="card" style="border-left:4px solid #c05621;">
+  <p style="margin:0; font-size:0.87rem;">
+    Todavía no hay una respuesta de subsanación con un presupuesto nuevo para comparar — se
+    muestra solo el presupuesto inicial. En cuanto el consultor entregue un presupuesto corregido
+    como respaldo de una observación del ítem Presupuesto (en
+    <a href="/proyecto/{{ proyecto.id }}/respuestas">Respuestas</a>), esta página comparará
+    ambas versiones ítem por ítem.
+  </p>
+</div>
+{% endif %}
+
+<div class="card">
+  <table class="ppto-tbl">
+    <colgroup><col><col style="width:170px;"><col style="width:170px;"><col style="width:170px;"></colgroup>
+    <thead>
+      <tr>
+        <th>Ítem</th>
+        <th>Costo inicial</th>
+        <th>Costo final</th>
+        <th>Diferencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in resumen.filas %}
+      <tr>
+        <td>{{ f.item }}</td>
+        <td>{% if f.costo_inicial is not none %}${{ '{:,.0f}'.format(f.costo_inicial) }}{% else %}<span class="ppto-sin-dato">Nuevo</span>{% endif %}</td>
+        <td>
+          {% if not resumen.hay_comparacion %}<span class="ppto-sin-dato">—</span>
+          {% elif f.costo_final is not none %}${{ '{:,.0f}'.format(f.costo_final) }}
+          {% else %}<span class="ppto-sin-dato">Eliminado</span>{% endif %}
+        </td>
+        <td class="{% if f.diferencia and f.diferencia > 0 %}ppto-alerta{% elif f.diferencia and f.diferencia < 0 %}ppto-baja{% endif %}">
+          {% if f.diferencia is not none %}
+            {{ '+' if f.diferencia > 0 }}${{ '{:,.0f}'.format(f.diferencia) }}
+          {% else %}<span class="ppto-sin-dato">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td>Total</td>
+        <td>{% if resumen.total_inicial is not none %}${{ '{:,.0f}'.format(resumen.total_inicial) }}{% else %}—{% endif %}</td>
+        <td>{% if resumen.hay_comparacion and resumen.total_final is not none %}${{ '{:,.0f}'.format(resumen.total_final) }}{% else %}—{% endif %}</td>
+        <td class="{% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
+          {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(resumen.diferencia_total) }}{% else %}—{% endif %}
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="card" style="font-size:0.82rem; color:var(--text-2);">
+  Extraído automáticamente por IA del cuadro resumen general del presupuesto tal como lo presenta
+  el consultor — verifica los montos contra el documento original antes de registrar los cambios
+  en el SEP. No incluye el presupuesto detallado (partidas con precio unitario), que se revisa
+  aparte en el ítem <strong>Presupuesto detallado de obras</strong>.
+</div>
+
+{% endif %}
+{% endblock %}
