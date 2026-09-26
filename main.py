@@ -392,6 +392,16 @@ def _fmt_usd(valor, decimales: int = 2) -> str:
         return "0,00"
 
 
+def _fmt_clp(valor) -> str:
+    """Monto en pesos chilenos, separador de miles con punto (notación chilena) — sin decimales."""
+    if valor is None:
+        return "—"
+    try:
+        return f"{float(valor):,.0f}".replace(",", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+
 # Sistemas de riego de ALTA FRECUENCIA: se riegan a diario reponiendo la ETc del día, así que
 # Db = ETc/Ef directo — sin AD, sin Fr, sin criterio de riego y sin la textura del suelo
 # (CC/PMP/Da/Prof. radicular). Aspersión y Carrete sí usan la cadena con agotamiento.
@@ -401,6 +411,7 @@ SISTEMAS_ALTA_FRECUENCIA = ("Goteo", "Microaspersión")
 templates.env.filters["fecha"] = _fmt_fecha
 templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 templates.env.filters["usd"] = _fmt_usd
+templates.env.filters["clp"] = _fmt_clp
 # Expuesta como global de Jinja (no por contexto de cada ruta) para que las plantillas del
 # Chequeo y de las Memorias de cálculo decidan con la MISMA lista que el motor, sin repetir la
 # tupla ("Goteo", "Microaspersión") en cada `{% if %}`. Ver `_es_alta_frecuencia` más abajo:

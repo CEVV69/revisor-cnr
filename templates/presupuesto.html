@@ -53,19 +53,17 @@
 <div class="card ppto-resumen-card">
   <div class="ppto-resumen-item">
     <div class="lbl">Presupuesto inicial{% if resumen.fecha_inicial %} · {{ resumen.fecha_inicial | fecha }}{% endif %}</div>
-    <div class="val">{% if resumen.total_inicial is not none %}${{ '{:,.0f}'.format(resumen.total_inicial) }}{% else %}—{% endif %}</div>
+    <div class="val">${{ resumen.total_inicial | clp }}</div>
   </div>
   {% if resumen.hay_comparacion %}
   <div class="ppto-resumen-item">
     <div class="lbl">Última versión{% if resumen.fecha_final %} · {{ resumen.fecha_final | fecha }}{% endif %}</div>
-    <div class="val">{% if resumen.total_final is not none %}${{ '{:,.0f}'.format(resumen.total_final) }}{% else %}—{% endif %}</div>
+    <div class="val">${{ resumen.total_final | clp }}</div>
   </div>
   <div class="ppto-resumen-item">
     <div class="lbl">Diferencia</div>
     <div class="val {% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
-      {% if resumen.diferencia_total is not none %}
-        {{ '+' if resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(resumen.diferencia_total) }}
-      {% else %}—{% endif %}
+      {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ resumen.diferencia_total | clp }}{% else %}—{% endif %}
     </div>
   </div>
   {% endif %}
@@ -98,15 +96,14 @@
       {% for f in resumen.filas %}
       <tr>
         <td>{{ f.item }}</td>
-        <td>{% if f.costo_inicial is not none %}${{ '{:,.0f}'.format(f.costo_inicial) }}{% else %}<span class="ppto-sin-dato">Nuevo</span>{% endif %}</td>
+        <td>{% if f.costo_inicial is not none %}${{ f.costo_inicial | clp }}{% else %}<span class="ppto-sin-dato">Nuevo</span>{% endif %}</td>
         <td>
           {% if not resumen.hay_comparacion %}<span class="ppto-sin-dato">—</span>
-          {% elif f.costo_final is not none %}${{ '{:,.0f}'.format(f.costo_final) }}
+          {% elif f.costo_final is not none %}${{ f.costo_final | clp }}
           {% else %}<span class="ppto-sin-dato">Eliminado</span>{% endif %}
         </td>
         <td class="{% if f.diferencia and f.diferencia > 0 %}ppto-alerta{% elif f.diferencia and f.diferencia < 0 %}ppto-baja{% endif %}">
-          {% if f.diferencia is not none %}
-            {{ '+' if f.diferencia > 0 }}${{ '{:,.0f}'.format(f.diferencia) }}
+          {% if f.diferencia is not none %}{{ '+' if f.diferencia > 0 }}${{ f.diferencia | clp }}
           {% else %}<span class="ppto-sin-dato">—</span>{% endif %}
         </td>
       </tr>
@@ -115,21 +112,14 @@
     <tfoot>
       <tr>
         <td>Total</td>
-        <td>{% if resumen.total_inicial is not none %}${{ '{:,.0f}'.format(resumen.total_inicial) }}{% else %}—{% endif %}</td>
-        <td>{% if resumen.hay_comparacion and resumen.total_final is not none %}${{ '{:,.0f}'.format(resumen.total_final) }}{% else %}—{% endif %}</td>
+        <td>${{ resumen.total_inicial | clp }}</td>
+        <td>{% if resumen.hay_comparacion %}${{ resumen.total_final | clp }}{% else %}—{% endif %}</td>
         <td class="{% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
-          {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(resumen.diferencia_total) }}{% else %}—{% endif %}
+          {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ resumen.diferencia_total | clp }}{% else %}—{% endif %}
         </td>
       </tr>
     </tfoot>
   </table>
-</div>
-
-<div class="card" style="font-size:0.82rem; color:var(--text-2);">
-  Extraído automáticamente por IA del cuadro resumen general del presupuesto tal como lo presenta
-  el consultor — verifica los montos contra el documento original antes de registrar los cambios
-  en el SEP. No incluye el presupuesto detallado (partidas con precio unitario), que se revisa
-  aparte en el ítem <strong>Presupuesto detallado de obras</strong>.
 </div>
 
 {% endif %}
