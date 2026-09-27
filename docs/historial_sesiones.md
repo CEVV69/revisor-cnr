@@ -30,6 +30,10 @@ guardada, que es justamente el caso que resuelve).
 
 ## Sesión sep-2026 — Presupuesto general: comparación entre versiones
 
+**Estado (actualizado):** el usuario hizo un chequeo parcial y confirma que se ve y funciona
+bien. La verificación punto por punto queda pendiente para cuando tome un proyecto nuevo desde
+cero — no tocar nada de esto hasta que reporte ese resultado.
+
 El usuario pidió una forma de saber si el presupuesto cambió entre versiones (ítem por ítem del
 **presupuesto general/resumen**, no del detallado con precios unitarios) — porque si cambia, el
 revisor debe registrar esos cambios en el SEP antes de aprobar/rechazar. Propuso dos ideas
