@@ -75,15 +75,15 @@
 </nav>
 
 {% if presupuesto_resumen.diferencia_total %}
-<div class="card" style="border-left:4px solid #c0392b; display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;">
-  <p style="margin:0; font-size:0.88rem; flex:1;">
-    <strong>El presupuesto general cambió entre versiones:</strong>
-    {{ '+' if presupuesto_resumen.diferencia_total > 0 }}${{ '{:,.0f}'.format(presupuesto_resumen.diferencia_total) }}
-    respecto del presupuesto inicial. Registra estos cambios ítem por ítem en el SEP antes de
-    aprobar o rechazar el proyecto.
+<div class="card" style="display:flex; align-items:center; gap:0.6rem;">
+  <span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:1.15rem; height:1.15rem; border-radius:50%; background:#c05621; color:#fff;
+    font-size:0.75rem; font-weight:700;">!</span>
+  <p style="margin:0; font-size:0.88rem;">
+    Cambios en el presupuesto final: ${{ presupuesto_resumen.total_inicial | clp }} de fecha
+    {{ presupuesto_resumen.fecha_inicial | fecha }}, ${{ presupuesto_resumen.total_final | clp }}
+    de fecha {{ presupuesto_resumen.fecha_final | fecha }}.
   </p>
-  <a href="/proyecto/{{ proyecto.id }}/presupuesto" class="btn btn-outline btn-sm"
-     style="border-color:#c0392b; color:#c0392b;">Ver detalle por ítem</a>
 </div>
 {% endif %}
 
