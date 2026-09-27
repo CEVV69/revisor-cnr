@@ -1,6 +1,23 @@
-## Sesión sep-2026 — Presupuesto: notación chilena, botón manual "Extraer datos"
+## Sesión sep-2026 — Presupuesto: confirmado por el usuario + últimos ajustes visuales
 
-Dos ajustes sobre la sección Presupuesto de la sesión anterior:
+**"Funciona perfecto"** — el usuario confirmó la sección Presupuesto completa (pestaña, botón
+manual "Extraer datos" y su función) tras probarla. Pidió solo 3 ajustes cosméticos, sin tocar
+nada de la lógica:
+
+1. **Colores de la diferencia invertidos.** Pidió verde si la diferencia es positiva (el
+   presupuesto subió) y rojo si es negativa (bajó) — antes era al revés. Clases renombradas
+   `ppto-alerta`/`ppto-baja` → `ppto-positivo`/`ppto-negativo` (mismo criterio en las 3 filas que
+   las usan: fila por ítem, total de la tabla, tarjeta resumen de arriba). El total ya estaba en
+   negrita en los dos lugares (`.ppto-tbl tfoot td` y `.ppto-resumen-item .val` ya traían
+   `font-weight:700`) — no hizo falta agregar nada para eso.
+2. **Aviso en Respuestas simplificado a una línea.** Quitó el botón "Ver detalle por ítem", el
+   borde naranja izquierdo, y pidió en su lugar un ícono circular de exclamación (CSS, no emoji —
+   `<span>` con `border-radius:50%`, fondo ámbar `#c05621`, "!" blanco) seguido de una sola línea:
+   "Cambios en el presupuesto final: $X de fecha A, $Y de fecha B" (monto inicial + su fecha,
+   monto final + su fecha, con el filtro `clp` ya corregido).
+
+Estado: **cerrado y confirmado**, movido a "Cerrado, probado y OK" en `CLAUDE.md`. Sesión
+anterior — dos ajustes previos sobre la misma sección:
 
 **1. Notación chilena de miles.** Los montos usaban `'{:,.0f}'.format()` (coma de miles, estilo
 US) — el usuario lo marcó de inmediato: "en Chile los miles se separan con puntos". Se agregó el
