@@ -28,6 +28,10 @@
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
   <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Presupuesto</h1>
   {% include "_costo_api.html" %}
+  <form method="post" action="/proyecto/{{ proyecto.id }}/presupuesto/extraer" style="margin-left:auto;"
+        title="Extrae de nuevo el presupuesto inicial y el más reciente directo desde los documentos ya subidos — respaldo manual para cuando el ítem Presupuesto ya no vuelve a analizarse.">
+    <button type="submit" class="btn btn-outline btn-sm">Extraer datos</button>
+  </form>
 </div>
 
 <nav class="proj-nav">

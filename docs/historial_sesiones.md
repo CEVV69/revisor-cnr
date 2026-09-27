@@ -1,3 +1,33 @@
+## Sesión sep-2026 — Presupuesto: notación chilena, botón manual "Extraer datos"
+
+Dos ajustes sobre la sección Presupuesto de la sesión anterior:
+
+**1. Notación chilena de miles.** Los montos usaban `'{:,.0f}'.format()` (coma de miles, estilo
+US) — el usuario lo marcó de inmediato: "en Chile los miles se separan con puntos". Se agregó el
+filtro Jinja `clp` (`main.py`, junto a `usd`): `f"{valor:,.0f}".replace(",", ".")`. Reemplazado en
+todos los montos de `presupuesto.html`. De paso se quitó la nota final "Extraído automáticamente
+por IA..." de esa página — el usuario la pidió eliminar por innecesaria.
+
+**2. Botón manual "Extraer datos" — caso real que el flujo automático no cubre.** El usuario
+explicó: para proyectos que YA revisó antes de que existiera esta función (revisión inicial +
+respuesta de subsanación ya evaluadas, pendiente solo la ronda 3), el ítem Presupuesto quedó
+"resuelto" y no se vuelve a analizar — así que el gatillo automático de versión 0 (al analizar el
+ítem) y versión N (al registrar una respuesta con adjunto nuevo) nunca corre para esos casos
+históricos. Pidió un botón chico, sin empujar el resto del layout, que dispare la extracción
+directa contra los documentos ya subidos.
+
+Implementado como POST `/proyecto/{id}/presupuesto/extraer` (`extraer_presupuesto_general_manual`
+en main.py): toma todos los documentos `tipo_doc=="presupuesto"` del proyecto, agrupa por día
+calendario de `fecha_subida` (mismo criterio que `_solo_version_vigente`), extrae con
+`extraer_presupuesto_general()` la presentación más antigua y, si hay más de un día distinto, la
+más reciente — y REEMPLAZA `proyecto["presupuesto_general"]["versiones"]` con esas 1 o 2 entradas
+(`origen: "extraccion_manual"`). Es un atajo manual, no compite con el flujo automático: tras
+usarlo, una respuesta de subsanación posterior con presupuesto nuevo simplemente agrega la
+siguiente versión encima, igual que si el historial hubiera partido con datos automáticos.
+Botón en el header de `presupuesto.html` (`<form method="post">`, `btn-outline btn-sm`,
+`margin-left:auto` para no empujar el resto hacia abajo), visible siempre (incluso sin versión 0
+guardada, que es justamente el caso que resuelve).
+
 ## Sesión sep-2026 — Presupuesto general: comparación entre versiones
 
 El usuario pidió una forma de saber si el presupuesto cambió entre versiones (ítem por ítem del

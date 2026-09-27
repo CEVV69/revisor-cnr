@@ -57,7 +57,10 @@ Caudal del emisor por sistema (confirmado sep-2026).
    probar)** — nueva pestaña `/proyecto/{id}/presupuesto` (Ítem/Costo inicial/Costo final/
    Diferencia del CUADRO RESUMEN, no el detallado). Versión 0 al analizar el ítem `presupuesto`;
    versión N al registrar una respuesta de subsanación con adjunto `tipo_doc=="presupuesto"`.
-   Aviso en Respuestas si cambió el total. Detalle de diseño en `docs/`.
+   Aviso en Respuestas si cambió el total. Botón manual "Extraer datos" (mismo POST
+   `/presupuesto/extraer`) para proyectos anteriores a esta función, donde el ítem Presupuesto
+   ya no vuelve a analizarse — relee inicial+más reciente directo de los documentos subidos y
+   REEMPLAZA las versiones guardadas. Detalle de diseño en `docs/`.
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 

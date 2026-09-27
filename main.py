@@ -3840,6 +3840,61 @@ async def pagina_presupuesto(request: Request, proyecto_id: str):
     })
 
 
+@app.post("/proyecto/{proyecto_id}/presupuesto/extraer")
+async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str):
+    """Botón "Extraer datos" de la página Presupuesto — respaldo MANUAL para los casos donde el
+    flujo automático (versión 0 al analizar el ítem Presupuesto, versión N al registrar una
+    respuesta de subsanación con adjunto nuevo) nunca corrió, típicamente proyectos que ya se
+    revisaron antes de que existiera esta función: el ítem Presupuesto quedó resuelto en una
+    ronda anterior y no vuelve a analizarse, así que la extracción automática no tiene gatillo.
+
+    Relee directamente de los documentos YA SUBIDOS con `tipo_doc=="presupuesto"` — la
+    presentación más antigua (inicial) y la más reciente (agrupando por día calendario, mismo
+    criterio que `_solo_version_vigente`), y REEMPLAZA las versiones guardadas por esas dos. Es
+    un atajo manual, no compite con el método automático (que sigue siendo el prioritario para
+    proyectos nuevos): tras este reemplazo, si más adelante llega una respuesta de subsanación
+    con un presupuesto nuevo, el flujo automático simplemente agrega la versión N siguiente."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
+    docs_presupuesto = [d for d in proyecto.get("documentos", []) if d.get("tipo_doc") == "presupuesto"]
+    if not docs_presupuesto:
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto", status_code=302)
+
+    docs_ordenados = sorted(docs_presupuesto, key=lambda d: d.get("fecha_subida", ""))
+    fecha_inicial, fecha_final = docs_ordenados[0]["fecha_subida"], docs_ordenados[-1]["fecha_subida"]
+    dia_inicial, dia_final = fecha_inicial[:10], fecha_final[:10]
+
+    await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id, proyecto.get("documentos", []))
+    documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
+    docs_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "presupuesto"]
+    docs_iniciales = [d for d in docs_ct if (d.get("fecha_subida") or "")[:10] == dia_inicial]
+
+    versiones_nuevas = []
+    datos_inicial = await extraer_presupuesto_general(docs_iniciales)
+    if datos_inicial.get("items"):
+        versiones_nuevas.append({"fecha": fecha_inicial, "origen": "extraccion_manual",
+                                 "items": datos_inicial["items"], "total": datos_inicial.get("total")})
+    if dia_final != dia_inicial:
+        docs_finales = [d for d in docs_ct if (d.get("fecha_subida") or "")[:10] == dia_final]
+        datos_final = await extraer_presupuesto_general(docs_finales)
+        if datos_final.get("items"):
+            versiones_nuevas.append({"fecha": fecha_final, "origen": "extraccion_manual",
+                                     "items": datos_final["items"], "total": datos_final.get("total")})
+
+    if versiones_nuevas:
+        proyecto_fresco = db.get_proyecto(proyecto_id)
+        if proyecto_fresco:
+            proyecto_fresco["presupuesto_general"] = {"versiones": versiones_nuevas}
+            db.save_proyecto(proyecto_fresco)
+
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto", status_code=302)
+
+
 @app.post("/proyecto/{proyecto_id}/max-rondas")
 async def guardar_max_rondas(request: Request, proyecto_id: str, max_rondas: int = Form(...)):
     """Cambia el tope de rondas de subsanación de ESTE proyecto — 2 por defecto, 3 si el revisor
