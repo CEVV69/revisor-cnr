@@ -10,8 +10,8 @@
   .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
   .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
 
-  .ppto-alerta { color:#c0392b; font-weight:700; }
-  .ppto-baja { color:#276749; font-weight:700; }
+  .ppto-positivo { color:#276749; font-weight:700; }
+  .ppto-negativo { color:#c0392b; font-weight:700; }
   .ppto-sin-dato { color:var(--text-2); font-style:italic; }
   .ppto-tbl { width:100%; border-collapse:collapse; font-size:0.88rem; }
   .ppto-tbl th, .ppto-tbl td { padding:0.55rem 0.7rem; border-bottom:1px solid var(--border); text-align:right; }
@@ -66,7 +66,7 @@
   </div>
   <div class="ppto-resumen-item">
     <div class="lbl">Diferencia</div>
-    <div class="val {% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
+    <div class="val {% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-positivo{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-negativo{% endif %}">
       {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ resumen.diferencia_total | clp }}{% else %}—{% endif %}
     </div>
   </div>
@@ -106,7 +106,7 @@
           {% elif f.costo_final is not none %}${{ f.costo_final | clp }}
           {% else %}<span class="ppto-sin-dato">Eliminado</span>{% endif %}
         </td>
-        <td class="{% if f.diferencia and f.diferencia > 0 %}ppto-alerta{% elif f.diferencia and f.diferencia < 0 %}ppto-baja{% endif %}">
+        <td class="{% if f.diferencia and f.diferencia > 0 %}ppto-positivo{% elif f.diferencia and f.diferencia < 0 %}ppto-negativo{% endif %}">
           {% if f.diferencia is not none %}{{ '+' if f.diferencia > 0 }}${{ f.diferencia | clp }}
           {% else %}<span class="ppto-sin-dato">—</span>{% endif %}
         </td>
@@ -118,7 +118,7 @@
         <td>Total</td>
         <td>${{ resumen.total_inicial | clp }}</td>
         <td>{% if resumen.hay_comparacion %}${{ resumen.total_final | clp }}{% else %}—{% endif %}</td>
-        <td class="{% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-alerta{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-baja{% endif %}">
+        <td class="{% if resumen.diferencia_total and resumen.diferencia_total > 0 %}ppto-positivo{% elif resumen.diferencia_total and resumen.diferencia_total < 0 %}ppto-negativo{% endif %}">
           {% if resumen.diferencia_total is not none %}{{ '+' if resumen.diferencia_total > 0 }}${{ resumen.diferencia_total | clp }}{% else %}—{% endif %}
         </td>
       </tr>
