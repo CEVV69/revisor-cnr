@@ -2839,9 +2839,19 @@ async def extraer_presupuesto_general(docs_grupo: list) -> dict:
 por categoría tal como el consultor la presenta (por ejemplo: Sistema de Riego/Obras Civiles,
 Gastos Generales, Utilidad, Imprevistos, Estudio/Diseño, Inspección Técnica de Obras (ITO), IVA,
 Total). NO es el detalle de partidas con precio unitario — es el cuadro resumen/totales, casi
-siempre una tabla corta aparte del detalle. Usa los nombres EXACTOS que aparecen en el documento,
-sin normalizar ni traducir. NO inventes ni calcules nada — si un ítem no aparece explícitamente,
-no lo incluyas.
+siempre una tabla corta aparte del detalle.
+
+IMPORTANTE — extrae CADA FILA de esa tabla resumen, no solo los subtotales: si una categoría
+viene desglosada en varias líneas antes de su subtotal (ej. "Instalación y excavación de
+zanjas", "Instalación sistema de riego por goteo", "Instalación de Scall", seguidas de
+"Sub-Total (1)"), extrae las CUATRO filas — las líneas individuales Y el subtotal — igual que
+harías con cualquier categoría de una sola línea. NO colapses un grupo de líneas en solo su
+subtotal. Lo que distingue esta tabla resumen de la detallada es que sus filas NO traen columnas
+de unidad/cantidad/precio unitario (son solo ítem + monto) — no la cantidad de filas que tenga:
+una tabla resumen puede perfectamente tener varias líneas por categoría.
+
+Usa los nombres EXACTOS que aparecen en el documento, sin normalizar ni traducir. NO inventes ni
+calcules nada — si un ítem no aparece explícitamente, no lo incluyas.
 Responde SOLO este JSON, sin texto adicional:
 {{"items": [{{"item": "nombre tal como aparece en el documento", "monto": number}}],
 "total": number|null}}
