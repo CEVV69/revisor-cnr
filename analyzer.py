@@ -1021,14 +1021,19 @@ ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "prueba
 # revisor completa/edita el resto. tipo: "text" | "textarea" | "sino".
 RESUMEN_SECCIONES = [
     {"titulo": "Identificación", "campos": [
-        {"key": "codigo",          "label": "Código proyecto",     "tipo": "text", "auto": "codigo_sep",
-         "linea_con": "costo_total_uf"},
+        {"key": "codigo",          "label": "Código proyecto",     "tipo": "text", "auto": "codigo_sep"},
         {"key": "postulante",      "label": "Postulante",          "tipo": "text", "auto": "postulante"},
         {"key": "comuna",          "label": "Comuna",              "tipo": "text"},
         {"key": "consultor",       "label": "Consultor",           "tipo": "text"},
         {"key": "nombre_proyecto", "label": "Nombre del proyecto", "tipo": "textarea", "auto": "nombre"},
         {"key": "estrato",         "label": "Estrato",             "tipo": "text"},
-        {"key": "costo_total_uf",  "label": "Costo total (UF)",    "tipo": "text"},
+        {"key": "costo_total_uf",  "label": "Costo total (UF)",    "tipo": "text",
+         "linea_con": "costo_total_final_uf"},
+        # Costo tras la versión final del presupuesto (puede cambiar por observaciones resueltas
+        # con un presupuesto corregido) — manual, igual que costo_total_uf: ninguno de los dos se
+        # extrae con IA, el revisor los registra a mano. Emparejado en la misma fila del informe
+        # (informe_resumen.html) para comparar inicial vs. final de un vistazo.
+        {"key": "costo_total_final_uf", "label": "Costo total final (UF)", "tipo": "text"},
     ]},
     {"titulo": "1. Proyecto / Legal", "campos": [
         {"key": "servidumbres", "label": "Servidumbres", "tipo": "sino"},
