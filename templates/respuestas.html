@@ -172,7 +172,7 @@
         {% if sub.estado == 'resuelta' %}sub-resuelta{% elif sub.estado == 'no_resuelta' %}sub-noresuelta{% elif sub.ronda_actual and sub.ronda_actual > 1 %}sub-reobservada{% else %}sub-esperando{% endif %}">
         {% if sub.estado == 'resuelta' %}Resuelta
         {% elif sub.estado == 'no_resuelta' %}No resuelta ({{ sub.rondas|length }} rondas)
-        {% elif sub.ronda_actual and sub.ronda_actual > 1 %}Re-observada
+        {% elif sub.ronda_actual and sub.ronda_actual > 1 %}Re-observada{{ sub.ronda_actual - 1 if sub.ronda_actual > 2 else '' }}
         {% else %}Esperando respuesta{% endif %}
       </span>
     </div>
