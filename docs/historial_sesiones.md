@@ -1,3 +1,26 @@
+## Sesión sep-2026 — Fix: extracción de Presupuesto general colapsaba líneas en su subtotal
+
+Tras el "funciona perfecto" (ver sesión siguiente), el usuario encontró un caso puntual: la
+extracción elige bien la hoja del Excel y saca bien montos/totales/diferencias, pero para un
+grupo de categorías (ej. "Sub-Total (1)") solo extraía la fila del subtotal, sin las líneas
+individuales que lo componen (Instalación y excavación de zanjas, Instalación sistema de riego
+por goteo, Instalación de Scall) — mientras que para otro grupo (Subtotal 2) sí extraía cada
+línea. Inconsistente entre secciones del mismo documento.
+
+**Causa:** el prompt de `extraer_presupuesto_general()` describía el cuadro resumen como "casi
+siempre una tabla corta" sin ser explícito sobre extraer cada fila — la IA interpretaba a veces
+que el criterio de "resumen, no detallado" significaba colapsar grupos de líneas en su subtotal.
+
+**Fix:** el prompt ahora dice explícitamente que hay que extraer CADA fila de la tabla resumen
+(líneas individuales Y subtotales), y aclara el criterio real que distingue resumen de
+detallado: la ausencia de columnas de unidad/cantidad/precio unitario — NO la cantidad de filas.
+Una tabla resumen puede perfectamente tener varias líneas por categoría.
+
+**Pendiente:** que el usuario vuelva a extraer con el mismo presupuesto y confirme que ahora
+salen las líneas del Sub-Total (1) también.
+
+---
+
 ## Sesión sep-2026 — Presupuesto: confirmado por el usuario + últimos ajustes visuales
 
 **"Funciona perfecto"** — el usuario confirmó la sección Presupuesto completa (pestaña, botón
