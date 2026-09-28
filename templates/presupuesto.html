@@ -29,7 +29,8 @@
   <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Presupuesto</h1>
   {% include "_costo_api.html" %}
   <form method="post" action="/proyecto/{{ proyecto.id }}/presupuesto/extraer" style="margin-left:auto;"
-        title="Extrae de nuevo el presupuesto inicial y el más reciente directo desde los documentos ya subidos — respaldo manual para cuando el ítem Presupuesto ya no vuelve a analizarse.">
+        title="Extrae de nuevo el presupuesto inicial y el más reciente directo desde los documentos ya subidos — respaldo manual para cuando el ítem Presupuesto ya no vuelve a analizarse."
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Extrayendo…'; this.submit();">
     <button type="submit" class="btn btn-outline btn-sm">Extraer datos</button>
   </form>
 </div>
@@ -125,6 +126,46 @@
     </tfoot>
   </table>
 </div>
+
+<div class="card">
+  <div class="ppto-resumen-card" style="margin-bottom:0.9rem;">
+    <div class="ppto-resumen-item">
+      <div class="lbl">Presupuesto inicial (UF)</div>
+      <div class="val">{{ proyecto.resumen.costo_total_uf or '—' }}</div>
+    </div>
+    <div class="ppto-resumen-item">
+      <div class="lbl">Presupuesto final (UF)</div>
+      <div class="val">{{ proyecto.resumen.costo_total_final_uf or '—' }}</div>
+    </div>
+  </div>
+  {% if proyecto.resumen.costo_total_uf and proyecto.resumen.costo_total_final_uf %}
+  <div style="display:flex; align-items:flex-start; gap:0.6rem; flex-wrap:wrap;">
+    <p id="nota-sep-uf" style="flex:1; min-width:260px; margin:0; font-size:0.88rem;
+       background:rgba(128,128,128,0.06); padding:0.6rem 0.8rem; border-radius:6px;">Se modificó
+      el presupuesto del proyecto, pasando de {{ proyecto.resumen.costo_total_uf }} UF iniciales
+      a {{ proyecto.resumen.costo_total_final_uf }} UF finales.</p>
+    <button type="button" class="btn btn-outline btn-sm" onclick="copiarNotaUF()"
+            title="Copiar texto para pegar en el SEP">Copiar</button>
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0; font-size:0.82rem;">
+    Falta registrar el costo {% if not proyecto.resumen.costo_total_uf %}inicial{% else %}final{% endif %}
+    en UF en <a href="/proyecto/{{ proyecto.id }}/resumen">Resumen</a> para generar la nota del SEP.
+  </p>
+  {% endif %}
+</div>
+
+<script>
+function copiarNotaUF() {
+  var texto = document.getElementById('nota-sep-uf').textContent.trim().replace(/\s+/g, ' ');
+  var btn = event.target;
+  navigator.clipboard.writeText(texto).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Copiado';
+    setTimeout(function() { btn.textContent = orig; }, 1500);
+  });
+}
+</script>
 
 {% endif %}
 {% endblock %}
