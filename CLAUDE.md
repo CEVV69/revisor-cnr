@@ -55,6 +55,8 @@ botón manual "Extraer datos", aviso resumido en Respuestas; diferencia verde=su
 5. **Observaciones en dos párrafos (análisis + propuesta)** — mismo campo `texto`/`fundamento`,
    sin esquema nuevo: 1er párrafo análisis técnico (el revisor lo recorta antes del SEP), 2º
    párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
+6. **Campo "Costo total final (UF)" en Resumen** — manual, igual que "Costo total (UF)" (sin IA).
+   Emparejado con él en la misma fila del informe vía `linea_con` (comparar inicial vs. final).
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 
