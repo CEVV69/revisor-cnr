@@ -57,6 +57,8 @@ botón manual "Extraer datos", aviso resumido en Respuestas; diferencia verde=su
    párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
 6. **Campo "Costo total final (UF)" en Resumen** — manual, igual que "Costo total (UF)" (sin IA).
    Emparejado con él en la misma fila del informe vía `linea_con` (comparar inicial vs. final).
+7. **Presupuesto: fix extracción (líneas colapsadas en subtotal) + botón "Extrayendo…" + nota UF
+   lista para copiar al SEP** (usa los dos campos del punto 6). Detalle `docs/`.
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 

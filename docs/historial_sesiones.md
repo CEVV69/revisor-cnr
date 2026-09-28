@@ -1,3 +1,21 @@
+## Sesión sep-2026 — Presupuesto: botón "Extrayendo…" + nota UF para el SEP
+
+Dos pedidos del usuario sobre `/proyecto/{id}/presupuesto`:
+1. El botón "Extraer datos" no cambiaba de texto al hacer clic — no se sabía si estaba
+   procesando, y se podía hacer doble clic sin darse cuenta. Mismo patrón ya usado en
+   calculos.html: `disabled=true` + texto "Extrayendo…" en el `onsubmit`.
+2. Mostrar al final de la tabla el presupuesto inicial y final en UF, y si es posible, la nota
+   ya redactada para pegar en el SEP ("Se modificó el presupuesto del proyecto, pasando de X UF
+   iniciales a Y UF finales.").
+
+**Diseño:** en vez de agregar una extracción nueva, se reutilizan los campos "Costo total (UF)"/
+"Costo total final (UF)" de Resumen (agregados esta misma sesión, manuales, sin IA) — son
+exactamente el dato que pedía el usuario y ya existían. Nueva tarjeta en presupuesto.html con
+ambos valores; si los dos están completos arma la nota automáticamente con un botón "Copiar"
+(`navigator.clipboard`); si falta alguno, aviso con link directo a Resumen para completarlo.
+
+---
+
 ## Sesión sep-2026 — Fix: extracción de Presupuesto general colapsaba líneas en su subtotal
 
 Tras el "funciona perfecto" (ver sesión siguiente), el usuario encontró un caso puntual: la
