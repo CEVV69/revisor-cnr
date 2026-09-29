@@ -1,3 +1,71 @@
+## Sesión sep-2026 — AUDITORÍA (riesgos, inconsistencias, código muerto, costo)
+
+**Método:** pyflakes en todos los módulos + búsqueda de definiciones sin uso + lectura crítica
+de lo trabajado en las últimas sesiones + pruebas de borde ejecutadas sobre las funciones nuevas.
+**Código muerto:** ninguno (0 imports sin uso, 0 funciones/constantes sin referencias; solo 8
+f-strings sin placeholders, cosmético). Capa de datos sana (una clave por proyecto, lecturas
+ligeras, polling barato).
+
+**Corregido en la misma sesión (defectos de mi propio trabajo reciente):**
+1. `presupuesto.html`: la tarjeta UF daba 500 en proyectos SIN clave `resumen` (un proyecto nuevo
+   no la trae hasta guardar el Resumen). Además la nota "Se modificó…" salía aunque inicial=final.
+2. `respuestas.html`: `restaurarIA` (fix de la sesión anterior) reponía la respuesta y el veredicto
+   IA de la ronda 1 dentro del formulario de la ronda 2 tras "Reiterar" — el sessionStorage no se
+   limpiaba al enviar. Ahora `onsubmit` lo borra.
+3. `_limitar_texto`: umbral `> 10` dejaba fragmentos tras abreviaturas ("Debe cumplir Art.").
+   Ahora exige 1/3 del tope.
+4. Autocompletar Resumen: "Costo total final (UF)" se le pedía a la IA (yo había afirmado que no)
+   y la IA lo llenaba con el costo inicial. Ahora `manual: True` + `RESUMEN_CAMPOS_MANUALES`.
+
+**PENDIENTE — propuesto al usuario, NO aplicado (esperar su OK). Por prioridad:**
+- **A (alto impacto / baja probabilidad) `monto`/`total` de la IA sin sanear.** Si Haiku devuelve
+  un monto como texto ("1.234.567"), `_resumen_presupuesto_general` hace `total_final -
+  total_inicial` y revienta TypeError — y la usan Respuestas Y Presupuesto: ambas páginas caen, y
+  el botón "Extraer datos" que lo arreglaría está en una de ellas. Fix: sanear a número en
+  `extraer_presupuesto_general` (notación chilena) y blindar `_resumen_presupuesto_general`.
+- **B (alto) El veredicto del revisor depende de una llamada de IA.** `registrar_respuesta_subsanacion`
+  hace `await` de la extracción de presupuesto (y `_con_texto`) ANTES de `save_proyecto`; si algo
+  lanza excepción, se pierde el "Marcar como resuelta/Reiterar". Fix: guardar la ronda primero, y
+  extraer después con try/except sobre copia fresca.
+- **C (alto) Lost update por copia vieja.** Las 3 rutas `/calculos/*/extraer`, `autocompletar_resumen`
+  y `registrar_respuesta_subsanacion` cargan el proyecto, esperan 10–30 s a la IA y guardan la copia
+  vieja: si mientras tanto terminó un análisis de ítem en segundo plano o el revisor guardó otra
+  cosa, se pisa (p. ej. desaparecen observaciones recién generadas). Fix: recargar fresco antes de
+  aplicar (patrón ya usado en `_analizar_item_fondo` y `evaluar_respuesta_ia`).
+- **D (medio) Emparejamiento de nombres del presupuesto.** Probado: si "Sub-Total (1)" desaparece en
+  la versión final, se empareja con "Sub-Total (2)" y muestra una diferencia FALSA (−45 en la
+  prueba); "Sub-Total" vs "Subtotal" no se emparejan (filas Nuevo/Eliminado espurias); el
+  emparejamiento es codicioso por orden. Fix: normalizar "sub total"→"subtotal", exigir igualdad de
+  tokens numéricos, y asignar por mejor puntaje global.
+- **E (medio) `extraer_presupuesto_general_manual` puede borrar una buena versión 0:** si la
+  extracción inicial falla y la final no, guarda solo la final como "v0" y se pierde la comparación
+  en silencio (además de no avisar nunca si no extrajo nada). Fix: reemplazar solo si salieron
+  ambas cuando corresponde, y avisar. Las dos extracciones van en serie → `asyncio.gather`.
+- **F (medio) `fecha_subida: None` revienta** `_etiquetar_versiones_docs`/`_solo_version_vigente`
+  (TypeError al ordenar; probado) y `docs_ordenados[0]["fecha_subida"]` en la ruta manual (KeyError).
+  Fix: `d.get("fecha_subida") or ""` en los 3 sitios.
+- **G (medio-bajo) Total de respaldo incorrecto:** si la IA devuelve `total: null`, se suma TODO
+  (líneas + subtotales + Total) → doble/triple conteo, más probable tras pedir "cada fila". Fix:
+  usar la fila cuyo nombre sea "Total", o dejar None.
+- **H (bajo) `max_tokens=2000`** en `extraer_presupuesto_general` puede truncar presupuestos con
+  muchas filas (el parser tolerante cierra el JSON y se pierde el final, incluido el Total). Subir a
+  4000 no cuesta nada (solo se paga lo generado).
+- **I (ahorro/precisión)** La versión 0 se extrae con `docs_grupo` completo (presupuesto +
+  cubicaciones) mientras la manual y la de subsanación usan solo `tipo_doc=="presupuesto"`:
+  inconsistente y más tokens de entrada. Unificar.
+- **J (ahorro/precisión)** Con el formato de dos párrafos, los previews `[:250]/[:400]` de
+  `observaciones_previas` y de `revisar_invalidacion_cruzada` ahora capturan el ANÁLISIS, no la
+  propuesta. Usar el último párrafo. Además acotar el análisis (~350 caracteres): son tokens de
+  salida de Sonnet en cada observación de cada ítem.
+- **K (deuda)** `evaluar_respuestas_item` duplica ~70 líneas de `evaluar_respuesta_subsanacion`
+  (ya hubo que corregir la lógica de versiones dos veces). Extraer una función común con tests.
+- **L (menor)** Si `_analizar_grupo` falla, las tareas paralelas (invalidación cruzada, presupuesto
+  general) siguen corriendo: gasto sin resultado. Cancelarlas en `except`. Agrupar días por string
+  ignora el huso horario (registros antiguos son "naive"): afecta solo a cortes cerca de medianoche.
+- **M (menor)** CLAUDE.md pasó el límite de ~150 líneas (160).
+
+---
+
 ## Sesión sep-2026 — Presupuesto: botón "Extrayendo…" + nota UF para el SEP
 
 Dos pedidos del usuario sobre `/proyecto/{id}/presupuesto`:

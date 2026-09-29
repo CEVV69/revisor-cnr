@@ -55,12 +55,15 @@ botón manual "Extraer datos", aviso resumido en Respuestas; diferencia verde=su
 5. **Observaciones en dos párrafos (análisis + propuesta)** — mismo campo `texto`/`fundamento`,
    sin esquema nuevo: 1er párrafo análisis técnico (el revisor lo recorta antes del SEP), 2º
    párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
-6. **Campo "Costo total final (UF)" en Resumen** — manual, igual que "Costo total (UF)" (sin IA).
-   Emparejado con él en la misma fila del informe vía `linea_con` (comparar inicial vs. final).
-7. **Presupuesto: fix extracción (líneas colapsadas en subtotal) + botón "Extrayendo…" + nota UF
-   lista para copiar al SEP** (usa los dos campos del punto 6). Detalle `docs/`.
+6. **"Costo total final (UF)" en Resumen** — manual (`manual: True`, la IA no lo completa),
+   emparejado con "Costo total (UF)" en el informe. Presupuesto: extrae cada fila (no solo
+   subtotales), botón "Extrayendo…" y nota UF copiable al SEP. Detalle `docs/`.
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
+
+**DECISIÓN PENDIENTE DEL USUARIO — auditoría sep-2026:** 4 defectos propios ya corregidos; quedan
+propuestas A–M en `docs/historial_sesiones.md` (sección AUDITORÍA), sin aplicar. Recomendado aplicar
+primero A, B, C, F (riesgo de caída/pérdida de datos) y luego D, E, G, H, I, J. Esperar su OK.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
 necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
