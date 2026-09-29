@@ -216,7 +216,8 @@
 
     {% if sub.puede_responder %}
     <form method="post" action="/proyecto/{{ proyecto.id }}/observacion/{{ obs.id }}/responder"
-          id="form-resp-{{ obs.id }}" class="form-resp" style="margin-top:0.6rem;">
+          id="form-resp-{{ obs.id }}" class="form-resp" style="margin-top:0.6rem;"
+          onsubmit="borrarIAGuardada('{{ obs.id }}')">
       <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;">
         Respuesta del consultor (ronda {{ sub.ronda_actual }})
       </label>

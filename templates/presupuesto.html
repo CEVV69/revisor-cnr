@@ -127,42 +127,53 @@
   </table>
 </div>
 
+{# Un proyecto nuevo no trae la clave "resumen" hasta que se guarda o autocompleta esa pestaña:
+   sin este `or {}`, acceder a `.costo_total_uf` sobre un Undefined es un error 500. #}
+{% set res_uf = proyecto.resumen or {} %}
+{% set uf_ini = (res_uf.costo_total_uf or '') | trim %}
+{% set uf_fin = (res_uf.costo_total_final_uf or '') | trim %}
 <div class="card">
   <div class="ppto-resumen-card" style="margin-bottom:0.9rem;">
     <div class="ppto-resumen-item">
       <div class="lbl">Presupuesto inicial (UF)</div>
-      <div class="val">{{ proyecto.resumen.costo_total_uf or '—' }}</div>
+      <div class="val">{{ uf_ini or '—' }}</div>
     </div>
     <div class="ppto-resumen-item">
       <div class="lbl">Presupuesto final (UF)</div>
-      <div class="val">{{ proyecto.resumen.costo_total_final_uf or '—' }}</div>
+      <div class="val">{{ uf_fin or '—' }}</div>
     </div>
   </div>
-  {% if proyecto.resumen.costo_total_uf and proyecto.resumen.costo_total_final_uf %}
+  {% if uf_ini and uf_fin and uf_ini != uf_fin %}
   <div style="display:flex; align-items:flex-start; gap:0.6rem; flex-wrap:wrap;">
     <p id="nota-sep-uf" style="flex:1; min-width:260px; margin:0; font-size:0.88rem;
        background:rgba(128,128,128,0.06); padding:0.6rem 0.8rem; border-radius:6px;">Se modificó
-      el presupuesto del proyecto, pasando de {{ proyecto.resumen.costo_total_uf }} UF iniciales
-      a {{ proyecto.resumen.costo_total_final_uf }} UF finales.</p>
-    <button type="button" class="btn btn-outline btn-sm" onclick="copiarNotaUF()"
+      el presupuesto del proyecto, pasando de {{ uf_ini }} UF iniciales
+      a {{ uf_fin }} UF finales.</p>
+    <button type="button" class="btn btn-outline btn-sm" onclick="copiarNotaUF(this)"
             title="Copiar texto para pegar en el SEP">Copiar</button>
   </div>
+  {% elif uf_ini and uf_fin %}
+  <p class="text-muted" style="margin:0; font-size:0.82rem;">
+    El presupuesto inicial y el final en UF son iguales — no corresponde nota de modificación.
+  </p>
   {% else %}
   <p class="text-muted" style="margin:0; font-size:0.82rem;">
-    Falta registrar el costo {% if not proyecto.resumen.costo_total_uf %}inicial{% else %}final{% endif %}
+    Falta registrar el costo {% if not uf_ini %}inicial{% else %}final{% endif %}
     en UF en <a href="/proyecto/{{ proyecto.id }}/resumen">Resumen</a> para generar la nota del SEP.
   </p>
   {% endif %}
 </div>
 
 <script>
-function copiarNotaUF() {
+function copiarNotaUF(btn) {
   var texto = document.getElementById('nota-sep-uf').textContent.trim().replace(/\s+/g, ' ');
-  var btn = event.target;
+  var orig = btn.textContent;
   navigator.clipboard.writeText(texto).then(function() {
-    var orig = btn.textContent;
     btn.textContent = 'Copiado';
     setTimeout(function() { btn.textContent = orig; }, 1500);
+  }).catch(function() {
+    btn.textContent = 'No se pudo copiar';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
   });
 }
 </script>

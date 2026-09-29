@@ -1030,10 +1030,13 @@ RESUMEN_SECCIONES = [
         {"key": "costo_total_uf",  "label": "Costo total (UF)",    "tipo": "text",
          "linea_con": "costo_total_final_uf"},
         # Costo tras la versión final del presupuesto (puede cambiar por observaciones resueltas
-        # con un presupuesto corregido) — manual, igual que costo_total_uf: ninguno de los dos se
-        # extrae con IA, el revisor los registra a mano. Emparejado en la misma fila del informe
-        # (informe_resumen.html) para comparar inicial vs. final de un vistazo.
-        {"key": "costo_total_final_uf", "label": "Costo total final (UF)", "tipo": "text"},
+        # con un presupuesto corregido). `manual`: NO se le pide a la IA en el autocompletado
+        # (`resumir_proyecto`) — el expediente trae ambas versiones del presupuesto y la IA lo
+        # llenaría con el costo inicial, dejando un "final" falso que alimenta la nota del SEP.
+        # (`costo_total_uf`, en cambio, sí se autocompleta.) Emparejado con él en la misma fila
+        # del informe (informe_resumen.html) para comparar inicial vs. final de un vistazo.
+        {"key": "costo_total_final_uf", "label": "Costo total final (UF)", "tipo": "text",
+         "manual": True},
     ]},
     {"titulo": "1. Proyecto / Legal", "campos": [
         {"key": "servidumbres", "label": "Servidumbres", "tipo": "sino"},
@@ -1088,6 +1091,9 @@ RESUMEN_CAMPOS_SINO = {c["key"] for sec in RESUMEN_SECCIONES for c in sec["campo
                        if c["tipo"] == "sino"}
 # Todas las claves válidas del resumen
 RESUMEN_KEYS = [c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]]
+# Campos que solo registra el revisor a mano — la IA no los completa (ver `resumir_proyecto`)
+RESUMEN_CAMPOS_MANUALES = {c["key"] for sec in RESUMEN_SECCIONES for c in sec["campos"]
+                           if c.get("manual")}
 # Tope de caracteres por campo, para los que declaran `maxlen` (hoy solo "Características obras")
 RESUMEN_MAXLEN = {c["key"]: c["maxlen"] for sec in RESUMEN_SECCIONES for c in sec["campos"]
                   if c.get("maxlen")}
@@ -1117,7 +1123,9 @@ def _limitar_texto(texto: str, maxlen: int) -> str:
                         recorte.rfind(".\n"), recorte.rfind("\n"))
     if recorte.endswith("."):
         corte_oracion = max(corte_oracion, len(recorte) - 1)
-    if corte_oracion > 10:                            # cualquier fin de oración razonable
+    # Un fin de oración solo vale si deja al menos ~1/3 del tope: con un umbral más bajo, un punto
+    # de abreviatura ("Art.", "N°.") dejaba fragmentos inservibles ("Debe cumplir Art.").
+    if corte_oracion >= max(40, maxlen // 3):
         return recorte[:corte_oracion + 1].strip()
 
     corte_palabra = recorte[:maxlen - 1].rfind(" ")   # -1: deja lugar para el "…"
@@ -3886,7 +3894,7 @@ async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id:
         f'- {c["key"]}: {c["label"]}'
         + (" (responde \"Sí\" o \"No\")" if c["tipo"] == "sino" else "")
         + (f' (máx {c["maxlen"]} caracteres — {c["resumen_ia"]})' if c.get("maxlen") else "")
-        for sec in RESUMEN_SECCIONES for c in sec["campos"])
+        for sec in RESUMEN_SECCIONES for c in sec["campos"] if not c.get("manual"))
 
     prompt = f"""Extrae del expediente CNR los datos para el RESUMEN del proyecto.
 Devuelve SOLO un objeto JSON con EXACTAMENTE estas claves. Usa "" (vacío) si el dato NO
@@ -3938,6 +3946,9 @@ Responde SOLO el JSON, sin texto adicional."""
     # Quedarse solo con claves válidas, normalizar Sí/No y APLICAR el tope de longitud
     limpio = {}
     for k in RESUMEN_KEYS:
+        if k in RESUMEN_CAMPOS_MANUALES:
+            limpio[k] = ""
+            continue
         v = datos.get(k, "")
         v = "" if v is None else str(v).strip()
         if k in RESUMEN_CAMPOS_SINO:
