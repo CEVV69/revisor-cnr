@@ -34,52 +34,54 @@ ligeras, polling barato).
   durante una extracción larga, /presupuesto y /respuestas cargan con montos en texto y sin clave
   `resumen`. Además, `resumir_proyecto` real con IA falsa: ya no pide ni devuelve el campo manual.
 
-**PENDIENTE — propuesto al usuario, NO aplicado (esperar su OK). Por prioridad (A, B, C, F ya hechos, ver arriba):**
-- **A (alto impacto / baja probabilidad) `monto`/`total` de la IA sin sanear.** Si Haiku devuelve
-  un monto como texto ("1.234.567"), `_resumen_presupuesto_general` hace `total_final -
-  total_inicial` y revienta TypeError — y la usan Respuestas Y Presupuesto: ambas páginas caen, y
-  el botón "Extraer datos" que lo arreglaría está en una de ellas. Fix: sanear a número en
-  `extraer_presupuesto_general` (notación chilena) y blindar `_resumen_presupuesto_general`.
-- **B (alto) El veredicto del revisor depende de una llamada de IA.** `registrar_respuesta_subsanacion`
-  hace `await` de la extracción de presupuesto (y `_con_texto`) ANTES de `save_proyecto`; si algo
-  lanza excepción, se pierde el "Marcar como resuelta/Reiterar". Fix: guardar la ronda primero, y
-  extraer después con try/except sobre copia fresca.
-- **C (alto) Lost update por copia vieja.** Las 3 rutas `/calculos/*/extraer`, `autocompletar_resumen`
-  y `registrar_respuesta_subsanacion` cargan el proyecto, esperan 10–30 s a la IA y guardan la copia
-  vieja: si mientras tanto terminó un análisis de ítem en segundo plano o el revisor guardó otra
-  cosa, se pisa (p. ej. desaparecen observaciones recién generadas). Fix: recargar fresco antes de
-  aplicar (patrón ya usado en `_analizar_item_fondo` y `evaluar_respuesta_ia`).
-- **D (medio) Emparejamiento de nombres del presupuesto.** Probado: si "Sub-Total (1)" desaparece en
-  la versión final, se empareja con "Sub-Total (2)" y muestra una diferencia FALSA (−45 en la
-  prueba); "Sub-Total" vs "Subtotal" no se emparejan (filas Nuevo/Eliminado espurias); el
-  emparejamiento es codicioso por orden. Fix: normalizar "sub total"→"subtotal", exigir igualdad de
-  tokens numéricos, y asignar por mejor puntaje global.
-- **E (medio) `extraer_presupuesto_general_manual` puede borrar una buena versión 0:** si la
-  extracción inicial falla y la final no, guarda solo la final como "v0" y se pierde la comparación
-  en silencio (además de no avisar nunca si no extrajo nada). Fix: reemplazar solo si salieron
-  ambas cuando corresponde, y avisar. Las dos extracciones van en serie → `asyncio.gather`.
-- **F (medio) `fecha_subida: None` revienta** `_etiquetar_versiones_docs`/`_solo_version_vigente`
-  (TypeError al ordenar; probado) y `docs_ordenados[0]["fecha_subida"]` en la ruta manual (KeyError).
-  Fix: `d.get("fecha_subida") or ""` en los 3 sitios.
-- **G (medio-bajo) Total de respaldo incorrecto:** si la IA devuelve `total: null`, se suma TODO
-  (líneas + subtotales + Total) → doble/triple conteo, más probable tras pedir "cada fila". Fix:
-  usar la fila cuyo nombre sea "Total", o dejar None.
-- **H (bajo) `max_tokens=2000`** en `extraer_presupuesto_general` puede truncar presupuestos con
-  muchas filas (el parser tolerante cierra el JSON y se pierde el final, incluido el Total). Subir a
-  4000 no cuesta nada (solo se paga lo generado).
-- **I (ahorro/precisión)** La versión 0 se extrae con `docs_grupo` completo (presupuesto +
-  cubicaciones) mientras la manual y la de subsanación usan solo `tipo_doc=="presupuesto"`:
-  inconsistente y más tokens de entrada. Unificar.
-- **J (ahorro/precisión)** Con el formato de dos párrafos, los previews `[:250]/[:400]` de
-  `observaciones_previas` y de `revisar_invalidacion_cruzada` ahora capturan el ANÁLISIS, no la
-  propuesta. Usar el último párrafo. Además acotar el análisis (~350 caracteres): son tokens de
-  salida de Sonnet en cada observación de cada ítem.
-- **K (deuda)** `evaluar_respuestas_item` duplica ~70 líneas de `evaluar_respuesta_subsanacion`
-  (ya hubo que corregir la lógica de versiones dos veces). Extraer una función común con tests.
-- **L (menor)** Si `_analizar_grupo` falla, las tareas paralelas (invalidación cruzada, presupuesto
-  general) siguen corriendo: gasto sin resultado. Cancelarlas en `except`. Agrupar días por string
-  ignora el huso horario (registros antiguos son "naive"): afecta solo a cortes cerca de medianoche.
-- **M (menor)** CLAUDE.md pasó el límite de ~150 líneas (160).
+**APLICADO tras "Haz todas las mejoras" (mismo día): D, E, G, H, I, J, K, L, y un fix extra
+de la misma clase que C en `sugerir_evaluacion_consultor`. Por prioridad:**
+- **D (medio) Emparejamiento de nombres del presupuesto.** Probado: si "Sub-Total (1)" desaparecía
+  en la versión final, se emparejaba con "Sub-Total (2)" y mostraba una diferencia FALSA; "Sub-Total"
+  vs "Subtotal" no se emparejaban (filas Nuevo/Eliminado espurias); el emparejamiento era codicioso
+  por orden de entrada. Fix en `comparar_presupuesto_general`: `_normalizar_item_presupuesto`
+  ("sub total"→"subtotal"), `_numeros_item` exige igualdad de tokens numéricos entre candidatos, y
+  el emparejamiento ahora arma todos los pares con score ≥0.35 y asigna por mejor puntaje global
+  (no por orden).
+- **E (medio) `extraer_presupuesto_general_manual` podía borrar una buena versión 0.** Fix: las dos
+  extracciones (inicial/final) corren en paralelo con `asyncio.gather`; solo se reemplaza
+  `versiones` si salió la cantidad esperada (1 o 2 según cuántas presentaciones hay); si no,
+  se mantiene lo guardado y la página muestra un aviso (`sindocs`/`vacio`/`parcial`) vía
+  `?extraer=` en el redirect — tres tarjetas nuevas en `presupuesto.html`.
+- **G (medio-bajo) Total de respaldo incorrecto.** Fix en `extraer_presupuesto_general`: el
+  fallback ya no suma todas las filas (doble/triple conteo con subtotales); usa
+  `_es_fila_total()` para encontrar la fila "Total" real (excluye "subtotal").
+- **H (bajo) `max_tokens`** de `extraer_presupuesto_general` subido de 2000 a 4000 — evita
+  truncar presupuestos con muchas filas.
+- **I (ahorro/precisión)** La extracción de versión 0 (automática, primer análisis) ahora filtra
+  `docs_grupo` a `tipo_doc=="presupuesto"` antes de llamar `extraer_presupuesto_general`, igual
+  que la manual y la de subsanación — menos tokens de entrada, mismo criterio en los 3 caminos.
+- **J (ahorro/precisión)** Nuevo `_propuesta_de_texto()`: los previews de `observaciones_previas`
+  y `revisar_invalidacion_cruzada` ahora toman el último párrafo (la propuesta), no el primero
+  (el análisis). Además el prompt de ambas funciones de evaluación pide explícitamente que el
+  párrafo de análisis apunte a ~350 caracteres como máximo — menos tokens de salida por observación.
+- **K (deuda)** `evaluar_respuestas_item` y `evaluar_respuesta_subsanacion` compartían ~70 líneas
+  duplicadas de preparación de contexto (filtrado por `tipo_docs`, etiquetado de versiones,
+  split texto/imagen, render de imágenes). Extraídas a `_preparar_contexto_evaluacion()` y
+  `_bloques_contenido_con_imagenes()`; cada función conserva su propia caché y prompt. Verificado
+  de punta a punta contra las rutas reales `/observacion/{id}/evaluar-respuesta` e
+  `/item/{key}/evaluar-respuestas-item` con IA simulada.
+- **L (menor)** Si `_analizar_grupo` falla, las tareas paralelas (`tarea_invalidacion`,
+  `tarea_presupuesto_general`) ahora se cancelan explícitamente en el `except` en vez de seguir
+  corriendo sin consumidor. (El sub-punto de huso horario en el agrupado por día queda como
+  limitación menor aceptada, sin cambio — solo afecta cortes cerca de medianoche.)
+- **M (menor)** CLAUDE.md recortado de vuelta a ≤150 líneas en el mismo commit.
+- **Extra (misma clase que C):** `sugerir_evaluacion_consultor` guardaba sobre una copia vieja del
+  proyecto tras el `await`/`gather` de la IA — incluidos los booleanos `completa_revision`/
+  `visita_terreno`, que podían pisar un cambio del revisor hecho durante esos 10–30 s. Ahora
+  recarga el proyecto fresco después de la IA y solo completa los campos (booleanos incluidos)
+  que sigan vacíos en esa copia fresca, respetando el contrato ya documentado de la función
+  ("nunca pisa lo que el revisor ya escribió").
+
+**Verificación (misma sesión):** tres scripts de prueba integral con `TestClient` sobre la app
+real (BD local, IA simulada) — ~41 comprobaciones en total, todas OK, incluida una re-verificación
+de A/B/C/F sin regresión. Además `pyflakes` en todos los módulos tocados: limpio (solo f-strings
+cosméticos preexistentes).
 
 ---
 

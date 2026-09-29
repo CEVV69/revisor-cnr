@@ -39,37 +39,30 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 
 **Cerrado, probado y OK** (detalle en `docs/`): auditoría motor Aspersión; doble bombeo; menú
-"Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total;
-costo API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026);
-Sección Respuestas (confirmado sep-2026); PEPA + Ficha tacha (confirmado sep-2026);
-Caudal del emisor por sistema (confirmado sep-2026); **Presupuesto general: comparación entre
-versiones** (confirmado sep-2026: "funciona perfecto" — pestaña `/proyecto/{id}/presupuesto`,
-botón manual "Extraer datos", aviso resumido en Respuestas; diferencia verde=sube/rojo=baja).
+"Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total; costo
+API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026); Sección Respuestas;
+PEPA + Ficha tacha; Caudal del emisor por sistema; Presupuesto general: comparación entre
+versiones (confirmado "funciona perfecto" — pestaña `/proyecto/{id}/presupuesto`).
 
 1. **Caudal por turnos + CDT ruta crítica** — implementado, pendiente de prueba (`docs/`).
 2. **Word con presupuesto en tabla** — implementado, pendiente de prueba, sin expediente real aún.
-3. **Evaluación conjunta con IA (Respuestas)** — botón "Evaluar ítem con IA" solo en
-   Hidráulico/Fotovoltaico (`ITEMS_EVALUACION_CONJUNTA`). Varios fixes ya aplicados. Detalle `docs/`.
-4. **Chequeo de Cálculos: solo presentación vigente** — `_solo_version_vigente()` + nota "Datos
-   extraídos de: ...". Re-extraer tras corrección resetea "validado". Detalle `docs/`.
-5. **Observaciones en dos párrafos (análisis + propuesta)** — mismo campo `texto`/`fundamento`,
-   sin esquema nuevo: 1er párrafo análisis técnico (el revisor lo recorta antes del SEP), 2º
-   párrafo propuesta breve con cierre-mandato abierto. Aplica a análisis inicial Y respuestas.
-6. **"Costo total final (UF)" en Resumen** — manual (`manual: True`, la IA no lo completa),
-   emparejado con "Costo total (UF)" en el informe. Presupuesto: extrae cada fila (no solo
-   subtotales), botón "Extrayendo…" y nota UF copiable al SEP. Detalle `docs/`.
+3. **Evaluación conjunta con IA (Respuestas)** — botón solo en Hidráulico/Fotovoltaico
+   (`ITEMS_EVALUACION_CONJUNTA`). Detalle `docs/`.
+4. **Chequeo de Cálculos: solo presentación vigente** — `_solo_version_vigente()`. Detalle `docs/`.
+5. **Observaciones en dos párrafos** (análisis + propuesta, mismo campo `texto`/`fundamento`,
+   sin esquema nuevo). Aplica a análisis inicial y respuestas.
+6. **"Costo total final (UF)"** en Resumen (manual) + Presupuesto con extracción fila a fila y
+   nota UF copiable al SEP. Detalle `docs/`.
+7. **Auditoría de código completa (sep-2026, A–M)** — colapsos, lost updates, emparejamiento de
+   presupuesto, tokens, duplicación en evaluación IA. Aplicada y verificada. Detalle `docs/`
+   (sección AUDITORÍA).
 
-Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
+Todo lo de arriba: implementado, pendiente de prueba del usuario.
 
-**DECISIÓN PENDIENTE DEL USUARIO — auditoría sep-2026:** aplicados los 4 defectos propios y los
-riesgos A, B, C, F (verificados con prueba integral). Quedan D, E, G, H, I, J (+ K, L, M) en
-`docs/historial_sesiones.md` (sección AUDITORÍA), sin aplicar. Esperar su OK.
-
-**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
-necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
-`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl). Sin ese dato, no se puede
-recalcular generación ni cobertura. No hay forma de desbloquearlo sin exportar esos datos
-desde el Revisor FV.
+**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
+perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
+`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl). Sin ese dato no se puede
+recalcular generación ni cobertura, y no hay forma de exportarlo desde el Revisor FV.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).
@@ -106,7 +99,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
                  disenador_riego_v134.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v12.html,
-                 invernadero_diseno_v30.html (obras anexas CNR, diseño de invernaderos)
+                 invernadero_diseno_v30.html (obras anexas CNR)
 ```
 
 ### Modelo de datos

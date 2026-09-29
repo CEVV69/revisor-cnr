@@ -35,6 +35,22 @@
   </form>
 </div>
 
+{% set extraer_estado = request.query_params.get('extraer') %}
+{% if extraer_estado == 'sindocs' %}
+<div class="card" style="border-left:4px solid #c05621; margin-bottom:0.8rem;">
+  <p style="margin:0; font-size:0.87rem;">No hay documentos clasificados como "Presupuesto" en este proyecto — no hay nada que extraer.</p>
+</div>
+{% elif extraer_estado == 'vacio' %}
+<div class="card" style="border-left:4px solid #c05621; margin-bottom:0.8rem;">
+  <p style="margin:0; font-size:0.87rem;">No se pudo extraer el cuadro resumen de ningún documento — se mantiene lo que ya había guardado.</p>
+</div>
+{% elif extraer_estado == 'parcial' %}
+<div class="card" style="border-left:4px solid #c05621; margin-bottom:0.8rem;">
+  <p style="margin:0; font-size:0.87rem;">Hay dos presentaciones de presupuesto (inicial y una más reciente), pero solo se pudo extraer el
+    cuadro resumen de una — se mantiene lo que ya había guardado para no perder la comparación. Reintenta con "Extraer datos".</p>
+</div>
+{% endif %}
+
 <nav class="proj-nav">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
   <a href="/proyecto/{{ proyecto.id }}/documentos" class="proj-tab">Documentos</a>

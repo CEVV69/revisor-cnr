@@ -365,7 +365,8 @@ REDACCIÓN DEL CAMPO "texto" (OBLIGATORIO) — DOS PÁRRAFOS, separados por un s
 1º párrafo — ANÁLISIS: el sustento técnico/numérico de la observación (qué revisaste, qué
   cálculo o comparación lo evidencia, por qué importa). Este párrafo es para que el revisor
   entienda y contraste su propio análisis — el revisor lo recorta a mano antes de subir la
-  observación al SEP, así que puede ser algo más extenso y detallado que el segundo párrafo.
+  observación al SEP, así que puede ser algo más extenso que el segundo párrafo, pero APUNTA A
+  350 caracteres como máximo (no un informe completo — solo lo esencial para justificar el punto).
 
 2º párrafo — PROPUESTA DE OBSERVACIÓN: BREVE y DIRECTO (máximo 2-3 líneas), sin repetir el
   detalle numérico del primer párrafo. Escribe como un revisor CNR redacta una observación para
@@ -1132,6 +1133,22 @@ def _limitar_texto(texto: str, maxlen: int) -> str:
     if corte_palabra > 0:
         return recorte[:corte_palabra].rstrip(" ,;:") + "…"
     return recorte[:maxlen - 1] + "…"
+
+
+def _propuesta_de_texto(texto: str) -> str:
+    """Devuelve solo el ÚLTIMO párrafo de una observación en formato "análisis + propuesta"
+    (dos párrafos separados por línea en blanco — ver "REDACCIÓN DEL CAMPO texto" del prompt
+    principal y el "FORMATO DE fundamento" de la evaluación de respuestas). Es la parte breve y
+    accionable — la única relevante para los previews que otras llamadas a la IA reciben (que
+    otro ítem no repita el hallazgo, juzgar si una respuesta resuelve). El párrafo de análisis es
+    contexto extenso para el revisor, no aporta ahí y solo gastaría más tokens de entrada.
+
+    Si el texto no tiene el formato de dos párrafos (nota informativa, observación agregada a
+    mano, dato legado de antes de este formato), no hay nada que recortar: se devuelve completo,
+    igual que siempre."""
+    t = (texto or "").strip()
+    partes = re.split(r"\n\s*\n", t)
+    return partes[-1].strip() if len(partes) > 1 else t
 
 
 # Documentos que alimentan cada verificación numérica determinística (independiente del ítem
@@ -2860,6 +2877,34 @@ def numero_desde_texto(valor):
     return -n if negativo else n
 
 
+_RE_NUM_ITEM = re.compile(r"\d+")
+
+
+def _normalizar_item_presupuesto(texto: str) -> str:
+    """"Sub-Total", "Sub Total", "SUBTOTAL" → mismo texto normalizado ("subtotal"), para que el
+    emparejamiento entre versiones (`comparar_presupuesto_general`) y la detección de la fila
+    Total (`_es_fila_total`) no dependan de cómo el consultor separó/guionó la palabra."""
+    return re.sub(r"\bsub[\s\-]*total\b", "subtotal", (texto or "").lower())
+
+
+def _numeros_item(texto: str) -> frozenset:
+    """Números que aparecen en el NOMBRE de un ítem del presupuesto (ej. "Sub-Total (1)" → {"1"}).
+    Con solo similitud de palabras, "Sub-Total (1)" y "Sub-Total (2)" comparten todo el texto no
+    numérico y calzaban por error entre sí — `comparar_presupuesto_general` exige que estos
+    números coincidan cuando AMBOS ítems los declaran."""
+    return frozenset(_RE_NUM_ITEM.findall(texto or ""))
+
+
+def _es_fila_total(nombre: str) -> bool:
+    """True si `nombre` es la fila de TOTAL general (no un subtotal) — "Total", "Total General",
+    "Costo Total", pero NUNCA "Subtotal 2" ni "Sub-Total (1)". Usado como respaldo cuando la IA no
+    devuelve `total` explícito: sumar TODAS las filas del cuadro resumen duplicaría montos, ya que
+    ahora se extraen también las líneas que componen cada subtotal (ver prompt de
+    `extraer_presupuesto_general`) — la fila Total, en cambio, ya es la suma correcta."""
+    n = _normalizar_item_presupuesto(nombre)
+    return bool(re.search(r"\btotal\b", n)) and "subtotal" not in n
+
+
 async def extraer_presupuesto_general(docs_grupo: list) -> dict:
     """Extrae el CUADRO RESUMEN GENERAL del presupuesto (categorías y totales, ej. Obras
     Civiles/Sistema de Riego, Gastos Generales, Utilidad, Imprevistos, Estudio, ITO, IVA, Total)
@@ -2905,7 +2950,7 @@ PRESUPUESTO:
         client = _get_client()
         response = await asyncio.to_thread(
             client.messages.create,
-            model=MODELO_HAIKU, max_tokens=2000,
+            model=MODELO_HAIKU, max_tokens=4000,   # presupuestos pueden tener muchas filas
             messages=[{"role": "user", "content": prompt}],
         )
         _log_uso("3 · Revisión · presupuesto general (resumen)", response, MODELO_HAIKU)
@@ -2922,7 +2967,15 @@ PRESUPUESTO:
                 items.append({"item": nombre, "monto": numero_desde_texto(it.get("monto"))})
         total = numero_desde_texto(data.get("total")) if isinstance(data, dict) else None
         if total is None and items:
-            total = sum(i["monto"] for i in items if i["monto"] is not None)
+            # Respaldo si la IA no devolvió "total": usar la fila cuyo nombre ES el total general
+            # (`_es_fila_total`), NUNCA sumar todas las filas — desde que se extrae cada línea
+            # individual además de los subtotales, sumar todo duplica/triplica el monto real
+            # (línea + su subtotal + el total ya los cuenta). Si no hay una fila Total reconocible,
+            # se deja None: mejor sin dato de respaldo que uno mal calculado.
+            candidatos_total = [i["monto"] for i in items
+                                if i["monto"] is not None and _es_fila_total(i["item"])]
+            if candidatos_total:
+                total = max(candidatos_total)
         return {"items": items, "total": total}
     except Exception as e:
         print(f"⚠️ extraer_presupuesto_general: {e}")
@@ -2934,43 +2987,65 @@ def comparar_presupuesto_general(items_inicial: list, items_final: list) -> list
     al revisar el ítem Presupuesto) y la ÚLTIMA (la más reciente entregada en una respuesta de
     subsanación) por similitud de nombre — mismo criterio de Jaccard sobre tokens que usa
     `_mejor_match_precio` para las partidas detalladas, porque cada consultor rotula sus
-    categorías con palabras distintas ("Gastos Generales" vs "G.G.").
+    categorías con palabras distintas ("Gastos Generales" vs "G.G.", "Sub-Total" vs "Subtotal").
+
+    Dos reglas más, sobre el emparejamiento simple por similitud:
+    - Si AMBOS nombres declaran números (ej. secciones "Sub-Total (1)"/"Sub-Total (2)"), esos
+      números deben COINCIDIR para poder emparejarse — sin esto, "(1)" y "(2)" comparten todo el
+      resto del texto y calzaban entre sí por error (probado: mostraba una diferencia FALSA si
+      una de las dos secciones se eliminaba entre versiones).
+    - La asignación es GLOBAL por mejor puntaje, no por orden de aparición: antes, el primer ítem
+      de `items_inicial` se quedaba con el primer candidato ≥0,35 aunque hubiera uno mejor más
+      adelante en la lista, dejando ese mejor candidato sin pareja.
 
     Devuelve una fila por cada ítem de cualquiera de las dos versiones (incluye los que solo
-    aparecen en una — agregados o eliminados entre versiones), con `diferencia = final - inicial`
-    cuando ambos montos existen."""
-    usados_final = set()
-    filas = []
+    aparecen en una — agregados o eliminados entre versiones), en el mismo orden de
+    `items_inicial` seguido de los agregados nuevos, con `diferencia = final - inicial` cuando
+    ambos montos existen."""
     items_inicial = [i for i in (items_inicial or []) if isinstance(i, dict)]
     items_final = [i for i in (items_final or []) if isinstance(i, dict)]
-    for a in items_inicial:
-        nombre_a = str(a.get("item") or "").strip()
+    nombres_a = [str(a.get("item") or "").strip() for a in items_inicial]
+    nombres_b = [str(b.get("item") or "").strip() for b in items_final]
+
+    candidatos = []
+    for i, na in enumerate(nombres_a):
+        if not na:
+            continue
+        num_a = _numeros_item(na)
+        norm_a = _normalizar_item_presupuesto(na)
+        for j, nb in enumerate(nombres_b):
+            if not nb:
+                continue
+            num_b = _numeros_item(nb)
+            if num_a and num_b and num_a != num_b:
+                continue
+            score = _similitud_item_precio(norm_a, _normalizar_item_presupuesto(nb))
+            if score >= 0.35:
+                candidatos.append((score, i, j))
+    candidatos.sort(key=lambda c: c[0], reverse=True)
+    usados_a, usados_b, pareja_de = set(), set(), {}
+    for score, i, j in candidatos:
+        if i in usados_a or j in usados_b:
+            continue
+        usados_a.add(i)
+        usados_b.add(j)
+        pareja_de[i] = j
+
+    filas = []
+    for i, nombre_a in enumerate(nombres_a):
         if not nombre_a:
             continue
-        monto_a = numero_desde_texto(a.get("monto"))
-        mejor, mejor_score, idx_mejor = None, 0.0, None
-        for idx, b in enumerate(items_final):
-            if idx in usados_final:
-                continue
-            score = _similitud_item_precio(nombre_a, str(b.get("item") or ""))
-            if score > mejor_score:
-                mejor, mejor_score, idx_mejor = b, score, idx
-        if mejor and mejor_score >= 0.35:
-            usados_final.add(idx_mejor)
-            monto_b = numero_desde_texto(mejor.get("monto"))
-        else:
-            monto_b = None
+        monto_a = numero_desde_texto(items_inicial[i].get("monto"))
+        j = pareja_de.get(i)
+        monto_b = numero_desde_texto(items_final[j].get("monto")) if j is not None else None
         diferencia = (monto_b - monto_a) if (monto_a is not None and monto_b is not None) else None
         filas.append({"item": nombre_a, "costo_inicial": monto_a, "costo_final": monto_b,
                       "diferencia": diferencia})
-    for idx, b in enumerate(items_final):
-        if idx in usados_final:
-            continue
-        nombre_b = str(b.get("item") or "").strip()
-        if not nombre_b:
+    for j, nombre_b in enumerate(nombres_b):
+        if j in usados_b or not nombre_b:
             continue
         filas.append({"item": nombre_b, "costo_inicial": None,
-                      "costo_final": numero_desde_texto(b.get("monto")),
+                      "costo_final": numero_desde_texto(items_final[j].get("monto")),
                       "diferencia": None})
     return filas
 
@@ -3324,7 +3399,9 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
     bloque_obs_previas = ""
     if observaciones_previas:
         tope_texto, tope_lista = (400, 200) if es_coherencia else (250, 150)
-        lineas = [f"• [{o.get('item_nombre', '')}] {(o.get('texto', '') or '')[:tope_texto]}"
+        # Solo el último párrafo (propuesta) — con el formato de dos párrafos, el texto completo
+        # empieza con el análisis extenso, que no aporta acá y desperdicia el tope de caracteres.
+        lineas = [f"• [{o.get('item_nombre', '')}] {_propuesta_de_texto(o.get('texto', ''))[:tope_texto]}"
                   for o in observaciones_previas[:tope_lista]]
         if es_coherencia:
             cierre = (
@@ -3501,7 +3578,7 @@ async def revisar_invalidacion_cruzada(item_nombre_nuevo: str, texto_resumen_nue
     client = _get_client()
     lista_obs = "\n".join(
         f'- ID: {o.get("id","")} | Ítem: {o.get("item_nombre","")} | '
-        f'Observación: {(o.get("texto","") or "")[:250]}'
+        f'Observación: {_propuesta_de_texto(o.get("texto",""))[:250]}'
         for o in observaciones_pendientes_otras[:150]
     )
 
@@ -3711,7 +3788,8 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     # principal (Sonnet) en vez de sumarle latencia.
     tarea_presupuesto_general = None
     if item_key == "presupuesto" and necesita_presupuesto_general:
-        tarea_presupuesto_general = asyncio.create_task(extraer_presupuesto_general(docs_grupo))
+        docs_resumen_ppto = [d for d in docs_grupo if d.get("tipo_doc") == "presupuesto"]
+        tarea_presupuesto_general = asyncio.create_task(extraer_presupuesto_general(docs_resumen_ppto))
 
     checklist_item = item["checklist"]
     if programa == "pequena_agricultura":
@@ -3736,11 +3814,21 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     # Invalidación cruzada: la tarea ya viene corriendo desde el inicio de la función (ver
     # arriba), acá solo se recoge su resultado junto con el del análisis principal — sigue sin
     # agregar latencia, y ahora tampoco espera a las extracciones para siquiera arrancar.
-    if tarea_invalidacion is not None:
-        resultado, invalidadas = await asyncio.gather(analisis_task, tarea_invalidacion)
-    else:
-        resultado = await analisis_task
-        invalidadas = []
+    try:
+        if tarea_invalidacion is not None:
+            resultado, invalidadas = await asyncio.gather(analisis_task, tarea_invalidacion)
+        else:
+            resultado = await analisis_task
+            invalidadas = []
+    except Exception:
+        # Si el análisis principal (o la invalidación cruzada) falla, las tareas paralelas
+        # creadas con create_task siguen corriendo en segundo plano sin que nadie use su
+        # resultado — `asyncio.gather` NO las cancela automáticamente cuando una falla. Gasto de
+        # API (Haiku) sin ningún beneficio si no se cancelan acá.
+        for t in (tarea_invalidacion, tarea_presupuesto_general):
+            if t is not None and not t.done():
+                t.cancel()
+        raise
 
     resultado["invalidadas"] = invalidadas
     if tarea_presupuesto_general is not None:
@@ -4636,49 +4724,32 @@ sin repetir la palabra "{etiqueta}" al inicio. Ve directo al punto técnico."""
 # consultor haya presentado y el revisor haya vuelto a subir). Es un APOYO: la decisión final
 # (marcar resuelta / reiterar) la toma siempre el revisor.
 
-async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
-                                        respuesta_consultor: str, item_key: str,
-                                        documentos: list, resumen: dict = None,
-                                        bases_texto: str = "", concurso_id: str = "",
-                                        doc_ids_extra: list = None,
-                                        n_obs_item: int = 1,
-                                        ruta_uploads: str = None) -> dict:
-    """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
+async def _preparar_contexto_evaluacion(documentos: list, item_key: str, ids_extra: set,
+                                        ruta_uploads: str, max_img_cuota: int,
+                                        nombre_llamador: str) -> tuple:
+    """Selecciona y prepara los documentos de contexto para evaluar una respuesta de subsanación
+    — código COMPARTIDO entre `evaluar_respuesta_subsanacion` (una observación) y
+    `evaluar_respuestas_item` (un lote), antes duplicado entre ambas casi línea por línea (~70
+    líneas) — con el riesgo real de que un fix quedara aplicado en una y no en la otra (pasó dos
+    veces: el criterio de versiones múltiples y su agrupamiento por día calendario, sep-2026).
 
-    `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
-    nueva prueba de bombeo). Se incluyen SIEMPRE en el contexto, aunque su tipo_doc no pertenezca
-    al ítem observado — si no, un respaldo clasificado bajo otro tipo quedaría invisible para la
-    evaluación.
+    Hace, en orden: (1) filtra `documentos` por los `tipo_docs` del ítem observado, sumando
+    `ids_extra` (adjuntos de la(s) respuesta(s), aunque su tipo_doc no sea del ítem), (2) ordena y
+    etiqueta versión anterior/reciente por día calendario (`_etiquetar_versiones_docs`), (3)
+    separa texto vs imagen con el mismo criterio que `_analizar_grupo`, (4) arma el texto de
+    contexto con presupuesto adaptativo de caracteres, (5) renderiza hasta `max_img_cuota`
+    imágenes (repartidas entre documentos) y arma la nota que las presenta en el prompt.
 
-    `n_obs_item`: cuántas observaciones aprobadas tiene ESE ítem en el proyecto. Solo decide si
-    los antecedentes de TEXTO viajan cacheados o frescos (ver más abajo) — no cambia en nada el
-    contenido que lee la IA ni el criterio de evaluación.
-
-    `ruta_uploads`: carpeta física de los archivos del proyecto, para renderizar a imagen los
-    documentos escaneados/planos/pruebas de bombeo (bug real reportado sep-2026: esta evaluación
-    era 100% texto y EXCLUÍA por completo los documentos escaneados de su contexto — si lo que el
-    consultor corrigió estaba en un plano o una foto, la IA decía "no se agregó" sin haberlo visto
-    nunca). Mismo criterio de "necesita visión" que `_analizar_grupo`, pero con cuota reducida
-    (MAX_IMG_SUBSANACION) y sin cuadrantes ampliados — acá se verifica un punto puntual, no se
-    revisa el ítem completo. Sonnet 5 (visión) solo se usa si de verdad hay un documento así de
-    por medio; el resto de los casos se queda en Sonnet 4.6/texto, más barato. Sin `ruta_uploads`
-    (o si el archivo no está disponible), se sigue evaluando solo con lo que haya de texto, como
-    antes."""
-    if not (respuesta_consultor or "").strip():
-        return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
-
-    client = _get_client()
-
-    # Antecedentes del ítem observado (para 'coherencia' o ítem desconocido, todos los que tengan
-    # texto). Mismo criterio de selección que el análisis; reparto adaptativo, solo texto.
+    Devuelve (item, nombre_item, contexto_docs, imagenes_por_doc, nota_imagenes) — NO arma el
+    prompt final ni decide cacheo: eso varía entre los dos llamadores (la versión individual
+    cachea el bloque de antecedentes cuando conviene — ver `cachear_antecedentes` ahí —, la de
+    lote nunca porque ya es una sola llamada)."""
     item = ITEMS_SEP.get(item_key)
     if item and item_key != "coherencia" and item.get("tipo_docs"):
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
     else:
         docs_grupo = list(documentos)
-    # Sumar los adjuntos de esta respuesta que no hayan quedado ya incluidos por su tipo_doc.
-    ids_extra = set(doc_ids_extra or [])
     if ids_extra:
         ya = {d.get("id") for d in docs_grupo}
         docs_grupo = docs_grupo + [d for d in documentos
@@ -4720,13 +4791,13 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
     max_chars_ctx = min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))
     contexto_docs = _texto_grupo_para_extraccion(docs_texto, max_chars=max_chars_ctx)
 
-    # Renderizar imágenes, con tope reducido y sin cuadrantes ampliados (ver MAX_IMG_SUBSANACION).
-    # Cuota fija por documento para que el primero no consuma todo el tope si hay varios.
+    # Renderizar imágenes, con tope reducido y sin cuadrantes ampliados. Cuota fija por documento
+    # para que el primero no consuma todo el tope si hay varios.
     imagenes_por_doc = []   # (label, nombre_original, [(etiqueta, b64), ...])
     if docs_imagen:
         from extractor import render_pdf_as_images
-        cuota_por_doc = max(1, MAX_IMG_SUBSANACION // len(docs_imagen))
-        restante = MAX_IMG_SUBSANACION
+        cuota_por_doc = max(1, max_img_cuota // len(docs_imagen))
+        restante = max_img_cuota
         for d, fp in docs_imagen:
             if restante <= 0:
                 break
@@ -4736,13 +4807,81 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                 crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
                 imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
             except Exception as e:
-                print(f"⚠️ evaluar_respuesta_subsanacion: error renderizando imagen de "
+                print(f"⚠️ {nombre_llamador}: error renderizando imagen de "
                       f"'{d.get('nombre_original','')}': {e}")
                 imgs = []
             if imgs:
                 label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
                 imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
                 restante -= len(imgs)
+
+    nombre_item = item["nombre"] if item else item_key
+
+    nota_imagenes = ""
+    if imagenes_por_doc:
+        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
+        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
+                         f"(planos, pruebas de bombeo o escaneados) — analízalos visualmente: "
+                         f"{nombres_img}. Lee SOLO lo efectivamente anotado/rotulado en la "
+                         f"imagen (diámetros, cotas, valores de tablas, forma de curvas o "
+                         f"gráficos); nunca midas a escala ni estimes a ojo.")
+
+    return item, nombre_item, contexto_docs, imagenes_por_doc, nota_imagenes
+
+
+def _bloques_contenido_con_imagenes(prompt: str, imagenes_por_doc: list) -> list:
+    """Arma `content_blocks` (texto del prompt + imágenes de los documentos escaneados/planos/
+    pruebas de bombeo) — mismo formato que espera la API de Anthropic, compartido entre
+    `evaluar_respuesta_subsanacion` y `evaluar_respuestas_item`."""
+    content_blocks = [{"type": "text", "text": prompt}]
+    for label, nombre_img, imgs in imagenes_por_doc:
+        content_blocks.append({"type": "text",
+                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
+        for etiqueta, b64 in imgs:
+            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
+            content_blocks.append({"type": "image",
+                                   "source": {"type": "base64", "media_type": "image/jpeg",
+                                              "data": b64}})
+    return content_blocks
+
+
+async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
+                                        respuesta_consultor: str, item_key: str,
+                                        documentos: list, resumen: dict = None,
+                                        bases_texto: str = "", concurso_id: str = "",
+                                        doc_ids_extra: list = None,
+                                        n_obs_item: int = 1,
+                                        ruta_uploads: str = None) -> dict:
+    """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
+
+    `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
+    nueva prueba de bombeo). Se incluyen SIEMPRE en el contexto, aunque su tipo_doc no pertenezca
+    al ítem observado — si no, un respaldo clasificado bajo otro tipo quedaría invisible para la
+    evaluación.
+
+    `n_obs_item`: cuántas observaciones aprobadas tiene ESE ítem en el proyecto. Solo decide si
+    los antecedentes de TEXTO viajan cacheados o frescos (ver más abajo) — no cambia en nada el
+    contenido que lee la IA ni el criterio de evaluación.
+
+    `ruta_uploads`: carpeta física de los archivos del proyecto, para renderizar a imagen los
+    documentos escaneados/planos/pruebas de bombeo (bug real reportado sep-2026: esta evaluación
+    era 100% texto y EXCLUÍA por completo los documentos escaneados de su contexto — si lo que el
+    consultor corrigió estaba en un plano o una foto, la IA decía "no se agregó" sin haberlo visto
+    nunca). Mismo criterio de "necesita visión" que `_analizar_grupo`, pero con cuota reducida
+    (MAX_IMG_SUBSANACION) y sin cuadrantes ampliados — acá se verifica un punto puntual, no se
+    revisa el ítem completo. Sonnet 5 (visión) solo se usa si de verdad hay un documento así de
+    por medio; el resto de los casos se queda en Sonnet 4.6/texto, más barato. Sin `ruta_uploads`
+    (o si el archivo no está disponible), se sigue evaluando solo con lo que haya de texto, como
+    antes."""
+    if not (respuesta_consultor or "").strip():
+        return {"recomendacion": "", "fundamento": "No hay respuesta del consultor para evaluar."}
+
+    client = _get_client()
+
+    item, nombre_item, contexto_docs, imagenes_por_doc, nota_imagenes = \
+        await _preparar_contexto_evaluacion(
+            documentos, item_key, set(doc_ids_extra or []), ruta_uploads,
+            MAX_IMG_SUBSANACION, "evaluar_respuesta_subsanacion")
 
     bloque_resumen = _construir_bloque_resumen(resumen)
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
@@ -4766,8 +4905,6 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
             "text": f"\nANTECEDENTES ACTUALES DEL ÍTEM EN REVISIÓN:\n{contexto_docs}",
             "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
-    nombre_item = item["nombre"] if item else item_key
-
     if cachear_antecedentes:
         seccion_antecedentes = ('(Se adjuntan más arriba, en el bloque "ANTECEDENTES ACTUALES '
                                  'DEL ÍTEM EN REVISIÓN".)')
@@ -4778,15 +4915,6 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                                  "como imágenes más abajo.)")
     else:
         seccion_antecedentes = "(No hay antecedentes con texto extraíble para este ítem.)"
-
-    nota_imagenes = ""
-    if imagenes_por_doc:
-        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
-        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
-                         f"(planos, pruebas de bombeo o escaneados) — analízalos visualmente: "
-                         f"{nombres_img}. Lee SOLO lo efectivamente anotado/rotulado en la "
-                         f"imagen (diámetros, cotas, valores de tablas, forma de curvas o "
-                         f"gráficos); nunca midas a escala ni estimes a ojo.")
 
     prompt = f"""{bloque_resumen}
 Estás revisando la RESPUESTA del consultor a una observación de un proyecto CNR (Ley 18.450).
@@ -4833,7 +4961,7 @@ FORMATO DE "fundamento" — DOS PÁRRAFOS, separados por un salto de línea en b
 
 1º párrafo — ANÁLISIS DEL CASO: qué dice la observación original, qué respondió el consultor, y
   por qué eso resuelve o no resuelve el punto (citando la norma/base si aplica). Puede incluir
-  el detalle técnico/numérico que sustenta la conclusión.
+  el detalle técnico/numérico que sustenta la conclusión — APUNTA A 350 caracteres como máximo.
 
 2º párrafo — PROPUESTA DE OBSERVACIÓN: breve y directa. Si "no_resuelta", termina SIEMPRE con una
   instrucción explícita al consultor, la más pertinente al caso (ej. "Se reitera observación.",
@@ -4844,15 +4972,7 @@ Responde SOLO este JSON, sin texto adicional:
 {{"recomendacion": "resuelta"|"no_resuelta", "fundamento": "párrafo de análisis + salto de línea + párrafo de propuesta (ver formato arriba)"}}"""
 
     # Contenido: texto + imágenes de los documentos escaneados/planos/pruebas de bombeo.
-    content_blocks = [{"type": "text", "text": prompt}]
-    for label, nombre_img, imgs in imagenes_por_doc:
-        content_blocks.append({"type": "text",
-                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
-        for etiqueta, b64 in imgs:
-            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
-            content_blocks.append({"type": "image",
-                                   "source": {"type": "base64", "media_type": "image/jpeg",
-                                              "data": b64}})
+    content_blocks = _bloques_contenido_con_imagenes(prompt, imagenes_por_doc)
 
     # Sonnet 5 (visión) SOLO si de verdad hay un documento escaneado/plano/prueba de bombeo de
     # por medio — el resto de los casos (la gran mayoría) se queda en Sonnet 4.6/texto, más
@@ -4929,67 +5049,16 @@ async def evaluar_respuestas_item(observaciones: list, item_key: str, documentos
 
     client = _get_client()
 
-    item = ITEMS_SEP.get(item_key)
-    if item and item_key != "coherencia" and item.get("tipo_docs"):
-        tipos = set(item["tipo_docs"])
-        docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
-    else:
-        docs_grupo = list(documentos)
     # Adjuntos de CUALQUIERA de las respuestas del lote — es el mismo ítem/rediseño, así que
     # todos los respaldos entran al mismo contexto compartido.
     ids_extra = set()
     for o in pendientes:
         ids_extra.update(o.get("doc_ids_extra") or [])
-    if ids_extra:
-        ya = {d.get("id") for d in docs_grupo}
-        docs_grupo = docs_grupo + [d for d in documentos
-                                   if d.get("id") in ids_extra and d.get("id") not in ya]
 
-    # Mismo criterio de orden y etiquetado de versiones que evaluar_respuesta_subsanacion.
-    docs_grupo = _etiquetar_versiones_docs(docs_grupo)
-
-    # Mismo criterio de separación texto/imagen que evaluar_respuesta_subsanacion.
-    import os as _os
-    docs_texto = []
-    docs_imagen = []
-    for d in docs_grupo:
-        t = d.get("texto_extraido", "").strip()
-        es_imagen = (t == "__PDF_ESCANEADO__" or len(t) < MIN_CHARS_TEXTO)
-        es_siempre_vision = d.get("tipo_doc") in TIPOS_SIEMPRE_VISION
-        fp = _os.path.join(ruta_uploads, d.get("filename", "")) if ruta_uploads else ""
-        pdf_disponible = (fp and d.get("filename", "").lower().endswith(".pdf")
-                          and _os.path.exists(fp))
-        if pdf_disponible and (es_imagen or es_siempre_vision):
-            docs_imagen.append((d, fp))
-            if es_imagen:
-                continue
-        if t not in ("", "__PDF_ESCANEADO__"):
-            docs_texto.append(d)
-
-    max_chars_ctx = min(80000, MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL))
-    contexto_docs = _texto_grupo_para_extraccion(docs_texto, max_chars=max_chars_ctx)
-
-    imagenes_por_doc = []
-    if docs_imagen:
-        from extractor import render_pdf_as_images
-        cuota_por_doc = max(1, MAX_IMG_EVAL_ITEM // len(docs_imagen))
-        restante = MAX_IMG_EVAL_ITEM
-        for d, fp in docs_imagen:
-            if restante <= 0:
-                break
-            cuota_doc = min(cuota_por_doc, restante)
-            try:
-                pags = min(cuota_doc, MAX_PAGINAS_POR_TIPO.get(d.get("tipo_doc"), 3))
-                crudas = await asyncio.to_thread(render_pdf_as_images, fp, max_pages=pags)
-                imgs = [(f"página {i+1}", b64) for i, b64 in enumerate(crudas)]
-            except Exception as e:
-                print(f"⚠️ evaluar_respuestas_item: error renderizando imagen de "
-                      f"'{d.get('nombre_original','')}': {e}")
-                imgs = []
-            if imgs:
-                label = d.get("tipo_doc_label") or d.get("tipo_doc", "")
-                imagenes_por_doc.append((label, d.get("nombre_original", ""), imgs))
-                restante -= len(imgs)
+    item, nombre_item, contexto_docs, imagenes_por_doc, nota_imagenes = \
+        await _preparar_contexto_evaluacion(
+            documentos, item_key, ids_extra, ruta_uploads,
+            MAX_IMG_EVAL_ITEM, "evaluar_respuestas_item")
 
     bloque_resumen = _construir_bloque_resumen(resumen)
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
@@ -4999,19 +5068,9 @@ async def evaluar_respuestas_item(observaciones: list, item_key: str, documentos
         system_con_cache.append({"type": "text", "text": bloque_bases,
                                  "cache_control": {"type": "ephemeral", "ttl": "1h"}})
 
-    nombre_item = item["nombre"] if item else item_key
     seccion_antecedentes = contexto_docs.strip() or (
         "(Sin antecedentes con texto extraíble — se adjuntan documentos como imágenes más abajo.)"
         if imagenes_por_doc else "(No hay antecedentes con texto extraíble para este ítem.)")
-
-    nota_imagenes = ""
-    if imagenes_por_doc:
-        nombres_img = ", ".join(f"{lbl} ({nom})" for lbl, nom, _ in imagenes_por_doc)
-        nota_imagenes = (f"\n\nADEMÁS, al final se adjuntan como IMÁGENES estos documentos "
-                         f"(planos, pruebas de bombeo o escaneados) — analízalos visualmente: "
-                         f"{nombres_img}. Lee SOLO lo efectivamente anotado/rotulado en la "
-                         f"imagen (diámetros, cotas, valores de tablas, forma de curvas o "
-                         f"gráficos); nunca midas a escala ni estimes a ojo.")
 
     bloque_obs = []
     for i, o in enumerate(pendientes, 1):
@@ -5070,7 +5129,7 @@ FORMATO de cada "fundamento" — DOS PÁRRAFOS, separados por un salto de línea
 
 1º párrafo — ANÁLISIS DEL CASO: qué dice la observación original, qué respondió el consultor, y
   por qué eso resuelve o no resuelve el punto (citando la norma/base si aplica). Puede incluir
-  el detalle técnico/numérico que sustenta la conclusión.
+  el detalle técnico/numérico que sustenta la conclusión — APUNTA A 350 caracteres como máximo.
 
 2º párrafo — PROPUESTA DE OBSERVACIÓN: breve y directa. Si "no_resuelta", termina SIEMPRE con una
   instrucción explícita al consultor, la más pertinente al caso (ej. "Se reitera observación.",
@@ -5081,15 +5140,7 @@ Responde SOLO este JSON, sin texto adicional, con una entrada por cada observaci
 usa el obs_id tal cual aparece arriba):
 {{"evaluaciones": [{{"obs_id": "...", "recomendacion": "resuelta"|"no_resuelta", "fundamento": "párrafo de análisis + salto de línea + párrafo de propuesta (ver formato arriba)"}}]}}"""
 
-    content_blocks = [{"type": "text", "text": prompt}]
-    for label, nombre_img, imgs in imagenes_por_doc:
-        content_blocks.append({"type": "text",
-                               "text": f"\n═══ IMÁGENES: {label} ({nombre_img}) ═══"})
-        for etiqueta, b64 in imgs:
-            content_blocks.append({"type": "text", "text": f"[{etiqueta}]"})
-            content_blocks.append({"type": "image",
-                                   "source": {"type": "base64", "media_type": "image/jpeg",
-                                              "data": b64}})
+    content_blocks = _bloques_contenido_con_imagenes(prompt, imagenes_por_doc)
 
     hay_imagenes = any(b.get("type") == "image" for b in content_blocks)
     modelo_analisis = MODELO_SONNET if hay_imagenes else MODELO_SONNET_TEXTO

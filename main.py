@@ -3487,14 +3487,6 @@ async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     evaluacion = dict(proyecto.get("evaluacion_consultor", {}))
-    completados = 0
-    if not evaluacion.get("completa_revision"):
-        evaluacion["completa_revision"] = "Sí"
-        completados += 1
-    if not evaluacion.get("visita_terreno"):
-        evaluacion["visita_terreno"] = "No"
-        completados += 1
-
     acc_costo = iniciar_costo()
     try:
         pendientes = [(c, *_sugerir_estado_evaluacion(proyecto, c["items"], c["opciones"]))
@@ -3504,15 +3496,32 @@ async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
             sintetizar_evaluacion_item(campo["label"], textos)
             for campo, estado, textos in pendientes
         ])
-        for (campo, estado, _textos), texto_obs in zip(pendientes, sintesis):
-            evaluacion[f"{campo['key']}_estado"] = estado
-            evaluacion[f"{campo['key']}_obs"] = texto_obs
-            completados += 1
     except Exception as e:
         import traceback
         print(f"❌ ERROR en sugerir_evaluacion_consultor {proyecto_id}: {e}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error al sugerir evaluación: {str(e)}")
+
+    # Copia FRESCA: la síntesis con IA tardó, y el revisor pudo haber guardado la Evaluación del
+    # Consultor mientras tanto — se aplica sobre SU versión, y cada campo (incluidos
+    # completa_revision/visita_terreno) solo si SIGUE vacío, mismo criterio que ya declara el
+    # docstring: nunca pisar lo que el revisor ya escribió o eligió.
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    evaluacion = dict(proyecto.get("evaluacion_consultor") or {})
+    completados = 0
+    if not evaluacion.get("completa_revision"):
+        evaluacion["completa_revision"] = "Sí"
+        completados += 1
+    if not evaluacion.get("visita_terreno"):
+        evaluacion["visita_terreno"] = "No"
+        completados += 1
+    for (campo, estado, _textos), texto_obs in zip(pendientes, sintesis):
+        if not evaluacion.get(f"{campo['key']}_estado"):
+            evaluacion[f"{campo['key']}_estado"] = estado
+            evaluacion[f"{campo['key']}_obs"] = texto_obs
+            completados += 1
 
     proyecto["evaluacion_consultor"] = evaluacion
     _registrar_costo(proyecto, "evaluacion_consultor", acc_costo)
@@ -3893,37 +3902,58 @@ async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str)
 
     docs_presupuesto = [d for d in proyecto.get("documentos", []) if d.get("tipo_doc") == "presupuesto"]
     if not docs_presupuesto:
-        return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto", status_code=302)
+        return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto?extraer=sindocs",
+                                status_code=302)
 
     docs_ordenados = sorted(docs_presupuesto, key=lambda d: d.get("fecha_subida") or "")
     fecha_inicial = docs_ordenados[0].get("fecha_subida") or ""
     fecha_final = docs_ordenados[-1].get("fecha_subida") or ""
     dia_inicial, dia_final = fecha_inicial[:10], fecha_final[:10]
+    dos_presentaciones = dia_final != dia_inicial
 
     await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id, proyecto.get("documentos", []))
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     docs_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "presupuesto"]
     docs_iniciales = [d for d in docs_ct if (d.get("fecha_subida") or "")[:10] == dia_inicial]
 
+    # Las dos extracciones son independientes (distinta presentación, mismo prompt) — en paralelo
+    # en vez de una tras otra cuando hay dos días.
+    if dos_presentaciones:
+        docs_finales = [d for d in docs_ct if (d.get("fecha_subida") or "")[:10] == dia_final]
+        datos_inicial, datos_final = await asyncio.gather(
+            extraer_presupuesto_general(docs_iniciales),
+            extraer_presupuesto_general(docs_finales))
+    else:
+        datos_inicial = await extraer_presupuesto_general(docs_iniciales)
+        datos_final = None
+
+    # Reemplaza las versiones guardadas SOLO si salió todo lo que correspondía: con una sola
+    # presentación, que salga esa; con dos, que salgan las DOS. Si se esperaban dos y solo una
+    # extrajo ítems, NO se reemplaza nada — guardar solo esa dejaría una "versión inicial" que en
+    # realidad es la más reciente (o viceversa), y la comparación mostraría datos incorrectos sin
+    # avisar. Se prefiere conservar lo que ya había y que el revisor reintente.
     versiones_nuevas = []
-    datos_inicial = await extraer_presupuesto_general(docs_iniciales)
     if datos_inicial.get("items"):
         versiones_nuevas.append({"fecha": fecha_inicial, "origen": "extraccion_manual",
                                  "items": datos_inicial["items"], "total": datos_inicial.get("total")})
-    if dia_final != dia_inicial:
-        docs_finales = [d for d in docs_ct if (d.get("fecha_subida") or "")[:10] == dia_final]
-        datos_final = await extraer_presupuesto_general(docs_finales)
-        if datos_final.get("items"):
-            versiones_nuevas.append({"fecha": fecha_final, "origen": "extraccion_manual",
-                                     "items": datos_final["items"], "total": datos_final.get("total")})
+    if dos_presentaciones and datos_final and datos_final.get("items"):
+        versiones_nuevas.append({"fecha": fecha_final, "origen": "extraccion_manual",
+                                 "items": datos_final["items"], "total": datos_final.get("total")})
 
-    if versiones_nuevas:
+    n_esperadas = 2 if dos_presentaciones else 1
+    if len(versiones_nuevas) == n_esperadas:
         proyecto_fresco = db.get_proyecto(proyecto_id)
         if proyecto_fresco:
             proyecto_fresco["presupuesto_general"] = {"versiones": versiones_nuevas}
             db.save_proyecto(proyecto_fresco)
+        estado = "ok"
+    elif versiones_nuevas:
+        estado = "parcial"   # se esperaban 2 presentaciones, solo se pudo extraer 1 — no se guarda
+    else:
+        estado = "vacio"     # no se pudo extraer nada — no se guarda
 
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto", status_code=302)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto?extraer={estado}",
+                            status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/max-rondas")
