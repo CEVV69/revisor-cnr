@@ -103,6 +103,11 @@
         <strong style="font-size:0.92rem;">Concurso {{ grupo.concurso_id }}</strong>
         <span class="text-muted" style="font-size:0.78rem;">{{ grupo.total }} proyecto{{ "s" if grupo.total != 1 else "" }}</span>
       </div>
+      <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+        {% for estado, cantidad in grupo.conteo_estado %}
+        <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+        {% endfor %}
+      </div>
       <table style="font-size:0.8rem;">
         <thead>
           <tr>

@@ -200,10 +200,19 @@ def _agrupar_proyectos_por_concurso(proyectos: list) -> list:
                 p.get("codigo_sep") or ""))
         ultima_actividad = max(
             (p.get("fecha_estado") or p.get("fecha_creacion") or "") for p in items_ordenados)
+        conteo = {}
+        for p in items_ordenados:
+            e = ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")) or "Sin estado"
+            conteo[e] = conteo.get(e, 0) + 1
+        # Desglose por estado dentro del concurso, en el mismo orden que ESTADOS_PROYECTO —
+        # solo los estados que efectivamente tienen proyectos (no una fila en 0 por cada estado).
+        conteo_estado = [(e, conteo[e]) for e in ESTADOS_PROYECTO if e in conteo]
+        conteo_estado += [(e, n) for e, n in conteo.items() if e not in ESTADOS_PROYECTO]
         resumen.append({
             "concurso_id": cid,
             "proyectos": items_ordenados,
             "total": len(items_ordenados),
+            "conteo_estado": conteo_estado,
             "ultima_actividad": ultima_actividad,
         })
     resumen.sort(key=lambda g: g["ultima_actividad"], reverse=True)
@@ -614,6 +623,12 @@ def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
         celda.fill = PatternFill("solid", fgColor=argb("#1A365D"))
         celda.alignment = Alignment(vertical="center", indent=1)
         ws.row_dimensions[fila].height = 20
+        fila += 1
+
+        ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=4)
+        desglose = "   ".join(f"{e}: {n}" for e, n in grupo["conteo_estado"])
+        c = ws.cell(row=fila, column=1, value=desglose)
+        c.font = Font(size=9, italic=True, color=argb("#666666"))
         fila += 1
 
         for col, texto in enumerate(["Código SEP", "Fecha de creación", "Estado", "Última actualización"], start=1):
