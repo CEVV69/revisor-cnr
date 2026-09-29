@@ -17,7 +17,24 @@ ligeras, polling barato).
 4. Autocompletar Resumen: "Costo total final (UF)" se le pedía a la IA (yo había afirmado que no)
    y la IA lo llenaba con el costo inicial. Ahora `manual: True` + `RESUMEN_CAMPOS_MANUALES`.
 
-**PENDIENTE — propuesto al usuario, NO aplicado (esperar su OK). Por prioridad:**
+**APLICADO tras el OK del usuario (mismo día): A, B, C y F.**
+- A: nuevo `numero_desde_texto()` (analyzer.py; notación chilena, nunca lanza) — `extraer_presupuesto_general`
+  ahora devuelve `items`/`total` saneados (ítems mal formados descartados, montos a número),
+  `comparar_presupuesto_general` y `_resumen_presupuesto_general` (main.py) también leen todo por
+  ese helper, así que versiones ya guardadas con texto tampoco rompen Respuestas/Presupuesto.
+- B: `registrar_respuesta_subsanacion` guarda la ronda ANTES de extraer el presupuesto; la extracción
+  va en try/except y agrega la versión sobre una copia fresca (si falla, se regenera con "Extraer datos").
+- C: las 3 rutas `/calculos/*/extraer` y `autocompletar_resumen` recargan el proyecto fresco tras el
+  `await` de la IA antes de aplicar y guardar. (Mismo patrón, NO tocado por estar fuera del alcance
+  aprobado: `sugerir_evaluacion_consultor` y otras rutas que esperan a la IA antes de guardar.)
+- F: `fecha_subida` ausente/None ya no rompe `_etiquetar_versiones_docs`, `_solo_version_vigente`,
+  `_fuente_docs_para_vista` ni la ruta manual de presupuesto.
+- **Verificación:** prueba integral con TestClient sobre la app real (BD local, IA simulada; 14
+  comprobaciones, todas OK): decisión guardada aunque falle la extracción, no se pisan cambios hechos
+  durante una extracción larga, /presupuesto y /respuestas cargan con montos en texto y sin clave
+  `resumen`. Además, `resumir_proyecto` real con IA falsa: ya no pide ni devuelve el campo manual.
+
+**PENDIENTE — propuesto al usuario, NO aplicado (esperar su OK). Por prioridad (A, B, C, F ya hechos, ver arriba):**
 - **A (alto impacto / baja probabilidad) `monto`/`total` de la IA sin sanear.** Si Haiku devuelve
   un monto como texto ("1.234.567"), `_resumen_presupuesto_general` hace `total_final -
   total_inicial` y revienta TypeError — y la usan Respuestas Y Presupuesto: ambas páginas caen, y

@@ -61,9 +61,9 @@ botón manual "Extraer datos", aviso resumido en Respuestas; diferencia verde=su
 
 Todo lo de arriba: implementado, pendiente de prueba del usuario. Detalle de cada uno en `docs/`.
 
-**DECISIÓN PENDIENTE DEL USUARIO — auditoría sep-2026:** 4 defectos propios ya corregidos; quedan
-propuestas A–M en `docs/historial_sesiones.md` (sección AUDITORÍA), sin aplicar. Recomendado aplicar
-primero A, B, C, F (riesgo de caída/pérdida de datos) y luego D, E, G, H, I, J. Esperar su OK.
+**DECISIÓN PENDIENTE DEL USUARIO — auditoría sep-2026:** aplicados los 4 defectos propios y los
+riesgos A, B, C, F (verificados con prueba integral). Quedan D, E, G, H, I, J (+ K, L, M) en
+`docs/historial_sesiones.md` (sección AUDITORÍA), sin aplicar. Esperar su OK.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — la Memoria
 necesita el perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de

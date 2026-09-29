@@ -1276,7 +1276,7 @@ def _etiquetar_versiones_docs(docs_grupo: list) -> list:
     observaciones) se leían como "presentación 1 de 3", "2 de 3", "3 de 3" — el usuario reportó
     ver "documento 2 de 5" cuando en realidad eran solo 2 presentaciones reales (la inicial y la
     de respuesta), cada una con varios archivos."""
-    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida", ""))
+    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida") or "")
     dias_por_tipo: dict = {}
     for d in docs_ordenados:
         tipo = d.get("tipo_doc", "")
@@ -1312,7 +1312,7 @@ def _solo_version_vigente(docs_grupo: list) -> list:
     si una observación quedó resuelta —, acá no aporta nada tener el dato antiguo en el contexto:
     es más seguro no dárselo, así no hay riesgo de que la IA mezcle cifras de dos presentaciones
     distintas de un mismo tipo de documento (ej. Db original vs. Db recalculado tras observar)."""
-    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida", ""))
+    docs_ordenados = sorted(docs_grupo, key=lambda d: d.get("fecha_subida") or "")
     ultimo_dia_por_tipo: dict = {}
     for d in docs_ordenados:
         ultimo_dia_por_tipo[d.get("tipo_doc", "")] = (d.get("fecha_subida") or "")[:10]
@@ -2828,6 +2828,38 @@ PRESUPUESTO:
         return {}
 
 
+def numero_desde_texto(valor):
+    """Convierte a número lo que la IA (o datos ya guardados) traiga como monto: acepta int/float
+    o texto en notación chilena ("1.234.567", "12.500,50", "$ 1.234", "(500)" = negativo).
+    Devuelve None si no es interpretable — nunca lanza. Regla de ambigüedad del punto: es
+    separador de MILES solo si todos los grupos tras el primero tienen 3 dígitos y el primero
+    tiene 1-3 ("1.234" = 1234); en cualquier otro caso es decimal ("12.5" = 12,5)."""
+    if valor is None or isinstance(valor, bool):
+        return None
+    if isinstance(valor, (int, float)):
+        return valor if valor == valor else None          # descarta NaN
+    if not isinstance(valor, str):
+        return None
+    s = valor.strip()
+    negativo = s.startswith("-") or (s.startswith("(") and s.endswith(")"))
+    s = re.sub(r"[^\d.,]", "", s)
+    if not s or not re.search(r"\d", s):
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "." in s:
+        partes = s.split(".")
+        if all(len(p) == 3 for p in partes[1:]) and 1 <= len(partes[0]) <= 3:
+            s = "".join(partes)
+        elif len(partes) > 2:
+            return None
+    try:
+        n = float(s)
+    except ValueError:
+        return None
+    return -n if negativo else n
+
+
 async def extraer_presupuesto_general(docs_grupo: list) -> dict:
     """Extrae el CUADRO RESUMEN GENERAL del presupuesto (categorías y totales, ej. Obras
     Civiles/Sistema de Riego, Gastos Generales, Utilidad, Imprevistos, Estudio, ITO, IVA, Total)
@@ -2878,10 +2910,19 @@ PRESUPUESTO:
         )
         _log_uso("3 · Revisión · presupuesto general (resumen)", response, MODELO_HAIKU)
         data = _extraer_json_tolerante(_texto_respuesta(response))
-        items = data.get("items") or []
-        total = data.get("total")
+        # Lo que devuelve la IA se SANEA antes de guardarse: un monto como texto ("1.234.567")
+        # quedaría persistido y rompería (TypeError al restar) las páginas Respuestas y
+        # Presupuesto en cada carga, sin forma de arreglarlo desde la propia app.
+        items = []
+        for it in (data.get("items") or []) if isinstance(data, dict) else []:
+            if not isinstance(it, dict):
+                continue
+            nombre = str(it.get("item") or "").strip()
+            if nombre:
+                items.append({"item": nombre, "monto": numero_desde_texto(it.get("monto"))})
+        total = numero_desde_texto(data.get("total")) if isinstance(data, dict) else None
         if total is None and items:
-            total = sum(i.get("monto") or 0 for i in items if i.get("monto") is not None)
+            total = sum(i["monto"] for i in items if i["monto"] is not None)
         return {"items": items, "total": total}
     except Exception as e:
         print(f"⚠️ extraer_presupuesto_general: {e}")
@@ -2900,21 +2941,23 @@ def comparar_presupuesto_general(items_inicial: list, items_final: list) -> list
     cuando ambos montos existen."""
     usados_final = set()
     filas = []
+    items_inicial = [i for i in (items_inicial or []) if isinstance(i, dict)]
+    items_final = [i for i in (items_final or []) if isinstance(i, dict)]
     for a in items_inicial:
-        nombre_a = (a.get("item") or "").strip()
+        nombre_a = str(a.get("item") or "").strip()
         if not nombre_a:
             continue
-        monto_a = a.get("monto")
+        monto_a = numero_desde_texto(a.get("monto"))
         mejor, mejor_score, idx_mejor = None, 0.0, None
         for idx, b in enumerate(items_final):
             if idx in usados_final:
                 continue
-            score = _similitud_item_precio(nombre_a, b.get("item") or "")
+            score = _similitud_item_precio(nombre_a, str(b.get("item") or ""))
             if score > mejor_score:
                 mejor, mejor_score, idx_mejor = b, score, idx
         if mejor and mejor_score >= 0.35:
             usados_final.add(idx_mejor)
-            monto_b = mejor.get("monto")
+            monto_b = numero_desde_texto(mejor.get("monto"))
         else:
             monto_b = None
         diferencia = (monto_b - monto_a) if (monto_a is not None and monto_b is not None) else None
@@ -2923,10 +2966,11 @@ def comparar_presupuesto_general(items_inicial: list, items_final: list) -> list
     for idx, b in enumerate(items_final):
         if idx in usados_final:
             continue
-        nombre_b = (b.get("item") or "").strip()
+        nombre_b = str(b.get("item") or "").strip()
         if not nombre_b:
             continue
-        filas.append({"item": nombre_b, "costo_inicial": None, "costo_final": b.get("monto"),
+        filas.append({"item": nombre_b, "costo_inicial": None,
+                      "costo_final": numero_desde_texto(b.get("monto")),
                       "diferencia": None})
     return filas
 

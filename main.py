@@ -35,7 +35,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
                       sintetizar_evaluacion_item, evaluar_respuestas_item,
                       ITEMS_EVALUACION_CONJUNTA,
-                      extraer_presupuesto_general, comparar_presupuesto_general)
+                      extraer_presupuesto_general, comparar_presupuesto_general,
+                      numero_desde_texto)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -1763,7 +1764,7 @@ def _fuente_docs_para_vista(docs_grupo: list) -> list:
     """Lista {nombre, fecha} de los documentos que alimentaron una extracción del Chequeo de
     Cálculos — se guarda junto a los datos extraídos para que el revisor sepa de qué documento
     salieron los números, sin tener que adivinar (sep-2026, ver `_solo_version_vigente`)."""
-    return [{"nombre": d.get("nombre_original", ""), "fecha": d.get("fecha_subida", "")}
+    return [{"nombre": d.get("nombre_original") or "", "fecha": d.get("fecha_subida") or ""}
             for d in docs_grupo]
 
 
@@ -2121,6 +2122,12 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     docs_grupo = _solo_version_vigente(_documentos_para_verificacion("hidraulico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_hidraulicos(docs_grupo, n_sistemas=n_sistemas)
+    # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
+    # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
+    # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["hidraulico"] = {
@@ -2742,6 +2749,12 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     docs_grupo = _solo_version_vigente(_documentos_para_verificacion("agronomico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_agronomicos(docs_grupo, n_sistemas=n_sistemas)
+    # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
+    # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
+    # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["agronomico"] = {
@@ -2834,6 +2847,12 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     docs_grupo = _solo_version_vigente(_documentos_para_verificacion("energetico", documentos_con_texto))
     acc_costo = iniciar_costo()
     datos = await _extraer_datos_fv(docs_grupo)
+    # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
+    # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
+    # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
     datos["validado"] = False
     datos["fuente_docs"] = _fuente_docs_para_vista(docs_grupo)
     proyecto.setdefault("verificacion_calculos", {})
@@ -3362,8 +3381,14 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error al autocompletar: {str(e)}")
 
+    # Copia FRESCA: la IA tardó decenas de segundos; si el revisor guardó el Resumen mientras
+    # tanto, hay que rellenar sobre SU versión (no pisarla con la copia del inicio).
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+
     # Rellenar SOLO los campos que estén vacíos (no pisar lo que el revisor ya escribió)
-    resumen = dict(proyecto.get("resumen", {}))
+    resumen = dict(proyecto.get("resumen") or {})
     completados = 0
     for k in RESUMEN_KEYS:
         if not resumen.get(k) and datos.get(k):
@@ -3731,7 +3756,11 @@ def _resumen_presupuesto_general(proyecto: dict) -> dict:
     respuesta de subsanación) — usado tanto por la página Presupuesto como por el aviso en
     Respuestas. Sin costo de API: solo lee y compara lo ya extraído (`comparar_presupuesto_general`
     es matemática pura de emparejamiento de nombres, no una llamada a la IA)."""
-    versiones = (proyecto.get("presupuesto_general") or {}).get("versiones") or []
+    # Los montos se leen SIEMPRE por `numero_desde_texto`, aunque ya se saneen al extraer: hay
+    # versiones guardadas antes del saneo, y un monto en texto haría fallar con TypeError la resta
+    # de abajo — y con ella las páginas Respuestas y Presupuesto completas.
+    versiones = [v for v in ((proyecto.get("presupuesto_general") or {}).get("versiones") or [])
+                 if isinstance(v, dict)]
     if not versiones:
         return {"tiene_v0": False, "hay_comparacion": False, "filas": [],
                 "total_inicial": None, "total_final": None, "diferencia_total": None,
@@ -3739,13 +3768,14 @@ def _resumen_presupuesto_general(proyecto: dict) -> dict:
     v0, vf = versiones[0], versiones[-1]
     hay_comparacion = len(versiones) > 1
     if hay_comparacion:
-        filas = comparar_presupuesto_general(v0.get("items", []), vf.get("items", []))
-        total_final = vf.get("total")
+        filas = comparar_presupuesto_general(v0.get("items") or [], vf.get("items") or [])
+        total_final = numero_desde_texto(vf.get("total"))
     else:
-        filas = [{"item": it.get("item"), "costo_inicial": it.get("monto"),
-                  "costo_final": None, "diferencia": None} for it in v0.get("items", [])]
+        filas = [{"item": it.get("item"), "costo_inicial": numero_desde_texto(it.get("monto")),
+                  "costo_final": None, "diferencia": None}
+                 for it in (v0.get("items") or []) if isinstance(it, dict)]
         total_final = None
-    total_inicial = v0.get("total")
+    total_inicial = numero_desde_texto(v0.get("total"))
     diferencia_total = (
         total_final - total_inicial
         if (hay_comparacion and total_inicial is not None and total_final is not None) else None
@@ -3865,8 +3895,9 @@ async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str)
     if not docs_presupuesto:
         return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto", status_code=302)
 
-    docs_ordenados = sorted(docs_presupuesto, key=lambda d: d.get("fecha_subida", ""))
-    fecha_inicial, fecha_final = docs_ordenados[0]["fecha_subida"], docs_ordenados[-1]["fecha_subida"]
+    docs_ordenados = sorted(docs_presupuesto, key=lambda d: d.get("fecha_subida") or "")
+    fecha_inicial = docs_ordenados[0].get("fecha_subida") or ""
+    fecha_final = docs_ordenados[-1].get("fecha_subida") or ""
     dia_inicial, dia_final = fecha_inicial[:10], fecha_final[:10]
 
     await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id, proyecto.get("documentos", []))
@@ -3959,24 +3990,39 @@ async def registrar_respuesta_subsanacion(
         # Presupuesto y trae un adjunto clasificado como tipo_doc "presupuesto" (no "cubicaciones",
         # que es el detalle de cantidades, no el cuadro resumen), se extrae y se agrega como
         # versión nueva — la comparación en /presupuesto siempre usa la ÚLTIMA versión guardada.
+        ids_presupuesto = []
         if obs.get("item") == "presupuesto" and pendientes:
             docs_by_id = {d["id"]: d for d in proyecto.get("documentos", [])}
             ids_presupuesto = [a["id"] for a in pendientes
                                if (docs_by_id.get(a["id"]) or {}).get("tipo_doc") == "presupuesto"]
-            if ids_presupuesto:
+
+        # La decisión del revisor (resuelta/reiterada) se GUARDA PRIMERO y no depende de nada más:
+        # antes se guardaba después de la extracción con IA, así que una falla ahí (BD, archivo,
+        # timeout) la perdía. Además evita que la copia del proyecto quede esperando a la IA.
+        db.save_proyecto(proyecto)
+
+        if ids_presupuesto:
+            # Tarea secundaria y aislada: si falla, la ronda ya quedó registrada; el revisor puede
+            # regenerar la comparación con "Extraer datos" en /presupuesto.
+            try:
                 await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
                                         proyecto.get("documentos", []))
                 documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
                 docs_nuevo = [d for d in documentos_con_texto if d.get("id") in ids_presupuesto]
                 datos_pg = await extraer_presupuesto_general(docs_nuevo)
                 if datos_pg.get("items"):
-                    proyecto.setdefault("presupuesto_general", {}).setdefault(
-                        "versiones", []).append({
-                            "fecha": _ahora().isoformat(), "origen": f"subsanacion:{obs_id}",
-                            "items": datos_pg["items"], "total": datos_pg.get("total"),
-                        })
-
-        db.save_proyecto(proyecto)
+                    # Copia FRESCA: la extracción tarda segundos y el proyecto pudo cambiar.
+                    proyecto_fresco = db.get_proyecto(proyecto_id)
+                    if proyecto_fresco:
+                        proyecto_fresco.setdefault("presupuesto_general", {}).setdefault(
+                            "versiones", []).append({
+                                "fecha": _ahora().isoformat(), "origen": f"subsanacion:{obs_id}",
+                                "items": datos_pg["items"], "total": datos_pg.get("total"),
+                            })
+                        db.save_proyecto(proyecto_fresco)
+            except Exception as e:
+                print(f"⚠️ versión de presupuesto tras subsanación {obs_id} no se pudo extraer: "
+                      f"{type(e).__name__}: {e}")
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
 
 
