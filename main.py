@@ -179,6 +179,37 @@ def _extraer_concurso_id(codigo_sep: str) -> str:
     return codigo_sep
 
 
+def _agrupar_proyectos_por_concurso(proyectos: list) -> list:
+    """Agrupa `proyectos` (con codigo_sep/estado/fecha_creacion/fecha_estado) por concurso —
+    mismo criterio que `_extraer_concurso_id` — para el resumen imprimible/exportable del
+    dashboard. Cada grupo queda ordenado por estado (según ESTADOS_PROYECTO) y luego código SEP;
+    los grupos se ordenan por actividad más reciente primero. Opera solo sobre la lista ya
+    cargada (sin ir a la BD) — el nombre del concurso no se muestra, así se evita una consulta
+    extra por concurso en cada carga del dashboard."""
+    orden_estado = {e: i for i, e in enumerate(ESTADOS_PROYECTO)}
+    grupos = {}
+    for p in proyectos:
+        cid = _extraer_concurso_id(p.get("codigo_sep") or "")
+        grupos.setdefault(cid, []).append(p)
+    resumen = []
+    for cid, items in grupos.items():
+        items_ordenados = sorted(
+            items,
+            key=lambda p: (
+                orden_estado.get(ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")), 99),
+                p.get("codigo_sep") or ""))
+        ultima_actividad = max(
+            (p.get("fecha_estado") or p.get("fecha_creacion") or "") for p in items_ordenados)
+        resumen.append({
+            "concurso_id": cid,
+            "proyectos": items_ordenados,
+            "total": len(items_ordenados),
+            "ultima_actividad": ultima_actividad,
+        })
+    resumen.sort(key=lambda g: g["ultima_actividad"], reverse=True)
+    return resumen
+
+
 def _consultor_key(nombre: str) -> str:
     """Normaliza el nombre del consultor a una clave estable (minúsculas, sin acentos ni
     espacios extra), para agrupar sus proyectos aunque varíe la escritura."""
@@ -547,6 +578,72 @@ templates.env.filters["estado_label"] = lambda e: ESTADOS_LEGACY.get(e, e)
 templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(ESTADOS_LEGACY.get(e, e), "badge-estado")
 
 
+def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
+    """Genera el .xlsx del resumen de proyectos (agrupado por concurso, ordenado por estado
+    dentro de cada uno) para el botón "Descargar Excel" del modal del dashboard. Colores de
+    estado tomados de ESTADOS_PROYECTO_COLOR_SOLIDO — mismos que los badges de la app."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    def argb(hexcolor: str) -> str:
+        return "FF" + hexcolor.lstrip("#").upper()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resumen"
+    for i, ancho in enumerate([20, 18, 14, 20], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = ancho
+
+    lado = Side(style="thin", color=argb("#D9D9D9"))
+    borde = Border(left=lado, right=lado, top=lado, bottom=lado)
+
+    fila = 1
+    ws.cell(row=fila, column=1, value="Resumen de proyectos — Revisor CNR").font = Font(bold=True, size=13)
+    fila += 1
+    ws.cell(row=fila, column=1,
+            value=f"Generado el {_fmt_fecha(_ahora().isoformat(), con_hora=True)}").font = Font(size=9, color=argb("#808080"))
+    fila += 2
+
+    for grupo in resumen:
+        ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=4)
+        celda = ws.cell(row=fila, column=1,
+                         value=f"Concurso {grupo['concurso_id']} — {grupo['total']} proyecto(s)")
+        celda.font = Font(bold=True, color=argb("#FFFFFF"), size=11)
+        celda.fill = PatternFill("solid", fgColor=argb("#1A365D"))
+        celda.alignment = Alignment(vertical="center", indent=1)
+        ws.row_dimensions[fila].height = 20
+        fila += 1
+
+        for col, texto in enumerate(["Código SEP", "Fecha de creación", "Estado", "Última actualización"], start=1):
+            c = ws.cell(row=fila, column=col, value=texto)
+            c.font = Font(bold=True, size=9, color=argb("#404040"))
+            c.fill = PatternFill("solid", fgColor=argb("#EDEDED"))
+            c.border = borde
+        fila += 1
+
+        for p in grupo["proyectos"]:
+            estado = ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")) or "—"
+            color = argb(ESTADOS_PROYECTO_COLOR_SOLIDO.get(estado, "#6E6E73"))
+            valores = [
+                p.get("codigo_sep") or "",
+                _fmt_fecha(p.get("fecha_creacion")) or "—",
+                estado,
+                _fmt_fecha(p.get("fecha_estado")) or "—",
+            ]
+            for col, valor in enumerate(valores, start=1):
+                c = ws.cell(row=fila, column=col, value=valor)
+                c.border = borde
+                c.font = Font(size=9, bold=(col == 3), color=color if col == 3 else argb("#000000"))
+            fila += 1
+        fila += 1  # separador entre concursos
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 @app.on_event("startup")
 async def startup_event():
     from database import DATABASE_URL, db
@@ -673,8 +770,8 @@ async def dashboard(request: Request):
     # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
     # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
     proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "revisor",
-         "resumen", "costo_api"],
+        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "fecha_estado",
+         "revisor", "resumen", "costo_api"],
         username=user["username"])
     for p in proyectos:
         p["consultor"] = ((p.get("resumen") or {}).get("consultor") or "").strip()
@@ -689,8 +786,27 @@ async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
-        "proyectos": proyectos
+        "proyectos": proyectos,
+        # Agrupado por concurso/estado para el modal "Resumen de proyectos" — cálculo en
+        # memoria sobre la misma lista de arriba, sin consultas extra a la BD.
+        "resumen_por_concurso": _agrupar_proyectos_por_concurso(proyectos)
     })
+
+
+@app.get("/resumen-proyectos.xlsx")
+async def resumen_proyectos_excel(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyectos = db.get_proyectos_ligero(
+        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor"],
+        username=user["username"])
+    contenido = _generar_excel_resumen_proyectos(_agrupar_proyectos_por_concurso(proyectos))
+    nombre_archivo = f"resumen_proyectos_{_ahora().strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=contenido,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'})
 
 
 # ─── Proyectos ────────────────────────────────────────────────────────────────
