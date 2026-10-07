@@ -4944,6 +4944,11 @@ CRITERIOS:
   corregida — aunque no sea exactamente lo que pedía la observación original —, es "no_resuelta"
   y explica el error encontrado: el objetivo es que el diseño final quede técnicamente correcto,
   no solo que el documento haya cambiado.
+- NO TE QUEDES SOLO EN EL PUNTO CITADO: la observación señala un punto puntual, pero el mismo
+  error puede repetirse en otra parte del documento de respuesta (otra línea, página, cuadro o
+  sección que no es la citada textualmente). Si el punto exacto que cita la observación quedó
+  corregido pero el mismo error persiste en otra parte del mismo documento, es "no_resuelta" —
+  indica en el fundamento dónde sigue el error, no solo que el punto citado está bien.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
   para mantener el historial y permitir comparar cambios. Los documentos del mismo tipo llevan
   una etiqueta entre corchetes que indica su presentación: "[versión más reciente]" es la
@@ -5131,6 +5136,11 @@ CRITERIOS (aplican a cada observación por separado, pero razonando sobre el con
   inconsistencia NUEVA en la versión corregida — aunque no sea exactamente lo que pedía la
   observación original —, es "no_resuelta" y explica el error encontrado: el objetivo es que el
   diseño final quede técnicamente correcto, no solo que el documento haya cambiado.
+- NO TE QUEDES SOLO EN EL PUNTO CITADO: la observación señala un punto puntual, pero el mismo
+  error puede repetirse en otra parte del documento de respuesta (otra línea, página, cuadro o
+  sección que no es la citada textualmente). Si el punto exacto que cita la observación quedó
+  corregido pero el mismo error persiste en otra parte del mismo documento, es "no_resuelta" —
+  indica en el fundamento dónde sigue el error, no solo que el punto citado está bien.
 - VERSIONES MÚLTIPLES: el expediente NUNCA elimina documentos — conserva TODAS las versiones
   para mantener el historial y permitir comparar cambios. Los documentos del mismo tipo llevan
   una etiqueta entre corchetes que indica su presentación: "[versión más reciente]" es la
