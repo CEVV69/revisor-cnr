@@ -4988,21 +4988,40 @@ Responde SOLO este JSON, sin texto adicional:
         ) as stream:
             return stream.get_final_message()
 
+    async def _llamar(max_tokens):
+        return await asyncio.to_thread(_stream_final, max_tokens)
+
+    # Con imágenes (Sonnet 5 — plano/escaneado/prueba de bombeo de por medio) se parte de
+    # MAX_TOKENS_SONNET, igual que `_analizar_grupo`: el modelo gasta cupo en "thinking" antes
+    # de escribir el fundamento, y con un plano de por medio ese gasto puede agotar un cupo
+    # chico igual que analizar el ítem completo. Reintento con más cupo si de todas formas se
+    # corta — bug real reportado oct-2026 ("La IA no devolvió una evaluación clara").
+    max_tokens_base = MAX_TOKENS_SONNET if hay_imagenes else 2500
     try:
-        response = await asyncio.to_thread(_stream_final, 2500)
+        response = await _llamar(max_tokens_base)
     except Exception as e:
         print(f"⚠️ evaluar_respuesta_subsanacion: {e}")
         return {"recomendacion": "", "fundamento": f"No se pudo evaluar con IA: {e}"}
 
-    _log_uso(f"9 · Respuesta del consultor · '{nombre_item}'", response, modelo_analisis)
     content = _texto_respuesta(response)
+    if not content.strip() and response.stop_reason == "max_tokens":
+        print(f"⚠️ evaluar_respuesta_subsanacion: respuesta vacía por max_tokens "
+              f"({max_tokens_base}) — reintentando con más cupo…")
+        try:
+            response = await _llamar(max_tokens_base + 8000)
+            content = _texto_respuesta(response)
+        except Exception as e:
+            print(f"⚠️ evaluar_respuesta_subsanacion (reintento): {e}")
+
+    _log_uso(f"9 · Respuesta del consultor · '{nombre_item}'", response, modelo_analisis)
     data = _extraer_json_tolerante(content)
     rec = data.get("recomendacion", "")
     if rec not in ("resuelta", "no_resuelta"):
         rec = ""
     fund = (data.get("fundamento", "") or "").strip()
     if not rec and not fund:
-        print(f"⚠️ evaluar_respuesta_subsanacion: respuesta vacía — stop_reason={response.stop_reason}")
+        print(f"⚠️ evaluar_respuesta_subsanacion: respuesta vacía — stop_reason={response.stop_reason}, "
+              f"content_len={len(content)}")
         fund = "La IA no devolvió una evaluación clara. Revísalo manualmente."
     return {"recomendacion": rec, "fundamento": fund}
 
@@ -5145,10 +5164,16 @@ usa el obs_id tal cual aparece arriba):
     hay_imagenes = any(b.get("type") == "image" for b in content_blocks)
     modelo_analisis = MODELO_SONNET if hay_imagenes else MODELO_SONNET_TEXTO
     # Tope de salida proporcional al N° de observaciones del lote (cada fundamento son 2-4
-    # líneas) — con una sola observación se comporta igual que la versión individual (2500).
-    max_tokens = min(8000, 2000 + 500 * len(pendientes))
+    # líneas). Con imágenes (Sonnet 5 — el caso típico de Hidráulico/Fotovoltaico: planos,
+    # pruebas de bombeo) se parte de MAX_TOKENS_SONNET como piso, igual que `_analizar_grupo`:
+    # razonar en conjunto sobre varias observaciones gasta cupo en "thinking" antes de escribir
+    # el JSON, y sin este piso el array se cortaba a mitad — cada observación después del corte
+    # quedaba sin entrada ("La IA no devolvió una evaluación clara para esta observación"), con
+    # mayor frecuencia cuantas más observaciones tenía el lote (bug real reportado oct-2026).
+    piso = MAX_TOKENS_SONNET if hay_imagenes else 3000
+    max_tokens = min(24000, piso + 500 * len(pendientes))
 
-    def _stream_final():
+    def _stream_final(max_tokens):
         with client.messages.stream(
             model=modelo_analisis, max_tokens=max_tokens, system=system_con_cache,
             messages=[{"role": "user", "content": content_blocks}],
@@ -5156,8 +5181,11 @@ usa el obs_id tal cual aparece arriba):
         ) as stream:
             return stream.get_final_message()
 
+    async def _llamar(max_tokens):
+        return await asyncio.to_thread(_stream_final, max_tokens)
+
     try:
-        response = await asyncio.to_thread(_stream_final)
+        response = await _llamar(max_tokens)
     except Exception as e:
         print(f"⚠️ evaluar_respuestas_item: {e}")
         for o in pendientes:
@@ -5165,11 +5193,25 @@ usa el obs_id tal cual aparece arriba):
                                       "fundamento": f"No se pudo evaluar con IA: {e}"}
         return resultado
 
-    _log_uso(f"9 · Respuestas del ítem (conjunto) · '{nombre_item}'", response, modelo_analisis)
     content = _texto_respuesta(response)
+    if not content.strip() and response.stop_reason == "max_tokens":
+        print(f"⚠️ evaluar_respuestas_item: respuesta vacía por max_tokens ({max_tokens}) — "
+              f"reintentando con más cupo…")
+        try:
+            response = await _llamar(min(32000, max_tokens + 8000))
+            content = _texto_respuesta(response)
+        except Exception as e:
+            print(f"⚠️ evaluar_respuestas_item (reintento): {e}")
+
+    _log_uso(f"9 · Respuestas del ítem (conjunto) · '{nombre_item}'", response, modelo_analisis)
     data = _extraer_json_tolerante(content)
     evaluaciones = data.get("evaluaciones", []) if isinstance(data, dict) else []
     por_id = {str(e.get("obs_id", "")): e for e in evaluaciones if isinstance(e, dict)}
+    faltantes = [o["obs_id"] for o in pendientes if str(o["obs_id"]) not in por_id]
+    if faltantes:
+        print(f"⚠️ evaluar_respuestas_item: {len(faltantes)}/{len(pendientes)} observaciones sin "
+              f"evaluación — stop_reason={response.stop_reason}, content_len={len(content)}, "
+              f"obs_ids={faltantes}")
     for o in pendientes:
         e = por_id.get(str(o["obs_id"]))
         if not e:
