@@ -33,7 +33,7 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ---
 
-## Estado actual (sep-2026)
+## Estado actual (oct-2026)
 
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
@@ -42,27 +42,26 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 "Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total; costo
 API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026); Sección Respuestas;
 PEPA + Ficha tacha; Caudal del emisor por sistema; Presupuesto general: comparación entre
-versiones (confirmado "funciona perfecto" — pestaña `/proyecto/{id}/presupuesto`).
+versiones (confirmado "funciona perfecto").
 
-1. **Caudal por turnos + CDT ruta crítica** — implementado, pendiente de prueba (`docs/`).
-2. **Word con presupuesto en tabla** — implementado, pendiente de prueba, sin expediente real aún.
-3. **Evaluación conjunta con IA (Respuestas)** — botón solo en Hidráulico/Fotovoltaico
-   (`ITEMS_EVALUACION_CONJUNTA`). Detalle `docs/`.
-4. **Chequeo de Cálculos: solo presentación vigente** — `_solo_version_vigente()`. Detalle `docs/`.
-5. **Observaciones en dos párrafos** (análisis + propuesta, mismo campo `texto`/`fundamento`,
-   sin esquema nuevo). Aplica a análisis inicial y respuestas.
-6. **"Costo total final (UF)"** en Resumen (manual) + Presupuesto con extracción fila a fila y
-   nota UF copiable al SEP. Detalle `docs/`.
-7. **Auditoría de código completa (sep-2026, A–M)** — colapsos, lost updates, emparejamiento de
-   presupuesto, tokens, duplicación en evaluación IA. Aplicada y verificada. Detalle `docs/`
-   (sección AUDITORÍA).
-
-Todo lo de arriba: implementado, pendiente de prueba del usuario.
+**Pendiente de prueba del usuario** (implementado, detalle en `docs/`):
+1. Caudal por turnos + CDT ruta crítica.
+2. Word con presupuesto en tabla (sin expediente real aún).
+3. Evaluación conjunta con IA (Respuestas) — botón solo en Hidráulico/Fotovoltaico.
+4. Chequeo de Cálculos: solo presentación vigente.
+5. Observaciones en dos párrafos (análisis + propuesta, mismo campo, sin esquema nuevo).
+6. "Costo total final (UF)" en Resumen/Presupuesto + nota UF copiable al SEP.
+7. Auditoría de código completa (A–M): lost updates, emparejamiento de presupuesto, tokens,
+   duplicación en evaluación IA — aplicada y verificada (sección AUDITORÍA en `docs/`).
+8. Dashboard: resumen de proyectos agrupado por concurso/estado (modal, imprimir, Excel con
+   formato, desglose de conteo por estado dentro de cada concurso).
+9. Fix evaluación de respuestas (individual y conjunta): "La IA no devolvió evaluación clara"
+   venía de max_tokens corto sin reintento — mismo piso/reintento que `_analizar_grupo`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
-perfil solar horario del predio (8.760 valores h/h) que solo existe dentro de
-`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl). Sin ese dato no se puede
-recalcular generación ni cobertura, y no hay forma de exportarlo desde el Revisor FV.
+perfil solar horario del predio (8.760 valores h/h), solo disponible en
+`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl); sin exportarlo no hay forma
+de desbloquearlo.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).
