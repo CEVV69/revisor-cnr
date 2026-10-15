@@ -49,19 +49,6 @@
      style="border-color:#2b6cb0; margin-left:auto;">
     Generar Ficha de Revisión
   </a>
-
-  <!-- Tope de rondas de subsanación de ESTE proyecto — 2 por defecto, 3 opcional (Pequeña
-       Agricultura lo permite, pero no todos los proyectos PEPA lo necesitan). -->
-  <form method="post" action="/proyecto/{{ proyecto.id }}/max-rondas"
-        style="display:flex; align-items:center; gap:0.35rem; margin-left:0.5rem;">
-    <span style="font-size:0.8rem; color:var(--text-2); white-space:nowrap;">Rondas:</span>
-    <select name="max_rondas" onchange="this.form.submit()"
-            style="font-size:0.82rem; padding:0.3rem 0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer;"
-            title="Tope de rondas de subsanación para este proyecto — Pequeña Agricultura permite hasta 3, opcional según lo necesite cada caso.">
-      <option value="2" {% if max_rondas == 2 %}selected{% endif %}>2 rondas</option>
-      <option value="3" {% if max_rondas == 3 %}selected{% endif %}>3 rondas</option>
-    </select>
-  </form>
 </div>
 
 <nav class="proj-nav">

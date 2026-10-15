@@ -555,10 +555,9 @@ ESTADOS_LEGACY = {"Con respuesta Observaciones": "Resp. Obs.1", "Con respuesta O
 # esperando que el consultor responda la ronda siguiente. Sin este estado intermedio, un proyecto
 # en ese punto exacto no tenía dónde reflejarlo: "Resp. Obs.N" ya no aplica (esa ronda se terminó
 # de revisar) y "Resp. Obs.N+1" tampoco (aún no llegan las respuestas de la ronda siguiente).
-# "Obs. Ronda 3"/"Resp. Obs.3" solo tienen sentido en proyectos con el tope de 3 rondas activado
-# (selector "Rondas:" en Respuestas, `max_rondas_subsanacion`) — en los de 2 rondas (la mayoría)
-# el selector de estado simplemente no los necesita, pero igual quedan disponibles por si el
-# revisor sube el tope a mitad de camino.
+# "Obs. Ronda 3"/"Resp. Obs.3" cubren el caso normal (tope de subsanación: MAX_RONDAS_SUBSANACION,
+# ver más abajo) — un proyecto que llega a una 4ª ronda (excepcional) simplemente reutiliza
+# "Resp. Obs.3"/"Obs. Ronda 3" un ciclo más, o el revisor pasa directo a Aprobado/Rechazado.
 ESTADOS_PROYECTO_BADGE = {
     "En revisión":         "badge-estado",     # celeste
     "Pendiente":           "badge-pendiente",   # rosa/magenta
@@ -3862,22 +3861,22 @@ async def derivar_observacion_item(
 # (cierra el punto) o no la resuelve (reitera). El proyecto pasa a "Aprobado" solo
 # cuando TODAS las observaciones enviadas quedan resueltas.
 
-# Tope de rondas por defecto — 2, salvo que el proyecto declare `max_rondas_subsanacion` (sep-2026:
-# Pequeña Agricultura permite hasta 3, pero es OPCIONAL por proyecto, no automático por programa —
-# hay proyectos PEPA que se resuelven en 2 rondas sin necesitar la 3ª). Ver ruta POST .../max-rondas.
-MAX_RONDAS_SUBSANACION = 2
+# Tope de rondas de subsanación — FIJO para todos los proyectos (oct-2026: hasta entonces era
+# elegible por proyecto, 2 o 3, vía un selector "Rondas:" en Respuestas; se eliminó porque en la
+# práctica el 100% de los proyectos revisados son Pequeña Agricultura y el usuario ya había
+# llegado a una 4ª ronda manualmente, fuera de la app, cuando el tope más alto disponible era 3).
+# Lo normal son hasta 3 rondas; la 4ª es el caso excepcional, y si tampoco se resuelve ahí queda
+# "no_resuelta" automáticamente — el revisor decide entonces si el proyecto pasa a Rechazado.
+MAX_RONDAS_SUBSANACION = 4
 
-def _estado_subsanacion(obs: dict, max_rondas: int = MAX_RONDAS_SUBSANACION) -> dict:
+def _estado_subsanacion(obs: dict) -> dict:
     """Estado derivado del hilo de respuestas de UNA observación aprobada:
       estado: "esperando" (falta la respuesta de la ronda actual) | "resuelta" | "no_resuelta"
       ronda_actual: N° de la próxima ronda a responder, solo si estado=="esperando"
       puede_responder: si el revisor todavía puede registrar una respuesta
       rondas: rondas ya registradas.
 
-    `max_rondas`: tope de ESTE proyecto (2 por defecto, 3 si el revisor lo activó) — lo pasa el
-    llamador, nunca se lee la constante global directo acá, para que un cambio de tope a mitad de
-    camino se refleje solo (una obs. "no_resuelta" con 2 rondas vuelve a "esperando" ronda 3 si el
-    revisor sube el tope, sin lógica extra)."""
+    Tope fijo (MAX_RONDAS_SUBSANACION) — ya no varía por proyecto."""
     rondas = (obs.get("subsanacion") or {}).get("rondas", [])
     if not rondas:
         return {"estado": "esperando", "ronda_actual": 1, "puede_responder": True, "rondas": []}
@@ -3885,7 +3884,7 @@ def _estado_subsanacion(obs: dict, max_rondas: int = MAX_RONDAS_SUBSANACION) -> 
     if ultima.get("evaluacion") == "resuelta":
         return {"estado": "resuelta", "ronda_actual": None, "puede_responder": False, "rondas": rondas}
     # La última respuesta fue "reiterada": si aún quedan rondas, se espera la siguiente.
-    if len(rondas) >= max_rondas:
+    if len(rondas) >= MAX_RONDAS_SUBSANACION:
         return {"estado": "no_resuelta", "ronda_actual": None, "puede_responder": False, "rondas": rondas}
     return {"estado": "esperando", "ronda_actual": len(rondas) + 1, "puede_responder": True, "rondas": rondas}
 
@@ -3934,7 +3933,6 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
-    max_rondas = proyecto.get("max_rondas_subsanacion") or MAX_RONDAS_SUBSANACION
 
     # Solo entran al flujo las observaciones APROBADAS (las que se enviaron al consultor).
     aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]
@@ -3959,13 +3957,13 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         else:
             preselect = ""                       # ej. "coherencia": sin preselección
         pendientes = (o.get("subsanacion") or {}).get("adjuntos_pendientes", [])
-        grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o, max_rondas),
+        grupos[nombre]["obs"].append({"obs": o, "sub": _estado_subsanacion(o),
                                       "tipo_docs": opciones_td, "preselect": preselect,
                                       "adjuntos_pendientes": pendientes})
     grupos_lista = [{"nombre": n, "key": g["key"], "obs": g["obs"]}
                     for n, g in sorted(grupos.items(), key=lambda kv: orden_item.get(kv[0], 999))]
 
-    subs = [_estado_subsanacion(o, max_rondas) for o in aprobadas]
+    subs = [_estado_subsanacion(o) for o in aprobadas]
     total = len(aprobadas)
     n_resueltas = sum(1 for s in subs if s["estado"] == "resuelta")
     n_no_resueltas = sum(1 for s in subs if s["estado"] == "no_resuelta")
@@ -3980,7 +3978,7 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
         "costo_api": _costo_para_vista(proyecto),
         "grupos": grupos_lista, "total": total, "n_resueltas": n_resueltas,
         "n_no_resueltas": n_no_resueltas, "n_esperando": n_esperando,
-        "n_reobservadas": n_reobservadas, "max_rondas": max_rondas,
+        "n_reobservadas": n_reobservadas, "max_rondas": MAX_RONDAS_SUBSANACION,
         # Selector de estado del encabezado — mismo formato que usa proyecto.html.
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         # Ítems con botón de "evaluar en conjunto" (sep-2026) — el resto del panel no lo muestra.
@@ -4087,23 +4085,6 @@ async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str)
                             status_code=302)
 
 
-@app.post("/proyecto/{proyecto_id}/max-rondas")
-async def guardar_max_rondas(request: Request, proyecto_id: str, max_rondas: int = Form(...)):
-    """Cambia el tope de rondas de subsanación de ESTE proyecto — 2 por defecto, 3 si el revisor
-    lo activa (Pequeña Agricultura lo permite, pero es opcional: no todos los proyectos PEPA lo
-    necesitan). Puede cambiarse en cualquier momento; `_estado_subsanacion()` deriva el estado de
-    cada observación contra el tope vigente en cada carga, sin lógica de migración."""
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
-    if not proyecto:
-        raise HTTPException(status_code=404)
-    proyecto["max_rondas_subsanacion"] = max_rondas if max_rondas in (2, 3) else MAX_RONDAS_SUBSANACION
-    db.save_proyecto(proyecto)
-    return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas", status_code=302)
-
-
 @app.post("/proyecto/{proyecto_id}/observacion/{obs_id}/responder")
 async def registrar_respuesta_subsanacion(
     request: Request, proyecto_id: str, obs_id: str,
@@ -4122,8 +4103,7 @@ async def registrar_respuesta_subsanacion(
     if evaluacion not in ("resuelta", "reiterada"):
         raise HTTPException(status_code=400, detail="Evaluación no válida")
 
-    max_rondas = proyecto.get("max_rondas_subsanacion") or MAX_RONDAS_SUBSANACION
-    sub = _estado_subsanacion(obs, max_rondas)
+    sub = _estado_subsanacion(obs)
     if sub["puede_responder"] and respuesta.strip():
         obs.setdefault("subsanacion", {}).setdefault("rondas", [])
         ronda = {
