@@ -42,7 +42,8 @@ sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
 "Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total; costo
 API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026); Sección Respuestas;
 PEPA + Ficha tacha; Caudal del emisor por sistema; Presupuesto general: comparación entre
-versiones (confirmado "funciona perfecto").
+versiones (confirmado "funciona perfecto"); fix max_tokens/reintento en evaluación de respuestas
+(confirmado oct-2026; criterio adicional del prompt —mismo error en otra parte del documento— aún sin confirmar).
 
 **Pendiente de prueba del usuario** (implementado, detalle en `docs/`):
 1. Caudal por turnos + CDT ruta crítica.
@@ -55,13 +56,12 @@ versiones (confirmado "funciona perfecto").
    duplicación en evaluación IA — aplicada y verificada (sección AUDITORÍA en `docs/`).
 8. Dashboard: resumen de proyectos agrupado por concurso/estado (modal, imprimir, Excel con
    formato, desglose de conteo por estado dentro de cada concurso).
-9. Fix evaluación de respuestas (individual y conjunta): "La IA no devolvió evaluación clara"
-   venía de max_tokens corto sin reintento — mismo piso/reintento que `_analizar_grupo`.
+9. Subsanación: tope de rondas fijo en 4 (se eliminó el selector 2/3 por proyecto) + estados de
+   proyecto nuevos "Obs. Ronda 4"/"Resp. Obs.4".
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
-`fotovoltaico_riego_v19.html` (importado desde solar.minenergia.cl); sin exportarlo no hay forma
-de desbloquearlo.
+`fotovoltaico_riego_v19.html`; sin exportarlo desde ahí no hay forma de desbloquearlo.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).
