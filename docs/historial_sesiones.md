@@ -1,3 +1,29 @@
+## Sesión oct-2026 — Subsanación: tope de rondas fijo en 4 (elimina el selector 2/3)
+
+Reporte del usuario: en un proyecto con 2 rondas ya reiteradas, la app no dejaba registrar la
+respuesta de la ronda 3 ("No resuelta" automático). Causa: tope por defecto 2, y el selector
+"Rondas: 2/3" (ver sesión más abajo que lo introdujo) estaba en "2" porque nadie lo había
+cambiado — no era un bug, el proyecto era PEPA y necesitaba activar el tope de 3.
+
+El usuario pidió ir más allá de solo activarlo caso a caso: en la práctica el 100% de los
+proyectos revisados son Pequeña Agricultura, y alguna vez necesitó incluso una 4ª ronda
+(resuelta a mano, fuera de la app, porque el tope más alto disponible era 3). Decisión: eliminar
+el selector por proyecto y dejar un tope FIJO de 4 rondas para todos — simplifica la UI y cubre
+el caso excepcional sin que el revisor tenga que acordarse de nada.
+
+Cambios: `MAX_RONDAS_SUBSANACION` 2→4 (constante global, ya no hay override por proyecto);
+`_estado_subsanacion()` perdió el parámetro `max_rondas`; eliminada la ruta
+`POST /proyecto/{id}/max-rondas` y el selector de `respuestas.html`. El campo
+`max_rondas_subsanacion` que quedó guardado en proyectos anteriores se ignora sin migración (ya
+no lo lee nadie). Si la 4ª ronda tampoco resuelve el punto, sigue cerrando sola como
+"no_resuelta" — el revisor decide ahí si pasa el proyecto a Rechazado, igual que antes.
+
+Verificado con test dedicado (4 rondas reiteradas se registran todas, la 5ª se bloquea; un
+proyecto con 3 rondas ya guardadas bajo el tope viejo puede ahora registrar la 4ª con
+normalidad).
+
+---
+
 ## Sesión sep-2026 — AUDITORÍA (riesgos, inconsistencias, código muerto, costo)
 
 **Método:** pyflakes en todos los módulos + búsqueda de definiciones sin uso + lectura crítica
