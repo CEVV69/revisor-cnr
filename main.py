@@ -544,7 +544,8 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # DISTINTO y bien visible, para que un proyecto que quedó a medio revisar (empezó, pero se dejó de
 # lado por otro más urgente) no pase desapercibido en el dashboard.
 ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Obs. Ronda 2",
-                    "Resp. Obs.2", "Obs. Ronda 3", "Resp. Obs.3", "Aprobado", "Rechazado"]
+                    "Resp. Obs.2", "Obs. Ronda 3", "Resp. Obs.3", "Obs. Ronda 4", "Resp. Obs.4",
+                    "Aprobado", "Rechazado"]
 # "Con respuesta Observaciones"/"Con respuesta Obs." (nombres anteriores, hasta sep-2026) se
 # reemplazan por un estado por ronda — el revisor elige cuál corresponde. Sin forma de saber a
 # qué ronda corresponde un proyecto ya guardado con el nombre viejo, cae a la ronda 1 por
@@ -555,9 +556,9 @@ ESTADOS_LEGACY = {"Con respuesta Observaciones": "Resp. Obs.1", "Con respuesta O
 # esperando que el consultor responda la ronda siguiente. Sin este estado intermedio, un proyecto
 # en ese punto exacto no tenía dónde reflejarlo: "Resp. Obs.N" ya no aplica (esa ronda se terminó
 # de revisar) y "Resp. Obs.N+1" tampoco (aún no llegan las respuestas de la ronda siguiente).
-# "Obs. Ronda 3"/"Resp. Obs.3" cubren el caso normal (tope de subsanación: MAX_RONDAS_SUBSANACION,
-# ver más abajo) — un proyecto que llega a una 4ª ronda (excepcional) simplemente reutiliza
-# "Resp. Obs.3"/"Obs. Ronda 3" un ciclo más, o el revisor pasa directo a Aprobado/Rechazado.
+# "Obs. Ronda 4"/"Resp. Obs.4" (oct-2026): tope de subsanación MAX_RONDAS_SUBSANACION, ver más
+# abajo — lo normal son hasta 3 rondas; la 4ª es el caso excepcional pero ya tiene su propio
+# estado, igual que las anteriores.
 ESTADOS_PROYECTO_BADGE = {
     "En revisión":         "badge-estado",     # celeste
     "Pendiente":           "badge-pendiente",   # rosa/magenta
@@ -567,6 +568,8 @@ ESTADOS_PROYECTO_BADGE = {
     "Resp. Obs.2":         "badge-legal",       # morado claro
     "Obs. Ronda 3":        "badge-administrativa", # gris — mismo criterio que "Obs. Ronda 2"
     "Resp. Obs.3":         "badge-legal",       # morado claro
+    "Obs. Ronda 4":        "badge-administrativa", # gris — mismo criterio que las rondas anteriores
+    "Resp. Obs.4":         "badge-legal",       # morado claro
     "Aprobado":            "badge-tecnica",     # verde
     "Rechazado":           "badge-mayor",       # rojo
 }
@@ -579,6 +582,8 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "Resp. Obs.2":         "#5e35b1",
     "Obs. Ronda 3":        "#6e6e73",
     "Resp. Obs.3":         "#5e35b1",
+    "Obs. Ronda 4":        "#6e6e73",
+    "Resp. Obs.4":         "#5e35b1",
     "Aprobado":            "#276749",
     "Rechazado":           "#c41230",
 }
