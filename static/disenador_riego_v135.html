@@ -816,6 +816,14 @@ select option{background:var(--white)}
       <div class="f"><label>Vel. Avance [m/hr]</label><div class="ig"><input id="c-va" type="number" step="1" placeholder="24"><span class="isuf">m/hr</span></div></div>
       <div class="f"><label>Cambio Postura [hr]<span class="tip" onclick="showTip(this)" title="INIA-Carillanca: ≈1 hr cambio de posición + ≈0,5 hr puesta en posición del carrete = 1,5 hr típico.">?</span></label><div class="ig"><input id="c-tras" type="number" value="1.5" step=".1"><span class="isuf">hr</span></div></div>
     </div>
+    <div class="f" style="grid-column:1/-1;background:var(--frost);border:1px solid var(--ice);border-radius:8px;padding:10px 14px;margin-top:2px">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:600">Posturas no uniformes <span class="tip" onclick="showTip(this)" title="Vacío = todas las posturas usan el mismo Largo Franja de arriba (comportamiento estándar). Si el predio tiene bordes irregulares y las franjas tienen largos distintos, agregue cada postura aquí con su propio largo — el resto de los parámetros (ancho/espaciamiento, radio, viento) se mantienen comunes.">?</span></label>
+      <div id="c-post-list" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button type="button" class="btn bs" style="font-size:.7rem;padding:6px 10px" onclick="addPosturaC()">+ Agregar postura</button>
+        <button type="button" class="btn bs" style="font-size:.7rem;padding:6px 10px;color:var(--err)" onclick="if(confirm('¿Quitar todas las posturas manuales y volver al modo uniforme?'))delAllPosturasC()">Volver a modo uniforme</button>
+      </div>
+    </div>
     <button class="btn bs" onclick="openMgr('emis')" style="margin-bottom:8px">⚙ Gestionar Emisores</button>
     <button class="btn bc" onclick="calcCarP()">⚡ Calcular posturas</button>
     <div id="c-car-r" style="margin-top:12px"></div>
@@ -2204,7 +2212,7 @@ function calcAA(){
   const ha=window._capasHaA||0;
   const dn=ha*crit/100;
   const fr=dn/etc;
-  const frAdj=Math.round(fr)||1;
+  const frAdj=Math.floor(fr)||1;
   const dnAdj=etc*frAdj;
   const db=dnAdj/(ef/100);
   // Sup. de Riego Seguro (ITT-03 §1): SIEMPRE con demanda DIARIA, no con Db de Fr días
@@ -2235,7 +2243,7 @@ function calcAA(){
     ])}
     ${fbox('Fr <small style="font-weight:400;color:var(--slate)">(frecuencia de riego)</small>',[
       {eq:`Fr = Dn / ETc = ${fd(dn,3)} / ${fd(etc,3)}`,res:`${fd(fr,2)} días`},
-      {eq:`Fr ajustada (redondeo(Fr))`,res:`${frAdj} días`},
+      {eq:`Fr ajustada (piso(Fr) — criterio CNR Aspersión)`,res:`${frAdj} días`},
       {eq:`Dn ajustada = ETc × Fr_adj = ${fd(etc,3)} × ${frAdj}`,res:`${fd(dnAdj,3)} mm`}
     ])}
     ${fbox('Db <small style="font-weight:400;color:var(--slate)">(demanda bruta)</small>',[
@@ -2248,7 +2256,7 @@ function calcAA(){
     <tr><td>AD (agua disponible)</td><td class="un">(CC−PMP)/100×Da×Prof(m)×1000</td><td class="vr">${fd(ha,2)}</td><td class="un">mm</td></tr>
     <tr><td>fa (factor agotamiento)</td><td class="un">${crit}/100</td><td class="vr">${fd(crit/100,2)}</td><td class="un">—</td></tr>
     <tr><td>Dn (lámina neta)</td><td class="un">AD × fa</td><td class="vr">${fd(dn,3)}</td><td class="un">mm</td></tr>
-    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → redondeo(Fr)</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
+    <tr><td>Fr (frecuencia de riego)</td><td class="un">Dn / ETc → piso(Fr)</td><td class="vr">${fd(fr,2)} → ${frAdj}</td><td class="un">días</td></tr>
     <tr><td>Dn ajustada</td><td class="un">ETc × Fr_adj</td><td class="vr">${fd(dnAdj,3)}</td><td class="un">mm</td></tr>
     <tr><td>Db (demanda bruta)</td><td class="un">Dn_adj / Ef</td><td class="vr">${fd(db,3)}</td><td class="un">mm</td></tr>
     </table>
@@ -2278,7 +2286,12 @@ function calcAspP(){
   // que sostenga el ΔQ durante toda la operación (mismo criterio del Paso 2).
   const _acA=evalAcum('a',qPos,trp*nPost,diasNec);
   const _qOkA = qPos<=qDisp || (_acA.on && _acA.ok);
-  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,diasNec,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL};
+  // Caudal mínimo necesario (demanda agronómica pura) — mismo criterio que calcCarP(): Fr se cancela algebraicamente.
+  const efFracA=v('a-ef',75)/100;
+  const etcAA=R.AA&&R.AA.etc>0?R.AA.etc:null;
+  const qNecesarioA=etcAA!=null?(etcAA*10000*supR)/(efFracA*hrs*3600):null; // l/s
+  const equipoOkA=qNecesarioA!=null?(qPos>=qNecesarioA*0.999):null;
+  R.ASP={qAsp,espA,espL,nAsp,supPos,qPos,va,vib,trp,nPost,nPostDia,diasNec,vibOk:vib>va,qOk:_qOkA,acum:_acA,pp:qAsp/(espA*espL),marco:fd(espA,1)+'x'+fd(espL,1),qem:qAsp,nem:nAsp,deh:espA,dsh:espL,qNecesario:qNecesarioA,equipoOk:equipoOkA};
   calcAcum('a'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('a-llen').value=v('a-llat',120);
   document.getElementById('a-qlat').value=qPos.toFixed(2);
@@ -2316,6 +2329,14 @@ function calcAspP(){
       {eq:`Posturas/día = ⌊Hrs / (T_pos + T_traslado)⌋ = ⌊${hrs} / (${fd(trp,2)} + ${tras})⌋`,res:`${nPostDia} postura${nPostDia===1?'':'s'}/día`},
       {eq:`Días necesarios = ⌈N_posturas / Posturas_día⌉ = ⌈${nPost} / ${nPostDia}⌉`,res:diasNec!=null?`${diasNec} días`:'—'}
     ])}
+    ${qNecesarioA!=null?fbox('Verificación — Caudal Mínimo Necesario (demanda agronómica)',[
+      {eq:`Q_necesario = ETc×10.000×Sup / (Ef×TRD×3600) = ${fd(etcAA,2)}×10.000×${fd(supR,2)} / (${fd(efFracA,2)}×${fd(hrs,1)}×3600)`,res:`${fd(qNecesarioA,3)} l/s`},
+      {eq:`Q de diseño elegido (N_asp × Q_asp) = ${fd(qPos,3)} l/s`,res:equipoOkA?'✓ cubre el mínimo':'✗ NO alcanza'},
+      {note:'Mínimo que exige la demanda agronómica con las horas y superficie declaradas. El equipo elegido puede entregar más que esto, nunca menos.'}
+    ]):fbox('Verificación — Caudal Mínimo Necesario (demanda agronómica)',[
+      {note:'⚠ Pendiente: calcule primero el Diseño Agronómico (Paso 2) para habilitar esta verificación.'}
+    ])}
+    ${qNecesarioA!=null&&!equipoOkA?al('⚠ El caudal de la postura ('+fd(qPos,3)+' l/s) es MENOR al mínimo necesario ('+fd(qNecesarioA,3)+' l/s) — el equipo elegido no alcanza a cubrir la demanda agronómica con las horas/superficie declaradas. Aumente N° aspersores, el caudal del aspersor, o las horas de riego disponibles.','w'):''}
     ${nPostDia<1?al('⚠ Con '+fd(hrs,1)+' hr/día disponibles no alcanza para completar ni una postura ('+fd(trp+tras,2)+' hr necesarias). Aumente horas disponibles o reduzca el tiempo por postura.','w'):''}
     ${!R.ASP.vibOk?al(`⚠ VA (${fd(va,1)} mm/hr) supera VIB del suelo (${vib} mm/hr). Aumentar espaciamiento o reducir caudal.`,'w'):''}
     ${!R.ASP.qOk
@@ -2334,6 +2355,7 @@ function calcAspP(){
       ${mcard('N° Posturas',nPost,'posturas','warn')}
       ${mcard('Posturas/Día',nPostDia,'por día')}
       ${mcard('Días Necesarios',diasNec!=null?diasNec:'—','días',diasNec!=null&&diasNec>1?'warn':'')}
+      ${qNecesarioA!=null?mcard('Q Necesario',fd(qNecesarioA,3),'l/s',equipoOkA?'ok':'err'):''}
     </div>
   </div>`;
 
@@ -2400,6 +2422,27 @@ function calcHidA(){let totalHf=0,rows='',warns='',_maxQA=0;const _itemsA=[];doc
   </div>`;
   setTimeout(function(){renderSectores('asp');},50);}
 var aCapaN=0, cCapaN=0;
+// ══ Posturas no uniformes — Carrete ══
+// Lista vacía = modo uniforme (comportamiento estándar, todas las posturas con Largo Franja global).
+// Con filas = modo manual: cada postura aporta su propio Largo; el resto (espaciamiento/radio/viento) es común.
+var cPostN=0;
+function addPosturaC(largo){
+  cPostN++;
+  var def=(largo!=null&&largo!=='')?largo:v('c-lf',190);
+  var wrap=document.createElement('div');
+  wrap.className='post-row';
+  wrap.style.cssText='display:flex;align-items:center;gap:8px';
+  wrap.innerHTML='<span style="width:70px;font-family:var(--mono);font-size:.7rem;color:var(--slate)">Postura '+cPostN+'</span>'
+    +'<div class="ig"><input class="post-lf" type="number" step="5" value="'+def+'" oninput="calcCarP()" style="width:90px"><span class="isuf">m</span></div>'
+    +'<button type="button" onclick="this.closest(\'.post-row\').remove();calcCarP()" style="border:none;background:none;color:var(--err);cursor:pointer;font-size:.95rem;padding:2px 6px" title="Eliminar postura">✕</button>';
+  document.getElementById('c-post-list').appendChild(wrap);
+  calcCarP();
+}
+function delAllPosturasC(){
+  document.getElementById('c-post-list').innerHTML='';
+  cPostN=0;
+  calcCarP();
+}
 function calcCapasC(){ _calcCapasGenerico('c','cc'); }
 function addCapaC(desde,hasta,cc,pmp,da){
   cCapaN++;
@@ -2560,12 +2603,39 @@ function calcCarP(){
   const trp=Lm/vA+Ti+Math.max(Tfe,0); // tiempo total por postura [hr]
   // Pluviometría media (INIA: P = Q/(π*(0.9R)²)*(α/360)*1000)
   const pp=qCan/(Math.PI*Math.pow(0.9*radio,2))*(alfa/360)*1000; // mm/hr
-  // Superficie por postura y N° posturas
+  // Superficie por postura y N° posturas — modo uniforme (base) o manual (posturas con Largo propio)
   const supPos=(lF*espFranja)/10000;
-  const nPost=Math.ceil(supR/supPos);
-  // Posturas/día factibles con las horas de riego disponibles (minuta Paso E)
-  const nPostDia=Math.max(Math.floor(hrs/(trp+tras)),0);
-  const diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null;
+  const _postRows=Array.from(document.querySelectorAll('#c-post-list .post-lf'));
+  const modoManualC=_postRows.length>0;
+  let nPost, nPostDia, diasNec, supPosTotal, postDetalle=[];
+  if(modoManualC){
+    let horasTot=0; supPosTotal=0;
+    _postRows.forEach((inp,i)=>{
+      const lfRow=parseFloat(inp.value)||lF;
+      const LmRow=Math.max(lfRow/2-(2/3)*radio,10);
+      const trpRow=LmRow/vA+Ti+Math.max(Tfe,0);
+      const supPosRow=(lfRow*espFranja)/10000;
+      horasTot+=trpRow+tras;
+      supPosTotal+=supPosRow;
+      postDetalle.push({n:i+1,lf:lfRow,trp:trpRow,sup:supPosRow});
+    });
+    nPost=_postRows.length;
+    diasNec=nPost>0?Math.ceil(horasTot/hrs):null;
+    nPostDia=diasNec>0?+(nPost/diasNec).toFixed(2):0;
+  } else {
+    supPosTotal=null; // no aplica; se usa supPos uniforme
+    nPost=Math.ceil(supR/supPos);
+    // Posturas/día factibles con las horas de riego disponibles (minuta Paso E)
+    nPostDia=Math.max(Math.floor(hrs/(trp+tras)),0);
+    diasNec=nPostDia>0?Math.ceil(nPost/nPostDia):null;
+  }
+  // Superficie máxima a cubrir por el equipo dentro de Fr días (complemento, planilla CNR) —
+  // tasa diaria de superficie regada × Fr requerido por el Diseño Agronómico (R.CA.frAdj)
+  const supDiaC=modoManualC?(diasNec>0?supPosTotal/diasNec:0):(nPostDia*supPos);
+  const frMaxC=R.CA&&R.CA.frAdj>0?R.CA.frAdj:null;
+  const supMaxCubribleC=frMaxC!=null?frMaxC*supDiaC:null;
+  const supRealC=modoManualC?supPosTotal:(nPost*supPos);
+  const cubreOkC=supMaxCubribleC!=null?(supMaxCubribleC>=supR*0.999):null;
   // Q medio de bombeo necesario (demanda agronómica pura, sin catálogo) — Minuta Paso B:
   // Q = ETc×10.000(m²/ha)×A(ha) / (Ea×TRD(hr)×3600). Fr se cancela algebraicamente (no interviene).
   // Requiere el Diseño Agronómico ya calculado (R.CA). Es un MÍNIMO: el equipo puede dar más, no menos.
@@ -2575,7 +2645,7 @@ function calcCarP(){
   const qDisenoLs=qCan*1000/3600; // qCan[m³/hr]→l/s
   const equipoOk=qNecesario!=null?(qDisenoLs>=qNecesario*0.999):null;
   const dEf=espFranja; // mantener compatibilidad con R.CAR.dEf
-  R.CAR={qCan,dEf:espFranja,dMojado,espFranja,supPos,trp,nPost,lF,vA,pp,alfa,pctVv,hrs,tras,nPostDia,diasNec,qNecesario,equipoOk};
+  R.CAR={qCan,dEf:espFranja,dMojado,espFranja,supPos,trp,nPost,lF,vA,pp,alfa,pctVv,hrs,tras,nPostDia,diasNec,qNecesario,equipoOk,modoManual:modoManualC,supRealC,supMaxCubribleC,cubreOkC,frMaxC,postDetalle};
   calcAcum('c'); // refresca la verificación del estanque (Paso 2)
   document.getElementById('c-car-r').innerHTML=`
   <div class="calc-section">
@@ -2592,8 +2662,16 @@ function calcCarP(){
     ]):fbox('Verificación — Caudal Mínimo Necesario (demanda agronómica)',[
       {note:'⚠ Pendiente: calcule primero el Diseño Agronómico (Paso 2) para poder verificar el caudal mínimo necesario contra el equipo elegido.'}
     ])}
+    ${frMaxC!=null?fbox('Verificación — Superficie Máxima Cubrible por el Equipo',[
+      {eq:`Sup./día = ${modoManualC?`Σ Sup.postura / Días nec. = ${fd(supRealC,3)} / ${diasNec}`:`Posturas/día × Sup./postura = ${nPostDia} × ${fd(supPos,3)}`}`,res:`${fd(supDiaC,4)} ha/día`},
+      {eq:`Sup. máx. cubrible = Fr (Diseño Agronómico) × Sup./día = ${frMaxC} × ${fd(supDiaC,4)}`,res:`${fd(supMaxCubribleC,3)} ha`},
+      {eq:`Sup. proyecto declarada = ${fd(supR,2)} ha`,res:cubreOkC?'✓ el equipo alcanza a cubrirla dentro de Fr días':'✗ NO alcanza dentro de Fr días'},
+      {note:'Complementa al Caudal Mínimo Necesario: verifica que el equipo, operando las posturas necesarias, complete el riego de TODO el proyecto antes de que se cumpla la frecuencia de riego (Fr) exigida por el Diseño Agronómico.'}
+    ]):''}
     ${hrs>24?al('⚠ Horas Riego Disp. ('+fd(hrs,1)+' hr) supera las 24 horas de un día — revise el dato: TRD es el tiempo de riego DIARIO, no el tiempo de una pasada completa (eso lo entrega Días Necesarios más abajo).','w'):''}
     ${qNecesario!=null&&!equipoOk?al('⚠ El caudal de diseño ('+fd(qDisenoLs,3)+' l/s) es MENOR al mínimo necesario ('+fd(qNecesario,3)+' l/s) — el equipo elegido no alcanza a cubrir la demanda agronómica con las horas/superficie declaradas. Elija un cañón de mayor caudal, reduzca la superficie, o aumente las horas de riego disponibles.','w'):''}
+    ${frMaxC!=null&&!cubreOkC?al('⚠ Con '+diasNec+' días necesarios para completar las posturas y Fr='+frMaxC+' días exigido por el Diseño Agronómico, el equipo cubre '+fd(supMaxCubribleC,3)+' ha — MENOS que las '+fd(supR,2)+' ha del proyecto. Aumente posturas/día (más horas, menos traslado), reduzca la superficie, o revise si Fr permite más tiempo.','w'):''}
+    ${modoManualC&&Math.abs(supRealC-supR)>supR*0.05?al('⚠ La suma de superficies de las posturas declaradas ('+fd(supRealC,3)+' ha) difiere más de un 5% de la Superficie proyecto ('+fd(supR,2)+' ha). Revise los largos de franja ingresados.','w'):''}
     ${fbox('Diámetro Mojado y Espaciamiento entre Franjas',[
       {eq:`D_mojado = 2 × Radio = 2 × ${radio}`,res:`${fd(dMojado,1)} m`},
       {eq:`Viento ${vv} m/s → ${fd(pctVvSug*100,0)}% del D_mojado sugerido (INIA Cuadro 1) — editable en "Factor Esp. Viento"`,res:`${fd(pctVv*100,1)}% usado`},
@@ -2605,18 +2683,27 @@ function calcCarP(){
       {eq:`PP = ${qCan} / (π×${fd(0.9*radio,1)}²) × (${alfa}/360)`,res:`${fd(pp,1)} mm/hr`},
       {note:`Ángulo sector α=${alfa}° (recomendado INIA: 200-220°)`}
     ])}
-    ${fbox('Superficie por Postura',[
+    ${modoManualC?fbox('Superficie y Tiempo por Postura — Modo Manual ('+nPost+' posturas no uniformes)',[
+      ...postDetalle.map(p=>({eq:`Postura ${p.n}: L_franja=${fd(p.lf,0)} m → A_pos=${fd(p.sup,3)} ha · T_postura=${fd(p.trp,2)} hr`,res:''})),
+      {eq:`Σ Superficie posturas = ${postDetalle.map(p=>fd(p.sup,3)).join(' + ')}`,res:`${fd(supRealC,3)} ha`},
+      {eq:`Σ Horas (riego+cambio) = Σ(T_postura + T_cambio)`,res:`${fd(postDetalle.reduce((a,p)=>a+p.trp+tras,0),2)} hr`},
+      {note:'Cada postura usa su propio Largo Franja; Espaciamiento (E_franjas), Radio y Viento son comunes a todas. Fórmulas INIA-Carillanca 2001 (Simpfendörfer) aplicadas fila por fila.'}
+    ]):fbox('Superficie por Postura',[
       {eq:`A_pos = L_franja × E_franjas / 10.000 = ${lF} × ${fd(espFranja,1)} / 10.000`,res:`${fd(supPos,3)} ha`},
       {eq:`N_posturas = ⌈A_total / A_pos⌉ = ⌈${supR} / ${fd(supPos,3)}⌉`,res:`${nPost} posturas`}
     ])}
-    ${fbox('Tiempo por Postura (INIA)',[
+    ${!modoManualC?fbox('Tiempo por Postura (INIA)',[
       {eq:`L_manguera = Lf/2 - 2/3×R = ${lF}/2 - ${fd(2/3*radio,1)}`,res:`${fd(Lm,1)} m`},
       {eq:`Ti = (2/3×R/V)×(α/360) = (${fd(2/3*radio,1)}/${vA})×${fd(alfa/360,3)}`,res:`${fd(Ti,2)} hr`},
       {eq:`Tfe = (2/3×R/V)×(α/360−1)`,res:`${fd(Math.max(Tfe,0),2)} hr`},
       {eq:`T_postura = Lm/V + Ti + Tfe = ${fd(Lm,1)}/${vA} + ${fd(Ti,2)} + ${fd(Math.max(Tfe,0),2)}`,res:`${fd(trp,2)} hr`},
       {note:'Fórmulas INIA-Carillanca 2001 (Simpfendörfer).'}
-    ])}
-    ${fbox('Posturas por Día y Días Necesarios',[
+    ]):''}
+    ${fbox('Posturas por Día y Días Necesarios',modoManualC?[
+      {eq:`Días necesarios = ⌈Σ Horas / Hrs_disp⌉ = ⌈${fd(postDetalle.reduce((a,p)=>a+p.trp+tras,0),2)} / ${hrs}⌉`,res:`${diasNec} días`},
+      {eq:`Posturas/día (promedio) = N_posturas / Días_necesarios = ${nPost} / ${diasNec}`,res:`${fd(nPostDia,2)} postura${nPostDia===1?'':'s'}/día (prom.)`},
+      {note:'En modo manual, el reparto real de posturas entre días puede variar según sus duraciones individuales — este es un promedio de planificación.'}
+    ]:[
       {eq:`Posturas/día = ⌊Hrs_disp / (T_postura + T_cambio)⌋ = ⌊${hrs} / (${fd(trp,2)} + ${tras})⌋`,res:`${nPostDia} postura${nPostDia===1?'':'s'}/día`},
       {eq:`Días necesarios = ⌈N_posturas / Posturas_día⌉ = ⌈${nPost} / ${nPostDia}⌉`,res:diasNec!=null?`${diasNec} días`:'—'},
       {note:'T_cambio: ≈1 hr cambio de posición + ≈0,5 hr puesta en posición del carrete (INIA-Carillanca).'}
@@ -2625,13 +2712,15 @@ function calcCarP(){
       ${mcard('D. Mojado',fd(dMojado,1),'m')}
       ${mcard('Espaciamiento',fd(espFranja,1),'m')}
       ${mcard('Pluviometría',fd(pp,1),'mm/hr')}
-      ${mcard('Sup./Postura',fd(supPos,3),'ha')}
-      ${mcard('T/Postura',fd(trp,2),'hr')}
+      ${mcard(modoManualC?'Sup. Total':'Sup./Postura',fd(modoManualC?supRealC:supPos,3),'ha')}
+      ${modoManualC?'':mcard('T/Postura',fd(trp,2),'hr')}
       ${mcard('N° Posturas',nPost,'posturas','warn')}
-      ${mcard('Posturas/Día',nPostDia,'','warn')}
+      ${mcard('Posturas/Día',modoManualC?fd(nPostDia,2):nPostDia,'','warn')}
       ${mcard('Q Cañón',fd(qCan/3.6,2),'l/s')}
     </div>
-    ${nPostDia<1?al('⚠ Con '+fd(hrs,1)+' hr/día disponibles no alcanza para completar ni una postura ('+fd(trp+tras,2)+' hr necesarias). Aumente horas disponibles o revise T_postura.','w'):''}
+    ${modoManualC
+        ? (postDetalle.some(p=>p.trp+tras>hrs)?al('⚠ Al menos una postura declarada necesita más de '+fd(hrs,1)+' hr/día para completarse (riego+cambio) y no cabe en un solo día. Aumente horas disponibles o acorte esa franja.','w'):'')
+        : (nPostDia<1?al('⚠ Con '+fd(hrs,1)+' hr/día disponibles no alcanza para completar ni una postura ('+fd(trp+tras,2)+' hr necesarias). Aumente horas disponibles o revise T_postura.','w'):'')}
     ${vv>4?al('⚠ Viento >4 m/s: usar ángulo descarga 20-21°. Uniformidad afectada.','w'):''}
     ${(()=>{
       const vibC=v('c-vib',7.5);
@@ -3828,6 +3917,12 @@ function collectFieldData(sys) {
       });
     });
     data.__tramos = tramos;
+    // Posturas no uniformes (vacío = modo uniforme, sin cambios de compatibilidad)
+    var posturasC = [];
+    document.querySelectorAll('#c-post-list .post-lf').forEach(function(inp) {
+      posturasC.push({ lf: inp.value || '' });
+    });
+    data.__posturasC = posturasC;
   }
   if (sys === 'asp' || sys === 'car') {
     var _p = sys === 'asp' ? 'a' : 'c';
@@ -3868,6 +3963,12 @@ function restoreFieldData(sys, data) {
   });
   if (data.__tramos && data.__tramos.length > 0) {
     restoreTramos(sys === 'asp' ? 'a' : 'c', data.__tramos);
+  }
+  if (sys === 'car') {
+    var _postList = document.getElementById('c-post-list');
+    if (_postList) _postList.innerHTML = '';
+    cPostN = 0;
+    (data.__posturasC || []).forEach(function(p) { addPosturaC(p.lf); });
   }
   if (sys === 'asp' || sys === 'car') {
     var _pfx = sys === 'asp' ? 'a' : 'c';

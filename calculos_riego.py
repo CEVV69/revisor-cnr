@@ -26,7 +26,7 @@ VELOCIDAD_MIN_RECOMENDADA = 0.5   # m/s — bajo esto, riesgo de sedimentación
 VELOCIDAD_MAX_RECOMENDADA = 2.0   # m/s — sobre esto, golpe de ariete / pérdidas excesivas
 
 # Catálogo de tuberías comerciales — MISMOS datos que usa el Diseñador de Riego (array `TUBOS`
-# por defecto en static/disenador_riego_v134.html), portado tal cual para que el Chequeo
+# por defecto en static/disenador_riego_v135.html), portado tal cual para que el Chequeo
 # Hidráulico use el diámetro INTERIOR real en Hazen-Williams en vez del diámetro comercial/
 # exterior que suele venir en la memoria. El espesor de pared NO es un único valor por
 # diámetro+material — depende también de la clase de presión (PN/SDR), por eso esto es un
@@ -378,7 +378,7 @@ def _redondear_fr(fr: float) -> int:
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
                       kc: float, eto_dia_mm: float, factor_agotamiento_pct: float,
                       eficiencia_pct: float, alta_frecuencia: bool = False,
-                      ad_mm_override: float = None) -> dict:
+                      ad_mm_override: float = None, sistema_riego: str = None) -> dict:
     """Recalcula la demanda agronómica con la misma cadena que usa el Diseñador de Riego.
 
     ETc = ETo × Kc, siempre. Después hay DOS modelos según el sistema de riego:
@@ -386,12 +386,19 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     · Aspersión / Carrete (por turnos, con agotamiento — `alta_frecuencia=False`):
         AD     = (CC − PMP)/100 × Da × Prof(m) × 1000   [mm — agua disponible del suelo]
         Dn     = AD × fa                                 [mm — lámina neta de riego]
-        Fr     = Dn / ETc  →  Fr_adj = redondeo al entero más cercano (mín. 1) [días — frecuencia
-                 de riego. Ago-2026: antes se truncaba hacia abajo (floor) — el usuario advirtió
-                 que los consultores redondean al entero más próximo, no al piso, y que ese truncar
-                 arrastraba una diferencia a TODA la cadena aguas abajo (Dn_adj, Db, superficie
-                 segura, N° de sectores/posturas...). Mismo criterio aplicado en el Diseñador de
-                 Riego (`calcAA`/`calcCA`/`calcMA`) — ver docstring de `_redondear_fr`]
+        Fr     = Dn / ETc  →  Fr_adj = redondeo [días — frecuencia de riego]. El criterio de
+                 redondeo DIFIERE por sistema desde oct-2026 (Diseñador de Riego v135, sincronizado
+                 contra el Excel oficial "Anexo diseño agronómico" de la CNR):
+                   - Carrete: redondeo al entero MÁS CERCANO (mín. 1) — sin cambios desde ago-2026,
+                     ver docstring de `_redondear_fr`.
+                   - Aspersión: PISO (floor, mín. 1) — la propia planilla oficial CNR de Aspersión
+                     usa ROUNDDOWN(Dn/ETc, 0). Antes (ago-2026 a oct-2026) usaba el mismo redondeo
+                     que Carrete; se diferenció porque auditar en reversa un proyecto de Aspersión
+                     cuyo consultor usó esa planilla (muy común) con redondeo normal en vez de piso
+                     da un Fr distinto al oficial, arrastrando la diferencia a toda la cadena
+                     aguas abajo (Dn_adj, Db, superficie segura, N° de posturas...).
+                   - Sin `sistema_riego` (compatibilidad con llamadas antiguas) o con cualquier
+                     otro valor: redondeo normal, mismo comportamiento que antes de oct-2026.
         Dn_adj = ETc × Fr_adj
         Db     = Dn_adj / Ef                             [mm — demanda bruta]
 
@@ -430,7 +437,10 @@ def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
     else:
         dn = ad * (factor_agotamiento_pct / 100) if ad is not None else 0
         fr = dn / etc if etc else 0
-        fr_adj = max(1, _redondear_fr(fr)) if fr else 1
+        if sistema_riego == "Aspersión":
+            fr_adj = max(1, int(math.floor(fr))) if fr else 1
+        else:
+            fr_adj = max(1, _redondear_fr(fr)) if fr else 1
         dn_adj = etc * fr_adj
     db = dn_adj / (eficiencia_pct / 100) if eficiencia_pct else 0
     # Db "diario" (ETc/Ef, SIN pasar por Fr) — el propio Diseñador de Riego lo calcula aparte
@@ -959,6 +969,32 @@ def verificar_unidad_caudal_aspersor(caudal_aspersor_m3h: float, n_aspersores: f
     return r
 
 
+def verificar_q_necesario_aspersion(caudal_postura_ls: float, etc_mmdia: float, superficie_ha: float,
+                                     eficiencia_pct: float, horas_disponibles_dia: float) -> dict:
+    """Q mínimo necesario para cubrir la demanda agronómica de Aspersión (oct-2026, Diseñador de
+    Riego v135, `calcAspP`) — mismo patrón que `verificar_q_necesario_carrete`, que ya existía
+    para Carrete desde v134:
+
+    Q_necesario [l/s] = ETc(mm/día) × 10.000(m²/ha) × Sup(ha) / (Ef × TRD(hr) × 3600)
+
+    Fr se cancela algebraicamente en la ecuación completa — no interviene. Se llama DESPUÉS de
+    `cadena_agronomica()` (para ETc) y de `postura_aspersion()` (para el caudal real de la
+    postura, `caudal_postura_ls` = N° aspersores × Q_aspersor/3,6 — a diferencia del Carrete,
+    Aspersión no tiene margen de sobredimensionamiento que restar: la postura ya es el caudal
+    BASE del equipo, se compara directo contra ella).
+
+    Caso de prueba (v135): ETc=4,839 mm/día, Sup=2,3 ha, Ef=75%, TRD=20 hr → Q_necesario=2,061
+    l/s. Con 2 aspersores de 5,3 m³/hr → Q_postura=2,944 l/s → cubre la demanda."""
+    r = {}
+    if etc_mmdia and superficie_ha and horas_disponibles_dia and eficiencia_pct is not None:
+        ef_frac = eficiencia_pct / 100
+        q_nec = (etc_mmdia * 10000 * superficie_ha) / (ef_frac * horas_disponibles_dia * 3600)
+        r["q_necesario_ls"] = round(q_nec, 3)
+        if caudal_postura_ls is not None:
+            r["equipo_cubre_demanda"] = caudal_postura_ls >= q_nec * 0.999
+    return r
+
+
 # ── Carrete de riego (cañón viajero): modelo INIA-Carillanca 2001 (Simpfendörfer) ───────────
 
 ANGULO_SECTOR_CARRETE_DEG = 210    # ángulo de sector INIA por DEFECTO (usado solo si el
@@ -1070,6 +1106,12 @@ def diseno_carrete(caudal_catalogo_m3h: float, margen_sobredim_pct: float, radio
     if longitud_franja_m and esp_franja is not None:
         sup_postura_ha = (longitud_franja_m * esp_franja) / 10000
         r["superficie_postura_ha"] = round(sup_postura_ha, 3)
+        # Sin redondear — para `verificar_superficie_cubrible_carrete()`, que la multiplica por
+        # Posturas/día. El Diseñador de Riego (JS) hace lo mismo: `fd(supPos,3)` solo formatea la
+        # pantalla, el cálculo de Sup./día sigue usando el float `supPos` completo — redondear
+        # ACÁ antes de multiplicar introduce una diferencia de ~0,01 ha vs. el Diseñador (oct-2026,
+        # detectado al portar el chequeo: 25,66 ha en vez de 25,65 ha del caso de prueba oficial).
+        r["_superficie_postura_ha_exacta"] = sup_postura_ha
 
     n_posturas = None
     if sup_postura_ha and superficie_ha:
@@ -1134,6 +1176,42 @@ def verificar_q_necesario_carrete(q_diseno_ls: float, etc_mmdia: float, superfic
         q_comp = q_catalogo_ls if q_catalogo_ls is not None else q_diseno_ls
         if q_comp is not None:
             r["equipo_cubre_demanda"] = q_comp >= q_nec * 0.999
+    return r
+
+
+def verificar_superficie_cubrible_carrete(n_posturas: int, superficie_postura_ha: float,
+                                           posturas_dia: int, fr_adj_dias: int,
+                                           superficie_ha: float) -> dict:
+    """Superficie máxima cubrible por el carrete dentro del ciclo de riego — chequeo NUEVO (oct-
+    2026, Diseñador de Riego v135, `calcCarP`), COMPLEMENTO al de caudal
+    (`verificar_q_necesario_carrete`, que ya existía): verifica que el equipo, operando las
+    posturas necesarias, alcance a regar TODA la superficie del proyecto antes de que se cumpla
+    la frecuencia de riego (Fr) exigida por el Diseño Agronómico — un cañón puede tener caudal de
+    sobra y aun así no alcanzar a cubrir el predio si el calendario de posturas es muy lento.
+
+    Sup./día [ha/día]       = Posturas/día × Sup./postura   (modo con una sola franja uniforme —
+                              el único que soporta `diseno_carrete()`; el Diseñador también
+                              admite posturas NO uniformes declaradas fila por fila —franjas de
+                              largo distinto por postura—, caso en que usa en su lugar
+                              Σ Sup.postura_declarada / Días_necesarios. Si el expediente trae una
+                              tabla de posturas con largos distintos, este chequeo no aplica —
+                              revisar a mano, sumando área y tiempo postura por postura)
+    Sup. máx. cubrible [ha] = Fr (del Diseño Agronómico, ya ajustada) × Sup./día
+
+    `fr_adj_dias`: la Fr AJUSTADA del Carrete (`cadena_agronomica()` — redondeo normal, el punto
+    1 de esta sincronización solo cambió el criterio de Aspersión, Carrete sigue igual).
+
+    Caso de prueba (v135, modo uniforme): N_posturas=5, Sup./postura=1,069 ha (sin redondear:
+    1,06875), Posturas/día=2 → Sup./día=2,1375 ha/día. Con Fr=12 días → Sup. máx.
+    cubrible=25,65 ha ≥ 4,85 ha del proyecto → cubre."""
+    r = {}
+    if n_posturas and superficie_postura_ha and posturas_dia and fr_adj_dias:
+        sup_dia_ha = posturas_dia * superficie_postura_ha
+        sup_max_cubrible_ha = fr_adj_dias * sup_dia_ha
+        r["superficie_por_dia_ha"] = round(sup_dia_ha, 4)
+        r["superficie_maxima_cubrible_ha"] = round(sup_max_cubrible_ha, 2)
+        if superficie_ha is not None:
+            r["cubre_superficie"] = sup_max_cubrible_ha >= superficie_ha * 0.999
     return r
 
 

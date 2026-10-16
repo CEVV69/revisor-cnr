@@ -2053,7 +2053,8 @@ def _agronomico_calculo(datos: dict):
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec,
-        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None),
+        sistema_riego=datos.get("sistema_riego"))
     if capas_calc:
         r["capas_suelo_calc"] = capas_calc
     # Q mínimo necesario del Carrete — requiere ETc de la cadena agronómica (r["etc_mm_dia"]).
@@ -2069,6 +2070,20 @@ def _agronomico_calculo(datos: dict):
             horas_disponibles_dia=datos.get("horas_disponibles_dia"),
         )
         carrete_check.update(q_nec)
+        # Superficie máxima cubrible del Carrete dentro del ciclo de Fr (oct-2026) — complemento
+        # al Q mínimo necesario de arriba: requiere N_posturas/Sup.postura/Posturas_día (ya en
+        # carrete_check) y la Fr AJUSTADA del Diseño Agronómico (r["fr_adj_dias"], recién calculada).
+        sup_cubrible = calculos_riego.verificar_superficie_cubrible_carrete(
+            n_posturas=carrete_check.get("n_posturas"),
+            # Sin redondear (ver docstring de `diseno_carrete`) — "superficie_postura_ha" (la
+            # pública, mostrada con 3 decimales) introduce una diferencia de ~0,01 ha al
+            # multiplicarla por Posturas/día; el Diseñador usa el float completo internamente.
+            superficie_postura_ha=carrete_check.get("_superficie_postura_ha_exacta"),
+            posturas_dia=carrete_check.get("posturas_dia"),
+            fr_adj_dias=r.get("fr_adj_dias"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+        )
+        carrete_check.update(sup_cubrible)
     # Recalcula Postura de Aspersión con la cadena agronómica completa (db_mm) ANTES de
     # verificacion_diseno_riego, para que posturas_dia/dias_necesarios ya estén disponibles.
     if postura_check and postura_check.get("va_mmhr"):
@@ -2086,6 +2101,17 @@ def _agronomico_calculo(datos: dict):
         # agronómica) y se perdería si no se repite.
         if unidad_check:
             postura_check = dict(postura_check, **unidad_check)
+    # Q mínimo necesario de Aspersión (oct-2026, mismo patrón que Carrete) — requiere ETc de la
+    # cadena agronómica Y el caudal real de la postura (recién recalculado arriba).
+    if datos.get("sistema_riego") == "Aspersión" and postura_check:
+        q_nec_asp = calculos_riego.verificar_q_necesario_aspersion(
+            caudal_postura_ls=postura_check.get("caudal_postura_ls"),
+            etc_mmdia=r.get("etc_mm_dia"),
+            superficie_ha=datos.get("superficie_riego_ha"),
+            eficiencia_pct=datos.get("eficiencia_pct"),
+            horas_disponibles_dia=datos.get("horas_disponibles_dia"),
+        )
+        postura_check.update(q_nec_asp)
     # Aspersión/Carrete: el N° de posturas real reemplaza al N° de sectores por caudal en Caudal
     # de operación/Tiempo total/Balance/Volumen del estanque (ver docstring de
     # verificacion_diseno_riego). posturas_dia/dias_necesarios también se traspasan, para que
@@ -2435,7 +2461,8 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
     if calc.get("postura_check"):
         _rellenar_none(calc["postura_check"], ("tiempo_postura_hr", "posturas_dia", "dias_necesarios",
                                                 "q_postura_literal_ls", "q_postura_reinterpretado_ls",
-                                                "caudal_postura_ls", "caudal_aspersor_reconstruido_m3h"))
+                                                "caudal_postura_ls", "caudal_aspersor_reconstruido_m3h",
+                                                "q_necesario_ls", "equipo_cubre_demanda"))
     if calc.get("carrete_check"):
         # ago-2026: diseno_carrete() es ADITIVO (cada clave puede faltar si no llegó el dato que
         # necesita, típicamente la velocidad del viento) — hay que rellenar TODAS las que la
@@ -2446,6 +2473,7 @@ def _normalizar_sistema_informe(agro: dict, tramos_raw: list) -> tuple:
             "pluviometria_mmhr", "superficie_postura_ha", "n_posturas", "tiempo_postura_hr",
             "posturas_dia", "dias_necesarios", "angulo_sector_deg", "angulo_sector_declarado",
             "trd_supera_24h", "q_necesario_ls", "q_catalogo_ls", "equipo_cubre_demanda",
+            "superficie_por_dia_ha", "superficie_maxima_cubrible_ha", "cubre_superficie",
         ))
 
     tramos = _tramos_con_calculo(tramos_raw)

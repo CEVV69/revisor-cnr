@@ -2225,7 +2225,8 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec,
-        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None))
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None),
+        sistema_riego=datos.get("sistema_riego"))
     if capas_calc and capas_calc.get("posible_unidad_da_kgm3"):
         capas_malas = [c for c in capas_calc["capas"] if c.get("posible_unidad_da_kgm3")]
         texto += (

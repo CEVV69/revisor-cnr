@@ -258,6 +258,13 @@
             <td class="col-concepto" colspan="2">Tiempo por postura / Posturas por día (Aspersión)</td>
             <td class="col-calc" id="{{ p }}agro-tpost-calc">—</td>
           </tr>
+          <tr class="campo-postura">
+            <td class="col-concepto" colspan="2" title="Q mínimo necesario = ETc×10.000×Sup / (Ef×TRD×3600). Fr se cancela algebraicamente — no interviene.">Q mínimo necesario — demanda agronómica (Aspersión)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-asp-qnec-calc">—</span>
+              <span id="{{ p }}agro-asp-qnec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
           <tr class="campo-carrete">
             <td class="col-concepto" colspan="2">Caudal de diseño del cañón (Carrete)</td>
             <td class="col-calc" id="{{ p }}agro-car-q-calc">—</td>
@@ -305,6 +312,13 @@
             <td class="col-calc">
               <span id="{{ p }}agro-car-qnec-calc">—</span>
               <span id="{{ p }}agro-car-qnec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
+          <tr class="campo-carrete">
+            <td class="col-concepto" colspan="2" title="Sup./día = Posturas/día × Sup./postura. Sup. máx. cubrible = Fr (Diseño Agronómico) × Sup./día. Complementa al Q mínimo necesario: verifica que el equipo alcance a regar TODO el proyecto antes de que se cumpla Fr.">Superficie máxima cubrible — ciclo de riego (Carrete)</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-car-supmax-calc">—</span>
+              <span id="{{ p }}agro-car-supmax-nota" class="calc-nota calc-alerta" style="display:none;"></span>
             </td>
           </tr>
           <tr>
@@ -1352,6 +1366,33 @@
         setText(p + "agro-car-postdia-calc", tPostura === null ? "Falta: tiempo por postura (ver fila anterior)." : "Falta: horas disponibles al día.");
       }
 
+      // Superficie máxima cubrible por el carrete dentro del ciclo de Fr (oct-2026) — COMPLEMENTO
+      // al Q mínimo necesario: el equipo puede tener caudal de sobra y aun así no alcanzar a
+      // regar todo el predio si el calendario de posturas es muy lento. Sup./día = Posturas/día ×
+      // Sup./postura; Sup. máx. cubrible = Fr (Diseño Agronómico, ya ajustada) × Sup./día. Mismo
+      // calcCarP() del Diseñador de Riego v135 (modo de postura uniforme, una sola franja).
+      var postDiaParaSup = (typeof posturasDiaCar !== "undefined" && posturasDiaCar > 0) ? posturasDiaCar : null;
+      if (postDiaParaSup !== null && supPostura !== null && frAdj) {
+        var supDiaCar = postDiaParaSup * supPostura;
+        var supMaxCubribleCar = frAdj * supDiaCar;
+        var cubreOkCar = sup !== null ? (supMaxCubribleCar >= sup * 0.999) : null;
+        var txtSupMax = "Sup./día = " + fmt(supDiaCar, 4) + " ha/día · Sup. máx. cubrible = Fr(" + frAdj + ") × Sup./día = " + fmt(supMaxCubribleCar, 2) + " ha";
+        if (cubreOkCar !== null) {
+          txtSupMax += " → " + (cubreOkCar ? "cubre la superficie del proyecto" : "NO alcanza a cubrir la superficie del proyecto");
+        }
+        setText(p + "agro-car-supmax-calc", txtSupMax);
+        nota(p + "agro-car-supmax-nota", cubreOkCar === false
+          ? "Con " + Math.ceil(nPosturas / postDiaParaSup) + " días necesarios para completar las posturas y Fr=" + frAdj + " días exigido por el Diseño Agronómico, el equipo cubre " + fmt(supMaxCubribleCar, 3) + " ha — MENOS que las " + fmt(sup, 2) + " ha del proyecto. Aumente posturas/día (más horas, menos traslado), reduzca la superficie, o revise si Fr permite más tiempo."
+          : "");
+      } else {
+        setText(p + "agro-car-supmax-calc", "Falta: " + [
+          postDiaParaSup === null ? "posturas/día (ver fila anterior)" : null,
+          supPostura === null ? "superficie por postura (ver filas anteriores)" : null,
+          !frAdj ? "frecuencia de riego (Fr) del Diseño Agronómico" : null,
+        ].filter(Boolean).join(", ") + ".");
+        nota(p + "agro-car-supmax-nota", "");
+      }
+
       var vibNotaCar = "";
       if (vib !== null && ppCalc !== null) {
         if (ppCalc > vib) {
@@ -1448,7 +1489,11 @@
     } else {
       dn = ad * (fa / 100);
       fr = etc ? dn / etc : 0;
-      frAdj = fr ? Math.max(1, Math.round(fr)) : 1;
+      // Criterio de redondeo de Fr DIFERENTE por sistema desde oct-2026 (Diseñador de Riego
+      // v135, sincronizado contra el Excel oficial "Anexo diseño agronómico" CNR): Aspersión usa
+      // PISO (la propia planilla oficial de Aspersión usa ROUNDDOWN); Carrete sigue con redondeo
+      // normal, sin cambios. Mismo criterio que `cadena_agronomica()` en calculos_riego.py.
+      frAdj = fr ? Math.max(1, sistema === "Aspersión" ? Math.floor(fr) : Math.round(fr)) : 1;
       dnAdj = etc * frAdj;
       db = ef ? dnAdj / (ef / 100) : 0;
     }
@@ -1481,6 +1526,35 @@
         setText(p + "agro-car-qnec-calc", "Falta: " + faltanQ.join(", ") + ".");
         nota(p + "agro-car-qnec-nota", "");
       }
+    }
+
+    // Q mínimo necesario Aspersión (oct-2026) — mismo patrón que Carrete, mismo calcAspP() del
+    // Diseñador: Q = ETc×10.000×Sup / (Ef×TRD×3600). Fr se cancela algebraicamente — no interviene.
+    if (sistema === "Aspersión") {
+      if (etc !== null && sup !== null && horas !== null && ef !== null) {
+        var efFracAsp = ef / 100;
+        var qNecLsAsp = (etc * 10000 * sup) / (efFracAsp * horas * 3600);
+        var equipoOkAsp = qPostura !== null ? (qPostura >= qNecLsAsp * 0.999) : null;
+        var txtQnecAsp = "Q mínimo = " + fmt(qNecLsAsp, 3) + " l/s";
+        if (qPostura !== null) {
+          txtQnecAsp += " · Q postura = " + fmt(qPostura, 3) + " l/s → " + (equipoOkAsp ? "cubre la demanda" : "NO alcanza");
+        }
+        setText(p + "agro-asp-qnec-calc", txtQnecAsp);
+        nota(p + "agro-asp-qnec-nota", equipoOkAsp === false
+          ? "El caudal de la postura (" + fmt(qPostura, 3) + " l/s) es MENOR al mínimo necesario (" + fmt(qNecLsAsp, 3) + " l/s) — el equipo elegido no alcanza a cubrir la demanda agronómica."
+          : "");
+      } else {
+        var faltanQAsp = [];
+        if (etc === null || etc === 0) faltanQAsp.push("ETc (completa los datos agronómicos base)");
+        if (sup === null) faltanQAsp.push("superficie de riego");
+        if (horas === null) faltanQAsp.push("horas disponibles al día");
+        if (ef === null) faltanQAsp.push("eficiencia");
+        setText(p + "agro-asp-qnec-calc", "Falta: " + faltanQAsp.join(", ") + ".");
+        nota(p + "agro-asp-qnec-nota", "");
+      }
+    } else {
+      setText(p + "agro-asp-qnec-calc", "—");
+      nota(p + "agro-asp-qnec-nota", "");
     }
 
     setText(p + "agro-ad", esAltaFrecuencia ? "—" : fmt(ad, 2) + " mm");

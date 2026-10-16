@@ -321,6 +321,15 @@
   <div class="explica">Tiempo para aplicar la demanda bruta a esa velocidad, cuántas posturas caben en el día disponible (con 0,5 hr de traslado entre posturas), y en cuántos días se completa el ciclo de riego.</div>
 </div>
 {% endif %}
+{% if calc.postura_check.q_necesario_ls is not none %}
+<div class="paso">
+  <div class="formula">Q mínimo necesario (demanda agronómica) = ETc×10.000×Sup / (Ef×TRD×3600) = {{ val(calc.etc_mm_dia) }}×10.000×{{ val(agro.superficie_riego_ha) }} / ({{ val(agro.eficiencia_pct) }}/100×{{ val(agro.horas_disponibles_dia) }}×3600) = <strong>{{ val(calc.postura_check.q_necesario_ls, ' l/s') }}</strong></div>
+  <div class="explica">Caudal mínimo que exige la demanda agronómica pura. Fr se cancela algebraicamente — no interviene. El equipo puede entregar más, nunca menos.</div>
+  {% if calc.postura_check.equipo_cubre_demanda is not none %}
+  <div class="compara">Q postura = {{ val(calc.postura_check.caudal_postura_ls, ' l/s') }} — {% if calc.postura_check.equipo_cubre_demanda %}<span class="ok">cubre la demanda agronómica.</span>{% else %}<span class="alerta">NO alcanza — el equipo elegido no cubre la demanda agronómica con la superficie y horas declaradas.</span>{% endif %}</div>
+  {% endif %}
+</div>
+{% endif %}
 {% endif %}
 
 {% if calc.carrete_check %}
@@ -365,6 +374,15 @@
   <div class="explica">Caudal mínimo que exige la demanda agronómica pura. Fr se cancela algebraicamente — no interviene. El equipo puede entregar más, nunca menos.</div>
   {% if calc.carrete_check.equipo_cubre_demanda is not none %}
   <div class="compara">Q catálogo{% if calc.carrete_check.q_catalogo_ls is not none %} = {{ val(calc.carrete_check.q_catalogo_ls, ' l/s') }}{% elif calc.carrete_check.q_diseno_ls is not none %} = {{ val(calc.carrete_check.q_diseno_ls, ' l/s') }}{% endif %} — {% if calc.carrete_check.equipo_cubre_demanda %}<span class="ok">cubre la demanda agronómica.</span>{% else %}<span class="alerta">NO alcanza — el equipo elegido no cubre la demanda agronómica con la superficie y horas declaradas.</span>{% endif %}</div>
+  {% endif %}
+</div>
+{% endif %}
+{% if calc.carrete_check.superficie_maxima_cubrible_ha is not none %}
+<div class="paso">
+  <div class="formula">Sup./día = Posturas/día × Sup./postura = {{ calc.carrete_check.posturas_dia }} × {{ val(calc.carrete_check.superficie_postura_ha) }} = <strong>{{ val(calc.carrete_check.superficie_por_dia_ha, ' ha/día') }}</strong> · Sup. máx. cubrible = Fr × Sup./día = {{ calc.fr_adj_dias }} × {{ val(calc.carrete_check.superficie_por_dia_ha) }} = <strong>{{ val(calc.carrete_check.superficie_maxima_cubrible_ha, ' ha') }}</strong></div>
+  <div class="explica">Complementa al Q mínimo necesario: verifica que el equipo, operando las posturas necesarias, alcance a regar TODA la superficie del proyecto antes de que se cumpla la frecuencia de riego (Fr) exigida por el Diseño Agronómico.</div>
+  {% if calc.carrete_check.cubre_superficie is not none %}
+  <div class="compara">Superficie del proyecto = {{ val(agro.superficie_riego_ha, ' ha') }} — {% if calc.carrete_check.cubre_superficie %}<span class="ok">el equipo alcanza a cubrirla dentro del ciclo de Fr días.</span>{% else %}<span class="alerta">NO alcanza — con {{ calc.carrete_check.dias_necesarios }} días necesarios para completar las posturas y Fr={{ calc.fr_adj_dias }} días exigido por el Diseño Agronómico, el equipo solo cubre {{ val(calc.carrete_check.superficie_maxima_cubrible_ha, ' ha') }}. Aumente posturas/día, reduzca la superficie, o revise si Fr permite más tiempo.</span>{% endif %}</div>
   {% endif %}
 </div>
 {% endif %}

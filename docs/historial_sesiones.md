@@ -1,3 +1,65 @@
+## Sesión oct-2026 — Sincronización con Diseñador de Riego v135 (Aspersión + Carrete)
+
+El usuario subió la v135 del Diseñador de Riego (reemplaza v134 en `static/`, mismo criterio de
+siempre: se elimina la versión anterior, no convive con la nueva) + un prompt de handoff con 3
+cambios a replicar, verificados leyendo el código fuente real de la v135 (nunca por la
+descripción del prompt sola — una de las fórmulas descritas en el prompt no coincidía con su
+propio caso de prueba numérico, ver punto 3).
+
+**Archivo**: `disenador_riego_v134.html` → `disenador_riego_v135.html`. Referencias actualizadas
+en `calculos_riego.py`, `CLAUDE.md`, `templates/_apps_menu.html`, `exportar_disenador.py` (los
+dos primeros solo mencionan el archivo en comentarios/docstrings; `_apps_menu.html` es el link
+real del menú "Apps"). `docs/historial_sesiones.md` NO se reescribe (historial).
+
+**1. Aspersión: Fr usa PISO (floor), no redondeo al más cercano** — la planilla oficial CNR de
+Aspersión usa `ROUNDDOWN(Dn/ETc,0)`; Carrete sigue con redondeo normal, sin cambios. Confirmado
+en el HTML fuente: `calcAA` (Aspersión) usa `Math.floor(fr)||1`; `calcCA` (Carrete) sigue con
+`Math.round(fr)||1`. `calculos_riego.cadena_agronomica()` ganó el parámetro `sistema_riego`
+(ambos llamadores — `main.py` y `analyzer.py` — ya pasan `datos.get("sistema_riego")`); sin ese
+parámetro (compatibilidad) sigue con redondeo normal. `calculos.html` (JS) replica la misma
+rama según `sistema === "Aspersión"`.
+
+**2. Aspersión: Caudal Mínimo Necesario** (mismo patrón que el que ya existía para Carrete desde
+v134) — `Q_necesario = ETc×10.000×Sup / (Ef×TRD×3600)`, Fr se cancela algebraicamente. Nueva
+`calculos_riego.verificar_q_necesario_aspersion()`, llamada en `main.py` después de recalcular
+`postura_aspersion()` (necesita `caudal_postura_ls` = N°aspersores×Q_aspersor/3,6 — a diferencia
+de Carrete, Aspersión no tiene margen de sobredimensionamiento que restar). Agregado a
+`calculos.html` (fila nueva "Q mínimo necesario — demanda agronómica (Aspersión)") y a AMBAS
+Memorias de Cálculo (nunca se había agregado el equivalente de Carrete a `analyzer.py` tampoco —
+se mantuvo esa misma convención, solo el criterio de Fr del punto 1 se propagó ahí).
+
+**3. Carrete: Superficie Máxima Cubrible** (chequeo nuevo, complementa al de caudal) —
+`Sup./día = Posturas/día × Sup./postura`; `Sup. máx. cubrible = Fr (Diseño Agronómico) × Sup./día`.
+El prompt describía la fórmula como `N°_posturas × Sup./postura / Días_necesarios`, pero esa
+fórmula NO reproducía el caso de prueba numérico del propio prompt (1,78 ha/día en vez de 2,1375)
+cuando N_posturas no divide exacto por Posturas/día — se verificó contra el HTML fuente de la
+v135 (`supDiaC=nPostDia*supPos` en modo de postura uniforme) y se implementó la fórmula real, no
+la descrita. Nueva `calculos_riego.verificar_superficie_cubrible_carrete()`. Bug propio detectado
+al portarla: `diseno_carrete()` redondeaba `superficie_postura_ha` a 3 decimales ANTES de
+guardarla, y el nuevo chequeo reusaba ese valor ya redondeado (multiplicado por Posturas/día,
+arrastraba ~0,01 ha de diferencia vs. el Diseñador, que usa el float completo internamente y
+solo redondea para mostrar) — se agregó `"_superficie_postura_ha_exacta"` (interna, sin
+redondear, nunca se guarda ni se exporta) para que el cálculo use la misma precisión que la v135.
+Modo de posturas NO uniformes (franjas de largo distinto, declaradas fila por fila — nuevo en
+v135, solo informativo): no implementado en el Revisor, el propio prompt lo marca como
+"no requiere cambio... salvo que el proyecto lo declare así" — si aparece un expediente real con
+esa tabla, revisar a mano.
+
+`exportar_disenador.py`: revisado, NO necesitó cambios — los tres chequeos son resultados
+DERIVADOS (no campos de entrada del Diseñador), y todos los datos base que necesitan
+(`eficiencia_pct`, `superficie_riego_ha`, `horas_disponibles_dia`, `caudal_aspersor_m3h`,
+`n_aspersores_postura`, `caudal_canon_m3h`, `radio_alcance_m`, `velocidad_viento_ms`,
+`longitud_franja_m`, `velocidad_avance_mh`, `tiempo_cambio_postura_hr`) ya se exportaban antes de
+esta sesión — confirmado leyendo el export real generado por `/calculos/exportar-disenador/0`.
+
+**Verificación**: los 3 casos de prueba exactos del prompt de handoff, más casos de borde
+(Carrete sin viento declarado — aditivo, no revienta; superficie que NO alcanza a cubrirse),
+contra `_agronomico_calculo()` directo Y contra las rutas HTTP reales (`/calculos`,
+`/calculos/informe`, `/calculos/informe/{idx}`, `/calculos/exportar-disenador/{idx}`) — sin
+regresión en el chequeo de rondas de subsanación de la sesión anterior.
+
+---
+
 ## Sesión oct-2026 — Subsanación: tope de rondas fijo en 4 (elimina el selector 2/3)
 
 Reporte del usuario: en un proyecto con 2 rondas ya reiteradas, la app no dejaba registrar la

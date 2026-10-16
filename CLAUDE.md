@@ -52,12 +52,12 @@ versiones (confirmado "funciona perfecto"); fix max_tokens/reintento en evaluaci
 4. Chequeo de Cálculos: solo presentación vigente.
 5. Observaciones en dos párrafos (análisis + propuesta, mismo campo, sin esquema nuevo).
 6. "Costo total final (UF)" en Resumen/Presupuesto + nota UF copiable al SEP.
-7. Auditoría de código completa (A–M): lost updates, emparejamiento de presupuesto, tokens,
-   duplicación en evaluación IA — aplicada y verificada (sección AUDITORÍA en `docs/`).
-8. Dashboard: resumen de proyectos agrupado por concurso/estado (modal, imprimir, Excel con
-   formato, desglose de conteo por estado dentro de cada concurso).
-9. Subsanación: tope de rondas fijo en 4 (se eliminó el selector 2/3 por proyecto) + estados de
-   proyecto nuevos "Obs. Ronda 4"/"Resp. Obs.4".
+7. Auditoría de código completa (A–M) — lost updates, tokens, dup. en evaluación IA (`docs/`).
+8. Dashboard: resumen de proyectos por concurso/estado (modal, imprimir, Excel con formato).
+9. Subsanación: tope de rondas fijo en 4 (sin selector) + estados "Obs. Ronda 4"/"Resp. Obs.4".
+10. Sincronización Diseñador v135 (Aspersión/Carrete): Fr de Aspersión ahora usa PISO (Carrete
+    sigue con redondeo normal); Q mínimo necesario nuevo en Aspersión; Superficie máxima
+    cubrible nueva en Carrete. Detalle y casos de prueba en `docs/`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
@@ -95,7 +95,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v134.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
+                 disenador_riego_v135.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v12.html,
                  invernadero_diseno_v30.html (obras anexas CNR)
@@ -148,7 +148,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
     interactivo: (1) `calculos.html`/`calculos_riego.py`, (2) la Memoria de Cálculo
     (`informe_calculo.html` **y** `informe_calculo_completo.html`), y (3) el `.json` de
     exportación (`exportar_disenador.py`). Antes de cerrar un cambio, revisar los tres.
-    En el export, confirmar el ID contra `static/disenador_riego_v134.html` — **nunca adivinarlo**;
+    En el export, confirmar el ID contra `static/disenador_riego_v135.html` — **nunca adivinarlo**;
     si el Diseñador no tiene campo equivalente, anotar el porqué en el docstring del módulo.
 11. **Prompts de handoff a otra sesión (ej. Diseñador de Riego):** antes de armar uno nuevo,
     revisar si queda algo pendiente de una ronda anterior del mismo tema e incluirlo siempre —
