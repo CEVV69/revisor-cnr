@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}{{ proyecto.codigo_sep }} — Modificación de Proyecto{% endblock %}
+{% block content %}
+
+{% set error = request.query_params.get('error') %}
+
+<!-- Encabezado -->
+<div style="margin:1.4rem 0 1.2rem;">
+  <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-bottom:0.85rem;">
+    <a href="/modificaciones" class="btn btn-ghost btn-sm">← Modificaciones</a>
+    <span style="width:1px; height:18px; background:var(--border); margin:0 0.2rem;"></span>
+    <span class="text-muted">Costo API:</span>
+    {% include "_costo_api.html" %}
+    <span style="flex:1;"></span>
+    <a href="/modificacion/{{ proyecto.id }}/respuestas" class="btn btn-outline btn-sm">
+      Respuestas{% if n_pendientes_respuesta %} ({{ n_pendientes_respuesta }}){% endif %}
+    </a>
+
+    <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
+      <button onclick="toggleMenuEstado()" class="btn btn-sm"
+              style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+        {{ proyecto.estado }} ▾
+      </button>
+      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+        {% for est in estados_proyecto_opciones %}
+        <form method="post" action="/modificacion/{{ proyecto.id }}/estado">
+          <button type="submit" name="estado" value="{{ est[0] }}"
+                  style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                         background:{% if proyecto.estado == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                         color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+            {% if proyecto.estado == est[0] %}● {% endif %}{{ est[0] }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+
+    <form method="post" action="/modificacion/{{ proyecto.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar esta modificación? Se borrarán todos sus documentos y observaciones.')">
+      <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+    </form>
+  </div>
+
+  <h1 style="text-align:center; font-size:1.3rem; font-weight:700; letter-spacing:-0.02em; color:var(--text); margin-bottom:0.25rem; word-break:break-word;">
+    {{ proyecto.nombre }}
+  </h1>
+  <p style="text-align:center; color:var(--text-2); font-size:0.85rem;">
+    <span style="font-family:monospace; font-weight:500;">{{ proyecto.codigo_sep }}</span>
+    &nbsp;·&nbsp;{{ proyecto.postulante }}
+    {% if proyecto.codigo_sep_original %}
+    &nbsp;·&nbsp;Proyecto original: <span style="font-family:monospace;">{{ proyecto.codigo_sep_original }}</span>
+    {% endif %}
+    {% if proyecto.tipo_modificacion %}
+    &nbsp;·&nbsp;{{ tipos_modificacion.get(proyecto.tipo_modificacion, proyecto.tipo_modificacion) }}
+    {% endif %}
+  </p>
+</div>
+
+{% if error == 'analisis' %}
+<div class="alert alert-error" style="margin-bottom:0.8rem;">Ocurrió un error al analizar el ítem. Intenta de nuevo.</div>
+{% elif error == 'sindocs' %}
+<div class="alert alert-error" style="margin-bottom:0.8rem;">Ese ítem no tiene documentos con texto disponibles. Sube o clasifica los documentos correspondientes.</div>
+{% endif %}
+
+<!-- Antecedentes requeridos (Instructivo CNR Res. Ex. 3661/2021, punto 5.1) -->
+<div class="card">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0;">Antecedentes de la modificación</h2>
+  <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.9rem;">
+    Según el Instructivo de Modificaciones (Res. Ex. CNR 3661/2021), la solicitud debe incluir: objetivo
+    específico y justificación con informe de la ITO; efecto sobre el costo (presupuesto antiguo y nuevo,
+    partidas modificadas); planos y diseños; cuadro con variables de concurso (original y modificado); y
+    cualquier otro documento necesario.
+  </p>
+
+  <form method="post" action="/modificacion/{{ proyecto.id }}/subir" enctype="multipart/form-data"
+        style="display:flex; gap:0.6rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem;">
+    <div class="form-group" style="margin:0; flex:1; min-width:220px;">
+      <label>Archivo</label>
+      <input type="file" name="archivo" required>
+    </div>
+    <div class="form-group" style="margin:0; min-width:260px;">
+      <label>Tipo de documento</label>
+      <select name="tipo_doc" required style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+        <option value="">— Seleccionar —</option>
+        <option value="cuadro_variables">{{ tipo_doc_opciones.cuadro_variables }}</option>
+        {% for key, label in tipo_doc_opciones.items() %}
+        {% if key != 'cuadro_variables' %}<option value="{{ key }}">{{ label }}</option>{% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Subir</button>
+  </form>
+
+  {% if proyecto.documentos %}
+  <table style="font-size:0.78rem;">
+    <thead>
+      <tr>
+        <th>Archivo</th>
+        <th>Tipo</th>
+        <th style="white-space:nowrap;">Fecha</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in proyecto.documentos %}
+      <tr>
+        <td style="max-width:220px; word-break:break-all;">
+          <a href="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/ver" target="_blank" title="Ver documento"
+             style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
+        </td>
+        <td class="text-muted" style="max-width:260px; word-break:break-word;">{{ doc.tipo_doc_label }}</td>
+        <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida | fecha }}</td>
+        <td style="white-space:nowrap;">
+          <form method="post" action="/modificacion/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar" style="display:inline"
+                onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="font-size:0.85rem;">Aún no se han subido documentos.</p>
+  {% endif %}
+</div>
+
+<!-- Revisión por ítems SEP -->
+<div class="card">
+  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">Revisión por ítems</h2>
+  <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.8rem;">
+    Analiza con IA los documentos de la modificación con el mismo checklist del ítem SEP correspondiente.
+    (v1: no compara todavía automáticamente contra el proyecto original — esa comparación la hace el revisor a ojo.)
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem;">
+    {% for item in items_lista %}
+    <div id="item-{{ item.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
+      <strong style="font-size:0.86rem;">{{ item.nombre }}</strong>
+      {% if obs_por_item.get(item.key) %}
+      <span class="badge badge-tecnica" style="width:fit-content;">{{ obs_por_item[item.key]|length }} observación{{ 'es' if obs_por_item[item.key]|length != 1 else '' }}</span>
+      {% endif %}
+      <form method="post" action="/modificacion/{{ proyecto.id }}/revisar-item/{{ item.key }}"
+            {% if obs_por_item.get(item.key) %}onsubmit="return confirm('¿Re-revisar este ítem? Se reemplazan las observaciones generadas por la IA.')"{% endif %}>
+        <button type="submit" class="btn btn-sm {% if obs_por_item.get(item.key) %}btn-ghost{% else %}btn-primary{% endif %}" style="width:100%;">
+          {% if obs_por_item.get(item.key) %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Observaciones -->
+<div class="card">
+  <h2 style="margin:0 0 0.6rem; border:none; padding:0;">Observaciones</h2>
+  {% set hay_obs = proyecto.observaciones | length > 0 %}
+  {% if hay_obs %}
+  {% for item in items_lista %}
+  {% set obs_item = obs_por_item.get(item.key) %}
+  {% if obs_item %}
+  <div style="margin-bottom:1rem;">
+    <strong style="font-size:0.88rem;">{{ item.nombre }}</strong>
+    {% for obs in obs_item %}
+    <div style="border:1px solid var(--border); border-left:4px solid {% if obs.estado == 'aprobada' %}#276749{% elif obs.estado == 'descartada' %}var(--text-3){% else %}#c2185b{% endif %};
+                border-radius:8px; padding:0.6rem 0.8rem; margin-top:0.5rem; font-size:0.84rem;">
+      <div style="display:flex; justify-content:space-between; gap:0.6rem; align-items:baseline; flex-wrap:wrap;">
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          {% if obs.categoria %}<span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>{% endif %}
+          {% if obs.severidad %}<span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>{% endif %}
+          <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}">{{ obs.estado }}</span>
+        </div>
+        <span class="text-muted" style="font-size:0.74rem; white-space:nowrap;">{{ obs.fecha | fecha }}</span>
+      </div>
+      <p style="margin:0.4rem 0;">{{ obs.texto }}</p>
+      <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
+          <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>
+        </form>
+        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
+          <button type="submit" name="estado" value="descartada" class="btn btn-outline btn-sm">Descartar</button>
+        </form>
+        {% if obs.estado != 'pendiente' %}
+        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
+          <button type="submit" name="estado" value="pendiente" class="btn btn-ghost btn-sm">↺ Pendiente</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/eliminar" style="display:inline;"
+              onsubmit="return confirm('¿Eliminar esta observación?')">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% else %}
+  <p class="text-muted" style="font-size:0.85rem;">Aún no hay observaciones generadas.</p>
+  {% endif %}
+</div>
+
+<script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('menu-estado-wrapper');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('menu-estado').style.display = 'none';
+});
+</script>
+
+{% endblock %}

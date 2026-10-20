@@ -796,8 +796,11 @@ async def dashboard(request: Request):
     # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
     proyectos = db.get_proyectos_ligero(
         ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "fecha_estado",
-         "revisor", "resumen", "costo_api"],
+         "revisor", "resumen", "costo_api", "tipo"],
         username=user["username"])
+    # Las Modificaciones de Proyecto (oct-2026) viven en la misma colección pero con su propio
+    # listado — ver /modificaciones. Nunca deben aparecer mezcladas acá.
+    proyectos = [p for p in proyectos if p.get("tipo") != "modificacion"]
     for p in proyectos:
         p["consultor"] = ((p.get("resumen") or {}).get("consultor") or "").strip()
         p["costo_usd"] = (p.get("costo_api") or {}).get("total_usd")
@@ -824,8 +827,9 @@ async def resumen_proyectos_excel(request: Request):
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor"],
+        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
         username=user["username"])
+    proyectos = [p for p in proyectos if p.get("tipo") != "modificacion"]
     contenido = _generar_excel_resumen_proyectos(_agrupar_proyectos_por_concurso(proyectos))
     nombre_archivo = f"resumen_proyectos_{_ahora().strftime('%Y%m%d')}.xlsx"
     return Response(
@@ -3297,6 +3301,10 @@ TIPO_DOC_LABELS = {
     "antecedentes_legales":     "Antecedentes legales",
     "lista_beneficiarios":      "Lista de beneficiarios",
     "otro":                     "Otro documento",
+    # Modificaciones de Proyecto (oct-2026, Instructivo CNR Res. Ex. 3661/2021 punto 5.1 letra d):
+    # se sube el original y el modificado como el mismo tipo_doc, en fechas distintas — mismo
+    # criterio de versionado por fecha que ya usa el resto de la app (ver _etiquetar_versiones_docs).
+    "cuadro_variables":         "Cuadro de variables de concurso (original y modificado)",
 }
 
 # Catálogo para "Documentos obligatorios de admisibilidad" (checklist + extracción IA):
@@ -4471,6 +4479,374 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
             obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
+
+
+# ─── Modificaciones de Proyecto ──────────────────────────────────────────────
+# Sección NUEVA (oct-2026), separada por completo del flujo de Revisión de arriba — evalúa
+# solicitudes de modificación a proyectos YA bonificados (Ley 18.450 art. 6°, Reglamento art.
+# 33°-39°, Instructivo CNR "Modificaciones de Proyectos" Res. Ex. CNR N°3661/2021, y punto 14
+# del "Manual de Supervisión de Obras", Res. Ex. CNR N°8477/2024 — ambos en Drive, carpeta
+# "09 - Supervisión de Obras"). Decisión explícita del usuario (oct-2026): reutilizar SOLO
+# funciones puras ya probadas (catálogo ITEMS_SEP/TIPO_DOC_LABELS, analizar_item(),
+# _estado_subsanacion(), extract_text) — rutas, plantillas y el modelo de datos son propios y
+# viven en registros con "tipo":"modificacion" dentro de la misma colección `proyectos`, para no
+# arriesgar el flujo de Revisión ya probado con una condicional nueva ahí.
+#
+# v1 (MVP para empezar a probar con un caso real, sep el usuario): análisis de ítem SÍNCRONO
+# (el navegador espera la respuesta de la IA) en vez del patrón de tarea en segundo plano +
+# polling de la Revisión normal — más simple y más rápido de tener funcionando; si algún ítem
+# con muchas imágenes tarda demasiado y el proxy corta la conexión, se migra a ese mismo patrón
+# después. Quedan fuera de este v1 (quedan para la siguiente iteración, ya avisado al usuario):
+# comparación automática del Cuadro de variables, prompt de IA comparativo (hoy usa el mismo
+# checklist estándar de analizar_item(), no uno que compare contra el proyecto original),
+# evaluación con IA de las respuestas en Respuestas, y la Ficha de Modificación.
+
+# Categorías de modificación según el punto 2 del Instructivo 2021 — ayuda al revisor a
+# clasificar el caso, útil más adelante para la Ficha (no condiciona el análisis todavía).
+TIPOS_MODIFICACION = {
+    "rediseno":             "Rediseño (mismo método de riego o tipo de obra)",
+    "cambio_emplazamiento": "Cambio de emplazamiento de obras",
+    "eliminacion_partidas": "Eliminación de partidas",
+    "cambio_sin_calculo":   "Cambio sin cálculo hidráulico (marca/modelo/tipo)",
+    "nueva_obra_entrega":   "Incorporación de nueva obra de entrega",
+    "fuerza_mayor":         "Cambio o eliminación por fuerza mayor",
+}
+
+
+@app.get("/modificaciones", response_class=HTMLResponse)
+async def modificaciones_dashboard(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mods = db.get_proyectos_ligero(
+        ["id", "codigo_sep", "codigo_sep_original", "nombre", "postulante", "tipo_modificacion",
+         "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
+        username=user["username"])
+    mods = [m for m in mods if m.get("tipo") == "modificacion"]
+    mods.sort(key=lambda m: m.get("fecha_creacion") or "", reverse=True)
+    for m in mods:
+        m["tipo_modificacion_label"] = TIPOS_MODIFICACION.get(m.get("tipo_modificacion"), "—")
+    return templates.TemplateResponse("modificaciones_dashboard.html", {
+        "request": request, "user": user, "modificaciones": mods,
+    })
+
+
+@app.get("/modificacion/nueva", response_class=HTMLResponse)
+async def nueva_modificacion_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse("modificacion_nueva.html", {
+        "request": request, "user": user, "tipos_modificacion": TIPOS_MODIFICACION,
+    })
+
+
+@app.post("/modificacion/nueva")
+async def crear_modificacion(
+    request: Request,
+    codigo_sep: str = Form(...),
+    nombre_proyecto: str = Form(...),
+    postulante: str = Form(...),
+    codigo_sep_original: str = Form(""),
+    tipo_modificacion: str = Form(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod_id = str(uuid.uuid4())[:8]
+    modificacion = {
+        "id": mod_id,
+        "tipo": "modificacion",
+        "codigo_sep": codigo_sep,
+        "codigo_sep_original": codigo_sep_original.strip(),
+        "nombre": nombre_proyecto,
+        "postulante": postulante,
+        "tipo_modificacion": tipo_modificacion if tipo_modificacion in TIPOS_MODIFICACION else "",
+        "revisor": user["username"],
+        "revisor_nombre": user["nombre"],
+        "estado": "En revisión",
+        "fecha_creacion": _ahora().isoformat(),
+        "documentos": [],
+        "observaciones": [],
+    }
+    db.save_proyecto(modificacion)
+    (UPLOAD_DIR / mod_id).mkdir(exist_ok=True)
+    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+
+@app.get("/modificacion/{mod_id}", response_class=HTMLResponse)
+async def ver_modificacion(request: Request, mod_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    items_lista = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"]} for k in ITEMS_ORDEN]
+    docs_por_tipo = {}
+    for d in mod.get("documentos", []):
+        docs_por_tipo.setdefault(d.get("tipo_doc"), []).append(d)
+    obs_por_item = {}
+    for o in mod.get("observaciones", []):
+        obs_por_item.setdefault(o.get("item"), []).append(o)
+    n_pendientes_respuesta = sum(
+        1 for o in mod.get("observaciones", [])
+        if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
+    return templates.TemplateResponse("modificacion.html", {
+        "request": request, "user": user, "proyecto": mod,
+        "items_lista": items_lista, "docs_por_tipo": docs_por_tipo, "obs_por_item": obs_por_item,
+        "tipo_doc_opciones": TIPO_DOC_LABELS, "tipos_modificacion": TIPOS_MODIFICACION,
+        "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
+        "costo_api": _costo_para_vista(mod),
+        "n_pendientes_respuesta": n_pendientes_respuesta,
+    })
+
+
+@app.post("/modificacion/{mod_id}/estado")
+async def cambiar_estado_modificacion(request: Request, mod_id: str, estado: str = Form(...)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    if estado in ESTADOS_PROYECTO:
+        mod["estado"] = estado
+        mod["fecha_estado"] = _ahora().isoformat()
+        mod["estado_por"] = user["nombre"]
+        db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/eliminar")
+async def eliminar_modificacion(request: Request, mod_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if mod and mod.get("tipo") == "modificacion":
+        import shutil
+        carpeta = UPLOAD_DIR / mod_id
+        if carpeta.exists():
+            shutil.rmtree(carpeta)
+        db.eliminar_archivos_proyectos([mod_id])
+        db.delete_proyecto(mod_id)
+    return RedirectResponse(url="/modificaciones", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/subir")
+async def subir_documento_modificacion(
+    request: Request, mod_id: str,
+    archivo: UploadFile = File(...), tipo_doc: str = Form(...)
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+
+    ext = Path(archivo.filename).suffix.lower()
+    doc_id = str(uuid.uuid4())[:8]
+    filename = f"{doc_id}{ext}"
+    filepath = UPLOAD_DIR / mod_id / filename
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    content = await archivo.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+    db.guardar_archivo(mod_id, doc_id, filename, content)
+
+    texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+    texto_guardado = truncar_texto_guardado(texto)
+
+    doc = {
+        "id": doc_id, "nombre_original": archivo.filename, "filename": filename,
+        "tipo_doc": tipo_doc, "tipo_doc_label": TIPO_DOC_LABELS.get(tipo_doc, tipo_doc),
+        "fecha_subida": _ahora().isoformat(), "texto_len": _texto_len(texto_guardado),
+        "analizado": False,
+    }
+    mod["documentos"].append(doc)
+    db.save_proyecto(mod)
+    await asyncio.to_thread(db.set_texto_documento, mod_id, doc_id, texto_guardado)
+    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/documento/{doc_id}/eliminar")
+async def eliminar_documento_modificacion(request: Request, mod_id: str, doc_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    mod["documentos"] = [d for d in mod.get("documentos", []) if d["id"] != doc_id]
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/documento/{doc_id}/tipo")
+async def actualizar_tipo_documento_modificacion(
+    request: Request, mod_id: str, doc_id: str, tipo_doc: str = Form(...)
+):
+    user = get_current_user(request)
+    if not user:
+        return {"error": "no autorizado"}
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        return {"error": "modificación no encontrada"}
+    doc = next((d for d in mod["documentos"] if d["id"] == doc_id), None)
+    if not doc or doc.get("analizado"):
+        return {"error": "documento no modificable"}
+    label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc.replace("_", " ").title())
+    doc["tipo_doc"] = tipo_doc
+    doc["tipo_doc_label"] = label
+    db.save_proyecto(mod)
+    return {"ok": True, "label": label}
+
+
+@app.post("/modificacion/{mod_id}/revisar-item/{item_key}")
+async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str):
+    """v1 SÍNCRONO (ver nota al inicio de esta sección) — reutiliza `analizar_item()` tal cual,
+    con el checklist estándar del ítem (todavía NO compara contra el proyecto original; eso
+    queda para cuando se diseñe el prompt comparativo)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if item_key not in ITEMS_SEP:
+        raise HTTPException(status_code=404, detail="Ítem no válido")
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+
+    await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
+    documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
+
+    try:
+        resultado = await analizar_item(
+            item_key=item_key, documentos=documentos_con_texto,
+            resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en revisar_item_modificacion {item_key}: {e}")
+        print(traceback.format_exc())
+        return RedirectResponse(url=f"/modificacion/{mod_id}?error=analisis#item-{item_key}",
+                                status_code=302)
+
+    if resultado.get("sin_documentos"):
+        return RedirectResponse(url=f"/modificacion/{mod_id}?error=sindocs#item-{item_key}",
+                                status_code=302)
+
+    mod = db.get_proyecto(mod_id)  # fresco antes de guardar — mismo criterio que el resto de la app
+    if not mod:
+        return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+    # Reemplaza observaciones previas de este ítem (igual que la Revisión normal) — las
+    # agregadas a mano por el revisor (obs["manual"]) se conservan.
+    mod["observaciones"] = [
+        o for o in mod.get("observaciones", []) if o.get("item") != item_key or o.get("manual")
+    ]
+    nombre_item = ITEMS_SEP[item_key]["nombre"]
+    docs_incluidos = resultado.get("docs_incluidos", [])
+    resumen_docs = ", ".join(d["label"] for d in docs_incluidos)
+    for obs in resultado.get("observaciones", []):
+        obs["id"] = str(uuid.uuid4())[:8]
+        obs["item"] = item_key
+        obs["item_nombre"] = nombre_item
+        obs["doc_nombre"] = f"Ítem SEP: {nombre_item} ({resumen_docs})"
+        obs["fecha"] = _ahora().isoformat()
+        obs["estado"] = "pendiente"
+        mod["observaciones"].append(obs)
+
+    mod.setdefault("items_revisados", {})[item_key] = {
+        "fecha": _ahora().isoformat(), "docs": docs_incluidos,
+    }
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}#item-{item_key}", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/estado")
+async def actualizar_observacion_modificacion(
+    request: Request, mod_id: str, obs_id: str,
+    estado: str = Form(...), texto_editado: str = Form(None)
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    item_key = None
+    for obs in mod.get("observaciones", []):
+        if obs["id"] == obs_id:
+            obs["estado"] = estado
+            if texto_editado:
+                obs["texto"] = texto_editado
+            obs["revisado_por"] = user["nombre"]
+            item_key = obs.get("item")
+            break
+    db.save_proyecto(mod)
+    extra = f"#item-{item_key}" if item_key else ""
+    return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/eliminar")
+async def eliminar_observacion_modificacion(request: Request, mod_id: str, obs_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    mod["observaciones"] = [o for o in mod.get("observaciones", []) if o["id"] != obs_id]
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+
+
+@app.get("/modificacion/{mod_id}/respuestas", response_class=HTMLResponse)
+async def pagina_respuestas_modificacion(request: Request, mod_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
+    obs_con_estado = [{"obs": o, "sub": _estado_subsanacion(o)} for o in aprobadas]
+    return templates.TemplateResponse("modificacion_respuestas.html", {
+        "request": request, "user": user, "proyecto": mod, "obs_con_estado": obs_con_estado,
+        "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
+    })
+
+
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/responder")
+async def registrar_respuesta_modificacion(
+    request: Request, mod_id: str, obs_id: str,
+    respuesta: str = Form(...), evaluacion: str = Form(...), comentario: str = Form(""),
+):
+    """v1 — mismo mecanismo de rondas que la Revisión normal (`_estado_subsanacion`, hasta
+    MAX_RONDAS_SUBSANACION), sin IA de apoyo ni comparación de presupuesto todavía."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
+    if not obs or obs.get("estado") != "aprobada":
+        raise HTTPException(status_code=404, detail="Observación no válida para subsanación")
+    if evaluacion not in ("resuelta", "reiterada"):
+        raise HTTPException(status_code=400, detail="Evaluación no válida")
+
+    sub = _estado_subsanacion(obs)
+    if sub["puede_responder"] and respuesta.strip():
+        obs.setdefault("subsanacion", {}).setdefault("rondas", [])
+        obs["subsanacion"]["rondas"].append({
+            "ronda": sub["ronda_actual"], "respuesta": respuesta.strip(), "evaluacion": evaluacion,
+            "comentario": comentario.strip(), "fecha": _ahora().isoformat(), "por": user["nombre"],
+        })
+        db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}/respuestas#obs-{obs_id}", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

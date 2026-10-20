@@ -4530,3 +4530,139 @@ de las 3 plantillas, render end-to-end de ambas Memorias con un caso "24 hr cada
 
 ---
 
+## Resumen archivado — "Estado actual" previo a oct-2026 (lista larga movida desde CLAUDE.md)
+
+**Cerrado, probado y OK:** auditoría motor Aspersión; doble bombeo; menú "Apps"; precios de la
+API; costo en Respuestas en vivo; Memoria COMPLETA paridad total; costo API Memorias standalone;
+Evaluación del Consultor (fix truncación sep-2026); Sección Respuestas; PEPA + Ficha tacha;
+Caudal del emisor por sistema; Presupuesto general: comparación entre versiones (confirmado
+"funciona perfecto"); fix max_tokens/reintento en evaluación de respuestas (confirmado oct-2026;
+criterio adicional del prompt —mismo error en otra parte del documento— aún sin confirmar).
+
+**Pendiente de prueba del usuario** (implementado):
+1. Caudal por turnos + CDT ruta crítica.
+2. Word con presupuesto en tabla (sin expediente real aún).
+3. Evaluación conjunta con IA (Respuestas) — botón solo en Hidráulico/Fotovoltaico.
+4. Chequeo de Cálculos: solo presentación vigente.
+5. Observaciones en dos párrafos (análisis + propuesta, mismo campo, sin esquema nuevo).
+6. "Costo total final (UF)" en Resumen/Presupuesto + nota UF copiable al SEP.
+7. Auditoría de código completa (A–M) — lost updates, tokens, dup. en evaluación IA.
+8. Dashboard: resumen de proyectos por concurso/estado (modal, imprimir, Excel con formato).
+9. Subsanación: tope de rondas fijo en 4 (sin selector) + estados "Obs. Ronda 4"/"Resp. Obs.4".
+10. Sincronización Diseñador v135 (Aspersión/Carrete): Fr de Aspersión ahora usa PISO (Carrete
+    sigue con redondeo normal); Q mínimo necesario nuevo en Aspersión; Superficie máxima
+    cubrible nueva en Carrete.
+
+---
+
+## Modificaciones de Proyecto — v1 (oct-2026)
+
+### Contexto y marco legal
+
+El usuario necesita revisar solicitudes de **modificación de proyectos ya bonificados** (Ley
+18.450 art. 6°, Reglamento art. 33°-39°, Instructivo CNR Res. Ex. 3661/2021, punto 14 del Manual
+de Supervisión de Obras Res. Ex. 8477/2024 — ambos en Google Drive, carpeta "09 - Supervisión de
+Obras"). Un consultor pide modificar elementos del proyecto durante la ejecución (falta de stock,
+rediseño necesario en terreno, etc.) y debe justificarlo técnicamente ante CNR.
+
+**Contenido mínimo de la solicitud** (Instructivo, punto 5.1): a) objetivo específico y
+justificación + informe ITO; b) efecto sobre el costo (presupuesto antiguo y nuevo, partidas
+modificadas: cantidad, precios unitarios, totales); c) planos y diseños; d) **Cuadro con
+variables de concurso** (original y modificado); e) cualquier otro documento necesario.
+
+**Criterios de revisión** (punto 5.2): a) factibilidad técnica y legal; b) diseño y cálculo
+hidráulico; c) cálculos estructurales; d) calidad de materiales; e) cubicaciones; f) presupuesto
+nuevo.
+
+**Regla de costo/bonificación (confirmada por el usuario, crítica, no implementada aún en
+pantalla):** la bonificación nunca sube — queda topada en lo originalmente aprobado. Si el costo
+aumenta, el solicitante/beneficiario absorbe el 100% del aumento. Si el costo baja, la
+bonificación baja proporcionalmente. Solo se aceptan variaciones de costo en las partidas
+efectivamente modificadas. Modificaciones bajo 5% del costo total se aprueban directo en el Libro
+de Obras (fuera del alcance de esta sección — solo le interesan al revisor las que van a SEP).
+
+Seis categorías de modificación (punto 2, reflejadas en `TIPOS_MODIFICACION` en `main.py`):
+rediseño, cambio de emplazamiento, eliminación de partidas, cambio sin cálculo (marca/modelo),
+nueva obra de entrega, fuerza mayor.
+
+### Decisión de arquitectura (acordada explícitamente con el usuario)
+
+El usuario rechazó dos alternativas antes de llegar a esta: (1) agregar una columna/badge al
+listado de proyectos existente — "ya está apretado, prefiero un listado independiente"; (2)
+compartir literalmente las mismas rutas/páginas que la Revisión normal con un flag condicional.
+Lo acordado — **su cita exacta fue el criterio que gobierna todo lo que viene**: *"Lo principal,
+no tocar ni dañar nada de lo que hoy ya funciona"*:
+
+- Misma colección `proyectos` (Postgres/JSON), discriminada por el campo nuevo `tipo:
+  "modificacion"` — nunca se mezcla con la Revisión: tanto el dashboard (`/`) como
+  `/resumen-proyectos.xlsx` filtran explícitamente `p.get("tipo") != "modificacion"`.
+- **Rutas y templates 100% propios** (`/modificacion/...`, `modificacion*.html`), nunca
+  comparten destino con `/proyecto/...` — ni siquiera con flags. Los templates se armaron
+  mirando `proyecto.html`/`nuevo_proyecto.html`/`respuestas.html` como referencia de estilo, no
+  copiándolos literal.
+- **Reutiliza solo funciones puras/sin-efectos-de-ruta**: `_estado_subsanacion()` (motor de
+  rondas, el mismo tope `MAX_RONDAS_SUBSANACION=4`), `ITEMS_SEP`/`ITEMS_ORDEN` (checklist),
+  `analizar_item()` (análisis IA, ver alcance v1 abajo), `_restaurar_archivos_necesarios`/
+  `_con_texto` (helpers de preparación de documentos), `_costo_para_vista`, `TIPO_DOC_LABELS`,
+  `ESTADOS_PROYECTO*`. El route de servir archivo (`ver_documento`, `/proyecto/{id}/documento/
+  {doc_id}/ver`) también se reutiliza tal cual: es puro servido de archivo sin redirect y no
+  valida `tipo`, así que no hay riesgo de que una modificación "se escape" a una página de
+  Revisión.
+- **Nunca se reutilizan**: rutas de subida/clasificación/eliminación de documento, de
+  ítems/observaciones, ni de subsanación de la Revisión — todas tienen su gemela dedicada en la
+  sección nueva, porque sus redirects apuntan a `/proyecto/...` (llevarían a la plantilla
+  equivocada si se les pasara una modificación).
+
+### Alcance v1 (deliberadamente acotado, documentado en el código)
+
+Para que el usuario pudiera empezar a probar YA con un caso real que tenía ingresado
+(petición explícita: *"ya tengo una modificación ingresada y la quiero revisar con la app para
+ir probando"*), v1 prioriza velocidad de entrega sobre completitud:
+
+- **Análisis síncrono**, no el patrón de tarea en segundo plano + polling que usa la Revisión
+  normal (`items_en_progreso`, `_analizar_item_fondo`, `/item/{key}/estado`). El navegador espera
+  la respuesta de la IA directo. Documentado en el docstring de `revisar_item_modificacion()`
+  como limitación v1 a revisar si algún ítem real resulta demasiado lento.
+- El análisis por ítem reutiliza el **checklist estándar** de `analizar_item()` — todavía NO
+  compara contra el proyecto original. El revisor compara a ojo por ahora.
+- Nuevo tipo de documento `cuadro_variables` ("Cuadro de variables de concurso (original y
+  modificado)") en `TIPO_DOC_LABELS` — se sube el original y el modificado como el mismo
+  `tipo_doc` en fechas distintas, mismo criterio de versionado por fecha que ya usa el resto de
+  la app.
+- Rondas de subsanación: mismo motor y tope de 4 que la Revisión, sin IA de apoyo en la
+  evaluación de respuestas (eso sí existe en Revisión vía `/evaluar-respuesta`, acá no).
+
+**Explícitamente fuera de v1** (pendiente para cuando el usuario confirme que el MVP sirve):
+prompt comparativo original-vs-modificado; comparación automática del Cuadro de variables; diff
+de presupuesto incorporando el tope de bonificación (aumento → lo asume el beneficiario sin
+subir la bonificación; baja → bonificación baja proporcional); evaluación con IA de las
+respuestas del consultor en `/modificacion/{id}/respuestas`; una Ficha de Modificación (informe
+PDF); eventual migración del análisis por ítem al patrón asíncrono si hace falta.
+
+### Rutas y archivos nuevos
+
+- `main.py`: sección `# ─── Modificaciones de Proyecto ───` (antes de "Administración de
+  concursos"), con `TIPOS_MODIFICACION` y las rutas `/modificaciones` (listado independiente,
+  ordenado por fecha de creación desc.), `/modificacion/nueva` (GET+POST), `/modificacion/{id}`
+  (vista principal), `/modificacion/{id}/estado`, `/modificacion/{id}/eliminar`,
+  `/modificacion/{id}/subir`, `/modificacion/{id}/documento/{doc_id}/eliminar|tipo`,
+  `/modificacion/{id}/revisar-item/{item_key}`, `/modificacion/{id}/observacion/{obs_id}/
+  estado|eliminar|responder`, `/modificacion/{id}/respuestas`.
+- Templates nuevos: `modificaciones_dashboard.html`, `modificacion_nueva.html`,
+  `modificacion.html`, `modificacion_respuestas.html`.
+- `templates/dashboard.html`: botón "Modificaciones" junto a "+ Nuevo proyecto".
+
+### Validación hecha esta sesión
+
+`py_compile` de `main.py` OK, `pyflakes` sin hallazgos nuevos (el único warning preexistente,
+línea 676, no tiene relación). Test end-to-end con `TestClient` (crear modificación → verla en
+el listado independiente y confirmarla ausente del dashboard/Excel de Revisión → subir documento
+`cuadro_variables` → cambiar estado → aprobar una observación (inyectada directo en BD para no
+depender de la API real) → ver `/respuestas` → responder ronda 1 con evaluación "reiterada" →
+confirmar que la ronda quedó registrada → eliminar documento → eliminar la modificación completa)
+— todo OK. Se volvió a correr el test de regresión de la sincronización Diseñador v135 (Memoria
+completa/individual + `calculos.html`) para confirmar que la Revisión normal sigue intacta —
+OK, sin cambios de comportamiento.
+
+---
+

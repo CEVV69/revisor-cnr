@@ -36,28 +36,18 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 ## Estado actual (oct-2026)
 
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
-sin que él reporte primero. Detalle de cada ítem cerrado en `docs/`.
+sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
+auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Cerrado, probado y OK** (detalle en `docs/`): auditoría motor Aspersión; doble bombeo; menú
-"Apps"; precios de la API; costo en Respuestas en vivo; Memoria COMPLETA paridad total; costo
-API Memorias standalone; Evaluación del Consultor (fix truncación sep-2026); Sección Respuestas;
-PEPA + Ficha tacha; Caudal del emisor por sistema; Presupuesto general: comparación entre
-versiones (confirmado "funciona perfecto"); fix max_tokens/reintento en evaluación de respuestas
-(confirmado oct-2026; criterio adicional del prompt —mismo error en otra parte del documento— aún sin confirmar).
-
-**Pendiente de prueba del usuario** (implementado, detalle en `docs/`):
-1. Caudal por turnos + CDT ruta crítica.
-2. Word con presupuesto en tabla (sin expediente real aún).
-3. Evaluación conjunta con IA (Respuestas) — botón solo en Hidráulico/Fotovoltaico.
-4. Chequeo de Cálculos: solo presentación vigente.
-5. Observaciones en dos párrafos (análisis + propuesta, mismo campo, sin esquema nuevo).
-6. "Costo total final (UF)" en Resumen/Presupuesto + nota UF copiable al SEP.
-7. Auditoría de código completa (A–M) — lost updates, tokens, dup. en evaluación IA (`docs/`).
-8. Dashboard: resumen de proyectos por concurso/estado (modal, imprimir, Excel con formato).
-9. Subsanación: tope de rondas fijo en 4 (sin selector) + estados "Obs. Ronda 4"/"Resp. Obs.4".
-10. Sincronización Diseñador v135 (Aspersión/Carrete): Fr de Aspersión ahora usa PISO (Carrete
-    sigue con redondeo normal); Q mínimo necesario nuevo en Aspersión; Superficie máxima
-    cubrible nueva en Carrete. Detalle y casos de prueba en `docs/`.
+**Nuevo: Modificaciones de Proyecto** (v1 recién implementado, el usuario ya tiene un caso real
+para probar) — sección 100% separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR
+Res. Ex. 3661/2021): rutas `/modificacion*` y templates `modificacion*.html` propios, nunca
+comparten página con `/proyecto/*`; reutilizan solo funciones puras (`_estado_subsanacion`, etc.).
+Entra desde el botón "Modificaciones" del dashboard. v1 es síncrono (no usa el patrón de tarea en
+segundo plano) y el análisis por ítem usa el checklist estándar, NO compara aún contra el proyecto
+original — eso y el resto de lo pendiente (Cuadro de variables original/modificado, diff de
+presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación) sigue sin hacer.
+Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

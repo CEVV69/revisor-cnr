@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Respuestas — {{ proyecto.codigo_sep }}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-2 mt-2" style="margin-bottom:1.2rem">
+  <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
+  <h1 style="font-size:1.3rem; color:#1a365d;">Respuestas — {{ proyecto.codigo_sep }}</h1>
+</div>
+
+{% if obs_con_estado %}
+{% for par in obs_con_estado %}
+{% set obs = par.obs %}
+{% set sub = par.sub %}
+<div id="obs-{{ obs.id }}" class="card">
+  <div style="display:flex; justify-content:space-between; gap:0.6rem; align-items:baseline; flex-wrap:wrap; margin-bottom:0.5rem;">
+    <strong style="font-size:0.9rem;">{{ obs.item_nombre }}</strong>
+    <span class="badge badge-{% if sub.estado == 'resuelta' %}tecnica{% elif sub.estado == 'no_resuelta' %}mayor{% else %}pendiente{% endif %}">
+      {% if sub.estado == 'resuelta' %}Resuelta{% elif sub.estado == 'no_resuelta' %}No resuelta{% else %}Esperando respuesta — ronda {{ sub.ronda_actual }}{% endif %}
+    </span>
+  </div>
+  <p style="font-size:0.86rem; margin-bottom:0.6rem;">{{ obs.texto }}</p>
+
+  {% for r in obs.get('subsanacion', {}).get('rondas', []) %}
+  <div style="border-left:3px solid var(--border); padding-left:0.7rem; margin-bottom:0.6rem; font-size:0.84rem;">
+    <div class="text-muted" style="font-size:0.76rem;">Ronda {{ r.ronda }} — {{ r.fecha | fecha }} — {{ r.por }}</div>
+    <p style="margin:0.2rem 0;">{{ r.respuesta }}</p>
+    <span class="badge badge-{% if r.evaluacion == 'resuelta' %}tecnica{% else %}menor{% endif %}">
+      {{ 'Resuelta' if r.evaluacion == 'resuelta' else 'Reiterada' }}
+    </span>
+    {% if r.comentario %}<p class="text-muted" style="margin:0.3rem 0 0;">{{ r.comentario }}</p>{% endif %}
+  </div>
+  {% endfor %}
+
+  {% if sub.puede_responder %}
+  <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/responder">
+    <div class="form-group">
+      <label>Respuesta del consultor (ronda {{ sub.ronda_actual }})</label>
+      <textarea name="respuesta" rows="3" required style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit;"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Comentario del revisor (opcional)</label>
+      <input type="text" name="comentario" style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      <button type="submit" name="evaluacion" value="resuelta" class="btn btn-success btn-sm">Marcar como resuelta</button>
+      <button type="submit" name="evaluacion" value="reiterada" class="btn btn-danger btn-sm">
+        {% if sub.ronda_actual == 4 %}Obs. No resuelta{% else %}Reiterar (no la resuelve){% endif %}
+      </button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="card" style="text-align:center; padding:3rem;">
+  <p class="text-muted">No hay observaciones aprobadas aún — apruébalas en la página de la modificación.</p>
+</div>
+{% endif %}
+
+{% endblock %}
