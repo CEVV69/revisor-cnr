@@ -39,15 +39,17 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1 recién implementado, el usuario ya tiene un caso real
-para probar) — sección 100% separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR
-Res. Ex. 3661/2021): rutas `/modificacion*` y templates `modificacion*.html` propios, nunca
-comparten página con `/proyecto/*`; reutilizan solo funciones puras (`_estado_subsanacion`, etc.).
-Entra desde el botón "Modificaciones" del dashboard. v1 es síncrono (no usa el patrón de tarea en
-segundo plano) y el análisis por ítem usa el checklist estándar, NO compara aún contra el proyecto
-original — eso y el resto de lo pendiente (Cuadro de variables original/modificado, diff de
-presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación) sigue sin hacer.
-Detalle completo en `docs/historial_sesiones.md`.
+**Nuevo: Modificaciones de Proyecto** (v1.1, el usuario ya la está probando con un caso real) —
+sección 100% separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR Res. Ex.
+3661/2021): rutas `/modificacion*` y templates `modificacion*.html` propios, nunca comparten
+página con `/proyecto/*`; reutilizan solo funciones puras (`_estado_subsanacion`,
+`analizar_item()` vía `item_override`). Entra desde el botón "Modificaciones" del dashboard, un
+solo Código SEP (no cambia con la modificación). Ítems y tipos de documento son las 9 categorías
+reales del SEP (`ITEMS_MODIFICACION`/`TIPO_DOC_LABELS_MODIFICACION` en `analyzer.py`, cada una con
+su propio checklist), no los 19 ítems genéricos de Revisión. v1 sigue síncrono (sin tarea en
+segundo plano) y el análisis por ítem NO compara aún contra el proyecto original. Pendiente:
+diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un
+PDF de referencia real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

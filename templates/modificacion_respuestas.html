@@ -2,10 +2,25 @@
 {% block title %}Respuestas — {{ proyecto.codigo_sep }}{% endblock %}
 {% block content %}
 
-<div class="flex items-center gap-2 mt-2" style="margin-bottom:1.2rem">
-  <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
-  <h1 style="font-size:1.3rem; color:#1a365d;">Respuestas — {{ proyecto.codigo_sep }}</h1>
-</div>
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:1.2rem 0 1.1rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .proj-tab.proxima { color:var(--text-3); cursor:default; }
+  .proj-tab.proxima:hover { background:none; color:var(--text-3); }
+  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
+    padding:0 0.4rem; margin-left:0.15rem; }
+</style>
+
+<nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
+  <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
+  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+</nav>
 
 {% if obs_con_estado %}
 {% for par in obs_con_estado %}

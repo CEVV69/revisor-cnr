@@ -16,7 +16,6 @@
     <thead>
       <tr>
         <th style="white-space:nowrap;">Código SEP</th>
-        <th style="white-space:nowrap;">Proyecto original</th>
         <th>Nombre</th>
         <th>Postulante</th>
         <th>Tipo de modificación</th>
@@ -29,7 +28,6 @@
       {% for m in modificaciones %}
       <tr>
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ m.codigo_sep }}</strong></td>
-        <td class="text-muted" style="white-space:nowrap; font-family:monospace;">{{ m.codigo_sep_original or "—" }}</td>
         <td style="max-width:220px; word-break:break-word;">{{ m.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ m.postulante }}</td>
         <td class="text-muted" style="max-width:180px; word-break:break-word;">{{ m.tipo_modificacion_label }}</td>

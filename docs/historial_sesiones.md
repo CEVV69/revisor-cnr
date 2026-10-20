@@ -4666,3 +4666,80 @@ OK, sin cambios de comportamiento.
 
 ---
 
+## Modificaciones de Proyecto — v1.1, primeras correcciones tras prueba real (oct-2026)
+
+El usuario probó v1 con un caso real ingresado y volvió con 6 observaciones. Todas corregidas
+esta sesión salvo la última (solo informativa, para cuando se haga la Ficha):
+
+1. **Código SEP duplicado** — el formulario de alta pedía "Código SEP de la modificación" Y
+   "Código SEP del proyecto original" como si fueran distintos. Corregido: la modificación NUNCA
+   cambia el código del proyecto (confirmado con el PDF real del SEP que el usuario adjuntó, ver
+   más abajo) — ahora hay un solo campo "Código SEP del proyecto". Se eliminó el campo
+   `codigo_sep_original` del modelo de datos, el formulario y la columna del listado
+   `/modificaciones`.
+2. **Cuadro de Variables de Concurso sin ítem de revisión propio** — existía como tipo de
+   documento pero no como categoría analizable. Se decidió con el usuario (pregunta directa):
+   Cuadro de Variables es una **categoría propia** (la 9na), no se mezcla con Solicitud ni con
+   Presupuesto.
+3. **Faltaba navegación entre páginas** — agregada una barra `.proj-nav` (mismo patrón visual que
+   `proyecto.html`) con pestañas Revisión por ítem / Respuestas / Presupuesto (esta última
+   deshabilitada con tooltip "pendiente de implementar", sin link) en `modificacion.html` y
+   `modificacion_respuestas.html`.
+4. **No existía dónde subir la Solicitud de Modificación** (el PDF escaneado oficial que CNR
+   emite/recibe para la modificación) — ahora es su propia categoría `mod_solicitud`, con
+   checklist propio (exige informe ITO de respaldo, motivo clasificado en las 6 categorías del
+   Instructivo, coherencia con el resto del expediente).
+5. **Categorías de documento no coincidían con el SEP real** — se reemplazaron los 19 ítems
+   genéricos de `ITEMS_SEP` (que son de la Revisión normal, no de Modificaciones) por 9 categorías
+   propias confirmadas por el usuario, con checklist propio cada una:
+   `ITEMS_MODIFICACION`/`TIPO_DOC_LABELS_MODIFICACION`, ambos en `analyzer.py`, claves con prefijo
+   `mod_` a propósito para no pisar ningún `item_key`/`tipo_doc` de `ITEMS_SEP`/`TIPO_DOC_LABELS`:
+   `mod_diseno` (Diseño hidráulico/agronómico/otros), `mod_especificaciones`, `mod_cubicaciones`,
+   `mod_cronograma`, `mod_presupuesto`, `mod_planos`, `mod_otros`, `mod_solicitud`,
+   `mod_cuadro_variables` — ese orden es el que el usuario dio para las primeras 7 (igual al
+   listado real del SEP), con Solicitud y Cuadro de Variables al final por ser las 2 categorías
+   sin anexo numerado equivalente en la postulación original.
+   - Cambio de arquitectura necesario para esto: `analizar_item()` (`analyzer.py`) antes buscaba
+     el ítem SIEMPRE en `ITEMS_SEP[item_key]`. Se agregó un parámetro opcional
+     `item_override: dict` — si viene, se usa tal cual (`{"nombre", "tipo_docs", "checklist"}`) en
+     vez de buscar en `ITEMS_SEP`. Cambio aditivo y seguro: ningún camino especial de la función
+     (coherencia/diseno_hidraulico/diseno_fotovoltaico/presupuesto) se activa para las claves
+     `mod_*` porque ninguna coincide con esos nombres exactos. `revisar_item_modificacion()` en
+     `main.py` ahora llama `analizar_item(..., item_override=ITEMS_MODIFICACION[item_key])`.
+   - Los checklists de las 9 categorías están redactados para el contexto de una modificación
+     (no de una postulación nueva): exigen equivalencia técnica del cambio, que el costo
+     modificado solo toque las partidas realmente modificadas, y — el más importante — la regla
+     de bonificación que el usuario confirmó explícitamente: la bonificación modificada NUNCA
+     puede ser mayor a la original; si el costo sube, el mayor valor lo asume el
+     beneficiario/solicitante sin tocar la bonificación; si baja, la bonificación baja
+     proporcional. Esta regla está en el checklist de `mod_cuadro_variables` y `mod_presupuesto`,
+     pero el DIFF visual propiamente tal (como el de Presupuesto general en la Revisión normal)
+     sigue pendiente — por ahora la IA solo la verifica como parte del checklist de esos dos ítems.
+6. **Referencia real para la futura Ficha de Modificación** — el usuario adjuntó el "Informe de
+   Modificación" que genera el SEP para el caso 202-2024-16-078 (aún vacío en los campos de
+   revisión porque no se ha revisado). Campos reales a replicar cuando se construya la Ficha:
+   Código, Concurso, Grupo-subgrupo, Comuna, Beneficiario, Consultor (+ e-mail/teléfono),
+   Descripción de Obra, Características Obras, Revisor Técnico/Legal CNR ORIGINAL, Fecha de
+   ingreso modificación, Pendiente al Inicio de Obras/Recepción de Obras/Pago, Motivo Solicitud
+   Modificación (texto libre), bloque "Revisión Convenio CNR" (Estado Revisión, Motivo, Revisor
+   CNR, Plazo respuesta observaciones, Posee inicio efectivo obras, Prórroga/Estado/Caducidad,
+   Recepción provisional, Bono Vigente), Notas Revisor CNR, Observaciones CNR, y el bloque
+   "Conclusión" con la tabla Aumenta/Igual/Disminuye en UF y el "CUADRO VARIABLES CONCURSO" (Costo
+   Total UF ORIGINAL/MODIFICADO, Bonificación UF/MODIFICADO, Aporte %). No se implementa todavía
+   — queda como referencia para cuando se aborde la Ficha de Modificación.
+
+### Validación de esta ronda
+
+`py_compile` de `main.py` y `analyzer.py` OK. `pyflakes` sin hallazgos nuevos (mismos warnings
+preexistentes de f-strings sin placeholder, sin relación). Se actualizó y volvió a correr el test
+end-to-end (`TestClient`): crear modificación con un solo código → confirmar que
+`codigo_sep_original`/"Proyecto original" ya no aparecen en ningún HTML → ver las 9 categorías
+nuevas en el panel (Cuadro de Variables y Solicitud de Modificación incluidas) → subir un
+documento `mod_cuadro_variables` → revisar un ítem SIN documentos de ese tipo (camino
+`sin_documentos` de `analizar_item()`, confirma que `item_override` resuelve bien SIN necesidad de
+pegarle a la API real) → confirmar 404 con un `item_key` inválido → resto del flujo (estado,
+aprobar observación, responder ronda) igual que v1. Se repitió también el test de regresión de la
+sincronización Diseñador v135 — Revisión normal sigue intacta.
+
+---
+

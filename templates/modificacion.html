@@ -2,6 +2,20 @@
 {% block title %}{{ proyecto.codigo_sep }} — Modificación de Proyecto{% endblock %}
 {% block content %}
 
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:0 0 1.1rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .proj-tab.proxima { color:var(--text-3); cursor:default; }
+  .proj-tab.proxima:hover { background:none; color:var(--text-3); }
+  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
+    padding:0 0.4rem; margin-left:0.15rem; }
+</style>
+
 {% set error = request.query_params.get('error') %}
 
 <!-- Encabezado -->
@@ -12,9 +26,6 @@
     <span class="text-muted">Costo API:</span>
     {% include "_costo_api.html" %}
     <span style="flex:1;"></span>
-    <a href="/modificacion/{{ proyecto.id }}/respuestas" class="btn btn-outline btn-sm">
-      Respuestas{% if n_pendientes_respuesta %} ({{ n_pendientes_respuesta }}){% endif %}
-    </a>
 
     <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
       <button onclick="toggleMenuEstado()" class="btn btn-sm"
@@ -48,14 +59,17 @@
   <p style="text-align:center; color:var(--text-2); font-size:0.85rem;">
     <span style="font-family:monospace; font-weight:500;">{{ proyecto.codigo_sep }}</span>
     &nbsp;·&nbsp;{{ proyecto.postulante }}
-    {% if proyecto.codigo_sep_original %}
-    &nbsp;·&nbsp;Proyecto original: <span style="font-family:monospace;">{{ proyecto.codigo_sep_original }}</span>
-    {% endif %}
     {% if proyecto.tipo_modificacion %}
     &nbsp;·&nbsp;{{ tipos_modificacion.get(proyecto.tipo_modificacion, proyecto.tipo_modificacion) }}
     {% endif %}
   </p>
 </div>
+
+<nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}" class="proj-tab activa">Revisión por ítem</a>
+  <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
+  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+</nav>
 
 {% if error == 'analisis' %}
 <div class="alert alert-error" style="margin-bottom:0.8rem;">Ocurrió un error al analizar el ítem. Intenta de nuevo.</div>
@@ -83,9 +97,8 @@
       <label>Tipo de documento</label>
       <select name="tipo_doc" required style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
         <option value="">— Seleccionar —</option>
-        <option value="cuadro_variables">{{ tipo_doc_opciones.cuadro_variables }}</option>
         {% for key, label in tipo_doc_opciones.items() %}
-        {% if key != 'cuadro_variables' %}<option value="{{ key }}">{{ label }}</option>{% endif %}
+        <option value="{{ key }}">{{ label }}</option>
         {% endfor %}
       </select>
     </div>

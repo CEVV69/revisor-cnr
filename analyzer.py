@@ -1017,6 +1017,151 @@ ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "prueba
                "estudio_suelos", "coherencia"]
 
 
+# ─── MODIFICACIONES DE PROYECTO (oct-2026) ─────────────────────────────────────
+# Categorías reales del SEP para una solicitud de modificación de proyecto ya bonificado (Ley
+# 18.450 art. 6°, Instructivo CNR Res. Ex. 3661/2021) — DISTINTAS de ITEMS_SEP (esas son para la
+# postulación original). Claves con prefijo "mod_" a propósito, para no pisar ningún item_key de
+# ITEMS_SEP ni ningún tipo_doc de TIPO_DOC_LABELS: aunque el contenido temático se parezca
+# (ej. "cronograma"), son documentos y checklists distintos (antes/después de una modificación).
+# Se usan vía `analizar_item(item_key=..., item_override=ITEMS_MODIFICACION[key], ...)`.
+ITEMS_MODIFICACION = {
+    "mod_solicitud": {
+        "nombre": "Solicitud de Modificación",
+        "tipo_docs": ["mod_solicitud"],
+        "checklist": """Verifica que la solicitud identifique con claridad: el código del proyecto (debe ser el mismo
+del proyecto ya bonificado, una modificación nunca cambia el código), qué elemento(s) específicos
+del proyecto original se modifican, y el motivo de la modificación con su justificación técnica.
+Según el Instructivo CNR (Res. Ex. 3661/2021, punto 5.1.a), la solicitud debe venir respaldada por
+un informe de la Inspección Técnica de Obras (ITO) que avale la necesidad del cambio — su ausencia
+es observable. Clasifica el motivo declarado en una de las seis categorías del Instructivo:
+rediseño, cambio de emplazamiento, eliminación de partidas, cambio sin cálculo (marca/modelo/tipo),
+incorporación de nueva obra de entrega, o fuerza mayor — y verifica que el motivo invocado sea
+coherente con lo que efectivamente cambia en el resto de los documentos de la modificación (Cuadro
+de Variables, Diseño, Presupuesto). Si la modificación es por fuerza mayor, debe venir acreditada
+(certificado, informe, evidencia del hecho que la origina).""",
+    },
+    "mod_cuadro_variables": {
+        "nombre": "Cuadro de Variables de Concurso",
+        "tipo_docs": ["mod_cuadro_variables"],
+        "checklist": """Verifica que el cuadro incluya, lado a lado, el costo total (UF) ORIGINAL y MODIFICADO, la
+bonificación (UF) ORIGINAL y MODIFICADA, y el aporte % — y que la aritmética entre estos tres
+valores sea consistente en ambas columnas (bonificación = costo total × aporte bonificado; el %
+de aporte propio del postulante debe ser el mismo en ambas versiones salvo que el cambio de costo
+lo justifique).
+Regla crítica, sin excepción: la bonificación MODIFICADA nunca puede ser mayor a la ORIGINAL —
+observa de inmediato cualquier cuadro donde esto ocurra. Si el costo total AUMENTA, la bonificación
+debe mantenerse igual a la original (el mayor valor lo asume completo el beneficiario/solicitante,
+nunca la CNR) — observa si el cuadro muestra un aumento de bonificación proporcional al aumento de
+costo, eso está mal. Si el costo total DISMINUYE, la bonificación debe bajar proporcionalmente
+(mismo % de aporte bonificado que el proyecto original aplicado al nuevo costo) — observa si quedó
+igual a la original pese a la baja de costo. Si el costo queda IGUAL, ambos valores (costo y
+bonificación) deben coincidir en las dos columnas.""",
+    },
+    "mod_diseno": {
+        "nombre": "Diseño hidráulico, agronómico u otros diseños modificados",
+        "tipo_docs": ["mod_diseno"],
+        "checklist": """Verifica que el diseño modificado sea técnicamente equivalente o superior al original en los
+parámetros clave del sistema de riego (caudal de diseño, presión de trabajo, eficiencia de
+aplicación, superficie efectivamente regada) — una modificación NO debe reducir la superficie de
+riego bonificada ni degradar la eficiencia respecto al proyecto aprobado, salvo que venga
+explícitamente justificado y aceptado como tal.
+Si el cambio es de marca/modelo de un equipo (bomba, inversor, paneles FV, emisores, filtros), debe
+venir con un cuadro comparativo de especificaciones técnicas (potencia, caudal, eficiencia,
+garantía, normativa aplicable) que demuestre equivalencia o mejora frente al equipo original — la
+sola mención del cambio sin ese respaldo técnico es observable. Si es un rediseño completo (cambio
+de método de riego o de tipo de obra), debe cumplir el mismo estándar técnico exigido al proyecto
+original (ITT-03) y no solo al elemento puntual que cambia. Verifica coherencia entre lo declarado
+acá, el motivo de la Solicitud de Modificación y las cifras del Cuadro de Variables.""",
+    },
+    "mod_especificaciones": {
+        "nombre": "Especificaciones técnicas de los elementos modificados",
+        "tipo_docs": ["mod_especificaciones"],
+        "checklist": """Verifica que, para cada elemento modificado, exista ficha técnica o catálogo del fabricante
+legible con modelo específico (no genérico) — igual exigencia que en la postulación original.
+Las especificaciones del elemento nuevo deben ser consistentes con el Diseño modificado (mismos
+diámetros, materiales, potencia, marca/modelo que ahí se declaran) y con las partidas del
+Presupuesto modificado. No deben aparecer especificaciones de elementos que NO están declarados
+como parte de esta modificación — si aparecen, la modificación está excediendo su alcance
+declarado en la Solicitud.""",
+    },
+    "mod_cubicaciones": {
+        "nombre": "Cubicaciones de las partidas modificadas",
+        "tipo_docs": ["mod_cubicaciones"],
+        "checklist": """Verifica que la cubicación cubra únicamente las partidas efectivamente modificadas (el
+Instructivo exige que la variación de costo se limite a esas partidas) y que las cantidades sean
+coherentes con el Diseño modificado y el Presupuesto modificado — mismas unidades, sin cantidades
+sueltas que no calcen con ninguna partida del presupuesto nuevo. Si la cubicación incluye partidas
+que no figuran como modificadas en la Solicitud, es observable: indica que el alcance real de la
+modificación es mayor al declarado.""",
+    },
+    "mod_cronograma": {
+        "nombre": "Cronograma actualizado",
+        "tipo_docs": ["mod_cronograma"],
+        "checklist": """Solo exigible si la modificación declara impacto en el plazo de ejecución (ej. por
+indisponibilidad del equipo original, fuerza mayor, o un rediseño que alarga la obra). En ese
+caso, verifica que el nuevo cronograma quede dentro del plazo vigente del convenio, considerando
+las prórrogas ya otorgadas (revisa si hay prórroga aceptada y su fecha de caducidad). Si la
+modificación NO declara impacto en el plazo, no se exige este documento — no lo observes por
+ausencia salvo que el resto del expediente sugiera que sí hay impacto no declarado.""",
+    },
+    "mod_presupuesto": {
+        "nombre": "Presupuesto modificado",
+        "tipo_docs": ["mod_presupuesto"],
+        "checklist": """Verifica que el presupuesto modificado mantenga intacto el resto de las partidas NO
+modificadas (idénticas al presupuesto aprobado original) y que solo cambien los montos de las
+partidas efectivamente declaradas como modificadas. Las partidas nuevas/modificadas deben seguir
+el mismo criterio de precios de mercado y formato FT-01 exigido al presupuesto original (materiales
++ mano de obra + equipos, razonable según DT-18) — cotizaciones de respaldo con menos de 6 meses
+de antigüedad.
+Regla crítica de bonificación (ver también Cuadro de Variables): si el presupuesto modificado
+AUMENTA el costo total, el documento debe dejar expresamente establecido que el mayor valor lo
+asume el beneficiario/solicitante, sin aumentar el monto de bonificación aprobado. Si el costo
+DISMINUYE, el presupuesto debe ser consistente con una bonificación recalculada a la baja de forma
+proporcional. Cualquier presupuesto modificado que implique un aumento de bonificación es
+observable sin excepción.""",
+    },
+    "mod_planos": {
+        "nombre": "Planos modificados",
+        "tipo_docs": ["mod_planos"],
+        "checklist": """Exigible cuando el cambio implica una variación física respecto al proyecto original
+(emplazamiento de obras, trazado de redes, ubicación de equipos). Analiza el plano visualmente:
+debe mantener los mismos estándares gráficos exigidos en la postulación original (escala, norte,
+coordenadas UTM, simbología, cuadro de títulos) y señalar con claridad qué cambia respecto al plano
+aprobado — idealmente con nube de revisión, achurado o anotación comparativa. Un plano modificado
+sin ninguna marca que distinga lo nuevo de lo original dificulta la revisión y es observable.""",
+    },
+    "mod_otros": {
+        "nombre": "Otros documentos de respaldo",
+        "tipo_docs": ["mod_otros"],
+        "checklist": """Verifica que cada documento acá (certificados, cotizaciones del equipo nuevo, informes
+complementarios, acreditación de fuerza mayor, etc.) respalde efectivamente la necesidad o la
+equivalencia técnica del cambio declarado en la Solicitud de Modificación — no son documentos de
+relleno. Cotizaciones que inciden en el Presupuesto modificado deben tener menos de 6 meses de
+antigüedad, igual que en la postulación original.""",
+    },
+}
+
+# Orden de presentación: el mismo orden en que el usuario describió las categorías reales del SEP
+# para modificaciones (oct-2026) — Diseño → Especificaciones → Cubicaciones → Cronograma →
+# Presupuesto → Planos → Otros → Solicitud — con Cuadro de Variables al final por ser la única
+# categoría nueva (9na, sin equivalente directo en el SEP) que no venía en esa enumeración.
+ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicaciones",
+                            "mod_cronograma", "mod_presupuesto", "mod_planos", "mod_otros",
+                            "mod_solicitud", "mod_cuadro_variables"]
+
+TIPO_DOC_LABELS_MODIFICACION = {
+    "mod_diseno":           "Anexo — Diseño hidráulico, agronómico u otros diseños",
+    "mod_especificaciones": "Anexo — Especificaciones técnicas",
+    "mod_cubicaciones":     "Anexo — Cubicaciones",
+    "mod_cronograma":       "Anexo — Cronograma",
+    "mod_presupuesto":      "Anexo — Presupuesto modificado",
+    "mod_planos":           "Anexo — Planos modificados",
+    "mod_otros":            "Anexo — Otros Documentos",
+    "mod_solicitud":        "Anexo — Solicitud de Modificación",
+    "mod_cuadro_variables": "Anexo — Cuadro de Variables de Concurso",
+}
+
+
 # ─── RESUMEN DEL PROYECTO (ficha tipo formulario) ──────────────────────────────
 # Campos mínimos según la ficha del revisor. La IA autocompleta lo que puede; el
 # revisor completa/edita el resto. tipo: "text" | "textarea" | "sino".
@@ -3678,8 +3823,15 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         observaciones_pendientes_otros: list = None,
                         tipo_revision: str = "tecnica", ruta_uploads: str = None,
                         programa: str = "",
-                        necesita_presupuesto_general: bool = False) -> dict:
+                        necesita_presupuesto_general: bool = False,
+                        item_override: dict = None) -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
+
+    `item_override`: dict {"nombre", "tipo_docs", "checklist"} para analizar un ítem que NO está
+    en ITEMS_SEP (ej. categorías de Modificaciones de Proyecto) — se usa tal cual en vez de buscar
+    `item_key` en ITEMS_SEP. Ningún camino especial (coherencia/diseno_hidraulico/
+    diseno_fotovoltaico/presupuesto) se activa salvo que `item_key` coincida exactamente con esos
+    nombres, así que las claves de Modificaciones usan otro namespace a propósito.
 
     `necesita_presupuesto_general`: solo aplica a item_key == "presupuesto" — True cuando el
     proyecto todavía no tiene guardada la versión inicial del cuadro resumen del presupuesto
@@ -3713,7 +3865,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     como [{id, justificacion}, ...] en el resultado (`invalidadas`) para que el llamador las
     auto-descarte con la justificación visible (ver `revisar_invalidacion_cruzada`). Corre en
     paralelo al análisis principal, sin agregar latencia."""
-    item = ITEMS_SEP.get(item_key)
+    item = item_override if item_override is not None else ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
     if item_key == "coherencia":

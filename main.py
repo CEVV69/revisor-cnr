@@ -36,7 +36,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       sintetizar_evaluacion_item, evaluar_respuestas_item,
                       ITEMS_EVALUACION_CONJUNTA,
                       extraer_presupuesto_general, comparar_presupuesto_general,
-                      numero_desde_texto)
+                      numero_desde_texto,
+                      ITEMS_MODIFICACION, ITEMS_MODIFICACION_ORDEN, TIPO_DOC_LABELS_MODIFICACION)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -3301,10 +3302,6 @@ TIPO_DOC_LABELS = {
     "antecedentes_legales":     "Antecedentes legales",
     "lista_beneficiarios":      "Lista de beneficiarios",
     "otro":                     "Otro documento",
-    # Modificaciones de Proyecto (oct-2026, Instructivo CNR Res. Ex. 3661/2021 punto 5.1 letra d):
-    # se sube el original y el modificado como el mismo tipo_doc, en fechas distintas — mismo
-    # criterio de versionado por fecha que ya usa el resto de la app (ver _etiquetar_versiones_docs).
-    "cuadro_variables":         "Cuadro de variables de concurso (original y modificado)",
 }
 
 # Catálogo para "Documentos obligatorios de admisibilidad" (checklist + extracción IA):
@@ -4487,18 +4484,21 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
 # 33°-39°, Instructivo CNR "Modificaciones de Proyectos" Res. Ex. CNR N°3661/2021, y punto 14
 # del "Manual de Supervisión de Obras", Res. Ex. CNR N°8477/2024 — ambos en Drive, carpeta
 # "09 - Supervisión de Obras"). Decisión explícita del usuario (oct-2026): reutilizar SOLO
-# funciones puras ya probadas (catálogo ITEMS_SEP/TIPO_DOC_LABELS, analizar_item(),
-# _estado_subsanacion(), extract_text) — rutas, plantillas y el modelo de datos son propios y
-# viven en registros con "tipo":"modificacion" dentro de la misma colección `proyectos`, para no
-# arriesgar el flujo de Revisión ya probado con una condicional nueva ahí.
+# funciones puras ya probadas (analizar_item() vía `item_override`, _estado_subsanacion(),
+# extract_text) — rutas, plantillas y el modelo de datos son propios y viven en registros con
+# "tipo":"modificacion" dentro de la misma colección `proyectos`, para no arriesgar el flujo de
+# Revisión ya probado con una condicional nueva ahí. Los ítems y tipos de documento SON propios
+# (ITEMS_MODIFICACION/TIPO_DOC_LABELS_MODIFICACION en analyzer.py) — las 9 categorías reales del
+# SEP para modificaciones (confirmadas por el usuario oct-2026), DISTINTAS de ITEMS_SEP/
+# TIPO_DOC_LABELS de la postulación original.
 #
 # v1 (MVP para empezar a probar con un caso real, sep el usuario): análisis de ítem SÍNCRONO
 # (el navegador espera la respuesta de la IA) en vez del patrón de tarea en segundo plano +
 # polling de la Revisión normal — más simple y más rápido de tener funcionando; si algún ítem
 # con muchas imágenes tarda demasiado y el proxy corta la conexión, se migra a ese mismo patrón
 # después. Quedan fuera de este v1 (quedan para la siguiente iteración, ya avisado al usuario):
-# comparación automática del Cuadro de variables, prompt de IA comparativo (hoy usa el mismo
-# checklist estándar de analizar_item(), no uno que compare contra el proyecto original),
+# comparación automática del Cuadro de variables, prompt de IA comparativo (hoy usa el checklist
+# propio de cada categoría, no uno que compare documento a documento contra el original),
 # evaluación con IA de las respuestas en Respuestas, y la Ficha de Modificación.
 
 # Categorías de modificación según el punto 2 del Instructivo 2021 — ayuda al revisor a
@@ -4519,7 +4519,7 @@ async def modificaciones_dashboard(request: Request):
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     mods = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "codigo_sep_original", "nombre", "postulante", "tipo_modificacion",
+        ["id", "codigo_sep", "nombre", "postulante", "tipo_modificacion",
          "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
         username=user["username"])
     mods = [m for m in mods if m.get("tipo") == "modificacion"]
@@ -4547,7 +4547,6 @@ async def crear_modificacion(
     codigo_sep: str = Form(...),
     nombre_proyecto: str = Form(...),
     postulante: str = Form(...),
-    codigo_sep_original: str = Form(""),
     tipo_modificacion: str = Form(""),
 ):
     user = get_current_user(request)
@@ -4558,7 +4557,6 @@ async def crear_modificacion(
         "id": mod_id,
         "tipo": "modificacion",
         "codigo_sep": codigo_sep,
-        "codigo_sep_original": codigo_sep_original.strip(),
         "nombre": nombre_proyecto,
         "postulante": postulante,
         "tipo_modificacion": tipo_modificacion if tipo_modificacion in TIPOS_MODIFICACION else "",
@@ -4582,7 +4580,7 @@ async def ver_modificacion(request: Request, mod_id: str):
     mod = db.get_proyecto(mod_id)
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
-    items_lista = [{"key": k, "nombre": ITEMS_SEP[k]["nombre"]} for k in ITEMS_ORDEN]
+    items_lista = [{"key": k, "nombre": ITEMS_MODIFICACION[k]["nombre"]} for k in ITEMS_MODIFICACION_ORDEN]
     docs_por_tipo = {}
     for d in mod.get("documentos", []):
         docs_por_tipo.setdefault(d.get("tipo_doc"), []).append(d)
@@ -4595,7 +4593,7 @@ async def ver_modificacion(request: Request, mod_id: str):
     return templates.TemplateResponse("modificacion.html", {
         "request": request, "user": user, "proyecto": mod,
         "items_lista": items_lista, "docs_por_tipo": docs_por_tipo, "obs_por_item": obs_por_item,
-        "tipo_doc_opciones": TIPO_DOC_LABELS, "tipos_modificacion": TIPOS_MODIFICACION,
+        "tipo_doc_opciones": TIPO_DOC_LABELS_MODIFICACION, "tipos_modificacion": TIPOS_MODIFICACION,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "costo_api": _costo_para_vista(mod),
         "n_pendientes_respuesta": n_pendientes_respuesta,
@@ -4661,7 +4659,7 @@ async def subir_documento_modificacion(
 
     doc = {
         "id": doc_id, "nombre_original": archivo.filename, "filename": filename,
-        "tipo_doc": tipo_doc, "tipo_doc_label": TIPO_DOC_LABELS.get(tipo_doc, tipo_doc),
+        "tipo_doc": tipo_doc, "tipo_doc_label": TIPO_DOC_LABELS_MODIFICACION.get(tipo_doc, tipo_doc),
         "fecha_subida": _ahora().isoformat(), "texto_len": _texto_len(texto_guardado),
         "analizado": False,
     }
@@ -4697,7 +4695,7 @@ async def actualizar_tipo_documento_modificacion(
     doc = next((d for d in mod["documentos"] if d["id"] == doc_id), None)
     if not doc or doc.get("analizado"):
         return {"error": "documento no modificable"}
-    label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc.replace("_", " ").title())
+    label = TIPO_DOC_LABELS_MODIFICACION.get(tipo_doc, tipo_doc.replace("_", " ").title())
     doc["tipo_doc"] = tipo_doc
     doc["tipo_doc_label"] = label
     db.save_proyecto(mod)
@@ -4712,7 +4710,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    if item_key not in ITEMS_SEP:
+    if item_key not in ITEMS_MODIFICACION:
         raise HTTPException(status_code=404, detail="Ítem no válido")
     mod = db.get_proyecto(mod_id)
     if not mod or mod.get("tipo") != "modificacion":
@@ -4725,6 +4723,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         resultado = await analizar_item(
             item_key=item_key, documentos=documentos_con_texto,
             resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
+            item_override=ITEMS_MODIFICACION[item_key],
         )
     except Exception as e:
         import traceback
@@ -4746,14 +4745,14 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     mod["observaciones"] = [
         o for o in mod.get("observaciones", []) if o.get("item") != item_key or o.get("manual")
     ]
-    nombre_item = ITEMS_SEP[item_key]["nombre"]
+    nombre_item = ITEMS_MODIFICACION[item_key]["nombre"]
     docs_incluidos = resultado.get("docs_incluidos", [])
     resumen_docs = ", ".join(d["label"] for d in docs_incluidos)
     for obs in resultado.get("observaciones", []):
         obs["id"] = str(uuid.uuid4())[:8]
         obs["item"] = item_key
         obs["item_nombre"] = nombre_item
-        obs["doc_nombre"] = f"Ítem SEP: {nombre_item} ({resumen_docs})"
+        obs["doc_nombre"] = f"{nombre_item} ({resumen_docs})"
         obs["fecha"] = _ahora().isoformat()
         obs["estado"] = "pendiente"
         mod["observaciones"].append(obs)
@@ -4813,9 +4812,11 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
         raise HTTPException(status_code=404)
     aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
     obs_con_estado = [{"obs": o, "sub": _estado_subsanacion(o)} for o in aprobadas]
+    n_pendientes_respuesta = sum(1 for par in obs_con_estado if par["sub"]["puede_responder"])
     return templates.TemplateResponse("modificacion_respuestas.html", {
         "request": request, "user": user, "proyecto": mod, "obs_con_estado": obs_con_estado,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
+        "n_pendientes_respuesta": n_pendientes_respuesta,
     })
 
 
