@@ -182,22 +182,28 @@ def _extraer_concurso_id(codigo_sep: str) -> str:
 def _agrupar_proyectos_por_concurso(proyectos: list) -> list:
     """Agrupa `proyectos` (con codigo_sep/estado/fecha_creacion/fecha_estado) por concurso —
     mismo criterio que `_extraer_concurso_id` — para el resumen imprimible/exportable del
-    dashboard. Cada grupo queda ordenado por estado (según ESTADOS_PROYECTO) y luego código SEP;
-    los grupos se ordenan por actividad más reciente primero. Opera solo sobre la lista ya
-    cargada (sin ir a la BD) — el nombre del concurso no se muestra, así se evita una consulta
-    extra por concurso en cada carga del dashboard."""
+    dashboard. Cada grupo queda ordenado por estado (según ESTADOS_PROYECTO) y, DENTRO de cada
+    estado, por última modificación (fecha_estado, o fecha_creacion si nunca cambió de estado)
+    más reciente primero (oct-2026, pedido del usuario). Los grupos (concursos) se ordenan por
+    actividad más reciente primero. Opera solo sobre la lista ya cargada (sin ir a la BD) — el
+    nombre del concurso no se muestra, así se evita una consulta extra por concurso en cada
+    carga del dashboard."""
     orden_estado = {e: i for i, e in enumerate(ESTADOS_PROYECTO)}
+    fecha_mod = lambda p: p.get("fecha_estado") or p.get("fecha_creacion") or ""
     grupos = {}
     for p in proyectos:
         cid = _extraer_concurso_id(p.get("codigo_sep") or "")
         grupos.setdefault(cid, []).append(p)
     resumen = []
     for cid, items in grupos.items():
+        # Dos sorts estables en cadena (Python conserva el orden relativo de empates): primero
+        # por fecha descendente, luego por estado — así cada grupo de estado queda con sus
+        # proyectos en orden de fecha sin tener que invertir el string ISO para mezclar
+        # ascendente/descendente en una sola key.
+        items_por_fecha = sorted(items, key=fecha_mod, reverse=True)
         items_ordenados = sorted(
-            items,
-            key=lambda p: (
-                orden_estado.get(ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")), 99),
-                p.get("codigo_sep") or ""))
+            items_por_fecha,
+            key=lambda p: orden_estado.get(ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")), 99))
         ultima_actividad = max(
             (p.get("fecha_estado") or p.get("fecha_creacion") or "") for p in items_ordenados)
         conteo = {}
