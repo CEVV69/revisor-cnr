@@ -4841,3 +4841,47 @@ repitió el test de regresión de la sincronización Diseñador v135 — Revisi�
 
 ---
 
+## Modificaciones de Proyecto — v1.4: costo API y formato de observaciones (oct-2026)
+
+El usuario reportó dos fallas tras seguir probando con su caso real (2 revisiones hechas, contador
+en US$ 0,00 y preguntó si era por ser un documento de una sola página — no lo era):
+
+1. **El contador de costo API nunca se registraba en Modificaciones.** Causa real: a diferencia de
+   `_analizar_item_fondo()` (Revisión normal), `revisar_item_modificacion()` nunca llamaba a
+   `analyzer.iniciar_costo()` antes de `analizar_item()` ni a `main._registrar_costo()` después —
+   sin abrir el acumulador (`ContextVar` que `_log_uso()` consulta internamente en cada llamada a
+   la API), no había nada que sumar al campo `costo_api` del proyecto, sin importar el tamaño del
+   documento. **Fix:** se agregó `acc_costo = iniciar_costo()` antes del `try/except` que llama a
+   `analizar_item()`, y `_registrar_costo(mod, "revision", acc_costo, detalle=item_key)` justo
+   antes de `db.save_proyecto(mod)` — mismo patrón exacto que usa la Revisión normal, reutilizando
+   el paso `"revision"` de `PASOS_COSTO` (sin crear una etiqueta nueva: son proyectos separados, no
+   se mezclan en ningún desglose).
+2. **Las observaciones de dos párrafos (análisis técnico + propuesta simple y directa) se veían
+   como un solo bloque de texto**, sin la separación acordada con el usuario para el formato de
+   observaciones. Causa real: NO es un problema del prompt — `SYSTEM_PROMPT` (compartido, cacheado,
+   usado por `_analizar_grupo()` sin importar el ítem) ya exige el formato de dos párrafos
+   ("REDACCIÓN DEL CAMPO texto") para cualquier llamada a `analizar_item()`, incluidas las de
+   Modificaciones vía `item_override`. El bug estaba en las plantillas nuevas: `modificacion.html`
+   y `modificacion_respuestas.html` renderizaban `{{ obs.texto }}` dentro de un `<p>` sin
+   `white-space:pre-wrap`, así que el salto de línea en blanco entre los dos párrafos se colapsaba
+   visualmente (HTML ignora saltos de línea literales sin esa propiedad). Las plantillas de
+   Revisión normal ya resuelven esto con `.obs-texto`/`.resp-txt` (`white-space:pre-wrap` en
+   `ficha.html`/`respuestas.html`) o con un `<textarea>` (que preserva saltos de línea nativamente)
+   en `proyecto.html` — las nuevas plantillas de Modificaciones no habían copiado ese detalle.
+   **Fix:** se agregó `white-space:pre-wrap` en los 4 lugares donde estas plantillas muestran texto
+   libre potencialmente multilínea: la observación en `modificacion.html`, y la observación +
+   respuesta de ronda + comentario del revisor en `modificacion_respuestas.html`.
+
+### Validación
+
+`py_compile`/`pyflakes` OK. Test end-to-end actualizado: para el costo, como la API real no está
+disponible en el entorno de pruebas (la llamada real de IA falla con 401 por la key falsa, antes
+de que `_log_uso()` registre ninguna llamada), se verificó `_registrar_costo()` directamente con un
+acumulador simulado (`{"usd":..., "llamadas": 1, ...}`) y se confirmó que el campo `costo_api` del
+proyecto queda bien escrito y se muestra en la página (`"US$" in r.text`). Para el formato, se
+guardó una observación con texto de dos párrafos separados por línea en blanco y se confirmó que
+la página incluye `white-space:pre-wrap` junto al texto. Se repitió el test de regresión de la
+sincronización Diseñador v135 — Revisión normal sigue intacta.
+
+---
+

@@ -4727,6 +4727,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
     documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
 
+    acc_costo = iniciar_costo()
     try:
         resultado = await analizar_item(
             item_key=item_key, documentos=documentos_con_texto,
@@ -4768,6 +4769,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     mod.setdefault("items_revisados", {})[item_key] = {
         "fecha": _ahora().isoformat(), "docs": docs_incluidos,
     }
+    _registrar_costo(mod, "revision", acc_costo, detalle=item_key)
     db.save_proyecto(mod)
     return RedirectResponse(url=f"/modificacion/{mod_id}#item-{item_key}", status_code=302)
 

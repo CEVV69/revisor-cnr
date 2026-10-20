@@ -33,16 +33,16 @@
       {% if sub.estado == 'resuelta' %}Resuelta{% elif sub.estado == 'no_resuelta' %}No resuelta{% else %}Esperando respuesta — ronda {{ sub.ronda_actual }}{% endif %}
     </span>
   </div>
-  <p style="font-size:0.86rem; margin-bottom:0.6rem;">{{ obs.texto }}</p>
+  <p style="font-size:0.86rem; margin-bottom:0.6rem; white-space:pre-wrap;">{{ obs.texto }}</p>
 
   {% for r in obs.get('subsanacion', {}).get('rondas', []) %}
   <div style="border-left:3px solid var(--border); padding-left:0.7rem; margin-bottom:0.6rem; font-size:0.84rem;">
     <div class="text-muted" style="font-size:0.76rem;">Ronda {{ r.ronda }} — {{ r.fecha | fecha }} — {{ r.por }}</div>
-    <p style="margin:0.2rem 0;">{{ r.respuesta }}</p>
+    <p style="margin:0.2rem 0; white-space:pre-wrap;">{{ r.respuesta }}</p>
     <span class="badge badge-{% if r.evaluacion == 'resuelta' %}tecnica{% else %}menor{% endif %}">
       {{ 'Resuelta' if r.evaluacion == 'resuelta' else 'Reiterada' }}
     </span>
-    {% if r.comentario %}<p class="text-muted" style="margin:0.3rem 0 0;">{{ r.comentario }}</p>{% endif %}
+    {% if r.comentario %}<p class="text-muted" style="margin:0.3rem 0 0; white-space:pre-wrap;">{{ r.comentario }}</p>{% endif %}
   </div>
   {% endfor %}
 
