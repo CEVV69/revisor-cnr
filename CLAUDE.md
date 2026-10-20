@@ -39,17 +39,19 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.2, el usuario la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.3, el usuario la está probando con un caso real) —
 sección 100% separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR Res. Ex.
 3661/2021): rutas/templates `/modificacion*` propios, reutilizan solo funciones puras
 (`_estado_subsanacion`, `analizar_item()` vía `item_override`). Un solo Código SEP (no cambia con
-la modificación). 10 categorías reales del SEP + Coherencia Global (`ITEMS_MODIFICACION` en
-`analyzer.py`, cada una con checklist propio), no los 19 ítems de Revisión. Coherencia Global
-(`mod_coherencia`) revisa todos los documentos juntos y señala qué antecedentes mínimos del
-Instructivo faltan (expediente incompleto). Cada ítem muestra su conteo de documentos. v1 sigue
-síncrono y el análisis NO compara aún contra el proyecto original. Pendiente:
-diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un
-PDF de referencia real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
+la modificación). 9 categorías reales del SEP + Coherencia Global (`ITEMS_MODIFICACION` en
+`analyzer.py`, cada una con checklist propio) — "Cuadro de Variables de Concurso" NO es categoría
+aparte: viene incluido en el mismo PDF de "Solicitud de Modificación" (confirmado con el formato
+real de la CNR), fusionado ahí. El informe ITO NO se exige en proyectos PEPA (el checklist ya lo
+contempla). Coherencia Global (`mod_coherencia`) revisa todos los documentos juntos y señala qué
+antecedentes mínimos del Instructivo faltan. Cada ítem muestra su conteo de documentos. v1 sigue
+síncrono y el análisis NO compara aún contra el proyecto original. Pendiente: diff de presupuesto
+con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un PDF de referencia
+real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

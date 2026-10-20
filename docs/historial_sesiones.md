@@ -4795,3 +4795,49 @@ la sincronización Diseñador v135 — Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.3: fusión Cuadro de Variables + ITO condicional (oct-2026)
+
+El usuario subió el PDF real "Solicitud de Modificación" (caso 202-2024-16-078) y confirmó dos
+correcciones sobre la revisión de este mismo caso de prueba:
+
+1. **El Cuadro de Variables de Concurso NO es un documento aparte** — el formato oficial de la CNR
+   para "SOLICITA MODIFICACIÓN DE PROYECTO" trae el cuadro (Costo Total UF, Bonificación UF,
+   Aporte %, Cuenta con inicio de obra — Original/Modificado) incluido en el mismo PDF que la
+   justificación y la firma del beneficiario. Tener `mod_cuadro_variables` como categoría separada
+   no se justifica: obligaría a subir el mismo archivo dos veces. **Se eliminó** esa categoría de
+   `ITEMS_MODIFICACION`/`ITEMS_MODIFICACION_ORDEN`/`TIPO_DOC_LABELS_MODIFICACION` (quedan 9
+   categorías + Coherencia Global = 10 ítems) y su checklist se fusionó dentro de `mod_solicitud`
+   ("Anexo — Solicitud de Modificación (incluye Cuadro de Variables)"), que ahora revisa en el
+   mismo documento: identificación del cambio + motivo + clasificación en las 6 categorías del
+   Instructivo + la aritmética y regla de bonificación del cuadro (bonificación modificada nunca
+   mayor a la original; aumento de costo lo asume el beneficiario; baja de costo baja la
+   bonificación proporcional). El checklist de `mod_coherencia` y los comentarios de
+   `mod_presupuesto` se actualizaron para dejar de referirse al Cuadro de Variables como anexo
+   propio.
+   - Documentos ya subidos por el usuario con el tipo_doc viejo `mod_cuadro_variables` (si los
+     hay) NO se rompen: siguen guardados con su `tipo_doc_label` tal como se guardó al subirlos,
+     solo dejan de contarse en el conteo de documentos de ningún ítem del panel (ya no hay ítem
+     `mod_cuadro_variables` que los cuente) — conviene que el usuario los reclasifique a
+     `mod_solicitud` si corresponden al mismo documento.
+2. **El informe de la ITO no es obligatorio en proyectos Pequeña Agricultura (PEPA)** — exigirlo
+   implica un costo adicional que el reglamento no les impone, y el caso de prueba del usuario es
+   justamente PEPA. El checklist de `mod_solicitud` (antes exigía el informe ITO "sin excepción",
+   según el punto 5.1.a del Instructivo leído literal) ahora aclara que NO es obligatorio en
+   proyectos PEPA — la gran mayoría de los casos que se revisan — y que no debe observarse su
+   ausencia salvo que el expediente indique que el proyecto no es PEPA o que la complejidad del
+   cambio claramente lo amerite. Mismo ajuste en el checklist de `mod_coherencia`. No se agregó un
+   campo "programa"/PEPA al modelo de datos de Modificaciones (a diferencia de Revisión, que sí
+   distingue `proyecto.programa`) — se dejó que la IA lo infiera del contexto del expediente
+   (escala del proyecto, tipo de obra) en vez de pedirle al revisor un campo nuevo; si en la
+   práctica esto da falsos positivos/negativos, se puede agregar ese campo después.
+
+### Validación
+
+`py_compile`/`pyflakes` OK (sin hallazgos nuevos). Test end-to-end actualizado: confirma que
+`mod_cuadro_variables` ya no aparece en ningún HTML (ni como ítem ni como opción del selector de
+subida), que `mod_solicitud` sigue existiendo y es seleccionable, y el resto del flujo (conteo de
+documentos, Coherencia Global, rondas de subsanación) sigue funcionando igual que en v1.2. Se
+repitió el test de regresión de la sincronización Diseñador v135 — Revisión normal sigue intacta.
+
+---
+

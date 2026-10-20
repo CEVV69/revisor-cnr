@@ -1031,31 +1031,32 @@ ITEMS_MODIFICACION = {
         "checklist": """Verifica que la solicitud identifique con claridad: el código del proyecto (debe ser el mismo
 del proyecto ya bonificado, una modificación nunca cambia el código), qué elemento(s) específicos
 del proyecto original se modifican, y el motivo de la modificación con su justificación técnica.
-Según el Instructivo CNR (Res. Ex. 3661/2021, punto 5.1.a), la solicitud debe venir respaldada por
-un informe de la Inspección Técnica de Obras (ITO) que avale la necesidad del cambio — su ausencia
-es observable. Clasifica el motivo declarado en una de las seis categorías del Instructivo:
-rediseño, cambio de emplazamiento, eliminación de partidas, cambio sin cálculo (marca/modelo/tipo),
-incorporación de nueva obra de entrega, o fuerza mayor — y verifica que el motivo invocado sea
-coherente con lo que efectivamente cambia en el resto de los documentos de la modificación (Cuadro
-de Variables, Diseño, Presupuesto). Si la modificación es por fuerza mayor, debe venir acreditada
-(certificado, informe, evidencia del hecho que la origina).""",
-    },
-    "mod_cuadro_variables": {
-        "nombre": "Cuadro de Variables de Concurso",
-        "tipo_docs": ["mod_cuadro_variables"],
-        "checklist": """Verifica que el cuadro incluya, lado a lado, el costo total (UF) ORIGINAL y MODIFICADO, la
-bonificación (UF) ORIGINAL y MODIFICADA, y el aporte % — y que la aritmética entre estos tres
-valores sea consistente en ambas columnas (bonificación = costo total × aporte bonificado; el %
-de aporte propio del postulante debe ser el mismo en ambas versiones salvo que el cambio de costo
-lo justifique).
+Clasifica el motivo declarado en una de las seis categorías del Instructivo (Res. Ex. CNR
+3661/2021, punto 2): rediseño, cambio de emplazamiento, eliminación de partidas, cambio sin
+cálculo (marca/modelo/tipo), incorporación de nueva obra de entrega, o fuerza mayor — y verifica
+que el motivo invocado sea coherente con lo que efectivamente cambia en el resto de los documentos
+de la modificación (Diseño, Presupuesto). Si la modificación es por fuerza mayor, debe venir
+acreditada (certificado, informe, evidencia del hecho que la origina).
+El informe de la Inspección Técnica de Obras (ITO) que exige el punto 5.1.a del Instructivo NO es
+obligatorio en proyectos del Programa Especial Pequeña Agricultura (PEPA) — la gran mayoría de los
+casos que se revisan — porque implica un costo adicional que el reglamento no les exige asumir. NO
+observes su ausencia como falla salvo que el expediente indique que el proyecto NO es PEPA (montos
+y escala mayores, bonificación de otro programa) o que el tipo de cambio sea de una complejidad
+que claramente amerite ese respaldo (ej. un rediseño estructural mayor).
+
+CUADRO DE VARIABLES DE CONCURSO: el formato oficial de Solicitud de Modificación de la CNR trae
+este cuadro incluido en el mismo documento (NO es un anexo aparte) — revísalo acá. Debe incluir,
+lado a lado, el costo total (UF) ORIGINAL y MODIFICADO, la bonificación (UF) ORIGINAL y
+MODIFICADA, y el aporte % — con aritmética consistente entre costo, bonificación y aporte % en
+ambas columnas (observa si el costo modificado o la bonificación modificada quedaron en blanco o
+sin completar: el formato trae la columna "Modificado" para llenar, no debe quedar vacía).
 Regla crítica, sin excepción: la bonificación MODIFICADA nunca puede ser mayor a la ORIGINAL —
-observa de inmediato cualquier cuadro donde esto ocurra. Si el costo total AUMENTA, la bonificación
-debe mantenerse igual a la original (el mayor valor lo asume completo el beneficiario/solicitante,
-nunca la CNR) — observa si el cuadro muestra un aumento de bonificación proporcional al aumento de
-costo, eso está mal. Si el costo total DISMINUYE, la bonificación debe bajar proporcionalmente
-(mismo % de aporte bonificado que el proyecto original aplicado al nuevo costo) — observa si quedó
-igual a la original pese a la baja de costo. Si el costo queda IGUAL, ambos valores (costo y
-bonificación) deben coincidir en las dos columnas.""",
+obsérvalo de inmediato si ocurre. Si el costo total AUMENTA, la bonificación debe mantenerse igual
+a la original (el mayor valor lo asume completo el beneficiario/solicitante, nunca la CNR) — un
+aumento de bonificación proporcional al aumento de costo está mal. Si el costo total DISMINUYE, la
+bonificación debe bajar proporcionalmente (mismo % de aporte bonificado que el proyecto original
+aplicado al nuevo costo) — obsérvalo si quedó igual a la original pese a la baja de costo. Si el
+costo queda IGUAL, ambos valores deben coincidir en las dos columnas.""",
     },
     "mod_diseno": {
         "nombre": "Diseño hidráulico, agronómico u otros diseños modificados",
@@ -1146,31 +1147,37 @@ antigüedad, igual que en la postulación original.""",
 proyecto original completo). Responde dos preguntas, en este orden:
 
 1. ¿ESTÁ COMPLETA la solicitud? Según el Instructivo CNR (Res. Ex. 3661/2021, punto 5.1), una
-   modificación debe venir con, como mínimo: a) objetivo específico y justificación, respaldada
-   por un informe de la Inspección Técnica de Obras (ITO); b) el efecto sobre el costo (si
-   corresponde — presupuesto antiguo y nuevo, con las partidas modificadas); c) planos y diseños
-   del cambio, si el cambio tiene un componente físico/técnico; d) el Cuadro de Variables de
-   Concurso (costo y bonificación original vs. modificado); e) cualquier otro documento necesario
-   para acreditar el cambio (ej. fuerza mayor, cotizaciones del equipo nuevo).
+   modificación debe venir con, como mínimo: a) objetivo específico y justificación (el informe de
+   la Inspección Técnica de Obras, ITO, que menciona la letra a) NO es obligatorio en proyectos del
+   Programa Especial Pequeña Agricultura — PEPA, la gran mayoría de los casos — así que NO lo
+   observes como faltante salvo que el expediente indique que el proyecto no es PEPA o que el
+   cambio sea de una complejidad que claramente lo amerite); b) el efecto sobre el costo (si
+   corresponde — presupuesto antiguo y nuevo, con las partidas modificadas, y el Cuadro de
+   Variables de Concurso con costo/bonificación original vs. modificado, que en el formato oficial
+   de la CNR viene INCLUIDO en el mismo documento "Solicitud de Modificación", no es un anexo
+   aparte); c) planos y diseños del cambio, si el cambio tiene un componente físico/técnico; d)
+   cualquier otro documento necesario para acreditar el cambio (ej. fuerza mayor, cotizaciones del
+   equipo nuevo).
    Mira qué documentos efectivamente se subieron (los ves en el expediente que te llega) y señala
    EXPLÍCITAMENTE cuáles de esos antecedentes mínimos faltan — ej. "el consultor solo ingresó la
-   Solicitud de Modificación con su justificación, pero no se adjuntó el Cuadro de Variables de
-   Concurso ni el Presupuesto modificado, necesarios para evaluar el efecto en la bonificación".
-   Si la Solicitud declara un tipo de cambio (rediseño, cambio de marca/modelo, eliminación de
-   partidas, etc.) que normalmente requiere Diseño/Especificaciones/Cubicaciones/Presupuesto
-   modificados y esos documentos no están, obsérvalo como información faltante que impide cerrar
-   la revisión — no asumas que "no aplica" salvo que el motivo declarado lo justifique con
-   claridad (ej. un cambio de marca de un equipo ya calculado, sin alterar el diseño, puede no
-   necesitar un Diseño modificado nuevo, pero si sigue necesitando Especificaciones/Presupuesto).
+   Solicitud de Modificación con su justificación, pero no se adjuntó el Presupuesto modificado
+   necesario para evaluar el efecto en la bonificación". Si la Solicitud declara un tipo de cambio
+   (rediseño, cambio de marca/modelo, eliminación de partidas, etc.) que normalmente requiere
+   Diseño/Especificaciones/Cubicaciones/Presupuesto modificados y esos documentos no están,
+   obsérvalo como información faltante que impide cerrar la revisión — no asumas que "no aplica"
+   salvo que el motivo declarado lo justifique con claridad (ej. un cambio de marca de un equipo ya
+   calculado, sin alterar el diseño, puede no necesitar un Diseño modificado nuevo, pero si sigue
+   necesitando Especificaciones/Presupuesto).
 
 2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
    consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden
    con lo que efectivamente muestran el Diseño/Especificaciones/Presupuesto modificados; el Cuadro
-   de Variables es aritméticamente consistente con el Presupuesto modificado; la bonificación
-   modificada nunca es mayor a la original (ver el detalle de esta regla en el checklist de Cuadro
-   de Variables y Presupuesto modificado — acá solo confirma que no haya contradicción entre esos
-   dos documentos); y que el cambio, en conjunto, sea técnicamente viable y ejecutable tal como
-   fue declarado — no un cambio parcial que deja una pieza del sistema de riego sin resolver.
+   de Variables (dentro de la Solicitud) es aritméticamente consistente con el Presupuesto
+   modificado; la bonificación modificada nunca es mayor a la original (ver el detalle de esta
+   regla en el checklist de Solicitud de Modificación y Presupuesto modificado — acá solo confirma
+   que no haya contradicción entre esos dos documentos); y que el cambio, en conjunto, sea
+   técnicamente viable y ejecutable tal como fue declarado — no un cambio parcial que deja una
+   pieza del sistema de riego sin resolver.
 
 No fuerces observaciones de fondo (punto 2) si el expediente todavía está incompleto (punto 1) —
 en ese caso la prioridad es señalar qué falta, no evaluar coherencia con información parcial.""",
@@ -1179,12 +1186,14 @@ en ese caso la prioridad es señalar qué falta, no evaluar coherencia con infor
 
 # Orden de presentación: el mismo orden en que el usuario describió las categorías reales del SEP
 # para modificaciones (oct-2026) — Diseño → Especificaciones → Cubicaciones → Cronograma →
-# Presupuesto → Planos → Otros → Solicitud — con Cuadro de Variables después por ser la única
-# categoría nueva (9na, sin equivalente directo en el SEP) que no venía en esa enumeración, y
-# Coherencia Global al final — cierre transversal, igual que en ITEMS_ORDEN/ITEMS_SEP.
+# Presupuesto → Planos → Otros → Solicitud — con Coherencia Global al final (cierre transversal,
+# igual que en ITEMS_ORDEN/ITEMS_SEP). NO hay categoría aparte para "Cuadro de Variables de
+# Concurso": el usuario confirmó con el formato real de la CNR (oct-2026) que ese cuadro viene
+# incluido en el mismo documento "Solicitud de Modificación" — se fusionó ahí (ver checklist de
+# "mod_solicitud") para no pedir subir dos veces el mismo PDF.
 ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicaciones",
                             "mod_cronograma", "mod_presupuesto", "mod_planos", "mod_otros",
-                            "mod_solicitud", "mod_cuadro_variables", "mod_coherencia"]
+                            "mod_solicitud", "mod_coherencia"]
 
 TIPO_DOC_LABELS_MODIFICACION = {
     "mod_diseno":           "Anexo — Diseño hidráulico, agronómico u otros diseños",
@@ -1194,8 +1203,7 @@ TIPO_DOC_LABELS_MODIFICACION = {
     "mod_presupuesto":      "Anexo — Presupuesto modificado",
     "mod_planos":           "Anexo — Planos modificados",
     "mod_otros":            "Anexo — Otros Documentos",
-    "mod_solicitud":        "Anexo — Solicitud de Modificación",
-    "mod_cuadro_variables": "Anexo — Cuadro de Variables de Concurso",
+    "mod_solicitud":        "Anexo — Solicitud de Modificación (incluye Cuadro de Variables)",
 }
 
 
