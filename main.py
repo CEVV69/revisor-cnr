@@ -4580,10 +4580,18 @@ async def ver_modificacion(request: Request, mod_id: str):
     mod = db.get_proyecto(mod_id)
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
-    items_lista = [{"key": k, "nombre": ITEMS_MODIFICACION[k]["nombre"]} for k in ITEMS_MODIFICACION_ORDEN]
     docs_por_tipo = {}
     for d in mod.get("documentos", []):
         docs_por_tipo.setdefault(d.get("tipo_doc"), []).append(d)
+    # n_docs por ítem: "mod_coherencia" usa TODOS los documentos (igual que analizar_item() lo
+    # trata — ver item_key in ("coherencia", "mod_coherencia")), el resto cuenta solo los de su
+    # propio tipo_doc (mismo criterio que items_info en la Revisión normal, ver proyecto.html).
+    items_lista = [
+        {"key": k, "nombre": ITEMS_MODIFICACION[k]["nombre"],
+         "n_docs": len(mod.get("documentos", [])) if k == "mod_coherencia"
+                   else sum(len(docs_por_tipo.get(td, [])) for td in ITEMS_MODIFICACION[k]["tipo_docs"])}
+        for k in ITEMS_MODIFICACION_ORDEN
+    ]
     obs_por_item = {}
     for o in mod.get("observaciones", []):
         obs_por_item.setdefault(o.get("item"), []).append(o)

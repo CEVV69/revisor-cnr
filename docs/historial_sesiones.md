@@ -4743,3 +4743,55 @@ sincronización Diseñador v135 — Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.2: Coherencia Global + conteo de documentos (oct-2026)
+
+Tras seguir probando con el caso real (el consultor solo había ingresado la Solicitud de
+Modificación y su justificación), el usuario hizo dos preguntas:
+
+1. **¿Debería haber una revisión de "Coherencia Global" como en la Revisión de proyectos, que
+   detecte que faltan fichas/documentos?** Sí — se agregó `mod_coherencia` ("Coherencia Global")
+   como 10ma categoría de `ITEMS_MODIFICACION`, al final del orden (mismo rol que `"coherencia"`
+   en `ITEMS_SEP`: cierre transversal, usa TODOS los documentos de la modificación en vez de
+   filtrar por tipo). Su checklist responde, EN ESTE ORDEN: (1) ¿está completa la solicitud según
+   los antecedentes mínimos del Instructivo 5.1 (a-e) — objetivo+justificación+informe ITO, efecto
+   en costo, planos/diseños, Cuadro de Variables, otros? Si falta algo, lo señala explícitamente
+   (ej. "solo se ingresó la Solicitud con su justificación, falta el Cuadro de Variables y el
+   Presupuesto modificado"), sin asumir que "no aplica" salvo que el motivo declarado lo
+   justifique. (2) Solo si hay información suficiente, evalúa coherencia de fondo entre
+   documentos (motivo declarado vs. lo que muestran Diseño/Presupuesto, aritmética del Cuadro de
+   Variables, que la bonificación modificada nunca sea mayor a la original). Instrucción explícita
+   en el checklist: no forzar el punto 2 si el expediente sigue incompleto.
+   - Cambio de código: `analizar_item()` (`analyzer.py`) tenía `if item_key == "coherencia":` para
+     usar todos los documentos sin filtrar por `tipo_docs` — se cambió a
+     `if item_key in ("coherencia", "mod_coherencia"):` (mismo criterio en el segundo lugar donde
+     aparecía, el `es_coherencia=` que pasa a `_analizar_grupo()`). Cambio aditivo: solo agrega un
+     valor reconocido a una comparación de igualdad, no toca el comportamiento para `"coherencia"`
+     ni para ningún otro `item_key`.
+   - Decisión explícita de alcance: NO se implementó una lista hardcodeada de "documentos
+     obligatorios por tipo de modificación" (como si existe para la postulación original vía
+     `extraer_documentos_obligatorios`/bases del concurso) — el Instructivo no da un mínimo fijo
+     igual para las 6 categorías de modificación (ej. un cambio de marca sin cálculo no
+     necesariamente requiere Diseño modificado, pero un rediseño sí). Se prefirió dejar que la IA
+     de Coherencia Global lo juzgue caso a caso con el motivo declarado en la Solicitud, en vez de
+     adivinar una tabla fija que podría generar falsos positivos/negativos.
+2. **Al subir un documento no se refleja en ningún ítem de abajo, como si pasa en la Revisión de
+   proyectos (que muestra cuántos documentos tiene cada ítem)** — confirmado como una omisión real
+   (no era a propósito). `ver_modificacion()` en `main.py` ahora calcula `n_docs` por ítem
+   (contando documentos por `tipo_doc` igual que `items_info` en la Revisión normal, salvo
+   `mod_coherencia` que cuenta el TOTAL de documentos de la modificación, consistente con que usa
+   todos). `modificacion.html` muestra "N documentos disponibles" en cada tarjeta y deshabilita el
+   botón "Revisar ítem" cuando `n_docs == 0` (mismo patrón que `item-card-sep` en `proyecto.html`).
+
+### Validación
+
+`py_compile` OK, `pyflakes` sin hallazgos nuevos. Test end-to-end actualizado: confirma que un
+ítem sin documentos sale deshabilitado y muestra "0 documentos disponibles"; tras subir un
+documento el contador sube a 1 y "Coherencia Global" (que cuenta el total) deja de estar
+deshabilitada; se llamó `revisar-item/mod_coherencia` con un documento real cargado y se confirmó
+que el flujo llega limpio hasta la llamada real a la API de Claude (falla con 401 por la API key
+falsa del test, capturado por el `try/except` de la ruta — confirma que el wiring de
+`item_override` no tiene ningún bug propio antes de ese punto). Se repitió el test de regresión de
+la sincronización Diseñador v135 — Revisión normal sigue intacta.
+
+---
+

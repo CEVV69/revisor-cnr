@@ -39,15 +39,15 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.1, el usuario ya la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.2, el usuario la está probando con un caso real) —
 sección 100% separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR Res. Ex.
-3661/2021): rutas `/modificacion*` y templates `modificacion*.html` propios, nunca comparten
-página con `/proyecto/*`; reutilizan solo funciones puras (`_estado_subsanacion`,
-`analizar_item()` vía `item_override`). Entra desde el botón "Modificaciones" del dashboard, un
-solo Código SEP (no cambia con la modificación). Ítems y tipos de documento son las 9 categorías
-reales del SEP (`ITEMS_MODIFICACION`/`TIPO_DOC_LABELS_MODIFICACION` en `analyzer.py`, cada una con
-su propio checklist), no los 19 ítems genéricos de Revisión. v1 sigue síncrono (sin tarea en
-segundo plano) y el análisis por ítem NO compara aún contra el proyecto original. Pendiente:
+3661/2021): rutas/templates `/modificacion*` propios, reutilizan solo funciones puras
+(`_estado_subsanacion`, `analizar_item()` vía `item_override`). Un solo Código SEP (no cambia con
+la modificación). 10 categorías reales del SEP + Coherencia Global (`ITEMS_MODIFICACION` en
+`analyzer.py`, cada una con checklist propio), no los 19 ítems de Revisión. Coherencia Global
+(`mod_coherencia`) revisa todos los documentos juntos y señala qué antecedentes mínimos del
+Instructivo faltan (expediente incompleto). Cada ítem muestra su conteo de documentos. v1 sigue
+síncrono y el análisis NO compara aún contra el proyecto original. Pendiente:
 diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un
 PDF de referencia real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 

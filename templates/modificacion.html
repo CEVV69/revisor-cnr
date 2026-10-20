@@ -150,12 +150,16 @@
     {% for item in items_lista %}
     <div id="item-{{ item.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
       <strong style="font-size:0.86rem;">{{ item.nombre }}</strong>
+      <div style="font-size:0.76rem; color:var(--text-2);">
+        {{ item.n_docs }} documento{{ 's' if item.n_docs != 1 else '' }} disponible{{ 's' if item.n_docs != 1 else '' }}
+      </div>
       {% if obs_por_item.get(item.key) %}
       <span class="badge badge-tecnica" style="width:fit-content;">{{ obs_por_item[item.key]|length }} observación{{ 'es' if obs_por_item[item.key]|length != 1 else '' }}</span>
       {% endif %}
       <form method="post" action="/modificacion/{{ proyecto.id }}/revisar-item/{{ item.key }}"
             {% if obs_por_item.get(item.key) %}onsubmit="return confirm('¿Re-revisar este ítem? Se reemplazan las observaciones generadas por la IA.')"{% endif %}>
-        <button type="submit" class="btn btn-sm {% if obs_por_item.get(item.key) %}btn-ghost{% else %}btn-primary{% endif %}" style="width:100%;">
+        <button type="submit" class="btn btn-sm {% if obs_por_item.get(item.key) %}btn-ghost{% else %}btn-primary{% endif %}" style="width:100%;"
+                {% if item.n_docs == 0 %}disabled title="Sin documentos para este ítem"{% endif %}>
           {% if obs_por_item.get(item.key) %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
         </button>
       </form>

@@ -1139,15 +1139,52 @@ equivalencia técnica del cambio declarado en la Solicitud de Modificación — 
 relleno. Cotizaciones que inciden en el Presupuesto modificado deben tener menos de 6 meses de
 antigüedad, igual que en la postulación original.""",
     },
+    "mod_coherencia": {
+        "nombre": "Coherencia Global",
+        "tipo_docs": [],   # usa TODOS los documentos de la modificación (ver analizar_item())
+        "checklist": """COHERENCIA GLOBAL — cierre transversal de todo el expediente de la MODIFICACIÓN (no del
+proyecto original completo). Responde dos preguntas, en este orden:
+
+1. ¿ESTÁ COMPLETA la solicitud? Según el Instructivo CNR (Res. Ex. 3661/2021, punto 5.1), una
+   modificación debe venir con, como mínimo: a) objetivo específico y justificación, respaldada
+   por un informe de la Inspección Técnica de Obras (ITO); b) el efecto sobre el costo (si
+   corresponde — presupuesto antiguo y nuevo, con las partidas modificadas); c) planos y diseños
+   del cambio, si el cambio tiene un componente físico/técnico; d) el Cuadro de Variables de
+   Concurso (costo y bonificación original vs. modificado); e) cualquier otro documento necesario
+   para acreditar el cambio (ej. fuerza mayor, cotizaciones del equipo nuevo).
+   Mira qué documentos efectivamente se subieron (los ves en el expediente que te llega) y señala
+   EXPLÍCITAMENTE cuáles de esos antecedentes mínimos faltan — ej. "el consultor solo ingresó la
+   Solicitud de Modificación con su justificación, pero no se adjuntó el Cuadro de Variables de
+   Concurso ni el Presupuesto modificado, necesarios para evaluar el efecto en la bonificación".
+   Si la Solicitud declara un tipo de cambio (rediseño, cambio de marca/modelo, eliminación de
+   partidas, etc.) que normalmente requiere Diseño/Especificaciones/Cubicaciones/Presupuesto
+   modificados y esos documentos no están, obsérvalo como información faltante que impide cerrar
+   la revisión — no asumas que "no aplica" salvo que el motivo declarado lo justifique con
+   claridad (ej. un cambio de marca de un equipo ya calculado, sin alterar el diseño, puede no
+   necesitar un Diseño modificado nuevo, pero si sigue necesitando Especificaciones/Presupuesto).
+
+2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
+   consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden
+   con lo que efectivamente muestran el Diseño/Especificaciones/Presupuesto modificados; el Cuadro
+   de Variables es aritméticamente consistente con el Presupuesto modificado; la bonificación
+   modificada nunca es mayor a la original (ver el detalle de esta regla en el checklist de Cuadro
+   de Variables y Presupuesto modificado — acá solo confirma que no haya contradicción entre esos
+   dos documentos); y que el cambio, en conjunto, sea técnicamente viable y ejecutable tal como
+   fue declarado — no un cambio parcial que deja una pieza del sistema de riego sin resolver.
+
+No fuerces observaciones de fondo (punto 2) si el expediente todavía está incompleto (punto 1) —
+en ese caso la prioridad es señalar qué falta, no evaluar coherencia con información parcial.""",
+    },
 }
 
 # Orden de presentación: el mismo orden en que el usuario describió las categorías reales del SEP
 # para modificaciones (oct-2026) — Diseño → Especificaciones → Cubicaciones → Cronograma →
-# Presupuesto → Planos → Otros → Solicitud — con Cuadro de Variables al final por ser la única
-# categoría nueva (9na, sin equivalente directo en el SEP) que no venía en esa enumeración.
+# Presupuesto → Planos → Otros → Solicitud — con Cuadro de Variables después por ser la única
+# categoría nueva (9na, sin equivalente directo en el SEP) que no venía en esa enumeración, y
+# Coherencia Global al final — cierre transversal, igual que en ITEMS_ORDEN/ITEMS_SEP.
 ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicaciones",
                             "mod_cronograma", "mod_presupuesto", "mod_planos", "mod_otros",
-                            "mod_solicitud", "mod_cuadro_variables"]
+                            "mod_solicitud", "mod_cuadro_variables", "mod_coherencia"]
 
 TIPO_DOC_LABELS_MODIFICACION = {
     "mod_diseno":           "Anexo — Diseño hidráulico, agronómico u otros diseños",
@@ -3868,11 +3905,13 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     item = item_override if item_override is not None else ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
-    if item_key == "coherencia":
+    if item_key in ("coherencia", "mod_coherencia"):
         # Usa TODOS los documentos con texto, sin filtrar por tipo (salvo
         # TIPOS_EXCLUIDOS_COHERENCIA — administrativos/financieros, sin señal de coherencia
         # cruzada, ya revisados a fondo en su propio ítem), y sin visión (cierre transversal, no
-        # analiza planos/escaneados por costo).
+        # analiza planos/escaneados por costo). "mod_coherencia" (Modificaciones de Proyecto) usa
+        # el mismo camino — TIPOS_EXCLUIDOS_COHERENCIA no contiene ningún tipo_doc "mod_*", así que
+        # en la práctica no excluye nada ahí: se revisan todos los documentos de la modificación.
         docs_grupo = [d for d in documentos
                       if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")
                       and d.get("tipo_doc") not in TIPOS_EXCLUIDOS_COHERENCIA]
@@ -3952,7 +3991,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
 
     analisis_task = _analizar_grupo(
         item["nombre"], checklist_item, docs_grupo, documentos,
-        modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
+        modo="ÍTEM DEL SEP", es_coherencia=(item_key in ("coherencia", "mod_coherencia")),
         observaciones_previas=(None if item_key in ITEMS_SIN_OBS_PREVIAS
                                else observaciones_previas),
         bases_texto=bases_texto, concurso_id=concurso_id,
