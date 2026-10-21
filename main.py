@@ -41,6 +41,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
 import calculos_riego
 import geo
 import exportar_disenador
+from variables_concurso import calcular_variables_concurso
 
 # Dashboard público de la CNR con precios referenciales de materiales y equipos — el revisor
 # lo consulta manualmente desde un botón en los ítems de Presupuesto (ver proyecto.html). La
@@ -4727,12 +4728,33 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
     documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
 
+    # "mod_cuadro_variables" compara el documento del consultor contra el cálculo propio del
+    # revisor en la pestaña "Variables" (si ya lo completó) — se le pasa como contexto extra del
+    # prompt, no como otro "documento" (sería confuso mezclarlo con lo subido por el consultor).
+    contexto_extra = ""
+    if item_key == "mod_cuadro_variables" and mod.get("variables_concurso_datos"):
+        r = calcular_variables_concurso(mod["variables_concurso_datos"])
+        contexto_extra = (
+            f"\n{'='*60}\nCÁLCULO PROPIO DEL REVISOR (pestaña \"Variables\" de esta modificación) "
+            f"— usar como referencia para comparar contra el cuadro del consultor\n{'='*60}\n"
+            f"ORIGINAL: superficie beneficiada {r['original']['superficie_beneficiada_ha']} ha, "
+            f"costo {r['original']['costo_uf']} UF, aporte {r['original']['aporte_pct']:.2%}, "
+            f"bonificación {r['original']['bonificacion_uf']:.2f} UF, "
+            f"costo/ha {r['original']['costo_ha']:.2f}.\n"
+            f"MODIFICADO: superficie beneficiada {r['modificado']['superficie_beneficiada_ha']} ha, "
+            f"costo {r['modificado']['costo_uf']} UF, aporte {r['modificado']['aporte_pct']:.2%}, "
+            f"bonificación {r['modificado']['bonificacion_uf']:.2f} UF, "
+            f"costo/ha {r['modificado']['costo_ha']:.2f}.\n"
+            f"Indicador variable de concurso (costo/ha no debe empeorar): "
+            f"{'OK' if r['variable_concurso_ok'] else 'ERROR — empeoró'}.\n"
+        ) if r['original']['aporte_pct'] is not None else ""
+
     acc_costo = iniciar_costo()
     try:
         resultado = await analizar_item(
             item_key=item_key, documentos=documentos_con_texto,
             resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
-            item_override=ITEMS_MODIFICACION[item_key],
+            item_override=ITEMS_MODIFICACION[item_key], contexto_extra=contexto_extra,
         )
     except Exception as e:
         import traceback
@@ -4858,6 +4880,69 @@ async def registrar_respuesta_modificacion(
         })
         db.save_proyecto(mod)
     return RedirectResponse(url=f"/modificacion/{mod_id}/respuestas#obs-{obs_id}", status_code=302)
+
+
+@app.get("/modificacion/{mod_id}/variables", response_class=HTMLResponse)
+async def pagina_variables_modificacion(request: Request, mod_id: str):
+    """Calculadora del Cuadro de Variables de Concurso (oct-2026) — réplica del Excel oficial que
+    presentan los consultores, con la regla de congelamiento de bonificación aplicada (ver
+    `variables_concurso.calcular_variables_concurso`). El revisor ingresa los datos acá (sea para
+    verificar el cuadro del consultor, o para calcularlo si no lo presentó) y el resultado queda
+    guardado en `mod["variables_concurso"]` para que el ítem "Cuadro de Variables de Concurso" lo
+    use como referencia al comparar contra lo que subió el consultor."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    datos = mod.get("variables_concurso_datos")
+    resultado = calcular_variables_concurso(datos) if datos else None
+    n_pendientes_respuesta = sum(
+        1 for o in mod.get("observaciones", [])
+        if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
+    return templates.TemplateResponse("modificacion_variables.html", {
+        "request": request, "user": user, "proyecto": mod,
+        "datos": datos or {}, "resultado": resultado,
+        "n_pendientes_respuesta": n_pendientes_respuesta,
+    })
+
+
+@app.post("/modificacion/{mod_id}/variables")
+async def guardar_variables_modificacion(
+    request: Request, mod_id: str,
+    orig_superficie_ha: float = Form(...), orig_metodo: str = Form(""),
+    orig_superficie_beneficiada_ha: float = Form(...), orig_costo_uf: float = Form(...),
+    orig_n_beneficiarios: int = Form(1), orig_aporte_pct: float = Form(...),
+    mod_superficie_ha: float = Form(...), mod_metodo: str = Form(""),
+    mod_superficie_beneficiada_ha: float = Form(...), mod_costo_uf: float = Form(...),
+    mod_n_beneficiarios: int = Form(1),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+
+    # El Aporte % se ingresa como porcentaje (ej. 60.21) — se guarda como fracción (0.6021) para
+    # que `calcular_variables_concurso` lo use directo en sus fórmulas.
+    datos = {
+        "original": {
+            "superficie_ha": orig_superficie_ha, "metodo": orig_metodo.strip() or None,
+            "superficie_beneficiada_ha": orig_superficie_beneficiada_ha,
+            "costo_uf": orig_costo_uf, "n_beneficiarios": orig_n_beneficiarios,
+            "aporte_pct": orig_aporte_pct / 100,
+        },
+        "modificado": {
+            "superficie_ha": mod_superficie_ha, "metodo": mod_metodo.strip() or orig_metodo.strip() or None,
+            "superficie_beneficiada_ha": mod_superficie_beneficiada_ha,
+            "costo_uf": mod_costo_uf, "n_beneficiarios": mod_n_beneficiarios,
+        },
+    }
+    mod["variables_concurso_datos"] = datos
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}/variables", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

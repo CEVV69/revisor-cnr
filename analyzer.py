@@ -1035,28 +1035,19 @@ Clasifica el motivo declarado en una de las seis categorías del Instructivo (Re
 3661/2021, punto 2): rediseño, cambio de emplazamiento, eliminación de partidas, cambio sin
 cálculo (marca/modelo/tipo), incorporación de nueva obra de entrega, o fuerza mayor — y verifica
 que el motivo invocado sea coherente con lo que efectivamente cambia en el resto de los documentos
-de la modificación (Diseño, Presupuesto). Si la modificación es por fuerza mayor, debe venir
-acreditada (certificado, informe, evidencia del hecho que la origina).
+de la modificación (Diseño, Presupuesto, Cuadro de Variables). Si la modificación es por fuerza
+mayor, debe venir acreditada (certificado, informe, evidencia del hecho que la origina).
 El informe de la Inspección Técnica de Obras (ITO) que exige el punto 5.1.a del Instructivo NO es
 obligatorio en proyectos del Programa Especial Pequeña Agricultura (PEPA) — la gran mayoría de los
 casos que se revisan — porque implica un costo adicional que el reglamento no les exige asumir. NO
 observes su ausencia como falla salvo que el expediente indique que el proyecto NO es PEPA (montos
 y escala mayores, bonificación de otro programa) o que el tipo de cambio sea de una complejidad
 que claramente amerite ese respaldo (ej. un rediseño estructural mayor).
-
-CUADRO DE VARIABLES DE CONCURSO: el formato oficial de Solicitud de Modificación de la CNR trae
-este cuadro incluido en el mismo documento (NO es un anexo aparte) — revísalo acá. Debe incluir,
-lado a lado, el costo total (UF) ORIGINAL y MODIFICADO, la bonificación (UF) ORIGINAL y
-MODIFICADA, y el aporte % — con aritmética consistente entre costo, bonificación y aporte % en
-ambas columnas (observa si el costo modificado o la bonificación modificada quedaron en blanco o
-sin completar: el formato trae la columna "Modificado" para llenar, no debe quedar vacía).
-Regla crítica, sin excepción: la bonificación MODIFICADA nunca puede ser mayor a la ORIGINAL —
-obsérvalo de inmediato si ocurre. Si el costo total AUMENTA, la bonificación debe mantenerse igual
-a la original (el mayor valor lo asume completo el beneficiario/solicitante, nunca la CNR) — un
-aumento de bonificación proporcional al aumento de costo está mal. Si el costo total DISMINUYE, la
-bonificación debe bajar proporcionalmente (mismo % de aporte bonificado que el proyecto original
-aplicado al nuevo costo) — obsérvalo si quedó igual a la original pese a la baja de costo. Si el
-costo queda IGUAL, ambos valores deben coincidir en las dos columnas.""",
+Nota: el efecto sobre el costo y la bonificación (Cuadro de Variables de Concurso) NO se revisa
+acá — es un documento y un ítem de revisión aparte (algunos formatos de solicitud traen un resumen
+simple de costo/bonificación incluido, pero el Cuadro de Variables oficial es un documento propio,
+más detallado, con superficie beneficiada/ponderada, N° de beneficiarios y el indicador de
+variable de concurso).""",
     },
     "mod_diseno": {
         "nombre": "Diseño hidráulico, agronómico u otros diseños modificados",
@@ -1073,6 +1064,31 @@ sola mención del cambio sin ese respaldo técnico es observable. Si es un redis
 de método de riego o de tipo de obra), debe cumplir el mismo estándar técnico exigido al proyecto
 original (ITT-03) y no solo al elemento puntual que cambia. Verifica coherencia entre lo declarado
 acá, el motivo de la Solicitud de Modificación y las cifras del Cuadro de Variables.""",
+    },
+    "mod_cuadro_variables": {
+        "nombre": "Cuadro de Variables de Concurso",
+        "tipo_docs": ["mod_cuadro_variables"],
+        "checklist": """Verifica que el cuadro incluya, para el proyecto ORIGINAL y el MODIFICADO: superficie (ha) y
+método de riego; superficie beneficiada y superficie ponderada (ha); costo total (UF); N° de
+beneficiarios; aporte % del postulante; y la bonificación solicitada (UF) resultante. El costo
+modificado NO debe quedar en blanco — es el dato que determina todo lo demás.
+Regla crítica, sin excepción (la misma que rige el Presupuesto modificado): la bonificación
+MODIFICADA nunca puede ser mayor a la ORIGINAL. Si el costo total SUBE respecto al original, la
+bonificación debe quedar IGUAL a la original (el 100% del aumento lo asume el beneficiario/
+solicitante — el aporte % efectivo del modificado, en este caso, es MAYOR al original, no igual) —
+observa de inmediato un cuadro que calcule la bonificación modificada aplicando el mismo aporte %
+al costo más alto (eso la hace subir, está mal, aunque sea lo que hace el Excel oficial de forma
+literal si no se ajusta a mano). Si el costo total BAJA, la bonificación debe bajar
+proporcionalmente manteniendo el mismo aporte % que el original. Si el costo queda IGUAL, ambos
+valores deben coincidir.
+Verifica también el indicador de variable de concurso: el costo por hectárea beneficiada
+(costo/superficie beneficiada) del modificado NO debería empeorar (subir) respecto al original —
+esa relación es una de las variables que le dio puntaje al proyecto en el concurso original, y la
+modificación no debe degradarla sin que quede justificado.
+Si el revisor ya completó su propia calculadora en la pestaña "Variables" de esta modificación,
+esos resultados vienen en el contexto de este análisis — compara el cuadro del consultor contra
+ese cálculo y señala cualquier discrepancia en bonificación, aporte % o el indicador de variable de
+concurso, citando ambos valores (el del consultor y el calculado).""",
     },
     "mod_especificaciones": {
         "nombre": "Especificaciones técnicas de los elementos modificados",
@@ -1151,17 +1167,17 @@ proyecto original completo). Responde dos preguntas, en este orden:
    la Inspección Técnica de Obras, ITO, que menciona la letra a) NO es obligatorio en proyectos del
    Programa Especial Pequeña Agricultura — PEPA, la gran mayoría de los casos — así que NO lo
    observes como faltante salvo que el expediente indique que el proyecto no es PEPA o que el
-   cambio sea de una complejidad que claramente lo amerite); b) el efecto sobre el costo (si
-   corresponde — presupuesto antiguo y nuevo, con las partidas modificadas, y el Cuadro de
-   Variables de Concurso con costo/bonificación original vs. modificado, que en el formato oficial
-   de la CNR viene INCLUIDO en el mismo documento "Solicitud de Modificación", no es un anexo
-   aparte); c) planos y diseños del cambio, si el cambio tiene un componente físico/técnico; d)
-   cualquier otro documento necesario para acreditar el cambio (ej. fuerza mayor, cotizaciones del
-   equipo nuevo).
+   cambio sea de una complejidad que claramente lo amerite); b) el efecto sobre el costo —
+   presupuesto antiguo y nuevo, con las partidas modificadas, Y el Cuadro de Variables de Concurso
+   (documento Excel propio, separado de la Solicitud, con costo/bonificación/superficie/aporte %
+   original vs. modificado); c) planos y diseños del cambio, si el cambio tiene un componente
+   físico/técnico; d) cualquier otro documento necesario para acreditar el cambio (ej. fuerza
+   mayor, cotizaciones del equipo nuevo).
    Mira qué documentos efectivamente se subieron (los ves en el expediente que te llega) y señala
    EXPLÍCITAMENTE cuáles de esos antecedentes mínimos faltan — ej. "el consultor solo ingresó la
-   Solicitud de Modificación con su justificación, pero no se adjuntó el Presupuesto modificado
-   necesario para evaluar el efecto en la bonificación". Si la Solicitud declara un tipo de cambio
+   Solicitud de Modificación con su justificación, pero no se adjuntó el Cuadro de Variables de
+   Concurso ni el Presupuesto modificado, necesarios para evaluar el efecto en la bonificación". Si
+   la Solicitud declara un tipo de cambio
    (rediseño, cambio de marca/modelo, eliminación de partidas, etc.) que normalmente requiere
    Diseño/Especificaciones/Cubicaciones/Presupuesto modificados y esos documentos no están,
    obsérvalo como información faltante que impide cerrar la revisión — no asumas que "no aplica"
@@ -1172,12 +1188,12 @@ proyecto original completo). Responde dos preguntas, en este orden:
 2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
    consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden
    con lo que efectivamente muestran el Diseño/Especificaciones/Presupuesto modificados; el Cuadro
-   de Variables (dentro de la Solicitud) es aritméticamente consistente con el Presupuesto
-   modificado; la bonificación modificada nunca es mayor a la original (ver el detalle de esta
-   regla en el checklist de Solicitud de Modificación y Presupuesto modificado — acá solo confirma
-   que no haya contradicción entre esos dos documentos); y que el cambio, en conjunto, sea
-   técnicamente viable y ejecutable tal como fue declarado — no un cambio parcial que deja una
-   pieza del sistema de riego sin resolver.
+   de Variables de Concurso es aritméticamente consistente con el Presupuesto modificado; la
+   bonificación modificada nunca es mayor a la original (ver el detalle de esta regla en el
+   checklist de Cuadro de Variables de Concurso y Presupuesto modificado — acá solo confirma que no
+   haya contradicción entre esos documentos); y que el cambio, en conjunto, sea técnicamente viable
+   y ejecutable tal como fue declarado — no un cambio parcial que deja una pieza del sistema de
+   riego sin resolver.
 
 No fuerces observaciones de fondo (punto 2) si el expediente todavía está incompleto (punto 1) —
 en ese caso la prioridad es señalar qué falta, no evaluar coherencia con información parcial.""",
@@ -1186,14 +1202,15 @@ en ese caso la prioridad es señalar qué falta, no evaluar coherencia con infor
 
 # Orden de presentación: el mismo orden en que el usuario describió las categorías reales del SEP
 # para modificaciones (oct-2026) — Diseño → Especificaciones → Cubicaciones → Cronograma →
-# Presupuesto → Planos → Otros → Solicitud — con Coherencia Global al final (cierre transversal,
-# igual que en ITEMS_ORDEN/ITEMS_SEP). NO hay categoría aparte para "Cuadro de Variables de
-# Concurso": el usuario confirmó con el formato real de la CNR (oct-2026) que ese cuadro viene
-# incluido en el mismo documento "Solicitud de Modificación" — se fusionó ahí (ver checklist de
-# "mod_solicitud") para no pedir subir dos veces el mismo PDF.
+# Presupuesto → Planos → Otros → Solicitud — con Cuadro de Variables después (documento PROPIO,
+# distinto de la Solicitud: en v1.3 se había fusionado con Solicitud creyendo que venían en el
+# mismo PDF, pero el usuario corrigió esto oct-2026 al compartir el Excel oficial "Cuadro de
+# Variables de Concurso" — es un documento Excel separado, más detallado que el resumen que a
+# veces trae la Solicitud) y Coherencia Global al final (cierre transversal, igual que en
+# ITEMS_ORDEN/ITEMS_SEP).
 ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicaciones",
                             "mod_cronograma", "mod_presupuesto", "mod_planos", "mod_otros",
-                            "mod_solicitud", "mod_coherencia"]
+                            "mod_solicitud", "mod_cuadro_variables", "mod_coherencia"]
 
 TIPO_DOC_LABELS_MODIFICACION = {
     "mod_diseno":           "Anexo — Diseño hidráulico, agronómico u otros diseños",
@@ -1203,7 +1220,8 @@ TIPO_DOC_LABELS_MODIFICACION = {
     "mod_presupuesto":      "Anexo — Presupuesto modificado",
     "mod_planos":           "Anexo — Planos modificados",
     "mod_otros":            "Anexo — Otros Documentos",
-    "mod_solicitud":        "Anexo — Solicitud de Modificación (incluye Cuadro de Variables)",
+    "mod_solicitud":        "Anexo — Solicitud de Modificación",
+    "mod_cuadro_variables": "Anexo — Cuadro de Variables de Concurso",
 }
 
 
@@ -3307,7 +3325,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                           bases_texto: str = "", concurso_id: str = "",
                           feedback_concurso: list = None, feedback_key: str = "",
                           criterios_aprendidos: str = "", criterios_enfasis: str = "",
-                          bloque_verificacion: str = "",
+                          bloque_verificacion: str = "", contexto_extra: str = "",
                           consultor: dict = None, resumen: dict = None,
                           max_chars_total: int = MAX_CHARS_EJE_TOTAL,
                           max_tokens_total: int = MAX_TOKENS_SONNET,
@@ -3616,7 +3634,7 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
             f"(NO LAS REPITAS — cada una ya se gestiona en su propio ítem)\n{'═'*60}\n"
             + "\n".join(lineas) + cierre)
 
-    prompt = f"""{bloque_bases}{bloque_resumen}{bloque_feedback}{bloque_consultor}Realiza una REVISIÓN POR {modo} del expediente CNR.
+    prompt = f"""{bloque_bases}{bloque_resumen}{bloque_feedback}{bloque_consultor}{contexto_extra}Realiza una REVISIÓN POR {modo} del expediente CNR.
 
 GRUPO A REVISAR: {nombre}
 Tipo de revisión: Revisión {revision_nombre}
@@ -3869,8 +3887,13 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
                         tipo_revision: str = "tecnica", ruta_uploads: str = None,
                         programa: str = "",
                         necesita_presupuesto_general: bool = False,
-                        item_override: dict = None) -> dict:
+                        item_override: dict = None, contexto_extra: str = "") -> dict:
     """Analiza un ÍTEM DEL SEP (revisa el/los documento(s) de ese ítem). Envoltorio de _analizar_grupo.
+
+    `contexto_extra`: bloque de texto libre (ya formateado, con sus propios separadores si hace
+    falta) que se inyecta en el prompt del análisis, antes de "Realiza una REVISIÓN POR...". Pensado
+    para pasarle al ítem datos ya calculados fuera de la IA (ej. el resultado de la calculadora de
+    Variables de Concurso en Modificaciones) que la IA debe usar como referencia de comparación.
 
     `item_override`: dict {"nombre", "tipo_docs", "checklist"} para analizar un ítem que NO está
     en ITEMS_SEP (ej. categorías de Modificaciones de Proyecto) — se usa tal cual en vez de buscar
@@ -4005,7 +4028,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
         bases_texto=bases_texto, concurso_id=concurso_id,
         feedback_concurso=feedback_concurso, feedback_key="item_" + item_key,
         criterios_aprendidos=criterios_aprendidos, criterios_enfasis=criterios_enfasis,
-        bloque_verificacion=bloque_verificacion,
+        bloque_verificacion=bloque_verificacion, contexto_extra=contexto_extra,
         consultor=consultor, resumen=resumen,
         max_chars_total=MAX_CHARS_POR_ITEM.get(item_key, MAX_CHARS_EJE_TOTAL),
         max_tokens_total=MAX_TOKENS_POR_ITEM.get(item_key, MAX_TOKENS_SONNET),

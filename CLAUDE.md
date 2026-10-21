@@ -39,18 +39,19 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.4, el usuario la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.5, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR Res. Ex. 3661/2021):
 rutas/templates `/modificacion*` propios, reutilizan solo funciones puras (`_estado_subsanacion`,
-`analizar_item()` vía `item_override`). Un solo Código SEP. 9 categorías reales del SEP +
-Coherencia Global (`ITEMS_MODIFICACION` en `analyzer.py`, checklist propio c/u) — "Cuadro de
-Variables" fusionado en "Solicitud de Modificación" (mismo PDF real de la CNR), no es categoría
-aparte. ITO no se exige en proyectos PEPA. Coherencia Global (`mod_coherencia`) señala qué
-antecedentes mínimos faltan. Cada ítem muestra su conteo de documentos. Fix v1.4: contador de
-costo API no se registraba (faltaba `iniciar_costo()`/`_registrar_costo()`) y observaciones de 2
-párrafos se veían pegadas (faltaba `white-space:pre-wrap`) — ambos corregidos. v1 sigue síncrono,
-sin comparar aún contra el proyecto original. Pendiente: diff de presupuesto con tope de
-bonificación, IA en Respuestas, Ficha de Modificación (ya hay un PDF de referencia
+`analizar_item()` vía `item_override`/`contexto_extra`). Un solo Código SEP. 10 categorías reales
+del SEP + Coherencia Global (`ITEMS_MODIFICACION` en `analyzer.py`). "Cuadro de Variables de
+Concurso" es ítem/documento PROPIO (v1.3 lo fusionó con Solicitud por error, corregido con el
+Excel oficial real). Pestaña **"Variables"** — calculadora propia (`variables_concurso.py`,
+`/modificacion/{id}/variables`) que replica ese Excel CON LA REGLA REAL de bonificación (no la
+fórmula literal, que la haría subir con el costo): costo sube → bonificación congelada, 100% del
+aumento lo asume el beneficiario; costo baja → bonificación baja proporcional, mismo aporte %. El
+resultado se pasa como contexto al ítem Cuadro de Variables para comparar contra el consultor. ITO
+no se exige en PEPA. Cada ítem muestra su conteo de documentos. v1 sigue síncrono. Pendiente:
+diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un PDF de referencia
 real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el

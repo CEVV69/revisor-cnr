@@ -68,6 +68,7 @@
 <nav class="proj-nav">
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab activa">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
+  <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
   <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
 </nav>
 

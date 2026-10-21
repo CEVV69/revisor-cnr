@@ -4885,3 +4885,96 @@ sincronización Diseñador v135 — Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.5: Cuadro de Variables real + pestaña "Variables" (oct-2026)
+
+El usuario compartió el Excel oficial que presentan los consultores ("Cuadro_variables_de_
+concurso.xlsx", caso 202-2024-16-078) y corrigió la decisión de v1.3: el Cuadro de Variables de
+Concurso NO viene incluido en la Solicitud de Modificación — es un documento Excel propio, más
+detallado, que compara la situación aprobada vs. la modificada. Pidió dos cosas:
+
+1. Reponer el ítem/documento "Cuadro de Variables de Concurso" como categoría propia (deshacer la
+   fusión de v1.3).
+2. Una nueva pestaña **"Variables"** (junto a Revisión por ítem/Respuestas/Presupuesto) con una
+   calculadora integrada — igual en espíritu a las apps hermanas (Diseñador, SCALL) pero dentro de
+   esta misma sección — para que el revisor ingrese los datos del cuadro y vea el resultado, y
+   para comparar ese resultado contra el cuadro que suba el consultor en el ítem de revisión.
+
+### La fórmula del Excel vs. la regla real de bonificación
+
+El Excel oficial calcula `Bonificación = (1 − Aporte%) × Costo`, con el Aporte% del modificado
+SIEMPRE igual al original (`I12 = I11`, literal en la fórmula). Eso significa que si el costo
+modificado SUBE, la fórmula del Excel hace SUBIR la bonificación proporcionalmente — contradice
+directamente la regla que el usuario había confirmado antes (sesión anterior): la bonificación
+nunca puede superar la original.
+
+Se preguntó explícitamente al usuario qué representa esa cifra cuando el costo sube (AskUserQuestion:
+¿es la bonificación final, o solo referencial con un tope aparte?). Confirmó, en sus palabras: *"La
+Modificación no puede implicar una subida del monto de la bonificación... si un proyecto sube su
+costo... el diferencial de esa alza de dinero lo debe asumir el postulante. Por el contrario, si el
+proyecto... disminuye su costo, entonces se debe rebajar el Bono... Todo esto es para mantener las
+variables que le dieron puntaje en el concurso original."*
+
+**Conclusión de diseño:** la fórmula del Excel es correcta SOLO cuando el costo baja o se mantiene
+(ahí sí coincide exactamente con el cálculo propio). Cuando el costo sube, se implementó la regla
+real en vez de la fórmula literal:
+```
+si costo_modificado <= costo_original:
+    aporte%_modificado = aporte%_original            # igual que el Excel
+    bonificación_modificada = (1 − aporte%_original) × costo_modificado
+si costo_modificado > costo_original:
+    bonificación_modificada = bonificación_original  # CONGELADA — el Excel NO hace esto
+    aporte%_modificado = 1 − (bonificación_original / costo_modificado)  # sube, no se mantiene
+```
+Validado numéricamente contra el caso real del Excel (costo baja de 4.525,83 a 2.678,51 UF):
+bonificación 1.800,83→1.065,78 UF, aporte 60,21%→60,21% — coincide exacto con el Excel. Con un
+caso de prueba de costo SUBIENDO (4.525,83→5.000 UF): bonificación se queda en 1.800,83 UF (NO
+sube), aporte efectivo sube a 63,98%, y el beneficiario debe asumir 474,17 UF adicionales.
+
+El indicador "variable de concurso" (OK/ERROR, réplica de la celda H14 del Excel) es un chequeo
+APARTE, sobre el costo por hectárea beneficiada (no debe empeorar) — una de las variables que le
+dio puntaje al proyecto en el concurso original; no está relacionado con el tope de bonificación.
+
+### Implementación
+
+- **`variables_concurso.py`** (nuevo módulo, función pura `calcular_variables_concurso(datos)`) —
+  implementa la lógica de arriba. Reutilizable: lo usa tanto la pestaña "Variables" como el
+  contexto que se le pasa al ítem de revisión "Cuadro de Variables de Concurso".
+- **`main.py`**: rutas `GET/POST /modificacion/{id}/variables` — el revisor ingresa Superficie,
+  Método, Superficie Beneficiada, Costo, N° Beneficiarios y Aporte % (original y modificado, salvo
+  Aporte% modificado que SIEMPRE se calcula, nunca se ingresa) y ve el resultado. Los datos crudos
+  se guardan en `mod["variables_concurso_datos"]`, no el resultado (se recalcula cada vez — barato,
+  y evita que quede un resultado guardado desincronizado si se corrige un dato).
+- **`analyzer.py`**: se restauró `ITEMS_MODIFICACION["mod_cuadro_variables"]` con checklist propio
+  (superficie/costo/N° beneficiarios/aporte%/bonificación/indicador de variable de concurso, con
+  la regla de bonificación explícita) y se revirtió el contenido fusionado de `mod_solicitud` (solo
+  identificación/motivo/clasificación/ITO condicional a PEPA, ya no habla de Cuadro de Variables).
+  Se actualizó `mod_coherencia` para volver a tratar el Cuadro de Variables como antecedente propio
+  del punto 5.1.b del Instructivo.
+- **Nuevo parámetro `contexto_extra`** en `analizar_item()`/`_analizar_grupo()` (aditivo, default
+  `""`, no cambia nada para los llamadores existentes) — permite inyectar al prompt un bloque de
+  texto con datos ya calculados fuera de la IA. `revisar_item_modificacion()` lo usa SOLO para
+  `mod_cuadro_variables`: si el revisor ya completó la pestaña "Variables", arma un resumen del
+  cálculo propio (superficie, costo, aporte%, bonificación, costo/ha e indicador OK/ERROR) y se lo
+  pasa a la IA como referencia explícita para comparar contra el cuadro que subió el consultor.
+- **Nuevo template** `modificacion_variables.html` — tabla Original/Modificado para el ingreso y
+  tabla de resultado con badges para el indicador de variable de concurso y el monto que debe
+  asumir el beneficiario (solo se muestra si el costo sube). Pestaña "Variables" agregada a la
+  barra de navegación de `modificacion.html` y `modificacion_respuestas.html` (ya no placeholder
+  "próxima implementación" como Presupuesto, que sigue pendiente).
+
+### Validación
+
+`py_compile`/`pyflakes` OK (sin hallazgos nuevos). Test dedicado (`test_variables_concurso.py`):
+confirma que el ítem "Cuadro de Variables de Concurso" volvió a aparecer en el panel y en el
+selector de subida; que la pestaña "Variables" carga vacía al principio; que guardar los datos
+reales del Excel (costo baja) reproduce EXACTO los valores del Excel oficial (1.800,83→1.065,78 UF,
+variable de concurso OK); que guardar un caso de costo subiendo congela la bonificación en el
+monto original, muestra el monto adicional que asume el beneficiario, y marca la variable de
+concurso como ERROR; y que revisar el ítem `mod_cuadro_variables` no revienta por un problema de
+wiring (llega limpio hasta la llamada real a la API, que falla por la key falsa del entorno de
+pruebas). Se actualizó el test end-to-end general de Modificaciones (la aserción de v1.3 que
+confirmaba la fusión ahora confirma lo contrario) y se repitió el test de regresión de la
+sincronización Diseñador v135 — Revisión normal sigue intacta.
+
+---
+
