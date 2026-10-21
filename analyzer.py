@@ -4316,6 +4316,56 @@ Responde SOLO el JSON, sin texto adicional."""
     return limpio
 
 
+MAX_CHARS_JUSTIFICACION_MODIFICACION = 300
+
+
+async def generar_justificacion_modificacion(descripcion_consultor: str, documentos_texto: str) -> str:
+    """Resumen del Resumen de una Modificación de Proyecto (oct-2026, pedido explícito del
+    usuario): redacta una justificación MUY breve (tope duro de
+    `MAX_CHARS_JUSTIFICACION_MODIFICACION` caracteres) de qué se modifica y por qué, a partir de
+    lo que el revisor transcribió como `descripcion_consultor` (motivo declarado en la Solicitud,
+    a mano o copiado) MÁS el texto de los documentos ya subidos a la modificación (prioriza la
+    Solicitud de Modificación, pero no excluye el resto — útil si el motivo real se entiende mejor
+    cruzando el Diseño o el Presupuesto modificados).
+
+    Tarea de síntesis de texto, no de análisis técnico — Haiku, igual que `resumir_proyecto()` (ver
+    comentario ahí sobre por qué Haiku alcanza para extracción/redacción, no solo para JSON)."""
+    if not (descripcion_consultor or "").strip() and not (documentos_texto or "").strip():
+        return ""
+
+    client = _get_client()
+    prompt = f"""Redacta la JUSTIFICACIÓN de una modificación de proyecto de riego de la Comisión Nacional de
+Riego (CNR, Chile, Ley 18.450) — un texto MUY breve y concreto que describa qué elemento(s) se
+modifican y el motivo, para un campo de resumen administrativo (no es un informe técnico).
+
+DESCRIPCIÓN ENTREGADA POR EL CONSULTOR (transcrita por el revisor):
+{(descripcion_consultor or '').strip() or '(no se transcribió ninguna)'}
+
+ANTECEDENTES DEL EXPEDIENTE DE LA MODIFICACIÓN (Solicitud de Modificación y otros documentos ya
+subidos — úsalos para completar o precisar lo anterior, no los repitas íntegros):
+{(documentos_texto or '').strip() or '(sin documentos con texto disponible)'}
+
+Requisitos del texto a generar:
+- Tope DURO de {MAX_CHARS_JUSTIFICACION_MODIFICACION} caracteres (con espacios) — cuenta los
+  caracteres antes de responder y quédate por debajo; si te pasas, igual se recorta después.
+- Lenguaje directo y concreto: qué cambia y por qué, sin relleno ni frases genéricas ("se
+  solicita modificar el proyecto..." no aporta nada — parte directo por el cambio concreto).
+- Una o dos oraciones cortas, sin títulos, sin viñetas, sin comillas.
+
+Responde SOLO el texto de la justificación, nada más."""
+
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model=MODELO_HAIKU,
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    _log_uso("1 · Resumen del proyecto · Justificación de modificación", response, MODELO_HAIKU)
+
+    texto = _texto_respuesta(response).strip().strip('"').strip()
+    return _limitar_texto(texto, MAX_CHARS_JUSTIFICACION_MODIFICACION)
+
+
 MAX_CHARS_BASES = 85000   # texto completo de bases — se cachea en prompt para reducir costo
 
 

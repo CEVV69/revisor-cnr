@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Resumen — {{ proyecto.codigo_sep }}{% endblock %}
+{% block content %}
+
+<style>
+  .proj-nav { display:flex; gap:0.3rem; margin:1.2rem 0 1.1rem; border-bottom:2px solid var(--border);
+    flex-wrap:wrap; }
+  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
+    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+    border-radius:8px 8px 0 0; white-space:nowrap; }
+  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
+  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
+  .proj-tab.proxima { color:var(--text-3); cursor:default; }
+  .proj-tab.proxima:hover { background:none; color:var(--text-3); }
+  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
+    padding:0 0.4rem; margin-left:0.15rem; }
+</style>
+
+<div class="flex items-center gap-2 mt-2" style="margin-bottom:0.4rem">
+  <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
+  <h1 style="font-size:1.3rem; color:#1a365d;">Resumen — {{ proyecto.codigo_sep }}</h1>
+</div>
+
+<nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab activa">Resumen</a>
+  <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
+  <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
+  <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
+  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+</nav>
+
+{% if proyecto.estado == 'Aprobado' %}
+<div style="margin-bottom:0.8rem;">
+  <a href="{{ mailto_ficha }}" class="btn btn-primary btn-sm"
+     title="Abre tu cliente de correo con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano, un mailto no puede adjuntar archivos">
+    Enviar Ficha a CNR
+  </a>
+</div>
+{% endif %}
+
+{% if error == 'justificacion' %}
+<div class="alert alert-error" style="margin-bottom:0.8rem;">No se pudo generar la justificación con IA. Intenta de nuevo.</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin:0 0 0.6rem; border:none; padding:0;">Datos del proyecto</h2>
+  <form method="post" action="/modificacion/{{ proyecto.id }}/resumen">
+    <div class="form-group">
+      <label>Nombre del proyecto</label>
+      <p style="margin:0.2rem 0 0; font-size:0.9rem;">{{ proyecto.nombre }}</p>
+    </div>
+    <div class="form-group">
+      <label>Beneficiario</label>
+      <p style="margin:0.2rem 0 0; font-size:0.9rem;">{{ proyecto.postulante }}</p>
+    </div>
+    <div class="form-group">
+      <label>Consultor</label>
+      <input type="text" name="consultor" value="{{ resumen.consultor or '' }}"
+             style="width:100%; max-width:400px; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+    </div>
+    <div class="form-group">
+      <label>Tipo de modificación</label>
+      <select name="tipo_modificacion" style="width:100%; max-width:400px; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+        <option value="">— Sin clasificar —</option>
+        {% for key, label in tipos_modificacion.items() %}
+        <option value="{{ key }}" {% if proyecto.tipo_modificacion == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex gap-2" style="gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Superficie de riego inicial (ha)</label>
+        <input type="text" name="superficie_inicial_ha" value="{{ resumen.superficie_inicial_ha or '' }}"
+               style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Superficie de riego final (ha)</label>
+        <input type="text" name="superficie_final_ha" value="{{ resumen.superficie_final_ha or '' }}"
+               style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
+    </div>
+    <div class="flex gap-2" style="gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Costo inicial (UF)</label>
+        <input type="text" name="costo_inicial_uf" value="{{ resumen.costo_inicial_uf or '' }}"
+               style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Costo final (UF)</label>
+        <input type="text" name="costo_final_uf" value="{{ resumen.costo_final_uf or '' }}"
+               style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Justificación <span class="text-muted" style="font-weight:400;">(máx. 300 caracteres — editable a mano)</span></label>
+      <textarea name="justificacion" rows="3" maxlength="300"
+                style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; resize:vertical;">{{ resumen.justificacion or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0;">Generar justificación con IA</h2>
+  <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.8rem;">
+    Transcribe o pega la descripción que entregó el consultor (ej. el "Motivo de la Modificación" de
+    la Solicitud) — la IA la resume en un texto de máximo 300 caracteres, cruzando además el resto
+    de los documentos ya subidos a esta modificación.
+  </p>
+  <form method="post" action="/modificacion/{{ proyecto.id }}/resumen/generar-justificacion">
+    <div class="form-group">
+      <label>Descripción entregada por el consultor</label>
+      <textarea name="descripcion_consultor" rows="4"
+                style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; resize:vertical;">{{ resumen.descripcion_consultor or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-outline">Generar justificación con IA</button>
+  </form>
+</div>
+
+{% endblock %}

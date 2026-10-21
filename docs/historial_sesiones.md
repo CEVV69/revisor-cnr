@@ -4978,3 +4978,73 @@ sincronización Diseñador v135 — Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.6: Resumen, Justificación con IA y correo a CNR (oct-2026)
+
+Trabajo hecho MIENTRAS Railway tenía problemas de despliegue (segunda vez en la sesión) — el
+usuario pidió seguir avanzando y guardando en git normalmente ("guarda lo que se hizo... así al
+menos ganamos tiempo"), sin forzar ningún redeploy extra hasta que Railway se recupere solo. Dos
+features nuevas, confirmadas con el usuario antes de implementar (`AskUserQuestion`: el botón de
+correo solo visible con estado "Aprobado"; "Resumen" como pestaña propia, no inline).
+
+### 1. Botón "Enviar Ficha a CNR"
+
+Una vez sancionada la modificación, hay que mandar un correo a `secretarias.fomento@cnr.gob.cl`
+adjuntando la Ficha que el revisor descarga del SEP, con un texto fijo. **Limitación técnica
+avisada al usuario antes de implementar:** un enlace `mailto:` (único mecanismo posible desde una
+página web) puede precargar destinatario/asunto/cuerpo, pero NUNCA puede adjuntar archivos —
+ningún navegador lo permite. El botón abre el cliente de correo con todo listo; el revisor sigue
+teniendo que arrastrar la Ficha a mano antes de enviar.
+
+- `main.py`: `EMAIL_FOMENTO_CNR = "secretarias.fomento@cnr.gob.cl"` y
+  `_mailto_ficha_modificacion(mod)` arma el link con `urllib.parse.quote` (no `urlencode` de
+  Jinja, que por defecto usa `+` para espacios — inválido en un `mailto`, que espera `%20`).
+  Asunto: "Informe de Modificación — {código}". Cuerpo: el texto exacto que dio el usuario
+  ("Estimados Sres. Gestión Administrativa. Adjunto envío a ustedes la Ficha con el informe de
+  Modificación.", con un salto de línea antes de "Atentamente,").
+- Botón visible SOLO cuando `proyecto.estado == "Aprobado"` — en el encabezado de
+  `modificacion.html` y también en `modificacion_resumen.html` (título `title=` explica la
+  limitación de adjuntar a mano).
+
+### 2. Pestaña "Resumen" (versión simplificada del Resumen de la Revisión normal)
+
+Pestaña nueva (primera en el orden de navegación, igual que en Revisión normal), con:
+
+- **Datos básicos**: Nombre del proyecto y Beneficiario se MUESTRAN de solo lectura (ya existen
+  como `proyecto.nombre`/`proyecto.postulante` — no se duplica el campo, mismo criterio que la
+  lección del Código SEP en v1.1). Campos nuevos editables: Consultor, Superficie de riego inicial
+  /final (ha), Costo inicial/final (UF) — guardados como texto libre en `mod["resumen"]`, sin
+  validación numérica: son datos de referencia para el resumen administrativo, no alimentan ningún
+  cálculo (a diferencia de "Variables", donde sí importa la precisión numérica).
+- **Tipo de modificación editable** — selector con las 6 categorías del Instructivo, por si quedó
+  mal elegido al crear la modificación (pedido explícito del usuario: "por si existió un error al
+  crear la modificación").
+- **Justificación con IA**: nueva función `analyzer.generar_justificacion_modificacion(
+  descripcion_consultor, documentos_texto)` — Haiku (tarea de síntesis de texto, no de análisis
+  técnico, mismo criterio que `resumir_proyecto()`), tope DURO de 300 caracteres aplicado con
+  `_limitar_texto()` (ya existía, reutilizada tal cual — recorta en un límite natural de oración,
+  no a la mitad de una palabra). El revisor transcribe o pega la descripción del consultor (ej. el
+  "Motivo de la Modificación" de la Solicitud) en un campo separado; la IA la resume cruzando
+  además el texto de TODOS los documentos ya subidos a la modificación (sin filtrar por tipo,
+  mismo criterio que "Coherencia Global" — no solo la Solicitud, por si el motivo real se entiende
+  mejor con el Diseño o el Presupuesto modificados). El resultado queda en un `<textarea>`
+  editable a mano antes de guardar — la IA propone, el revisor decide.
+- Rutas: `GET/POST /modificacion/{id}/resumen` (ver/guardar datos + tipo + justificación editada a
+  mano) y `POST /modificacion/{id}/resumen/generar-justificacion` (dispara la IA, guarda el
+  resultado + la descripción transcrita, para que quede visible al volver a generar). Costo
+  registrado bajo el paso `"resumen"` de `PASOS_COSTO` (ya existía, reutilizado).
+
+### Validación
+
+`py_compile`/`pyflakes` OK. Tests nuevos/actualizados (`test_resumen_modificacion.py` +
+regresión de `test_modificaciones.py`/`test_variables_concurso.py`): confirman que la pestaña
+"Resumen" aparece en la navegación de las 4 páginas de una modificación; que guardar
+Consultor/superficies/costos/Tipo de modificación persiste correctamente; que generar la
+justificación con IA no revienta con un 500 pese a que la API real falla en el entorno de pruebas
+(key falsa — llega limpio hasta la llamada, se captura el error, redirige con
+`error=justificacion`); que el botón "Enviar Ficha a CNR" NO aparece mientras el estado no es
+"Aprobado" y SÍ aparece (con el `mailto:` correcto, incluido el código SEP en el asunto) una vez
+cambiado a "Aprobado". Se repitió el test de regresión de la sincronización Diseñador v135 —
+Revisión normal sigue intacta.
+
+---
+

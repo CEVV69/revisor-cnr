@@ -47,6 +47,13 @@
       </div>
     </div>
 
+    {% if proyecto.estado == 'Aprobado' %}
+    <a href="{{ mailto_ficha }}" class="btn btn-primary btn-sm"
+       title="Abre tu cliente de correo con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano, un mailto no puede adjuntar archivos">
+      Enviar Ficha a CNR
+    </a>
+    {% endif %}
+
     <form method="post" action="/modificacion/{{ proyecto.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta modificación? Se borrarán todos sus documentos y observaciones.')">
       <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
@@ -66,6 +73,7 @@
 </div>
 
 <nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab activa">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>

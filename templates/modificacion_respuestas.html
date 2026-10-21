@@ -17,6 +17,7 @@
 </style>
 
 <nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>

@@ -37,7 +37,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       ITEMS_EVALUACION_CONJUNTA,
                       extraer_presupuesto_general, comparar_presupuesto_general,
                       numero_desde_texto,
-                      ITEMS_MODIFICACION, ITEMS_MODIFICACION_ORDEN, TIPO_DOC_LABELS_MODIFICACION)
+                      ITEMS_MODIFICACION, ITEMS_MODIFICACION_ORDEN, TIPO_DOC_LABELS_MODIFICACION,
+                      generar_justificacion_modificacion)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -4513,6 +4514,21 @@ TIPOS_MODIFICACION = {
     "fuerza_mayor":         "Cambio o eliminación por fuerza mayor",
 }
 
+# Correo oficial al que se envía la Ficha una vez sancionada la modificación (pedido del usuario,
+# oct-2026). `mailto:` NO puede adjuntar archivos (ninguna convención de email lo permite desde una
+# página web) — el botón solo precarga destinatario/asunto/cuerpo; el revisor arrastra la Ficha
+# descargada del SEP a mano antes de enviar.
+EMAIL_FOMENTO_CNR = "secretarias.fomento@cnr.gob.cl"
+
+
+def _mailto_ficha_modificacion(mod: dict) -> str:
+    asunto = quote(f"Informe de Modificación — {mod.get('codigo_sep', '')}")
+    cuerpo = quote(
+        "Estimados Sres. Gestión Administrativa. Adjunto envío a ustedes la Ficha con el informe "
+        "de Modificación.\n\nAtentamente,"
+    )
+    return f"mailto:{EMAIL_FOMENTO_CNR}?subject={asunto}&body={cuerpo}"
+
 
 @app.get("/modificaciones", response_class=HTMLResponse)
 async def modificaciones_dashboard(request: Request):
@@ -4606,6 +4622,7 @@ async def ver_modificacion(request: Request, mod_id: str):
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "costo_api": _costo_para_vista(mod),
         "n_pendientes_respuesta": n_pendientes_respuesta,
+        "mailto_ficha": _mailto_ficha_modificacion(mod),
     })
 
 
@@ -4943,6 +4960,100 @@ async def guardar_variables_modificacion(
     mod["variables_concurso_datos"] = datos
     db.save_proyecto(mod)
     return RedirectResponse(url=f"/modificacion/{mod_id}/variables", status_code=302)
+
+
+@app.get("/modificacion/{mod_id}/resumen", response_class=HTMLResponse)
+async def pagina_resumen_modificacion(request: Request, mod_id: str):
+    """Resumen simplificado de la modificación (oct-2026, pedido del usuario) — versión reducida
+    del Resumen de la Revisión normal: datos básicos del proyecto + Justificación generada con IA
+    a partir de lo que transcribe el revisor y los documentos ya subidos. También permite corregir
+    el Tipo de modificación elegido al crear el registro, por si quedó mal desde el inicio."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    error = request.query_params.get("error")
+    n_pendientes_respuesta = sum(
+        1 for o in mod.get("observaciones", [])
+        if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
+    return templates.TemplateResponse("modificacion_resumen.html", {
+        "request": request, "user": user, "proyecto": mod,
+        "resumen": mod.get("resumen", {}), "tipos_modificacion": TIPOS_MODIFICACION,
+        "n_pendientes_respuesta": n_pendientes_respuesta,
+        "mailto_ficha": _mailto_ficha_modificacion(mod), "error": error,
+    })
+
+
+@app.post("/modificacion/{mod_id}/resumen")
+async def guardar_resumen_modificacion(
+    request: Request, mod_id: str,
+    consultor: str = Form(""), superficie_inicial_ha: str = Form(""),
+    superficie_final_ha: str = Form(""), costo_inicial_uf: str = Form(""),
+    costo_final_uf: str = Form(""), justificacion: str = Form(""),
+    tipo_modificacion: str = Form(""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    resumen = mod.setdefault("resumen", {})
+    resumen["consultor"] = consultor.strip()
+    resumen["superficie_inicial_ha"] = superficie_inicial_ha.strip()
+    resumen["superficie_final_ha"] = superficie_final_ha.strip()
+    resumen["costo_inicial_uf"] = costo_inicial_uf.strip()
+    resumen["costo_final_uf"] = costo_final_uf.strip()
+    resumen["justificacion"] = justificacion.strip()
+    if tipo_modificacion in TIPOS_MODIFICACION:
+        mod["tipo_modificacion"] = tipo_modificacion
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/resumen/generar-justificacion")
+async def generar_justificacion_modificacion_ruta(
+    request: Request, mod_id: str, descripcion_consultor: str = Form(""),
+):
+    """Genera la Justificación con IA (`analyzer.generar_justificacion_modificacion`) a partir de
+    lo que el revisor transcribió del consultor MÁS el texto de los documentos ya subidos a la
+    modificación (sin filtrar por tipo — todo lo disponible da contexto, igual que "Coherencia
+    Global"). Guarda `descripcion_consultor` junto al resultado para que quede visible al volver a
+    generar (ej. si el revisor corrige el texto transcrito y pide regenerar)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+
+    await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
+    documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
+    texto_docs = "\n\n".join(
+        f"--- {d.get('tipo_doc_label', d.get('tipo_doc'))} ---\n{d.get('texto_extraido', '')[:4000]}"
+        for d in documentos_con_texto
+        if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")
+    )
+
+    acc_costo = iniciar_costo()
+    try:
+        justificacion = await generar_justificacion_modificacion(descripcion_consultor, texto_docs)
+    except Exception as e:
+        print(f"❌ ERROR en generar_justificacion_modificacion_ruta: {e}")
+        return RedirectResponse(url=f"/modificacion/{mod_id}/resumen?error=justificacion",
+                                status_code=302)
+
+    mod = db.get_proyecto(mod_id)  # fresco antes de guardar — mismo criterio que el resto de la app
+    if not mod:
+        return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
+    resumen = mod.setdefault("resumen", {})
+    resumen["justificacion"] = justificacion
+    resumen["descripcion_consultor"] = descripcion_consultor.strip()
+    _registrar_costo(mod, "resumen", acc_costo)
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

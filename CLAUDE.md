@@ -35,24 +35,23 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (oct-2026)
 
+**Railway con problemas desde oct-2026 — el deploy puede estar atrasado respecto a lo pusheado.**
+Seguir pusheando normal (obligatorio, ver SINCRONIZACIÓN); Railway se pone al día solo cuando se
+recupere. No forzar redeploys extra mientras tanto.
+
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.5, el usuario la está probando con un caso real) —
-separada de la Revisión normal (art. 6° Ley 18.450, Instructivo CNR Res. Ex. 3661/2021):
-rutas/templates `/modificacion*` propios, reutilizan solo funciones puras (`_estado_subsanacion`,
-`analizar_item()` vía `item_override`/`contexto_extra`). Un solo Código SEP. 10 categorías reales
-del SEP + Coherencia Global (`ITEMS_MODIFICACION` en `analyzer.py`). "Cuadro de Variables de
-Concurso" es ítem/documento PROPIO (v1.3 lo fusionó con Solicitud por error, corregido con el
-Excel oficial real). Pestaña **"Variables"** — calculadora propia (`variables_concurso.py`,
-`/modificacion/{id}/variables`) que replica ese Excel CON LA REGLA REAL de bonificación (no la
-fórmula literal, que la haría subir con el costo): costo sube → bonificación congelada, 100% del
-aumento lo asume el beneficiario; costo baja → bonificación baja proporcional, mismo aporte %. El
-resultado se pasa como contexto al ítem Cuadro de Variables para comparar contra el consultor. ITO
-no se exige en PEPA. Cada ítem muestra su conteo de documentos. v1 sigue síncrono. Pendiente:
-diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación (ya hay un PDF de referencia
-real del SEP guardado en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
+**Nuevo: Modificaciones de Proyecto** (v1.6, el usuario la está probando con un caso real) —
+separada de la Revisión normal (art. 6° Ley 18.450, Instructivo 3661/2021), rutas
+`/modificacion*` propias. 10 categorías reales del SEP + Coherencia Global, checklist propio c/u.
+Pestañas: Resumen (datos + Justificación con IA, tope 300 car.; botón "Enviar Ficha a CNR" —
+`mailto:` precargado, solo si Aprobado, NO adjunta archivos), Revisión por ítem, Respuestas,
+Variables (calculadora propia, `variables_concurso.py`, regla REAL de bonificación: costo sube →
+congelada, beneficiario asume el aumento; costo baja → proporcional). ITO no se exige en PEPA.
+Pendiente: diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación
+(PDF de referencia real del SEP en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
