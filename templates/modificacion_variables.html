@@ -14,9 +14,11 @@
   .proj-tab.proxima:hover { background:none; color:var(--text-3); }
   .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
     padding:0 0.4rem; margin-left:0.15rem; }
-  .vc-tabla input { width:100%; padding:0.35rem 0.5rem; border:1px solid var(--border);
-    border-radius:6px; font-size:0.84rem; box-sizing:border-box; }
+  .vc-tabla { margin:0 auto; }
+  .vc-tabla input, .vc-tabla select { width:100%; padding:0.35rem 0.5rem; border:1px solid var(--border);
+    border-radius:6px; font-size:0.84rem; box-sizing:border-box; font-family:inherit; }
   .vc-tabla th, .vc-tabla td { padding:0.3rem 0.5rem; }
+  .vc-tabla td.col-mod, .vc-tabla th.col-mod { background:rgba(0,113,227,0.06); }
   .vc-resultado td { font-variant-numeric:tabular-nums; }
 </style>
 
@@ -30,7 +32,7 @@
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab activa">Variables</a>
-  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
 <div class="card">
@@ -43,100 +45,115 @@
   </p>
 
   <form method="post" action="/modificacion/{{ proyecto.id }}/variables">
-    <table class="vc-tabla" style="width:100%; max-width:640px;">
+    <table class="vc-tabla" style="max-width:520px;">
       <thead>
         <tr>
           <th></th>
           <th style="text-align:left;">Original</th>
-          <th style="text-align:left;">Modificado</th>
+          <th class="col-mod" style="text-align:left;">Modificado</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="text-muted">Superficie (ha)</td>
           <td><input type="number" step="0.01" name="orig_superficie_ha" required
-                     value="{{ datos.original.superficie_ha if datos else '' }}"></td>
-          <td><input type="number" step="0.01" name="mod_superficie_ha" required
-                     value="{{ datos.modificado.superficie_ha if datos else '' }}"></td>
+                     value="{{ datos.original.superficie_ha if datos else (resumen.superficie_inicial_ha or '') }}"></td>
+          <td class="col-mod"><input type="number" step="0.01" name="mod_superficie_ha" required
+                     value="{{ datos.modificado.superficie_ha if datos else (resumen.superficie_final_ha or '') }}"></td>
         </tr>
         <tr>
           <td class="text-muted">Método de riego</td>
-          <td><input type="text" name="orig_metodo" placeholder="Ej: Goteo"
-                     value="{{ datos.original.metodo if datos else '' }}"></td>
-          <td><input type="text" name="mod_metodo" placeholder="(igual al original si se deja vacío)"
-                     value="{{ datos.modificado.metodo if datos else '' }}"></td>
-        </tr>
-        <tr>
-          <td class="text-muted">Superficie beneficiada (ha)</td>
-          <td><input type="number" step="0.01" name="orig_superficie_beneficiada_ha" required
-                     value="{{ datos.original.superficie_beneficiada_ha if datos else '' }}"></td>
-          <td><input type="number" step="0.01" name="mod_superficie_beneficiada_ha" required
-                     value="{{ datos.modificado.superficie_beneficiada_ha if datos else '' }}"></td>
+          <td>
+            <select name="orig_metodo">
+              <option value="">—</option>
+              {% for m in ("Goteo", "Aspersión", "Microaspersión", "Carrete") %}
+              <option value="{{ m }}" {% if datos and datos.original.metodo == m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="col-mod">
+            <select name="mod_metodo">
+              <option value="">— (igual al original) —</option>
+              {% for m in ("Goteo", "Aspersión", "Microaspersión", "Carrete") %}
+              <option value="{{ m }}" {% if datos and datos.modificado.metodo == m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+          </td>
         </tr>
         <tr>
           <td class="text-muted">Costo (UF)</td>
           <td><input type="number" step="0.01" name="orig_costo_uf" required
-                     value="{{ datos.original.costo_uf if datos else '' }}"></td>
-          <td><input type="number" step="0.01" name="mod_costo_uf" required
-                     value="{{ datos.modificado.costo_uf if datos else '' }}"></td>
+                     value="{{ datos.original.costo_uf if datos else (resumen.costo_inicial_uf or '') }}"></td>
+          <td class="col-mod"><input type="number" step="0.01" name="mod_costo_uf" required
+                     value="{{ datos.modificado.costo_uf if datos else (resumen.costo_final_uf or '') }}"></td>
         </tr>
         <tr>
           <td class="text-muted">N° de beneficiarios</td>
           <td><input type="number" step="1" name="orig_n_beneficiarios" required
                      value="{{ datos.original.n_beneficiarios if datos else 1 }}"></td>
-          <td><input type="number" step="1" name="mod_n_beneficiarios" required
+          <td class="col-mod"><input type="number" step="1" name="mod_n_beneficiarios" required
                      value="{{ datos.modificado.n_beneficiarios if datos else 1 }}"></td>
         </tr>
         <tr>
           <td class="text-muted">Aporte % del postulante</td>
           <td><input type="number" step="0.01" name="orig_aporte_pct" required
                      value="{{ (datos.original.aporte_pct * 100) if datos and datos.original.aporte_pct is not none else '' }}"></td>
-          <td class="text-muted" style="font-size:0.78rem;">Se calcula (ver resultado abajo)</td>
+          <td class="col-mod text-muted" style="font-size:0.78rem;">Se calcula (ver resultado abajo)</td>
         </tr>
       </tbody>
     </table>
-    <button type="submit" class="btn btn-primary" style="margin-top:0.8rem;">Calcular</button>
+    <p class="text-muted" style="font-size:0.76rem; max-width:520px; margin:0.5rem auto 0;">
+      La Superficie Beneficiada se toma igual a la Superficie (ha) de cada columna — el Excel
+      oficial las pide por separado, pero siempre son el mismo dato.
+    </p>
+    <div style="text-align:center;">
+      <button type="submit" class="btn btn-primary" style="margin-top:0.8rem;">Calcular</button>
+    </div>
   </form>
 </div>
 
 {% if resultado %}
-<div class="card">
+<div class="card" style="text-align:center;">
   <h2 style="margin:0 0 0.6rem; border:none; padding:0;">Resultado</h2>
-  <table class="vc-tabla vc-resultado" style="width:100%; max-width:720px; font-size:0.86rem;">
+  <table class="vc-tabla vc-resultado" style="max-width:600px; font-size:0.86rem; text-align:left;">
     <thead>
       <tr>
         <th style="text-align:left;"></th>
         <th style="text-align:right;">Original</th>
-        <th style="text-align:right;">Modificado</th>
+        <th class="col-mod" style="text-align:right;">Modificado</th>
       </tr>
     </thead>
     <tbody>
       <tr><td class="text-muted">Superficie ponderada (ha)</td>
           <td style="text-align:right;">{{ "%.2f"|format(resultado.original.superficie_ponderada_ha) }}</td>
-          <td style="text-align:right;">{{ "%.2f"|format(resultado.modificado.superficie_ponderada_ha) }}</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.2f"|format(resultado.modificado.superficie_ponderada_ha) }}</td></tr>
       <tr><td class="text-muted">Costo (UF)</td>
           <td style="text-align:right;">{{ "%.2f"|format(resultado.original.costo_uf) }}</td>
-          <td style="text-align:right;">{{ "%.2f"|format(resultado.modificado.costo_uf) }}</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.2f"|format(resultado.modificado.costo_uf) }}</td></tr>
       <tr><td class="text-muted">Aporte %</td>
           <td style="text-align:right;">{{ "%.2f"|format(resultado.original.aporte_pct * 100) }}%</td>
-          <td style="text-align:right;">{{ "%.2f"|format(resultado.modificado.aporte_pct * 100) }}%</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.2f"|format(resultado.modificado.aporte_pct * 100) }}%</td></tr>
       <tr style="font-weight:600;">
           <td>Bonificación solicitada (UF)</td>
           <td style="text-align:right;">{{ "%.2f"|format(resultado.original.bonificacion_uf) }}</td>
-          <td style="text-align:right;">{{ "%.2f"|format(resultado.modificado.bonificacion_uf) }}</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.2f"|format(resultado.modificado.bonificacion_uf) }}</td></tr>
       <tr><td class="text-muted">Costo / superficie beneficiada (UF/ha)</td>
           <td style="text-align:right;">{{ "%.2f"|format(resultado.original.costo_ha) }}</td>
-          <td style="text-align:right;">{{ "%.2f"|format(resultado.modificado.costo_ha) }}</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.2f"|format(resultado.modificado.costo_ha) }}</td></tr>
       <tr><td class="text-muted">S2/C (ha/UF)</td>
           <td style="text-align:right;">{{ "%.4f"|format(resultado.original.s2_c) }}</td>
-          <td style="text-align:right;">{{ "%.4f"|format(resultado.modificado.s2_c) }}</td></tr>
+          <td class="col-mod" style="text-align:right;">{{ "%.4f"|format(resultado.modificado.s2_c) }}</td></tr>
     </tbody>
   </table>
 
-  <div style="margin-top:1rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
-    <span class="badge {% if resultado.variable_concurso_ok %}badge-tecnica{% else %}badge-mayor{% endif %}">
-      Variable de concurso (costo/ha): {{ "OK" if resultado.variable_concurso_ok else "ERROR — empeoró" }}
-    </span>
+  <div style="margin-top:1rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:center;">
+    {% if resultado.variable_concurso_estado == 'mejora' %}
+    <span class="badge badge-tecnica">Variable de concurso: MEJORA — el costo/ha bajó respecto al original</span>
+    {% elif resultado.variable_concurso_estado == 'igual' %}
+    <span class="badge badge-tecnica">Variable de concurso: SE MANTIENE — el costo/ha no cambió</span>
+    {% elif resultado.variable_concurso_estado == 'empeora' %}
+    <span class="badge badge-mayor">Variable de concurso: EMPEORA — el costo/ha subió respecto al original</span>
+    {% endif %}
     {% if resultado.monto_asumido_beneficiario_uf > 0 %}
     <span class="badge badge-menor" title="El costo subió y la bonificación queda congelada en el monto original">
       El beneficiario asume {{ "%.2f"|format(resultado.monto_asumido_beneficiario_uf) }} UF adicionales

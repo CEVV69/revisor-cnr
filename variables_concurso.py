@@ -62,8 +62,20 @@ def calcular_variables_concurso(datos: dict) -> dict:
         bonif_m = bonif_o
         aporte_m = 1 - _div(bonif_o, costo_m) if costo_m else None
 
-    variable_concurso_ok = (costo_ha_m is not None and costo_ha_o is not None
-                             and costo_ha_m <= costo_ha_o)
+    # "mejora"/"igual"/"empeora": costo/ha menor = mejora (más superficie o beneficiarios por UF
+    # invertida), igual = se mantiene la misma eficiencia, mayor = empeora. `variable_concurso_ok`
+    # se mantiene por compatibilidad (True salvo que empeore) — el usuario pidió que el mensaje
+    # distinga explícitamente las 3 situaciones en vez de solo "OK"/"ERROR" sin contexto (reportado
+    # al probar un caso sin cambios, donde costo/ha queda IGUAL y un simple "OK" no aclaraba por qué).
+    if costo_ha_m is None or costo_ha_o is None:
+        variable_concurso_estado = None
+    elif costo_ha_m < costo_ha_o:
+        variable_concurso_estado = "mejora"
+    elif costo_ha_m == costo_ha_o:
+        variable_concurso_estado = "igual"
+    else:
+        variable_concurso_estado = "empeora"
+    variable_concurso_ok = variable_concurso_estado in ("mejora", "igual")
 
     diferencia_costo_uf = costo_m - costo_o
     diferencia_bonificacion_uf = (bonif_m - bonif_o) if (bonif_m is not None and bonif_o is not None) else None
@@ -85,6 +97,7 @@ def calcular_variables_concurso(datos: dict) -> dict:
             "costo_ha": costo_ha_m, "s2_c": s2_c_m,
         },
         "variable_concurso_ok": variable_concurso_ok,
+        "variable_concurso_estado": variable_concurso_estado,
         "diferencia_costo_uf": diferencia_costo_uf,
         "diferencia_bonificacion_uf": diferencia_bonificacion_uf,
         "monto_asumido_beneficiario_uf": monto_asumido_beneficiario_uf,

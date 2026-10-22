@@ -26,7 +26,7 @@
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
-  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
 {% if proyecto.estado == 'Aprobado' %}
@@ -92,8 +92,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Justificación <span class="text-muted" style="font-weight:400;">(máx. 300 caracteres — editable a mano)</span></label>
-      <textarea name="justificacion" rows="3" maxlength="300"
+      <label>Justificación <span class="text-muted" style="font-weight:400;">(máx. 400 caracteres — editable a mano)</span></label>
+      <textarea name="justificacion" rows="3" maxlength="400"
                 style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; resize:vertical;">{{ resumen.justificacion or '' }}</textarea>
     </div>
     <button type="submit" class="btn btn-primary">Guardar</button>
@@ -104,7 +104,7 @@
   <h2 style="margin:0 0 0.4rem; border:none; padding:0;">Generar justificación con IA</h2>
   <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.8rem;">
     Transcribe o pega la descripción que entregó el consultor (ej. el "Motivo de la Modificación" de
-    la Solicitud) — la IA la resume en un texto de máximo 300 caracteres, cruzando además el resto
+    la Solicitud) — la IA la resume en un texto de máximo 400 caracteres, cruzando además el resto
     de los documentos ya subidos a esta modificación.
   </p>
   <form method="post" action="/modificacion/{{ proyecto.id }}/resumen/generar-justificacion">

@@ -21,21 +21,28 @@
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
-  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
-{% if obs_con_estado %}
-{% for par in obs_con_estado %}
+{% if grupos_respuestas %}
+{% for grupo in grupos_respuestas %}
+<details open style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+<summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
+            font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
+  {{ grupo.nombre }}
+  <span style="font-weight:400; color:#4a5568; font-size:0.8rem;">· {{ grupo.pares|length }} observación{{ 'es' if grupo.pares|length != 1 else '' }}</span>
+</summary>
+<div style="padding-top:0.6rem;">
+{% for par in grupo.pares %}
 {% set obs = par.obs %}
 {% set sub = par.sub %}
 <div id="obs-{{ obs.id }}" class="card">
-  <div style="display:flex; justify-content:space-between; gap:0.6rem; align-items:baseline; flex-wrap:wrap; margin-bottom:0.5rem;">
-    <strong style="font-size:0.9rem;">{{ obs.item_nombre }}</strong>
+  <div style="display:flex; justify-content:flex-end; gap:0.6rem; align-items:baseline; flex-wrap:wrap; margin-bottom:0.5rem;">
     <span class="badge badge-{% if sub.estado == 'resuelta' %}tecnica{% elif sub.estado == 'no_resuelta' %}mayor{% else %}pendiente{% endif %}">
       {% if sub.estado == 'resuelta' %}Resuelta{% elif sub.estado == 'no_resuelta' %}No resuelta{% else %}Esperando respuesta — ronda {{ sub.ronda_actual }}{% endif %}
     </span>
   </div>
-  <p style="font-size:0.86rem; margin-bottom:0.6rem; white-space:pre-wrap;">{{ obs.texto }}</p>
+  <p style="font-size:0.86rem; margin-bottom:0.6rem; white-space:pre-wrap;">{{ obs.texto | propuesta }}</p>
 
   {% for r in obs.get('subsanacion', {}).get('rondas', []) %}
   <div style="border-left:3px solid var(--border); padding-left:0.7rem; margin-bottom:0.6rem; font-size:0.84rem;">
@@ -67,6 +74,9 @@
   </form>
   {% endif %}
 </div>
+{% endfor %}
+</div>
+</details>
 {% endfor %}
 {% else %}
 <div class="card" style="text-align:center; padding:3rem;">

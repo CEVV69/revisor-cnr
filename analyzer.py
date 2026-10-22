@@ -1213,16 +1213,23 @@ ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicacio
                             "mod_solicitud", "mod_cuadro_variables", "mod_coherencia"]
 
 TIPO_DOC_LABELS_MODIFICACION = {
-    "mod_diseno":           "Anexo — Diseño hidráulico, agronómico u otros diseños",
-    "mod_especificaciones": "Anexo — Especificaciones técnicas",
-    "mod_cubicaciones":     "Anexo — Cubicaciones",
-    "mod_cronograma":       "Anexo — Cronograma",
-    "mod_presupuesto":      "Anexo — Presupuesto modificado",
-    "mod_planos":           "Anexo — Planos modificados",
-    "mod_otros":            "Anexo — Otros Documentos",
-    "mod_solicitud":        "Anexo — Solicitud de Modificación",
-    "mod_cuadro_variables": "Anexo — Cuadro de Variables de Concurso",
+    "mod_diseno":              "Anexo — Diseño hidráulico, agronómico u otros diseños",
+    "mod_especificaciones":    "Anexo — Especificaciones técnicas",
+    "mod_cubicaciones":        "Anexo — Cubicaciones",
+    "mod_cronograma":          "Anexo — Cronograma",
+    "mod_presupuesto_original": "Anexo — Presupuesto original (del proyecto aprobado)",
+    "mod_presupuesto":         "Anexo — Presupuesto modificado",
+    "mod_planos":              "Anexo — Planos modificados",
+    "mod_otros":               "Anexo — Otros Documentos",
+    "mod_solicitud":           "Anexo — Solicitud de Modificación",
+    "mod_cuadro_variables":    "Anexo — Cuadro de Variables de Concurso",
 }
+# "mod_presupuesto_original" es SOLO un tipo de documento, no un ítem de ITEMS_MODIFICACION — el
+# presupuesto ya aprobado del proyecto original no se "revisa" de nuevo (CNR ya lo aprobó), es
+# puro dato de referencia para la comparación en la pestaña "Presupuesto". Por eso vive en este
+# diccionario pero NO en `ITEMS_MODIFICACION`/`ITEMS_MODIFICACION_ORDEN` — no tiene checklist ni
+# tarjeta de "Revisar ítem" propia (mismo criterio que el presupuesto general resumen en la
+# Revisión normal, que tampoco es un ítem aparte, se extrae del ítem "Presupuesto").
 
 
 # ─── RESUMEN DEL PROYECTO (ficha tipo formulario) ──────────────────────────────
@@ -3936,16 +3943,26 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     item = item_override if item_override is not None else ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
-    if item_key in ("coherencia", "mod_coherencia"):
+    if item_key == "coherencia":
         # Usa TODOS los documentos con texto, sin filtrar por tipo (salvo
         # TIPOS_EXCLUIDOS_COHERENCIA — administrativos/financieros, sin señal de coherencia
         # cruzada, ya revisados a fondo en su propio ítem), y sin visión (cierre transversal, no
-        # analiza planos/escaneados por costo). "mod_coherencia" (Modificaciones de Proyecto) usa
-        # el mismo camino — TIPOS_EXCLUIDOS_COHERENCIA no contiene ningún tipo_doc "mod_*", así que
-        # en la práctica no excluye nada ahí: se revisan todos los documentos de la modificación.
+        # analiza planos/escaneados por costo).
         docs_grupo = [d for d in documentos
                       if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")
                       and d.get("tipo_doc") not in TIPOS_EXCLUIDOS_COHERENCIA]
+    elif item_key == "mod_coherencia":
+        # "Coherencia Global" de Modificaciones — a diferencia de "coherencia" (Revisión normal),
+        # acá SÍ hace falta ver documentos escaneados/imagen: el documento más importante, la
+        # Solicitud de Modificación, es casi siempre un PDF escaneado firmado a mano (formato
+        # oficial de la CNR) y con frecuencia el ÚNICO documento subido al principio. Excluirlo de
+        # Coherencia Global (como hace "coherencia" a propósito, por costo) le impedía cumplir su
+        # propósito real: detectar que el expediente está incompleto — reportado por el usuario
+        # (oct-2026): "Revisar" en Coherencia Global decía "sin documentos" pese a tener la
+        # Solicitud subida. Acá se incluyen TODOS los documentos sin filtrar por texto disponible
+        # — los que solo tienen imagen se resuelven más abajo vía visión (`es_coherencia=False`
+        # para este item_key, ver la llamada a `_analizar_grupo` más abajo).
+        docs_grupo = list(documentos)
     else:
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
@@ -4022,7 +4039,7 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
 
     analisis_task = _analizar_grupo(
         item["nombre"], checklist_item, docs_grupo, documentos,
-        modo="ÍTEM DEL SEP", es_coherencia=(item_key in ("coherencia", "mod_coherencia")),
+        modo="ÍTEM DEL SEP", es_coherencia=(item_key == "coherencia"),
         observaciones_previas=(None if item_key in ITEMS_SIN_OBS_PREVIAS
                                else observaciones_previas),
         bases_texto=bases_texto, concurso_id=concurso_id,
@@ -4316,7 +4333,8 @@ Responde SOLO el JSON, sin texto adicional."""
     return limpio
 
 
-MAX_CHARS_JUSTIFICACION_MODIFICACION = 300
+MAX_CHARS_JUSTIFICACION_MODIFICACION = 400   # subido de 300 (oct-2026): una modificación con
+# varios elementos a la vez quedaba muy apretada en 300 (reporte del usuario)
 
 
 async def generar_justificacion_modificacion(descripcion_consultor: str, documentos_texto: str) -> str:

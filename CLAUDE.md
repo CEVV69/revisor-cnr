@@ -35,23 +35,22 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ## Estado actual (oct-2026)
 
-**Railway con problemas desde oct-2026 — el deploy puede estar atrasado respecto a lo pusheado.**
-Seguir pusheando normal (obligatorio, ver SINCRONIZACIÓN); Railway se pone al día solo cuando se
-recupere. No forzar redeploys extra mientras tanto.
-
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.6, el usuario la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.7, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, Instructivo 3661/2021), rutas
-`/modificacion*` propias. 10 categorías reales del SEP + Coherencia Global, checklist propio c/u.
-Pestañas: Resumen (datos + Justificación con IA, tope 300 car.; botón "Enviar Ficha a CNR" —
-`mailto:` precargado, solo si Aprobado, NO adjunta archivos), Revisión por ítem, Respuestas,
-Variables (calculadora propia, `variables_concurso.py`, regla REAL de bonificación: costo sube →
-congelada, beneficiario asume el aumento; costo baja → proporcional). ITO no se exige en PEPA.
-Pendiente: diff de presupuesto con tope de bonificación, IA en Respuestas, Ficha de Modificación
-(PDF de referencia real del SEP en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
+`/modificacion*` propias. 10 categorías reales del SEP + Coherencia Global (acepta documentos
+escaneados vía visión — la Solicitud casi siempre lo es), checklist propio c/u. Pestañas: Resumen
+(datos + Justificación con IA, tope 400 car.; botón "Enviar Ficha a CNR" `mailto:`, solo si
+Aprobado), Revisión por ítem (spinner al analizar; observaciones agrupadas por ítem con
+desplegable), Respuestas (ídem + solo muestra el párrafo "propuesta"), Variables (calculadora
+propia, `variables_concurso.py`, regla REAL de bonificación; prellenada desde Resumen), **Presupuesto**
+(nuevo: compara Presupuesto original vs. modificado por TIPO DE DOCUMENTO, no por fecha — ambos
+pueden subirse el mismo día sin ambigüedad). ITO no se exige en PEPA. Pendiente: tope de
+bonificación integrado al diff de Presupuesto, IA en Respuestas, Ficha de Modificación (PDF de
+referencia real del SEP en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

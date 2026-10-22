@@ -5048,3 +5048,115 @@ Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.7: ronda grande de correcciones + Presupuesto (oct-2026)
+
+Tras seguir probando (con Railway ya recuperado), el usuario volvió con una lista larga de
+observaciones de UI/UX + 2 bugs reales + el pedido de implementar la pestaña Presupuesto. Todo
+corregido/implementado esta sesión.
+
+### Pestaña Variables
+- Tabla de ingreso y de resultado CENTRADAS en la página (antes quedaban pegadas a la izquierda).
+- Columna "Modificado" con fondo celeste tenue (`.col-mod`, `rgba(0,113,227,0.06)`) en ambas
+  tablas, para diferenciarla de un vistazo de "Original".
+- Método de riego: de `<input type="text">` a `<select>` con las 4 opciones reales (Goteo,
+  Aspersión, Microaspersión, Carrete).
+- **Se eliminó el campo "Superficie beneficiada (ha)"** — el usuario detectó que es un error del
+  Excel oficial: pide ese dato aparte, pero siempre es idéntico a "Superficie (ha)". Ya no se
+  pide, se deriva automáticamente en `main.py` (`orig_superficie_beneficiada_ha =
+  orig_superficie_ha`, ídem modificado) antes de pasarlo a `variables_concurso.py` — ese módulo
+  mantiene su contrato de entrada tal cual por si algún caso real trajera valores distintos a
+  futuro.
+- **Mensaje de "Variable de concurso" más informativo** — antes decía solo "OK"/"ERROR — empeoró"
+  sin explicar la dirección; el usuario lo probó en un caso sin cambios (costo/ha igual) y el
+  mensaje no aclaraba nada. `calcular_variables_concurso()` ahora devuelve
+  `variable_concurso_estado`: `"mejora"` (costo/ha bajó) / `"igual"` (sin cambio) / `"empeora"`
+  (costo/ha subió) — `variable_concurso_ok` se mantiene por compatibilidad. El badge ahora dice
+  explícitamente "MEJORA — el costo/ha bajó...", "SE MANTIENE — el costo/ha no cambió..." o
+  "EMPEORA — el costo/ha subió...".
+- **Prellenado desde Resumen**: si el revisor ya cargó Superficie/Costo inicial y final en
+  Resumen, Variables los usa como valor por defecto (solo mientras no se haya guardado nada en
+  Variables todavía — si ya hay datos propios, esos mandan). Los campos de Resumen son texto
+  libre en notación chilena (coma decimal); como los inputs de Variables son `type="number"`
+  (punto decimal), se normalizan con `numero_desde_texto()` en el route antes de prellenar — sin
+  esto, un valor como "31,57" se habría descartado silenciosamente por el navegador.
+
+### Pestaña Resumen
+- Justificación: tope subido de 300 a 400 caracteres (`MAX_CHARS_JUSTIFICACION_MODIFICACION` en
+  `analyzer.py`) — el usuario reportó que una modificación con varios elementos quedaba muy
+  apretada en 300.
+
+### Pestaña Revisión por ítem — 3 cambios
+1. **Spinner al analizar**: v1 es síncrono (el navegador espera la respuesta de la IA sin tarea en
+   segundo plano), pero el botón "Revisar ítem" no cambiaba en nada al hacer clic — el usuario no
+   tenía forma de saber si estaba corriendo. Nueva función JS `iniciarAnalisisItem()`: deshabilita
+   el botón y lo reemplaza por un spinner + "Analizando…" al enviar el formulario (reutiliza
+   `.spinner-chico`/`@keyframes girar-spinner` de `proyecto.html`).
+2. **Bug real: "Coherencia Global" no reconocía el único documento subido** (la Solicitud de
+   Modificación) y decía "sin documentos". Causa: `analizar_item()` filtraba `docs_grupo` de
+   `mod_coherencia` igual que `coherencia` de la Revisión normal — solo documentos CON texto
+   extraíble, excluyendo escaneados a propósito (ahí, por costo: "cierre transversal, no analiza
+   planos/escaneados"). Pero la Solicitud de Modificación es CASI SIEMPRE un PDF escaneado
+   (formato oficial CNR, firmado a mano) y con frecuencia el único documento subido al principio
+   — excluirla de Coherencia Global le impedía cumplir su propósito real (detectar expediente
+   incompleto). **Fix:** `mod_coherencia` ahora usa su propia rama en `analizar_item()` — incluye
+   TODOS los documentos sin filtrar por texto disponible, y se le pasa `es_coherencia=False` a
+   `_analizar_grupo()` (antes `True`, igual que `"coherencia"`) para habilitar VISIÓN en
+   escaneados — `"coherencia"` (Revisión normal) no cambió en nada, sigue sin vision por costo.
+3. **Observaciones agrupadas por ítem con `<details>`/`<summary>`** desplegable — mismo patrón
+   visual que `proyecto.html` (antes eran bloques planos sin agrupar). Mismo cambio en Respuestas.
+
+### Pestaña Respuestas — 2 cambios
+1. Observaciones agrupadas por ítem con desplegable (`grupos_respuestas`, armado en
+   `pagina_respuestas_modificacion()` a partir de `ITEMS_MODIFICACION_ORDEN`, mismo criterio que
+   el panel principal).
+2. **Solo se muestra el párrafo "propuesta"**, no el texto completo (análisis + propuesta) — el
+   usuario lo pidió porque el texto completo es largo para esa vista. Se reutiliza
+   `analyzer._propuesta_de_texto()` (ya existía, usada internamente para previews a la IA) como
+   nuevo filtro Jinja `|propuesta`, registrado en `main.py`.
+
+### Pestaña Presupuesto (implementada desde cero)
+
+El usuario preguntó explícitamente cómo resolver un caso real: el Presupuesto ORIGINAL (del
+proyecto ya aprobado) y el Presupuesto MODIFICADO (de la solicitud) a veces se suben el MISMO día
+— a diferencia de la Revisión normal, donde `_resumen_presupuesto_general` distingue "versión
+inicial" vs. "última versión" por FECHA de subida (correcto ahí porque las correcciones ocurren en
+momentos distintos). Por fecha sola, dos documentos subidos el mismo día son indistinguibles.
+
+**Solución implementada**: en vez de versionar por fecha, cada presupuesto vive en su propio TIPO
+DE DOCUMENTO — se agregó `mod_presupuesto_original` ("Anexo — Presupuesto original (del proyecto
+aprobado)") en `TIPO_DOC_LABELS_MODIFICACION`, junto al ya existente `mod_presupuesto`
+("Presupuesto modificado"). Da lo mismo cuándo se suba cada uno: la comparación siempre sabe cuál
+es cuál. `mod_presupuesto_original` es SOLO un tipo de documento — no se agregó a
+`ITEMS_MODIFICACION`/`ITEMS_MODIFICACION_ORDEN`: el presupuesto ya aprobado no se "revisa" de
+nuevo (CNR ya lo aprobó), es dato puro de referencia para la comparación (mismo criterio que el
+presupuesto general resumen de la Revisión normal, que tampoco es un ítem aparte).
+
+- `main.py`: `_resumen_presupuesto_modificacion(mod)` — misma `comparar_presupuesto_general()`
+  pura que usa la Revisión normal, pero comparando `mod["presupuesto_modificacion"]["original"]`
+  vs. `["modificado"]` (sin lista de "versiones" por fecha). Rutas `GET /modificacion/{id}/
+  presupuesto` (vista) y `POST /modificacion/{id}/presupuesto/extraer` (dispara
+  `extraer_presupuesto_general()` — la misma función de extracción de la Revisión normal — sobre
+  los documentos de cada tipo, en paralelo si hay de los dos).
+- Template nuevo `modificacion_presupuesto.html`, mismo estilo visual que `presupuesto.html`
+  (clases `ppto-tbl`/`ppto-resumen-card`, filtro `clp`) pero con sus propias rutas/acciones — nota
+  explícita: para el efecto en la bonificación (que nunca puede subir), remite a la pestaña
+  Variables, que ya implementa esa regla — el diff de Presupuesto en sí no la aplica todavía
+  (pendiente, ver CLAUDE.md).
+- Pestaña "Presupuesto" deja de ser el placeholder deshabilitado "pendiente de implementar" en las
+  4 páginas de Modificaciones — ahora es un link real a todas partes.
+
+### Validación
+
+`py_compile`/`pyflakes` OK (sin hallazgos nuevos). Tests nuevos/actualizados: `test_variables_
+concurso.py` (wording MEJORA/SE MANTIENE/EMPEORA, sin campo de superficie beneficiada),
+`test_resumen_modificacion.py` (prellenado de Variables desde Resumen con conversión de coma a
+punto), `test_coherencia_escaneado.py` (nuevo — simula un documento marcado `__PDF_ESCANEADO__`
+sin archivo físico disponible y confirma que YA NO devuelve "sin documentos": genera una
+observación informativa en su lugar, prueba determinística que no depende de la API real),
+`test_presupuesto_modificacion.py` (nuevo — sube Presupuesto original y modificado el MISMO día,
+confirma que conviven sin ambigüedad por tener tipos de documento distintos, y que la comparación
+se arma bien con datos simulados). Se repitió el test de regresión de la sincronización Diseñador
+v135 — Revisión normal sigue intacta.
+
+---
+

@@ -14,6 +14,10 @@
   .proj-tab.proxima:hover { background:none; color:var(--text-3); }
   .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
     padding:0 0.4rem; margin-left:0.15rem; }
+  .spinner-chico { display:inline-block; width:0.9rem; height:0.9rem; border-radius:50%;
+    border:2px solid var(--border); border-top-color:var(--text-2);
+    animation:girar-spinner 0.8s linear infinite; }
+  @keyframes girar-spinner { to { transform:rotate(360deg); } }
 </style>
 
 {% set error = request.query_params.get('error') %}
@@ -77,7 +81,7 @@
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab activa">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
-  <span class="proj-tab proxima" title="Comparación de presupuesto original vs. modificado — pendiente de implementar">Presupuesto</span>
+  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
 {% if error == 'analisis' %}
@@ -166,8 +170,8 @@
       <span class="badge badge-tecnica" style="width:fit-content;">{{ obs_por_item[item.key]|length }} observación{{ 'es' if obs_por_item[item.key]|length != 1 else '' }}</span>
       {% endif %}
       <form method="post" action="/modificacion/{{ proyecto.id }}/revisar-item/{{ item.key }}"
-            {% if obs_por_item.get(item.key) %}onsubmit="return confirm('¿Re-revisar este ítem? Se reemplazan las observaciones generadas por la IA.')"{% endif %}>
-        <button type="submit" class="btn btn-sm {% if obs_por_item.get(item.key) %}btn-ghost{% else %}btn-primary{% endif %}" style="width:100%;"
+            onsubmit="return iniciarAnalisisItem(this, {{ 'true' if obs_por_item.get(item.key) else 'false' }})">
+        <button type="submit" class="btn btn-sm {% if obs_por_item.get(item.key) %}btn-ghost{% else %}btn-primary{% endif %}" style="width:100%; display:flex; align-items:center; justify-content:center; gap:0.4rem;"
                 {% if item.n_docs == 0 %}disabled title="Sin documentos para este ítem"{% endif %}>
           {% if obs_por_item.get(item.key) %}↻ Re-revisar{% else %}Revisar ítem{% endif %}
         </button>
@@ -185,8 +189,13 @@
   {% for item in items_lista %}
   {% set obs_item = obs_por_item.get(item.key) %}
   {% if obs_item %}
-  <div style="margin-bottom:1rem;">
-    <strong style="font-size:0.88rem;">{{ item.nombre }}</strong>
+  <details open style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+  <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
+              font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
+    {{ item.nombre }}
+    <span style="font-weight:400; color:#4a5568; font-size:0.8rem;">· {{ obs_item|length }} observación{{ 'es' if obs_item|length != 1 else '' }}</span>
+  </summary>
+  <div style="padding-top:0.6rem;">
     {% for obs in obs_item %}
     <div style="border:1px solid var(--border); border-left:4px solid {% if obs.estado == 'aprobada' %}#276749{% elif obs.estado == 'descartada' %}var(--text-3){% else %}#c2185b{% endif %};
                 border-radius:8px; padding:0.6rem 0.8rem; margin-top:0.5rem; font-size:0.84rem;">
@@ -219,6 +228,7 @@
     </div>
     {% endfor %}
   </div>
+  </details>
   {% endif %}
   {% endfor %}
   {% else %}
@@ -227,6 +237,20 @@
 </div>
 
 <script>
+// v1 de Modificaciones es síncrono (el navegador espera la respuesta de la IA, sin tarea en
+// segundo plano + polling como la Revisión normal) — sin esto, el botón no cambiaba en nada al
+// hacer clic y el revisor no tenía forma de saber si el análisis estaba corriendo o no (reportado
+// por el usuario, oct-2026).
+function iniciarAnalisisItem(form, esReRevisar) {
+  if (esReRevisar && !confirm('¿Re-revisar este ítem? Se reemplazan las observaciones generadas por la IA.')) {
+    return false;
+  }
+  var btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-chico" aria-hidden="true"></span> Analizando…';
+  return true;
+}
+
 function toggleMenuEstado() {
   var m = document.getElementById('menu-estado');
   m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';

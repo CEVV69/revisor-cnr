@@ -38,7 +38,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       extraer_presupuesto_general, comparar_presupuesto_general,
                       numero_desde_texto,
                       ITEMS_MODIFICACION, ITEMS_MODIFICACION_ORDEN, TIPO_DOC_LABELS_MODIFICACION,
-                      generar_justificacion_modificacion)
+                      generar_justificacion_modificacion, _propuesta_de_texto)
 import calculos_riego
 import geo
 import exportar_disenador
@@ -598,6 +598,10 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
 }
 templates.env.filters["estado_label"] = lambda e: ESTADOS_LEGACY.get(e, e)
 templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(ESTADOS_LEGACY.get(e, e), "badge-estado")
+# Solo el párrafo de "propuesta" de una observación en formato análisis+propuesta (ver
+# `_propuesta_de_texto`) — usado en Respuestas de Modificaciones (oct-2026, pedido del usuario:
+# el texto completo era muy largo para esa vista, solo hace falta la parte breve y accionable).
+templates.env.filters["propuesta"] = _propuesta_de_texto
 
 
 def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
@@ -4763,7 +4767,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
             f"bonificación {r['modificado']['bonificacion_uf']:.2f} UF, "
             f"costo/ha {r['modificado']['costo_ha']:.2f}.\n"
             f"Indicador variable de concurso (costo/ha no debe empeorar): "
-            f"{'OK' if r['variable_concurso_ok'] else 'ERROR — empeoró'}.\n"
+            f"{r['variable_concurso_estado']}.\n"
         ) if r['original']['aporte_pct'] is not None else ""
 
     acc_costo = iniciar_costo()
@@ -4862,8 +4866,17 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
     aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
     obs_con_estado = [{"obs": o, "sub": _estado_subsanacion(o)} for o in aprobadas]
     n_pendientes_respuesta = sum(1 for par in obs_con_estado if par["sub"]["puede_responder"])
+    # Agrupadas por ítem, con desplegable — mismo criterio visual que la Revisión normal (pedido
+    # del usuario, oct-2026): antes era una lista plana, difícil de recorrer con varios ítems.
+    por_item = {}
+    for par in obs_con_estado:
+        por_item.setdefault(par["obs"].get("item"), []).append(par)
+    grupos_respuestas = [
+        {"key": k, "nombre": ITEMS_MODIFICACION[k]["nombre"], "pares": por_item[k]}
+        for k in ITEMS_MODIFICACION_ORDEN if k in por_item
+    ]
     return templates.TemplateResponse("modificacion_respuestas.html", {
-        "request": request, "user": user, "proyecto": mod, "obs_con_estado": obs_con_estado,
+        "request": request, "user": user, "proyecto": mod, "grupos_respuestas": grupos_respuestas,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "n_pendientes_respuesta": n_pendientes_respuesta,
     })
@@ -4918,9 +4931,23 @@ async def pagina_variables_modificacion(request: Request, mod_id: str):
     n_pendientes_respuesta = sum(
         1 for o in mod.get("observaciones", [])
         if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
+    # Prellenado desde Resumen (oct-2026, pedido del usuario: evitar reingresar superficie/costo
+    # si ya se cargaron ahí) — `resumen` guarda esos campos como texto libre, en notación chilena
+    # (coma decimal); los inputs numéricos de este formulario son type="number" (punto decimal),
+    # así que se normalizan acá con `numero_desde_texto` antes de usarlos como prellenado. Si el
+    # revisor ya guardó algo en "Variables" (`datos`), el prellenado de Resumen ni se usa — el
+    # template solo lo consulta `if datos else (resumen... )`.
+    resumen_raw = mod.get("resumen", {})
+    resumen_num = {
+        "superficie_inicial_ha": numero_desde_texto(resumen_raw.get("superficie_inicial_ha")),
+        "superficie_final_ha": numero_desde_texto(resumen_raw.get("superficie_final_ha")),
+        "costo_inicial_uf": numero_desde_texto(resumen_raw.get("costo_inicial_uf")),
+        "costo_final_uf": numero_desde_texto(resumen_raw.get("costo_final_uf")),
+    }
     return templates.TemplateResponse("modificacion_variables.html", {
         "request": request, "user": user, "proyecto": mod,
         "datos": datos or {}, "resultado": resultado,
+        "resumen": resumen_num,
         "n_pendientes_respuesta": n_pendientes_respuesta,
     })
 
@@ -4929,10 +4956,10 @@ async def pagina_variables_modificacion(request: Request, mod_id: str):
 async def guardar_variables_modificacion(
     request: Request, mod_id: str,
     orig_superficie_ha: float = Form(...), orig_metodo: str = Form(""),
-    orig_superficie_beneficiada_ha: float = Form(...), orig_costo_uf: float = Form(...),
+    orig_costo_uf: float = Form(...),
     orig_n_beneficiarios: int = Form(1), orig_aporte_pct: float = Form(...),
     mod_superficie_ha: float = Form(...), mod_metodo: str = Form(""),
-    mod_superficie_beneficiada_ha: float = Form(...), mod_costo_uf: float = Form(...),
+    mod_costo_uf: float = Form(...),
     mod_n_beneficiarios: int = Form(1),
 ):
     user = get_current_user(request)
@@ -4943,17 +4970,21 @@ async def guardar_variables_modificacion(
         raise HTTPException(status_code=404)
 
     # El Aporte % se ingresa como porcentaje (ej. 60.21) — se guarda como fracción (0.6021) para
-    # que `calcular_variables_concurso` lo use directo en sus fórmulas.
+    # que `calcular_variables_concurso` lo use directo en sus fórmulas. La Superficie Beneficiada
+    # ya no se pide aparte (oct-2026, reporte del usuario: el Excel oficial la pide separada por
+    # un error del formato, pero siempre es el mismo dato que Superficie) — se deriva directo de
+    # `superficie_ha` acá, no en `variables_concurso.py` (ese módulo mantiene su contrato de
+    # entrada tal cual, por si algún caso real SÍ trae valores distintos a futuro).
     datos = {
         "original": {
             "superficie_ha": orig_superficie_ha, "metodo": orig_metodo.strip() or None,
-            "superficie_beneficiada_ha": orig_superficie_beneficiada_ha,
+            "superficie_beneficiada_ha": orig_superficie_ha,
             "costo_uf": orig_costo_uf, "n_beneficiarios": orig_n_beneficiarios,
             "aporte_pct": orig_aporte_pct / 100,
         },
         "modificado": {
             "superficie_ha": mod_superficie_ha, "metodo": mod_metodo.strip() or orig_metodo.strip() or None,
-            "superficie_beneficiada_ha": mod_superficie_beneficiada_ha,
+            "superficie_beneficiada_ha": mod_superficie_ha,
             "costo_uf": mod_costo_uf, "n_beneficiarios": mod_n_beneficiarios,
         },
     }
@@ -5054,6 +5085,113 @@ async def generar_justificacion_modificacion_ruta(
     _registrar_costo(mod, "resumen", acc_costo)
     db.save_proyecto(mod)
     return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
+
+
+def _resumen_presupuesto_modificacion(mod: dict) -> dict:
+    """Compara el cuadro RESUMEN GENERAL del Presupuesto ORIGINAL (del proyecto ya aprobado)
+    contra el Presupuesto MODIFICADO (el que acompaña la Solicitud de Modificación), usando
+    `comparar_presupuesto_general()` — la misma función pura de la Revisión normal.
+
+    A DIFERENCIA de la Revisión normal (`_resumen_presupuesto_general`), acá NO se distingue
+    "versión inicial" vs. "versión final" por FECHA de subida: en una Modificación, ambos
+    presupuestos (el original y el modificado) suelen subirse el MISMO día, junto con el resto de
+    la solicitud — una comparación por fecha no podría distinguirlos. En su lugar, cada uno vive
+    en su propio tipo_doc (`mod_presupuesto_original` / `mod_presupuesto`), así que no hay
+    ambigüedad posible sin importar cuándo se suban (pedido explícito del usuario, oct-2026: "¿Cómo
+    se puede implementar eso solo para las Modificaciones?" — la respuesta es esta separación por
+    categoría de documento, no por fecha)."""
+    datos = mod.get("presupuesto_modificacion") or {}
+    orig = datos.get("original")
+    modi = datos.get("modificado")
+    if not orig and not modi:
+        return {"extraido": False, "hay_comparacion": False, "filas": [],
+                "total_original": None, "total_modificado": None, "diferencia_total": None}
+    hay_comparacion = bool(orig and modi)
+    if hay_comparacion:
+        filas = comparar_presupuesto_general(orig.get("items") or [], modi.get("items") or [])
+    elif orig:
+        filas = [{"item": it.get("item"), "costo_inicial": numero_desde_texto(it.get("monto")),
+                  "costo_final": None, "diferencia": None}
+                 for it in (orig.get("items") or []) if isinstance(it, dict)]
+    else:
+        filas = [{"item": it.get("item"), "costo_inicial": None,
+                  "costo_final": numero_desde_texto(it.get("monto")), "diferencia": None}
+                 for it in (modi.get("items") or []) if isinstance(it, dict)]
+    total_original = numero_desde_texto(orig.get("total")) if orig else None
+    total_modificado = numero_desde_texto(modi.get("total")) if modi else None
+    diferencia_total = (total_modificado - total_original
+                        if (total_original is not None and total_modificado is not None) else None)
+    return {"extraido": True, "hay_comparacion": hay_comparacion, "filas": filas,
+            "total_original": total_original, "total_modificado": total_modificado,
+            "diferencia_total": diferencia_total,
+            "fecha_original": orig.get("fecha") if orig else None,
+            "fecha_modificado": modi.get("fecha") if modi else None}
+
+
+@app.get("/modificacion/{mod_id}/presupuesto", response_class=HTMLResponse)
+async def pagina_presupuesto_modificacion(request: Request, mod_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    n_pendientes_respuesta = sum(
+        1 for o in mod.get("observaciones", [])
+        if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
+    return templates.TemplateResponse("modificacion_presupuesto.html", {
+        "request": request, "user": user, "proyecto": mod,
+        "resumen_presupuesto": _resumen_presupuesto_modificacion(mod),
+        "costo_api": _costo_para_vista(mod),
+        "n_pendientes_respuesta": n_pendientes_respuesta,
+        "extraer": request.query_params.get("extraer"),
+    })
+
+
+@app.post("/modificacion/{mod_id}/presupuesto/extraer")
+async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
+    """Extrae (o re-extrae) el cuadro resumen de AMBOS presupuestos a partir de los documentos ya
+    subidos — `mod_presupuesto_original` y `mod_presupuesto` — y guarda el resultado en
+    `mod["presupuesto_modificacion"]`. Si solo uno de los dos está subido, igual se extrae y se
+    guarda (la comparación se completa cuando llegue el que falta)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+
+    docs_orig = [d for d in mod.get("documentos", []) if d.get("tipo_doc") == "mod_presupuesto_original"]
+    docs_modi = [d for d in mod.get("documentos", []) if d.get("tipo_doc") == "mod_presupuesto"]
+    if not docs_orig and not docs_modi:
+        return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto?extraer=sindocs",
+                                status_code=302)
+
+    await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
+    documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
+    docs_orig_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "mod_presupuesto_original"]
+    docs_modi_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "mod_presupuesto"]
+
+    tareas = {}
+    if docs_orig_ct:
+        tareas["original"] = extraer_presupuesto_general(docs_orig_ct)
+    if docs_modi_ct:
+        tareas["modificado"] = extraer_presupuesto_general(docs_modi_ct)
+    resultados = dict(zip(tareas.keys(), await asyncio.gather(*tareas.values())))
+
+    mod = db.get_proyecto(mod_id)
+    if not mod:
+        return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto", status_code=302)
+    datos = mod.setdefault("presupuesto_modificacion", {})
+    estado = "vacio"
+    for lado, datos_lado in resultados.items():
+        if datos_lado.get("items"):
+            datos[lado] = {"fecha": _ahora().isoformat(), "items": datos_lado["items"],
+                           "total": datos_lado.get("total")}
+            estado = "ok"
+    db.save_proyecto(mod)
+    return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto?extraer={estado}",
+                            status_code=302)
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────
