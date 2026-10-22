@@ -26,7 +26,7 @@
 
 {% if grupos_respuestas %}
 {% for grupo in grupos_respuestas %}
-<details open style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+<details {% if grupo.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
 <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
             font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
   {{ grupo.nombre }}

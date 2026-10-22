@@ -5217,3 +5217,84 @@ fuera de los dos checklists ampliados.
 
 ---
 
+## Modificaciones de Proyecto — v1.9: desplegables cerrados + Art. 33° + caso real FV (oct-2026)
+
+### Desplegables cerrados por defecto
+
+El usuario reportó que los `<details>` de Revisión por ítem y Respuestas (agregados en v1.7)
+siempre aparecían TODOS desplegados — deberían estar cerrados salvo el que se acaba de generar o
+se estaba trabajando. Se agregó el parámetro `item_ok` (mismo patrón que usa `proyecto.html` para
+abrir el ítem recién revisado) a los redirects relevantes de `main.py`:
+- `revisar_item_modificacion()` → `?item_ok={item_key}#item-{item_key}` en el camino exitoso.
+- `actualizar_observacion_modificacion()` (aprobar/descartar/pendiente) y
+  `eliminar_observacion_modificacion()` → idem, leyendo el `item` de la observación tocada.
+- `registrar_respuesta_modificacion()` → `?item_ok={obs.item}#obs-{obs_id}` en Respuestas.
+- `pagina_respuestas_modificacion()` pasa `item_ok` al template igual que la página principal.
+
+En las plantillas, `<details open>` (siempre abierto) pasó a `<details {% if item.key == item_ok %}open{% endif %}>` en `modificacion.html`, y `{% if grupo.key == item_ok %}` en
+`modificacion_respuestas.html`. Los caminos de error (`error=analisis`/`error=sindocs`) NO llevan
+`item_ok` a propósito — si el análisis falló o no hay documentos, no hay nada nuevo que mostrar
+abierto; el ancla `#item-{key}` ya hace scroll hasta la tarjeta igual.
+
+### Caso real: cambio de 4→2 paneles FV no generó la observación esperada
+
+El usuario probó con su caso real (reducción de 4 paneles de 280W a 2 paneles de 560W) y notó que
+"Coherencia Global" NO generó la observación sobre la estructura de soporte ni sobre planos de la
+nueva estructura, pese al criterio agregado en la ronda anterior (v1.8). Causa: ese criterio se
+había agregado al checklist de `mod_diseno` ("Diseño hidráulico, agronómico u otros diseños
+modificados") — pero como esta modificación está clasificada como "cambio sin cálculo", lo más
+probable es que el consultor NO subió ningún documento de tipo `mod_diseno` (cree que no aplica un
+nuevo diseño) — así que el ítem `mod_diseno` nunca se analiza (sin documentos, no hay nada que
+revisar) y el criterio nunca se dispara. **Fix**: el mismo criterio de "efectos secundarios no
+declarados" se agregó TAMBIÉN al punto 1 (completitud) de `mod_coherencia` — que corre sobre TODOS
+los documentos de la modificación sin importar qué falte, exactamente el lugar correcto para
+detectar "se declaró un cambio que típicamente implica un efecto secundario, pero ningún documento
+lo aborda". El texto es explícito en que esto aplica AUNQUE la modificación esté clasificada como
+"cambio sin cálculo" — la ausencia de cálculo no implica ausencia de efecto físico en la estructura
+de soporte, y puede seguir requiriendo planos actualizados aunque no requiera un nuevo cálculo
+hidráulico/estructural.
+
+Lección para criterios futuros: un criterio de dominio que debe pescar un CASO FALTANTE (el
+consultor no subió lo que debería) tiene que vivir en `mod_coherencia` (corre siempre, con lo que
+haya), no solo en el ítem temático al que lógicamente pertenece (que solo corre si hay documentos
+de ese tipo). Si el criterio es sobre CALIDAD de un documento que sí se subió, el ítem temático
+basta.
+
+### Nuevo criterio legal: Art. 33° del Reglamento de la Ley Nº 18.450
+
+El usuario subió a Google Drive el Reglamento vigente (D.S. Nº 95/2015, Minagri — "antiguo pero al
+no existir uno nuevo, se considera") y señaló que el Art. 33° exige que la Solicitud de
+Modificación esté firmada por el Beneficiario Y el Consultor. Se leyó el artículo completo desde
+Drive; además de la firma, confirma/da base legal más fuerte a varios criterios ya implementados:
+
+> "La Comisión aceptará modificaciones a los proyectos una vez resuelto el Concurso, siempre que
+> estas modificaciones mantengan o mejoren las variables de Concurso que le permitieron obtener su
+> bonificación. [...] Se aceptarán modificaciones de Proyectos siempre que se mantenga el objetivo
+> original de éste. [...] La modificación en ningún caso podrá aumentar el monto de la bonificación
+> aprobada. La solicitud de modificación deberá ser suscrita por el Beneficiario y el Consultor y
+> contener al menos los siguientes antecedentes: a) Objetivo específico y justificación detallada
+> de la misma; b) Efectos sobre el costo del proyecto; c) Adjuntar planos y diseños, cuando
+> corresponda; y d) Cualquier otro documento que sea necesario [...]"
+
+Cambios en `analyzer.py`:
+- `mod_solicitud`: dos bloques nuevos — **FIRMAS** (verificar que el documento esté firmado por
+  AMBOS, Beneficiario y Consultor — una solicitud firmada por uno solo incumple el Art. 33°) y
+  **OBJETIVO ORIGINAL** (el cambio no debe desvirtuar el objetivo/propósito del proyecto aprobado).
+- `mod_cuadro_variables`: la regla de "bonificación nunca sube" ahora cita el Art. 33° de forma
+  literal como base legal, además de la consistencia con Presupuesto modificado.
+- La letra a-d del Art. 33° coincide con los antecedentes mínimos que ya se verificaban vía el
+  Instructivo CNR (no fue necesario reescribir esa parte) — el Instructivo es la reglamentación
+  operativa de este mismo artículo.
+
+### Validación
+
+`py_compile`/`pyflakes` OK. Test nuevo `test_details_cerrados.py`: confirma que, sin `item_ok` en
+la URL, ningún `<details>` viene abierto; que con `?item_ok=mod_coherencia` SOLO ese grupo viene
+abierto (los demás cerrados); y que el flujo de `revisar-item` exitoso no revienta. Se repitió
+toda la suite de Modificaciones (`test_modificaciones.py`, `test_variables_concurso.py`,
+`test_resumen_modificacion.py`, `test_coherencia_escaneado.py`,
+`test_presupuesto_modificacion.py`, `test_respuestas_coherencia.py`) y el test de regresión de la
+sincronización Diseñador v135 — todo sigue pasando, Revisión normal sigue intacta.
+
+---
+

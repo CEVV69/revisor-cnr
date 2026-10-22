@@ -4814,7 +4814,8 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     }
     _registrar_costo(mod, "revision", acc_costo, detalle=item_key)
     db.save_proyecto(mod)
-    return RedirectResponse(url=f"/modificacion/{mod_id}#item-{item_key}", status_code=302)
+    return RedirectResponse(url=f"/modificacion/{mod_id}?item_ok={item_key}#item-{item_key}",
+                            status_code=302)
 
 
 @app.post("/modificacion/{mod_id}/observacion/{obs_id}/estado")
@@ -4838,7 +4839,7 @@ async def actualizar_observacion_modificacion(
             item_key = obs.get("item")
             break
     db.save_proyecto(mod)
-    extra = f"#item-{item_key}" if item_key else ""
+    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
     return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
 
 
@@ -4850,9 +4851,11 @@ async def eliminar_observacion_modificacion(request: Request, mod_id: str, obs_i
     mod = db.get_proyecto(mod_id)
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
+    item_key = next((o.get("item") for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
     mod["observaciones"] = [o for o in mod.get("observaciones", []) if o["id"] != obs_id]
     db.save_proyecto(mod)
-    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
+    return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
 
 
 @app.get("/modificacion/{mod_id}/respuestas", response_class=HTMLResponse)
@@ -4879,6 +4882,7 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
         "request": request, "user": user, "proyecto": mod, "grupos_respuestas": grupos_respuestas,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "n_pendientes_respuesta": n_pendientes_respuesta,
+        "item_ok": request.query_params.get("item_ok"),
     })
 
 
@@ -4909,7 +4913,9 @@ async def registrar_respuesta_modificacion(
             "comentario": comentario.strip(), "fecha": _ahora().isoformat(), "por": user["nombre"],
         })
         db.save_proyecto(mod)
-    return RedirectResponse(url=f"/modificacion/{mod_id}/respuestas#obs-{obs_id}", status_code=302)
+    return RedirectResponse(
+        url=f"/modificacion/{mod_id}/respuestas?item_ok={obs.get('item', '')}#obs-{obs_id}",
+        status_code=302)
 
 
 @app.get("/modificacion/{mod_id}/variables", response_class=HTMLResponse)

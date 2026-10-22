@@ -39,18 +39,19 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.8, el usuario la está probando con un caso real) —
-separada de la Revisión normal (art. 6° Ley 18.450, Instructivo 3661/2021), rutas
-`/modificacion*` propias. 10 categorías reales del SEP + Coherencia Global (acepta documentos
-escaneados vía visión — la Solicitud casi siempre lo es), checklist propio c/u (incluye criterios
-prácticos de dominio, ej. cambio de N° paneles FV → revisar estructura de soporte; exigencia del
-Cuadro de Variables se relaja si el costo no cambia). Pestañas: Resumen (datos + Justificación con
-IA, tope 400 car.; botón "Enviar Ficha a CNR" `mailto:`, solo si Aprobado), Revisión por ítem
-(spinner; observaciones agrupadas por ítem con desplegable), Respuestas (ídem + solo el párrafo
-"propuesta"), Variables (calculadora propia, `variables_concurso.py`, regla REAL de bonificación;
-prellenada desde Resumen), Presupuesto (compara original vs. modificado por TIPO DE DOCUMENTO, no
-por fecha). ITO no se exige en PEPA. Pendiente: tope de bonificación en el diff de Presupuesto, IA
-en Respuestas, Ficha de Modificación (PDF real del SEP en `docs/`). Detalle en `docs/historial_sesiones.md`.
+**Nuevo: Modificaciones de Proyecto** (v1.9, el usuario la está probando con un caso real) —
+separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
+Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
+Global (acepta escaneados vía visión; chequea de oficio efectos secundarios no declarados, ej.
+cambio N° paneles FV → estructura de soporte/planos), checklist propio c/u — nuevos criterios de
+dominio van ahí (el usuario los da, Claude los redacta). Solicitud exige firma de Beneficiario Y
+Consultor (Art. 33°) y que se mantenga el objetivo original. Pestañas: Resumen (Justificación IA,
+tope 400 car.; botón "Enviar Ficha a CNR" `mailto:` si Aprobado), Revisión por ítem y Respuestas
+(observaciones agrupadas por ítem con desplegable — CERRADO por defecto, solo se abre el grupo
+recién tocado vía `?item_ok=`), Variables (calculadora propia, `variables_concurso.py`, regla REAL
+de bonificación — Art. 33°: nunca sube), Presupuesto (original vs. modificado por TIPO DE
+DOCUMENTO, no por fecha). ITO no se exige en PEPA. Pendiente: tope de bonificación en el diff de
+Presupuesto, IA en Respuestas, Ficha de Modificación (PDF real del SEP en `docs/`).
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

@@ -21,6 +21,7 @@
 </style>
 
 {% set error = request.query_params.get('error') %}
+{% set item_ok = request.query_params.get('item_ok') %}
 
 <!-- Encabezado -->
 <div style="margin:1.4rem 0 1.2rem;">
@@ -189,7 +190,7 @@
   {% for item in items_lista %}
   {% set obs_item = obs_por_item.get(item.key) %}
   {% if obs_item %}
-  <details open style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+  <details {% if item.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
               font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
     {{ item.nombre }}

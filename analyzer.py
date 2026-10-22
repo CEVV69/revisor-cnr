@@ -1043,6 +1043,18 @@ casos que se revisan — porque implica un costo adicional que el reglamento no 
 observes su ausencia como falla salvo que el expediente indique que el proyecto NO es PEPA (montos
 y escala mayores, bonificación de otro programa) o que el tipo de cambio sea de una complejidad
 que claramente amerite ese respaldo (ej. un rediseño estructural mayor).
+
+FIRMAS (Art. 33° del Reglamento de la Ley Nº 18.450, D.S. Nº 95/2015 del Minagri — "La solicitud
+de modificación deberá ser suscrita por el Beneficiario y el Consultor"): verifica que el
+documento esté firmado por AMBOS — el beneficiario (o su representante) Y el consultor
+responsable. Una solicitud firmada por uno solo de los dos incumple el Art. 33° y es observable.
+
+OBJETIVO ORIGINAL (Art. 33° del Reglamento): "Se aceptarán modificaciones de Proyectos siempre que
+se mantenga el objetivo original de éste." Verifica que el cambio solicitado no desvirtúe el
+objetivo/propósito del proyecto aprobado (ej. sigue siendo el mismo sistema de riego, para la
+misma superficie y cultivo, con los mismos beneficiarios) — un cambio que en los hechos convierte
+el proyecto en uno distinto al que ganó el concurso excede lo que el Art. 33° permite modificar.
+
 Nota: el efecto sobre el costo y la bonificación (Cuadro de Variables de Concurso) NO se revisa
 acá — es un documento y un ítem de revisión aparte (algunos formatos de solicitud traen un resumen
 simple de costo/bonificación incluido, pero el Cuadro de Variables oficial es un documento propio,
@@ -1087,8 +1099,10 @@ según el tipo de cambio:
 método de riego; superficie beneficiada y superficie ponderada (ha); costo total (UF); N° de
 beneficiarios; aporte % del postulante; y la bonificación solicitada (UF) resultante. El costo
 modificado NO debe quedar en blanco — es el dato que determina todo lo demás.
-Regla crítica, sin excepción (la misma que rige el Presupuesto modificado): la bonificación
-MODIFICADA nunca puede ser mayor a la ORIGINAL. Si el costo total SUBE respecto al original, la
+Regla crítica, sin excepción (Art. 33° del Reglamento de la Ley Nº 18.450, D.S. Nº 95/2015: "La
+modificación en ningún caso podrá aumentar el monto de la bonificación aprobada" — la misma regla
+rige el Presupuesto modificado): la bonificación MODIFICADA nunca puede ser mayor a la ORIGINAL.
+Si el costo total SUBE respecto al original, la
 bonificación debe quedar IGUAL a la original (el 100% del aumento lo asume el beneficiario/
 solicitante — el aporte % efectivo del modificado, en este caso, es MAYOR al original, no igual) —
 observa de inmediato un cuadro que calcule la bonificación modificada aplicando el mismo aporte %
@@ -1210,6 +1224,18 @@ proyecto original completo). Responde dos preguntas, en este orden:
    salvo que el motivo declarado lo justifique con claridad (ej. un cambio de marca de un equipo ya
    calculado, sin alterar el diseño, puede no necesitar un Diseño modificado nuevo, pero si sigue
    necesitando Especificaciones/Presupuesto).
+
+   EFECTOS SECUNDARIOS NO DECLARADOS (conocimiento práctico — revísalo DE OFICIO, el expediente casi
+   nunca lo menciona solo): un cambio de equipo puede obligar a ajustar OTRO elemento que depende de
+   él. Caso típico: si cambia la CANTIDAD, el modelo o las dimensiones de los paneles fotovoltaicos
+   (ej. de 4 paneles chicos a 2 paneles grandes), la estructura de soporte/racking casi siempre debe
+   ajustarse (distinta cantidad de paneles por fila, distinto peso o dimensión por panel) — y ese
+   ajuste puede requerir planos actualizados de la nueva estructura. Esto aplica AUNQUE la
+   modificación esté clasificada como "cambio sin cálculo" (sin nuevo cálculo hidráulico/
+   estructural): la ausencia de cálculo no significa ausencia de efecto físico en la estructura de
+   soporte. Si el expediente no aborda este efecto en ningún documento (ni Diseño modificado ni
+   Planos modificados), obsérvalo como información faltante — no asumas que "no aplica" solo porque
+   el consultor clasificó el cambio como simple.
 
 2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
    consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden
