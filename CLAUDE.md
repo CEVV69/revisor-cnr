@@ -39,18 +39,18 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.7, el usuario la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.8, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, Instructivo 3661/2021), rutas
 `/modificacion*` propias. 10 categorías reales del SEP + Coherencia Global (acepta documentos
-escaneados vía visión — la Solicitud casi siempre lo es), checklist propio c/u. Pestañas: Resumen
-(datos + Justificación con IA, tope 400 car.; botón "Enviar Ficha a CNR" `mailto:`, solo si
-Aprobado), Revisión por ítem (spinner al analizar; observaciones agrupadas por ítem con
-desplegable), Respuestas (ídem + solo muestra el párrafo "propuesta"), Variables (calculadora
-propia, `variables_concurso.py`, regla REAL de bonificación; prellenada desde Resumen), **Presupuesto**
-(nuevo: compara Presupuesto original vs. modificado por TIPO DE DOCUMENTO, no por fecha — ambos
-pueden subirse el mismo día sin ambigüedad). ITO no se exige en PEPA. Pendiente: tope de
-bonificación integrado al diff de Presupuesto, IA en Respuestas, Ficha de Modificación (PDF de
-referencia real del SEP en `docs/`). Detalle completo en `docs/historial_sesiones.md`.
+escaneados vía visión — la Solicitud casi siempre lo es), checklist propio c/u (incluye criterios
+prácticos de dominio, ej. cambio de N° paneles FV → revisar estructura de soporte; exigencia del
+Cuadro de Variables se relaja si el costo no cambia). Pestañas: Resumen (datos + Justificación con
+IA, tope 400 car.; botón "Enviar Ficha a CNR" `mailto:`, solo si Aprobado), Revisión por ítem
+(spinner; observaciones agrupadas por ítem con desplegable), Respuestas (ídem + solo el párrafo
+"propuesta"), Variables (calculadora propia, `variables_concurso.py`, regla REAL de bonificación;
+prellenada desde Resumen), Presupuesto (compara original vs. modificado por TIPO DE DOCUMENTO, no
+por fecha). ITO no se exige en PEPA. Pendiente: tope de bonificación en el diff de Presupuesto, IA
+en Respuestas, Ficha de Modificación (PDF real del SEP en `docs/`). Detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
@@ -80,7 +80,8 @@ Deploy: `git push` → Railway auto-despliega en ~1-2 min → `revisor-cnr-produ
 ```
 main.py          Rutas FastAPI (toda la lógica de negocio)
 analyzer.py      Claude API: analizar_item(), chatear_item(), consultar_expediente()
-                 ITEMS_SEP: dict con 19 ítems (tipo_docs + checklist)
+                 ITEMS_SEP: dict con 19 ítems (tipo_docs + checklist); ITEMS_MODIFICACION ídem
+                 para Modificaciones — nuevos criterios de dominio van ahí, en el "checklist"
 calculos_riego.py Cálculos determinísticos hidráulicos/agronómicos
 database.py      Dual: PostgreSQL (prod) / JSON local (dev). Thread-safe con RLock.
 extractor.py     Extracción PDF/Word/Excel. MAX_CHARS_GUARDADO=60.000 chars.

@@ -1063,7 +1063,22 @@ garantía, normativa aplicable) que demuestre equivalencia o mejora frente al eq
 sola mención del cambio sin ese respaldo técnico es observable. Si es un rediseño completo (cambio
 de método de riego o de tipo de obra), debe cumplir el mismo estándar técnico exigido al proyecto
 original (ITT-03) y no solo al elemento puntual que cambia. Verifica coherencia entre lo declarado
-acá, el motivo de la Solicitud de Modificación y las cifras del Cuadro de Variables.""",
+acá, el motivo de la Solicitud de Modificación y las cifras del Cuadro de Variables.
+
+EFECTOS SECUNDARIOS DEL CAMBIO (conocimiento práctico, casi nunca viene declarado explícito en el
+expediente — revísalo igual, de oficio): un cambio de elemento puede obligar a ajustar OTRO
+elemento que depende de él, aunque el consultor no lo mencione. Ejemplos a verificar activamente
+según el tipo de cambio:
+- Paneles fotovoltaicos: si cambia la cantidad, el modelo o las dimensiones de los paneles, la
+  estructura de soporte (racking) debe ajustarse en consecuencia (más o menos paneles por fila,
+  distinto peso o dimensión por panel) — si el diseño modificado no menciona la estructura de
+  soporte pese a cambiar los paneles, obsérvalo como un efecto secundario no abordado.
+- Bomba: un cambio de modelo/potencia de bomba puede alterar el punto de operación (caudal/altura)
+  del sistema — verifica que el resto del diseño hidráulico (diámetros, presión en los emisores)
+  siga siendo compatible, no solo que la bomba nueva "funcione".
+- Cualquier cambio de equipo que modifique su peso, dimensiones o requerimiento eléctrico puede
+  afectar la obra civil o el tablero/instalación eléctrica asociada — si el expediente no aborda
+  ese efecto derivado y es razonable esperar que exista, obsérvalo.""",
     },
     "mod_cuadro_variables": {
         "nombre": "Cuadro de Variables de Concurso",
@@ -1088,7 +1103,15 @@ modificación no debe degradarla sin que quede justificado.
 Si el revisor ya completó su propia calculadora en la pestaña "Variables" de esta modificación,
 esos resultados vienen en el contexto de este análisis — compara el cuadro del consultor contra
 ese cálculo y señala cualquier discrepancia en bonificación, aporte % o el indicador de variable de
-concurso, citando ambos valores (el del consultor y el calculado).""",
+concurso, citando ambos valores (el del consultor y el calculado).
+
+EXIGIBILIDAD RELATIVA cuando el costo NO cambia: el propósito de este cuadro es mostrar el efecto
+de la modificación sobre el costo y la bonificación. Si la Solicitud y el resto del expediente
+dejan claro que el costo total del proyecto NO varía con esta modificación (ej. un cambio de marca/
+modelo sin alterar el presupuesto), la exigencia de este cuadro es más relativa — un cuadro
+ausente o incompleto en ese escenario NO debería observarse con la misma severidad que si el costo
+sí cambia, porque no hay nada que mostrar: no fuerces una observación solo por la forma si el fondo
+(costo y bonificación sin variación) ya está claro en otros documentos del expediente.""",
     },
     "mod_especificaciones": {
         "nombre": "Especificaciones técnicas de los elementos modificados",
@@ -1170,9 +1193,12 @@ proyecto original completo). Responde dos preguntas, en este orden:
    cambio sea de una complejidad que claramente lo amerite); b) el efecto sobre el costo —
    presupuesto antiguo y nuevo, con las partidas modificadas, Y el Cuadro de Variables de Concurso
    (documento Excel propio, separado de la Solicitud, con costo/bonificación/superficie/aporte %
-   original vs. modificado); c) planos y diseños del cambio, si el cambio tiene un componente
-   físico/técnico; d) cualquier otro documento necesario para acreditar el cambio (ej. fuerza
-   mayor, cotizaciones del equipo nuevo).
+   original vs. modificado) — SALVO que el expediente deje claro que el costo del proyecto NO
+   cambia con esta modificación (ej. cambio de marca/modelo sin alterar el presupuesto): ahí la
+   exigencia de este cuadro es más relativa, no lo observes con la misma severidad si no hay nada
+   que mostrar en costo/bonificación; c) planos y diseños del cambio, si el cambio tiene un
+   componente físico/técnico; d) cualquier otro documento necesario para acreditar el cambio (ej.
+   fuerza mayor, cotizaciones del equipo nuevo).
    Mira qué documentos efectivamente se subieron (los ves en el expediente que te llega) y señala
    EXPLÍCITAMENTE cuáles de esos antecedentes mínimos faltan — ej. "el consultor solo ingresó la
    Solicitud de Modificación con su justificación, pero no se adjuntó el Cuadro de Variables de

@@ -5160,3 +5160,60 @@ v135 — Revisión normal sigue intacta.
 
 ---
 
+## Modificaciones de Proyecto — v1.8: diagnóstico Respuestas + criterios de dominio (oct-2026)
+
+### "Las observaciones de Coherencia Global no aparecen en Respuestas"
+
+El usuario reportó que, tras revisar el ítem Coherencia Global (2 observaciones generadas), estas
+no se veían en la pestaña Respuestas — solo las de Solicitud de Modificación, que ya estaban antes.
+
+**Diagnóstico**: se armó un test dedicado (`test_respuestas_coherencia.py`) que inyecta
+observaciones `aprobada` directo en la base de datos para los ítems `mod_solicitud` y
+`mod_coherencia` y confirma que `pagina_respuestas_modificacion()`/`grupos_respuestas` SÍ las
+agrupa y muestra correctamente a las dos — el texto de ambas observaciones de Coherencia Global
+aparece en el HTML sin problema. **No se encontró ningún bug** en el agrupamiento ni en el
+guardado: la pestaña Respuestas, igual que en toda la app (Revisión normal incluida), solo muestra
+observaciones con `estado == "aprobada"` — las recién generadas por "Revisar ítem" nacen en estado
+`"pendiente"` y necesitan aprobarse a mano en el panel principal antes de pasar a Respuestas. La
+explicación más probable es que las 2 observaciones de Coherencia Global todavía no se habían
+aprobado cuando el usuario revisó Respuestas. Se le explicó esto y se le pidió confirmar si ya
+estaban en estado "aprobada" cuando no aparecieron — si el problema persiste con observaciones
+efectivamente aprobadas, hace falta un caso puntual (ID de la modificación/observación) para seguir
+investigando, porque con datos simulados el flujo funciona como se espera.
+
+### Dónde incorporar criterios de dominio/práctica a la revisión de Modificaciones
+
+El usuario preguntó dónde puede agregar conocimiento práctico que no está escrito en ningún
+documento del expediente pero que un revisor humano aplicaría igual — dio dos ejemplos concretos,
+y ambos se implementaron esta sesión como demostración del mecanismo:
+
+1. **Efectos secundarios de un cambio de equipo** (ej. cambiar el N° de paneles FV obliga a
+   revisar/ajustar la estructura de soporte, aunque el consultor no lo mencione). Se agregó un
+   bloque nuevo "EFECTOS SECUNDARIOS DEL CAMBIO" al checklist de `mod_diseno` en `analyzer.py`,
+   con 3 ejemplos concretos (paneles FV → estructura de soporte; cambio de bomba → compatibilidad
+   del resto del diseño hidráulico; cambio de peso/dimensión/requerimiento eléctrico → obra civil
+   o instalación eléctrica asociada) — instruye a la IA a verificarlos DE OFICIO, no solo cuando
+   el expediente los menciona.
+2. **Exigibilidad relativa del Cuadro de Variables cuando el costo no cambia** — si la modificación
+   no altera el costo total del proyecto, exigir el Cuadro de Variables con la misma severidad que
+   cuando sí hay efecto en costo/bonificación no tiene sentido (no hay nada que mostrar). Se agregó
+   esta excepción al checklist de `mod_cuadro_variables` (no observar con la misma severidad un
+   cuadro ausente/incompleto si el costo no varía) y al punto 1 de `mod_coherencia` (el mismo
+   criterio aplicado al chequeo de completitud del expediente).
+
+**Mecanismo general, para que el usuario pueda seguir agregando criterios él mismo o pidiéndolo**:
+todo el conocimiento de revisión de Modificaciones vive como texto plano en el campo `"checklist"`
+de cada entrada de `ITEMS_MODIFICACION` (`analyzer.py`) — exactamente el mismo mecanismo que
+`ITEMS_SEP` usa para los 19 ítems de la Revisión normal. Agregar un criterio nuevo es escribirlo
+ahí, en el ítem que corresponda (o en `mod_coherencia` si es un criterio transversal que cruza
+varios documentos). Anotado en `CLAUDE.md` (sección Archivos clave) para que quede a la vista en
+cualquier sesión futura.
+
+### Validación
+
+`py_compile`/`pyflakes` OK. Se repitió toda la suite de tests de Modificaciones + el test de
+regresión de la sincronización Diseñador v135 — todo sigue pasando, sin cambios de comportamiento
+fuera de los dos checklists ampliados.
+
+---
+
