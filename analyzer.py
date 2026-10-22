@@ -1236,6 +1236,15 @@ proyecto original completo). Responde dos preguntas, en este orden:
    soporte. Si el expediente no aborda este efecto en ningún documento (ni Diseño modificado ni
    Planos modificados), obsérvalo como información faltante — no asumas que "no aplica" solo porque
    el consultor clasificó el cambio como simple.
+   Otro caso típico, la CADENA que dispara un cambio de obra civil en un proyecto de
+   tecnificación: si cambia una obra civil (ej. tamaño/ubicación de un acumulador, una caseta de
+   bombeo, una losa), eso normalmente cambia el PLANO (la obra ya no es la dibujada), lo que
+   cambia la CUBICACIÓN (las cantidades ya no son las mismas), lo que cambia el PRESUPUESTO (el
+   costo de esas partidas). Verifica la cadena completa: si el expediente declara un cambio de
+   obra civil pero alguno de esos tres documentos (Planos modificados, Cubicaciones, Presupuesto
+   modificado) no viene actualizado en consecuencia, obsérvalo como información faltante o
+   inconsistente — un plano desactualizado frente a una cubicación nueva (o viceversa) es tan
+   observable como que falte alguno de los dos por completo.
 
 2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
    consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden

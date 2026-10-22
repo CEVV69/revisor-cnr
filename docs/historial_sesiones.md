@@ -5298,3 +5298,24 @@ sincronización Diseñador v135 — todo sigue pasando, Revisión normal sigue i
 
 ---
 
+## Modificaciones de Proyecto — v1.10: criterio de cadena obra civil → presupuesto (oct-2026)
+
+El usuario confirmó que el fix anterior (estructura de soporte FV en Coherencia Global) ya generó
+la observación esperada en su caso real. De paso dio un criterio nuevo, de la misma familia
+"efectos secundarios no declarados": si cambia una obra civil de un proyecto de tecnificación
+(ej. tamaño/ubicación de un acumulador, caseta de bombeo, losa), eso dispara una cadena —
+cambia el PLANO (ya no dibuja la obra real) → cambia la CUBICACIÓN (las cantidades ya no
+corresponden) → cambia el PRESUPUESTO (el costo de esas partidas). Se agregó como un segundo caso
+dentro del mismo bloque "EFECTOS SECUNDARIOS NO DECLARADOS" del punto 1 de `mod_coherencia` en
+`analyzer.py` (junto al de paneles FV/estructura de soporte) — instruye a observar tanto la
+ausencia de alguno de los tres documentos (Planos/Cubicaciones/Presupuesto modificados) como la
+inconsistencia entre ellos si alguno quedó desactualizado respecto a los otros.
+
+### Validación
+
+`py_compile`/`pyflakes` OK. Se repitió toda la suite de tests de Modificaciones y el test de
+regresión de la sincronización Diseñador v135 — todo sigue pasando (cambio de solo texto en un
+checklist, sin tocar lógica de código).
+
+---
+
