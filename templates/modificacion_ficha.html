@@ -41,7 +41,7 @@
     .obs-num { font-weight: bold; color: #1a365d; }
     .grupo-item { font-size: 10.5pt; font-weight: bold; color: #2b6cb0; margin: 0.7rem 0 0.35rem;
                   page-break-after: avoid; }
-    .obs-texto { margin-top: 2px; line-height: 1.5; white-space: pre-wrap; }
+    .obs-texto { margin-top: 2px; line-height: 1.5; white-space: pre-wrap; text-align: justify; }
 
     .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
 
@@ -78,7 +78,7 @@
 <table class="tabla-proyecto">
   <tr>
     <td class="label">Código</td>
-    <td class="valor" style="font-family:monospace; font-weight:bold;">{{ proyecto.codigo_sep }}</td>
+    <td class="valor" style="font-family:monospace;">{{ proyecto.codigo_sep }}</td>
     <td class="label">Concurso</td>
     <td class="valor">{{ concurso_id }}</td>
   </tr>
@@ -114,7 +114,7 @@
   <div class="grupo-item">{{ grupo.nombre }}</div>
     {% for obs in grupo.obs %}
     <div class="obs-item">
-      <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto }}</div>
+      <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto | propuesta }}</div>
     </div>
     {% endfor %}
   {% endfor %}
@@ -172,19 +172,13 @@
     <td class="num col-mod">{{ "%.2f"|format(resultado_var.modificado.bonificacion_uf) }}</td>
   </tr>
 </table>
-<p class="obs-texto">
-  {% if resultado_var.variable_concurso_estado == 'mejora' %}
+<p class="obs-texto" style="white-space:normal; margin-top:0;">{%- if resultado_var.variable_concurso_estado == 'mejora' -%}
   La variable de concurso <strong>mejora</strong> respecto al original (el costo por hectárea beneficiada baja).
-  {% elif resultado_var.variable_concurso_estado == 'igual' %}
+  {%- elif resultado_var.variable_concurso_estado == 'igual' -%}
   La variable de concurso <strong>se mantiene</strong> respecto al original (el costo por hectárea beneficiada no cambia).
-  {% elif resultado_var.variable_concurso_estado == 'empeora' %}
+  {%- elif resultado_var.variable_concurso_estado == 'empeora' -%}
   La variable de concurso <strong>empeora</strong> respecto al original (el costo por hectárea beneficiada sube).
-  {% endif %}
-  La bonificación modificada no supera la original
-  {%- if resultado_var.monto_asumido_beneficiario_uf and resultado_var.monto_asumido_beneficiario_uf > 0 %}
-  ; el beneficiario asume {{ "%.2f"|format(resultado_var.monto_asumido_beneficiario_uf) }} UF adicionales de costo.
-  {%- else %}.{% endif %}
-</p>
+  {%- endif %} La bonificación modificada no supera la original{%- if resultado_var.monto_asumido_beneficiario_uf and resultado_var.monto_asumido_beneficiario_uf > 0 %}; el beneficiario asume {{ "%.2f"|format(resultado_var.monto_asumido_beneficiario_uf) }} UF adicionales de costo.{%- else %}.{%- endif %}</p>
 {% else %}
 <p class="sin-obs" style="color:#744210;">— pendiente de completar en la pestaña Variables —</p>
 {% endif %}
