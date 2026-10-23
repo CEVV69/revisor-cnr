@@ -665,6 +665,9 @@ function actualizarEtiqueta(input) {
       {% if item.key in ('estudio_suelos', 'memoria_superficies', 'identificacion_riego') %}
       <a href="{{ url_ideminagri }}" target="_blank" rel="noopener" style="font-size:0.76rem;">Roles y uso de suelo (IDE Minagri) ↗</a>
       {% endif %}
+      {% if item.key == 'estudios_complementarios' %}
+      <a href="{{ url_cargas_viento_nieve_sismo }}" target="_blank" rel="noopener" style="font-size:0.76rem;">Cargas viento, nieve y sísmica ↗</a>
+      {% endif %}
       {% if item.revisado and item.revisado.docs %}
       <details style="font-size:0.74rem;">
         <summary style="cursor:pointer; color:var(--text-2); user-select:none;">Ver los {{ item.revisado.docs|length }} archivo{{ 's' if item.revisado.docs|length != 1 else '' }} usados en este análisis</summary>

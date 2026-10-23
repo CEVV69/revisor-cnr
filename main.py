@@ -58,6 +58,13 @@ URL_PRECIOS_CNR = ("https://app.powerbi.com/view?r=eyJrIjoiZDJhMjgwM2QtNGUyYy00Y
 # superficies (ver proyecto.html). Igual que con los precios CNR, es solo un link externo de
 # apoyo — la app no lee estos datos en vivo.
 URL_IDEMINAGRI = "https://esri.ciren.cl/portal/apps/experiencebuilder/experience/?id=77b51b8c89c3461ab7aea120be55c4b4"
+
+# Visor Dlubal de zonas de carga (viento NCh432, nieve y sísmica) por coordenadas — el revisor lo
+# consulta manualmente desde un botón en el ítem Estudios y diseños complementarios (ver
+# proyecto.html), para verificar las cargas de diseño de estructuras (ej. invernaderos, estructura
+# de soporte FV). Igual que los otros links de apoyo, es solo externo — la app no lee datos en vivo.
+URL_CARGAS_VIENTO_NIEVE_SISMO = ("https://www.dlubal.com/es/zonas-de-cargas-para-nieve-viento-y-"
+                                 "sismos/viento-nch-432.html")
 from database import db
 
 
@@ -1069,6 +1076,7 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
         "pagina": pagina,
         "url_precios_cnr": URL_PRECIOS_CNR,
         "url_ideminagri": URL_IDEMINAGRI,
+        "url_cargas_viento_nieve_sismo": URL_CARGAS_VIENTO_NIEVE_SISMO,
         # Selector de estado del encabezado — (nombre, color sólido para el botón/opciones)
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "costo_api": _costo_para_vista(proyecto),
