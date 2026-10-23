@@ -5319,3 +5319,73 @@ checklist, sin tocar lógica de código).
 
 ---
 
+## Modificaciones de Proyecto — v1.11: Ficha de Modificación (informe imprimible) (oct-2026)
+
+El usuario adjuntó el "Informe de Modificación 202-2024-16-078.pdf" real del SEP como formato de
+referencia y pidió una versión más simple, análoga a `ficha.html` de la Revisión normal pero con
+6 secciones fijas. Se implementó:
+
+**Ruta** `GET /modificacion/{mod_id}/ficha` (`main.py`, justo después de `ver_modificacion()`,
+antes de `cambiar_estado_modificacion()`) — modelada en `ficha_revision()` (la Ficha de la
+Revisión normal), pero sin la sección "Evaluación del Consultor" (no existe para Modificaciones).
+Agrupa observaciones APROBADAS por `item_nombre` (sin excluir severidad "informativa" — a
+diferencia de `ficha_revision()`, que sí filtra esa severidad; en Modificaciones el usuario no
+pidió esa exclusión y se mantuvo todo lo aprobado), ordenadas según `ITEMS_MODIFICACION_ORDEN`.
+Extrae el Concurso con `_extraer_concurso_id()` (la misma función ya usada en otras partes del
+código — la plantilla de la Revisión normal lo hace inline con `.split('-')`, pero para la nueva
+Ficha se preferió llamar al helper directamente). El Cuadro de Variables se recalcula en caliente
+con `calcular_variables_concurso(mod["variables_concurso_datos"])` — igual que en
+`pagina_variables_modificacion()`, no se cachea el resultado.
+
+**Template** `templates/modificacion_ficha.html` — standalone (no extiende `base.html`, igual que
+`ficha.html`), con las 6 secciones pedidas por el usuario, en este orden exacto:
+1. Código / Concurso / Beneficiario (`proyecto.postulante`) / Consultor (`resumen.consultor`).
+2. "Motivo Solicitud Modificación": `resumen.justificacion`.
+3. "Revisión Convenio CNR": Revisor (`proyecto.revisor_nombre`) / Estado revisión
+   (`proyecto.estado | estado_label`).
+4. "Observaciones CNR": observaciones aprobadas agrupadas por ítem (mismo patrón visual que
+   `ficha.html`, pero sin el detalle de rondas de subsanación — se omitió a propósito, el usuario
+   pidió "puede ser más simple").
+5. "Conclusión" (estado de revisión) + tabla de 3 columnas [Aumenta en UF | Igual | Disminuye en
+   UF] — un solo valor se llena según el signo de `resultado_var.diferencia_costo_uf`
+   (positivo → Aumenta, cero → Igual, negativo → Disminuye con el valor absoluto), las otras dos
+   celdas muestran "—". El PDF real de referencia mostraba un comportamiento distinto (diferencia
+   0 cayendo en la columna "Disminuye" en vez de "Igual") que se interpretó como una
+   particularidad/bug del sistema del SEP, no replicada acá.
+6. "Cuadro de Variables de Concurso": Costo UF / Aporte % / Bonificación UF (original vs.
+   modificado, igual que `modificacion_variables.html`) + una frase de conclusión con el estado
+   (`variable_concurso_estado`: mejora/igual/empeora) y, si corresponde, el monto que asume el
+   beneficiario (`monto_asumido_beneficiario_uf`).
+
+Si el revisor aún no completó Resumen o Variables, las secciones 2/5/6 muestran un texto
+"— pendiente de completar en la pestaña [Resumen|Variables] —" en vez de reventar.
+
+**Formato**: a diferencia de `ficha.html` (A4 implícito, Arial 13px), esta Ficha pide
+explícitamente tamaño carta y Calibri 11 — `@page { size: letter; ... }` y
+`body { font-family: Calibri, "Carlito", Arial, sans-serif; font-size: 11pt; }`, y en
+`descargarPDF()` el jsPDF usa `format: 'letter'` en vez de `'a4'`. El resto del patrón de
+impresión/PDF (botones `.no-print`, clase `.imprimiendo` en `beforeprint`/`afterprint`, ajuste de
+`padding-top` para que la 1ª hoja no duplique el margen superior, html2pdf.js vía CDN) se copió
+tal cual de `ficha.html`.
+
+**Botón**: se agregó "Generar Ficha" en `templates/modificacion.html`, en el header de la card
+"Observaciones" (antes era solo un `<h2>` sin acciones), con el mismo estilo
+(`btn btn-outline btn-sm`, borde azul `#2b6cb0`) y mismo criterio (`target="_blank"`) que el botón
+"Generar Ficha de Revisión" de `proyecto.html`.
+
+### Validación
+
+Test nuevo en el scratchpad de sesión (`test_ficha_modificacion.py`): crea una modificación, pide
+la Ficha sin Resumen/Variables completos (verifica 200 + mensajes "pendiente" + formato carta +
+Calibri + Concurso extraído bien), completa Resumen y Variables con un caso de costo QUE SUBE
+(para probar la columna "Aumenta en UF"), aprueba una observación, y vuelve a pedir la Ficha
+verificando que aparezcan Beneficiario, Consultor, Justificación, la observación y el monto
+correcto (1000.00 UF) en la columna "Aumenta en UF". También se verificó que el botón "Generar
+Ficha" apunta a la ruta nueva desde la página principal de la modificación. `pyflakes` limpio
+(único warning preexistente en `main.py:690`, no relacionado). Se repitió el test de regresión de
+sincronización Diseñador v135 y toda la suite existente de Modificaciones
+(`test_modificaciones.py`, `test_variables_concurso.py`, `test_resumen_modificacion.py`,
+`test_details_cerrados.py`) — todo sigue pasando.
+
+---
+

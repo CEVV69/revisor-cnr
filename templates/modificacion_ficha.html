@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe de Modificación — {{ proyecto.codigo_sep }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Mismo criterio de margen que ficha.html (Revisión normal): el padding del body es la
+       única fuente de margen izquierdo/derecho/inferior, @page agrega el superior en CADA hoja
+       y se resta ese mismo valor del body justo antes de imprimir/exportar para que la 1ª hoja
+       no quede con margen doble. Acá en tamaño carta (el usuario pidió "formato tamaños carta,
+       letra calibri 11", a diferencia de A4/Arial 13px de la Revisión normal). */
+    @page { size: letter; margin: 0.5cm 0 0 0; }
+    body { font-family: Calibri, "Carlito", Arial, sans-serif; font-size: 11pt; color: #000;
+           background: white; padding: 1.5cm 1.5cm 2cm 2cm; }
+    @media print { body.imprimiendo { padding-top: 1cm; } }
+
+    .no-print { text-align: right; margin-bottom: 1rem; }
+    .btn-print { background: #2b6cb0; color: white; border: none; padding: 0.5rem 1.2rem;
+                 border-radius: 4px; cursor: pointer; font-size: 11pt; }
+    .btn-print:hover { background: #2c5282; }
+    @media print { .no-print { display: none; } }
+
+    .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;
+              border-bottom: 2px solid #1a365d; padding-bottom: 0.5rem; }
+    .header-titulo { flex: 1; }
+    .header-titulo h1 { font-size: 15pt; color: #1a365d; letter-spacing: 1px; text-align: center;
+                         text-transform: uppercase; font-weight: bold; }
+    .header-fecha { font-size: 9pt; color: #555; text-align: right; }
+
+    .tabla-proyecto { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; }
+    .tabla-proyecto td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; }
+    .tabla-proyecto .label { background: #d0d8e8; font-weight: bold; white-space: nowrap; width: 1%; }
+    .tabla-proyecto .valor { background: white; }
+    .tabla-proyecto .celda-ancha { background: white; }
+
+    .titulo-seccion { font-size: 11pt; font-weight: bold; color: #1a365d; margin: 1rem 0 0.5rem;
+                       border-bottom: 1px solid #1a365d; padding-bottom: 2px; }
+    .obs-item { border: 1px solid #ccc; border-radius: 3px; padding: 6px 8px;
+                margin-bottom: 0.5rem; page-break-inside: avoid; }
+    .obs-num { font-weight: bold; color: #1a365d; }
+    .grupo-item { font-size: 10.5pt; font-weight: bold; color: #2b6cb0; margin: 0.7rem 0 0.35rem;
+                  page-break-after: avoid; }
+    .obs-texto { margin-top: 2px; line-height: 1.5; white-space: pre-wrap; }
+
+    .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
+
+    .tabla-conclusion { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; text-align: center; }
+    .tabla-conclusion th { background: #d0d8e8; border: 1px solid #999; padding: 5px; font-size: 10pt; }
+    .tabla-conclusion td { border: 1px solid #999; padding: 8px; font-size: 11pt; font-weight: bold; }
+
+    .vc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
+    .vc-tabla th, .vc-tabla td { border: 1px solid #999; padding: 4px 8px; font-size: 10pt; }
+    .vc-tabla th { background: #d0d8e8; text-align: left; }
+    .vc-tabla td.num { text-align: right; }
+    .vc-tabla td.col-mod, .vc-tabla th.col-mod { background: #eef3fa; }
+  </style>
+</head>
+<body>
+
+<div class="no-print">
+  <button class="btn-print" onclick="window.print()">Imprimir</button>
+  <button class="btn-print" onclick="descargarPDF()" style="background:#276749; margin-left:0.5rem;">Descargar PDF</button>
+</div>
+
+<!-- Encabezado -->
+<div class="header">
+  <div class="header-titulo">
+    <h1>Informe de Modificación</h1>
+    <div style="text-align:center; font-size:9pt; color:#555; margin-top:2px;">
+      Comisión Nacional de Riego — Ley N° 18.450
+    </div>
+  </div>
+  <div class="header-fecha">Fecha: {{ fecha_ficha }}</div>
+</div>
+
+<!-- 1. Código / Concurso / Beneficiario / Consultor -->
+<table class="tabla-proyecto">
+  <tr>
+    <td class="label">Código</td>
+    <td class="valor" style="font-family:monospace; font-weight:bold;">{{ proyecto.codigo_sep }}</td>
+    <td class="label">Concurso</td>
+    <td class="valor">{{ concurso_id }}</td>
+  </tr>
+  <tr>
+    <td class="label">Beneficiario</td>
+    <td class="celda-ancha" colspan="3">{{ proyecto.postulante }}</td>
+  </tr>
+  <tr>
+    <td class="label">Consultor</td>
+    <td class="celda-ancha" colspan="3">{{ resumen.consultor or "—" }}</td>
+  </tr>
+</table>
+
+<!-- 2. Motivo Solicitud Modificación -->
+<div class="titulo-seccion">Motivo Solicitud Modificación</div>
+<p class="obs-texto" style="margin-bottom:0.8rem;">{{ resumen.justificacion or "— pendiente de completar en la pestaña Resumen —" }}</p>
+
+<!-- 3. Revisión Convenio CNR -->
+<div class="titulo-seccion">Revisión Convenio CNR</div>
+<table class="tabla-proyecto">
+  <tr>
+    <td class="label">Revisor</td>
+    <td class="valor">{{ proyecto.revisor_nombre }}</td>
+    <td class="label">Estado revisión</td>
+    <td class="valor">{{ proyecto.estado | estado_label }}</td>
+  </tr>
+</table>
+
+<!-- 4. Observaciones CNR -->
+<div class="titulo-seccion">Observaciones CNR</div>
+{% if grupos_ficha %}
+  {% for grupo in grupos_ficha %}
+  <div class="grupo-item">{{ grupo.nombre }}</div>
+    {% for obs in grupo.obs %}
+    <div class="obs-item">
+      <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto }}</div>
+    </div>
+    {% endfor %}
+  {% endfor %}
+{% else %}
+  <p class="sin-obs">Sin observaciones registradas como aprobadas para esta modificación.</p>
+{% endif %}
+
+<!-- 5. Conclusión — Estado de revisión + Aumenta/Igual/Disminuye en UF -->
+<div class="titulo-seccion">Conclusión</div>
+<table class="tabla-proyecto">
+  <tr>
+    <td class="label">Estado de revisión</td>
+    <td class="valor">{{ proyecto.estado | estado_label }}</td>
+  </tr>
+</table>
+{% if resultado_var %}
+<table class="tabla-conclusion">
+  <tr>
+    <th>Aumenta en UF</th>
+    <th>Igual</th>
+    <th>Disminuye en UF</th>
+  </tr>
+  <tr>
+    <td>{{ "%.2f"|format(resultado_var.diferencia_costo_uf) if resultado_var.diferencia_costo_uf > 0 else "—" }}</td>
+    <td>{{ "%.2f"|format(resultado_var.diferencia_costo_uf) if resultado_var.diferencia_costo_uf == 0 else "—" }}</td>
+    <td>{{ "%.2f"|format(-resultado_var.diferencia_costo_uf) if resultado_var.diferencia_costo_uf < 0 else "—" }}</td>
+  </tr>
+</table>
+{% else %}
+<p class="sin-obs" style="color:#744210;">— pendiente de completar en la pestaña Variables —</p>
+{% endif %}
+
+<!-- 6. Cuadro de Variables de Concurso -->
+<div class="titulo-seccion">Cuadro de Variables de Concurso</div>
+{% if resultado_var %}
+<table class="vc-tabla">
+  <tr>
+    <th></th>
+    <th style="text-align:right;">Original</th>
+    <th class="col-mod" style="text-align:right;">Modificado</th>
+  </tr>
+  <tr>
+    <td>Costo (UF)</td>
+    <td class="num">{{ "%.2f"|format(resultado_var.original.costo_uf) }}</td>
+    <td class="num col-mod">{{ "%.2f"|format(resultado_var.modificado.costo_uf) }}</td>
+  </tr>
+  <tr>
+    <td>Aporte %</td>
+    <td class="num">{{ "%.2f"|format(resultado_var.original.aporte_pct * 100) }}%</td>
+    <td class="num col-mod">{{ "%.2f"|format(resultado_var.modificado.aporte_pct * 100) }}%</td>
+  </tr>
+  <tr style="font-weight:bold;">
+    <td>Bonificación solicitada (UF)</td>
+    <td class="num">{{ "%.2f"|format(resultado_var.original.bonificacion_uf) }}</td>
+    <td class="num col-mod">{{ "%.2f"|format(resultado_var.modificado.bonificacion_uf) }}</td>
+  </tr>
+</table>
+<p class="obs-texto">
+  {% if resultado_var.variable_concurso_estado == 'mejora' %}
+  La variable de concurso <strong>mejora</strong> respecto al original (el costo por hectárea beneficiada baja).
+  {% elif resultado_var.variable_concurso_estado == 'igual' %}
+  La variable de concurso <strong>se mantiene</strong> respecto al original (el costo por hectárea beneficiada no cambia).
+  {% elif resultado_var.variable_concurso_estado == 'empeora' %}
+  La variable de concurso <strong>empeora</strong> respecto al original (el costo por hectárea beneficiada sube).
+  {% endif %}
+  La bonificación modificada no supera la original
+  {%- if resultado_var.monto_asumido_beneficiario_uf and resultado_var.monto_asumido_beneficiario_uf > 0 %}
+  ; el beneficiario asume {{ "%.2f"|format(resultado_var.monto_asumido_beneficiario_uf) }} UF adicionales de costo.
+  {%- else %}.{% endif %}
+</p>
+{% else %}
+<p class="sin-obs" style="color:#744210;">— pendiente de completar en la pestaña Variables —</p>
+{% endif %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+window.addEventListener('beforeprint', function() {
+  document.body.classList.add('imprimiendo');
+});
+window.addEventListener('afterprint', function() {
+  document.body.classList.remove('imprimiendo');
+});
+
+function descargarPDF() {
+  var botones = document.querySelector('.no-print');
+  botones.style.display = 'none';
+  document.body.style.paddingTop = '1cm';
+  var nombre = 'Informe_Modificacion_{{ proyecto.codigo_sep }}_{{ fecha_ficha }}.pdf'.replace(/\//g, '-');
+  var opt = {
+    margin:       [5, 0, 0, 0],
+    filename:     nombre,
+    image:        { type: 'jpeg', quality: 0.97 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(document.body).save().then(function() {
+    botones.style.display = '';
+    document.body.style.paddingTop = '';
+  });
+}
+</script>
+</body>
+</html>

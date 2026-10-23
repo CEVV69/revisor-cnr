@@ -4638,6 +4638,42 @@ async def ver_modificacion(request: Request, mod_id: str):
     })
 
 
+@app.get("/modificacion/{mod_id}/ficha", response_class=HTMLResponse)
+async def ficha_modificacion(request: Request, mod_id: str):
+    """Informe imprimible de la Modificación (oct-2026, pedido del usuario) — versión reducida
+    de `ficha_revision()` con 6 secciones fijas (ver `templates/modificacion_ficha.html`), sobre
+    el formato real del Informe de Modificación del SEP. Carta/Calibri 11 en vez de A4/Arial."""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    try:
+        obs_aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
+        orden = {ITEMS_MODIFICACION[k]["nombre"]: i for i, k in enumerate(ITEMS_MODIFICACION_ORDEN)}
+        grupos = {}
+        for o in obs_aprobadas:
+            nombre = o.get("item_nombre") or "Otras observaciones"
+            grupos.setdefault(nombre, []).append(o)
+        grupos_ficha = [{"nombre": n, "obs": items}
+                        for n, items in sorted(grupos.items(), key=lambda kv: orden.get(kv[0], 999))]
+        datos_var = mod.get("variables_concurso_datos")
+        resultado_var = calcular_variables_concurso(datos_var) if datos_var else None
+        return templates.TemplateResponse("modificacion_ficha.html", {
+            "request": request, "proyecto": mod, "user": user,
+            "concurso_id": _extraer_concurso_id(mod.get("codigo_sep", "")),
+            "obs_aprobadas": obs_aprobadas, "grupos_ficha": grupos_ficha,
+            "fecha_ficha": _ahora().strftime("%d/%m/%Y"),
+            "resumen": mod.get("resumen", {}), "resultado_var": resultado_var,
+        })
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en ficha_modificacion {mod_id}: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al generar ficha: {str(e)}")
+
+
 @app.post("/modificacion/{mod_id}/estado")
 async def cambiar_estado_modificacion(request: Request, mod_id: str, estado: str = Form(...)):
     user = get_current_user(request)

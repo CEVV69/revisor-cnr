@@ -184,7 +184,12 @@
 
 <!-- Observaciones -->
 <div class="card">
-  <h2 style="margin:0 0 0.6rem; border:none; padding:0;">Observaciones</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+    <h2 style="margin:0; border:none; padding:0;">Observaciones</h2>
+    <a href="/modificacion/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
+      Generar Ficha
+    </a>
+  </div>
   {% set hay_obs = proyecto.observaciones | length > 0 %}
   {% if hay_obs %}
   {% for item in items_lista %}
