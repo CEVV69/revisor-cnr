@@ -16,9 +16,29 @@
     padding:0 0.4rem; margin-left:0.15rem; }
 </style>
 
-<div class="flex items-center gap-2 mt-2" style="margin-bottom:0.4rem">
+<div class="flex items-center gap-2 mt-2" style="margin-bottom:0.4rem; flex-wrap:wrap;">
   <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
   <h1 style="font-size:1.3rem; color:#1a365d;">Resumen — {{ proyecto.codigo_sep }}</h1>
+  <span style="flex:1;"></span>
+  <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
+    <button onclick="toggleMenuEstado()" class="btn btn-sm"
+            style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+      {{ proyecto.estado }} ▾
+    </button>
+    <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+         border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+      {% for est in estados_proyecto_opciones %}
+      <form method="post" action="/modificacion/{{ proyecto.id }}/estado">
+        <button type="submit" name="estado" value="{{ est[0] }}"
+                style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                       background:{% if proyecto.estado == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                       color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+          {% if proyecto.estado == est[0] %}● {% endif %}{{ est[0] }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <nav class="proj-nav">
@@ -116,5 +136,16 @@
     <button type="submit" class="btn btn-outline">Generar justificación con IA</button>
   </form>
 </div>
+
+<script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('menu-estado-wrapper');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('menu-estado').style.display = 'none';
+});
+</script>
 
 {% endblock %}

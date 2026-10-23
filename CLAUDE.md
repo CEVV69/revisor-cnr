@@ -39,7 +39,7 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.15, el usuario la está probando con un caso real) —
+**Nuevo: Modificaciones de Proyecto** (v1.16, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
 Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
 Global, checklist propio c/u — nuevos criterios de dominio van ahí (el usuario los da, Claude los
@@ -48,8 +48,8 @@ redacta). Pestañas: Resumen (Justificación IA), Revisión por ítem y Respuest
 `variables_concurso.py`, regla REAL de bonificación — Art. 33°: nunca sube), Presupuesto (original
 vs. modificado por tipo de documento), Ficha (`/modificacion/{id}/ficha`, carta/Calibri 11). Observación
 manual con selector de ítem, editable. Referencia normativa visible en Revisión por ítem/
-Respuestas/Ficha. Ficha: tablas de Conclusión/Variables ya no se cortan entre hojas al
-imprimir/exportar PDF — detalle de todo en `docs/historial_sesiones.md`. Pendiente: tope de
+Respuestas/Ficha. Selector de Estado también en Resumen/Respuestas, vuelve a la misma pestaña vía
+Referer (`_volver_a_modificacion()`) — detalle en `docs/historial_sesiones.md`. Pendiente: tope de
 bonificación en el diff de Presupuesto, IA en Respuestas.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el

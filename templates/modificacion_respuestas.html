@@ -16,12 +16,32 @@
     padding:0 0.4rem; margin-left:0.15rem; }
 </style>
 
-<nav class="proj-nav">
+<nav class="proj-nav" style="align-items:center;">
   <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
   <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
   <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
   <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
   <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
+  <span style="flex:1;"></span>
+  <div style="position:relative; display:inline-block; margin-bottom:0.3rem;" id="menu-estado-wrapper">
+    <button onclick="toggleMenuEstado()" class="btn btn-sm"
+            style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
+      {{ proyecto.estado }} ▾
+    </button>
+    <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);
+         border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);z-index:200;min-width:180px;overflow:hidden;">
+      {% for est in estados_proyecto_opciones %}
+      <form method="post" action="/modificacion/{{ proyecto.id }}/estado">
+        <button type="submit" name="estado" value="{{ est[0] }}"
+                style="width:100%;text-align:left;padding:0.5rem 1rem;font-size:0.83rem;
+                       background:{% if proyecto.estado == est[0] %}#f7fafc{% else %}transparent{% endif %};
+                       color:{{ est[1] }};border:none;cursor:pointer;font-family:inherit;font-weight:500;">
+          {% if proyecto.estado == est[0] %}● {% endif %}{{ est[0] }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
 </nav>
 
 {% if grupos_respuestas %}
@@ -86,5 +106,16 @@
   <p class="text-muted">No hay observaciones aprobadas aún — apruébalas en la página de la modificación.</p>
 </div>
 {% endif %}
+
+<script>
+function toggleMenuEstado() {
+  var m = document.getElementById('menu-estado');
+  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('menu-estado-wrapper');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('menu-estado').style.display = 'none';
+});
+</script>
 
 {% endblock %}

@@ -342,6 +342,20 @@ def _volver_a(request: Request, proyecto_id: str, defecto: str = "resumen") -> s
     return base + defecto
 
 
+def _volver_a_modificacion(request: Request, mod_id: str) -> str:
+    """Igual que `_volver_a()` pero para Modificaciones (oct-2026, pedido del usuario: el
+    selector de Estado ahora también vive en Resumen y Respuestas, no solo en Revisión por
+    ítem — cambiar el estado desde ahí no debe sacar al revisor de la pestaña en la que está).
+    Revisión por ítem es la página "base" (sin sufijo en la URL), por eso va al final como
+    default implícito en vez de listada."""
+    ref = request.headers.get("referer", "") or ""
+    base = f"/modificacion/{mod_id}"
+    for pag in ("/resumen", "/respuestas", "/variables", "/presupuesto"):
+        if base + pag in ref:
+            return base + pag
+    return base
+
+
 def _registrar_feedback_obs(proyecto: dict, obs: dict, accion: str, user: dict):
     """Registra en el concurso y en el consultor la decisión tomada sobre una observación
     (aprobada/descartada), para alimentar el aprendizaje por eje/ítem/consultor."""
@@ -4687,7 +4701,7 @@ async def cambiar_estado_modificacion(request: Request, mod_id: str, estado: str
         mod["fecha_estado"] = _ahora().isoformat()
         mod["estado_por"] = user["nombre"]
         db.save_proyecto(mod)
-    return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
+    return RedirectResponse(url=_volver_a_modificacion(request, mod_id), status_code=302)
 
 
 @app.post("/modificacion/{mod_id}/eliminar")
@@ -5115,6 +5129,7 @@ async def pagina_resumen_modificacion(request: Request, mod_id: str):
         "request": request, "user": user, "proyecto": mod,
         "resumen": mod.get("resumen", {}), "tipos_modificacion": TIPOS_MODIFICACION,
         "n_pendientes_respuesta": n_pendientes_respuesta,
+        "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "mailto_ficha": _mailto_ficha_modificacion(mod), "error": error,
     })
 

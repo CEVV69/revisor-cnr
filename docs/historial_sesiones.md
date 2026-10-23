@@ -5519,6 +5519,49 @@ de sincronización Diseñador v135 — todo pasa.
 
 ---
 
+## Modificaciones de Proyecto — v1.16: selector de Estado también en Resumen/Respuestas (oct-2026)
+
+El usuario notó que el selector de Estado de la modificación (menú desplegable con los estados
+tipo "Pendiente"/"Observado"/"Aprobado", igual al de la Revisión normal) solo existía en Revisión
+por ítem, y lo pidió también en Resumen y Respuestas — con la condición explícita de no agregar
+una fila nueva al layout (empujar contenido hacia abajo), sino insertarlo en una fila ya existente.
+
+- `templates/modificacion_resumen.html`: el selector se agregó al final de la fila que ya tenía
+  "← Volver" + el `<h1>` (antes solo esos dos elementos); se le puso `flex-wrap:wrap` al
+  contenedor y un `<span style="flex:1;">` de relleno para empujar el selector al extremo
+  derecho de esa misma fila.
+- `templates/modificacion_respuestas.html`: esa página no tenía ninguna fila de encabezado propia
+  (solo el `<nav class="proj-nav">` con las pestañas), así que el selector se agregó al final del
+  propio `<nav>` — con el mismo truco del `<span style="flex:1;">` para empujarlo al extremo
+  derecho de la fila de pestañas, sin agregar una fila nueva.
+- Ambas plantillas necesitaban `estados_proyecto_opciones` en el contexto (Respuestas ya lo
+  recibía desde antes; a `pagina_resumen_modificacion()` en `main.py` se le agregó
+  `"estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in
+  ESTADOS_PROYECTO]`, igual que en las otras 3 rutas que ya lo pasaban) y el script
+  `toggleMenuEstado()` + el listener de click-afuera-cierra-el-menú (copiados tal cual del
+  `<script>` que ya existía en `modificacion.html`, ninguna de las dos plantillas tenía uno).
+- El formulario de cada opción del menú sigue apuntando al mismo
+  `POST /modificacion/{mod_id}/estado` ya existente — pero esa ruta (`cambiar_estado_
+  modificacion()`) redirigía SIEMPRE a la página principal (`/modificacion/{mod_id}`), sin
+  importar desde qué pestaña se cambió el estado. Con el selector ahora en 3 lugares distintos,
+  eso saldría de Resumen/Respuestas hacia Revisión por ítem cada vez — una regresión de UX. Se
+  agregó `_volver_a_modificacion(request, mod_id)` (análoga a `_volver_a()`, que ya hace esto
+  mismo para la Revisión normal desde hace tiempo): lee el header `Referer` y, si coincide con
+  `/resumen`, `/respuestas`, `/variables` o `/presupuesto`, vuelve ahí; si no reconoce nada (o
+  viene de la página principal, que no tiene sufijo), vuelve a la página principal por defecto.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_estado_resumen_respuestas.py`): confirma que el selector
+aparece en Resumen y en Respuestas; que cambiar el estado desde Resumen (con `Referer` simulado)
+vuelve a Resumen, desde Respuestas vuelve a Respuestas, desde la página principal sigue volviendo
+ahí (sin regresión), y que sin `Referer` el default sigue siendo la página principal; y que el
+estado efectivamente queda guardado. `pyflakes` limpio (mismo warning preexistente, solo corrido
+de línea por las inserciones de código). Se repitió toda la suite de Modificaciones y el test de
+regresión de sincronización Diseñador v135 — todo pasa.
+
+---
+
 ## Modificaciones de Proyecto — v1.14: observaciones sugeridas editables (oct-2026)
 
 El usuario pidió que las observaciones sugeridas por la IA se puedan editar en Revisión por
