@@ -214,27 +214,25 @@
         </div>
         <span class="text-muted" style="font-size:0.74rem; white-space:nowrap;">{{ obs.fecha | fecha }}</span>
       </div>
-      <p style="margin:0.4rem 0; white-space:pre-wrap;">{{ obs.texto }}</p>
-      {% if obs.referencia_normativa %}
-      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.78rem;">Ref. normativa: {{ obs.referencia_normativa }}</p>
-      {% endif %}
-      <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
-        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
-          <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>
-        </form>
-        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
-          <button type="submit" name="estado" value="descartada" class="btn btn-outline btn-sm">Descartar</button>
-        </form>
-        {% if obs.estado != 'pendiente' %}
-        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
-          <button type="submit" name="estado" value="pendiente" class="btn btn-ghost btn-sm">↺ Pendiente</button>
-        </form>
+      <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
+        <textarea name="texto_editado" rows="3" class="auto-expand"
+          style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;
+                 font-size:0.84rem; line-height:1.5; margin:0.4rem 0; box-sizing:border-box;
+                 resize:vertical; overflow:hidden; font-family:inherit;">{{ obs.texto }}</textarea>
+        {% if obs.referencia_normativa %}
+        <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.78rem;">Ref. normativa: {{ obs.referencia_normativa }}</p>
         {% endif %}
-        <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/eliminar" style="display:inline;"
-              onsubmit="return confirm('¿Eliminar esta observación?')">
-          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
-        </form>
-      </div>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>
+          <button type="submit" name="estado" value="descartada" class="btn btn-outline btn-sm">Descartar</button>
+          {% if obs.estado != 'pendiente' %}
+          <button type="submit" name="estado" value="pendiente" class="btn btn-ghost btn-sm">↺ Pendiente</button>
+          {% endif %}
+          <button type="submit" form="elim-{{ obs.id }}" class="btn btn-danger btn-sm">Eliminar</button>
+        </div>
+      </form>
+      <form id="elim-{{ obs.id }}" method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/eliminar"
+            onsubmit="return confirm('¿Eliminar esta observación?')" style="display:none;"></form>
     </div>
     {% endfor %}
   </div>
@@ -301,6 +299,20 @@ function toggleMenuEstado() {
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('menu-estado-wrapper');
   if (wrap && !wrap.contains(e.target)) document.getElementById('menu-estado').style.display = 'none';
+});
+
+// Auto-expandir el textarea de cada observación para mostrar el texto completo al editarla
+// (mismo patrón que proyecto.html — pedido del usuario, oct-2026: las observaciones sugeridas
+// también deben poder editarse acá, no solo en la Revisión normal).
+function autoExpand(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight + 2) + 'px';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('textarea.auto-expand').forEach(function(t) {
+    autoExpand(t);
+    t.addEventListener('input', function() { autoExpand(t); });
+  });
 });
 </script>
 

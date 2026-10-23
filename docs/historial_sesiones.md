@@ -5482,3 +5482,42 @@ test de regresión de sincronización Diseñador v135 — todo sigue pasando.
 
 ---
 
+## Modificaciones de Proyecto — v1.14: observaciones sugeridas editables (oct-2026)
+
+El usuario pidió que las observaciones sugeridas por la IA se puedan editar en Revisión por
+ítem, igual que en la Revisión normal. El backend YA soportaba esto: la ruta
+`POST /modificacion/{mod_id}/observacion/{obs_id}/estado` (`actualizar_observacion_modificacion()`)
+ya recibía `texto_editado: str = Form(None)` y lo aplicaba (`if texto_editado: obs["texto"] =
+texto_editado`) desde que se creó, solo que `modificacion.html` mostraba el texto en un `<p>` de
+solo lectura — nunca había un `<textarea>` para aprovechar ese parámetro.
+
+Se reemplazó el `<p>` por un `<textarea name="texto_editado" class="auto-expand">` (mismo patrón
+que `proyecto.html` línea 122-129), y se reestructuraron los 4 botones de acción (Aprobar/
+Descartar/Pendiente/Eliminar), que antes eran 4 `<form>` independientes uno junto al otro: ahora
+Aprobar/Descartar/Pendiente viven DENTRO del mismo `<form>` que el textarea (así el texto editado
+viaja junto con el cambio de estado en un solo submit, igual que en la Revisión normal), y
+Eliminar quedó como un `<form id="elim-{{ obs.id }}">` oculto aparte, enlazado por el atributo
+`form="elim-{{ obs.id }}"` del botón — mismo truco que usa `proyecto.html` para que un botón
+dispare un `<form>` que no lo contiene directamente. Se agregó el mismo script `autoExpand()` de
+`proyecto.html` al final de `modificacion.html`, para que el alto del textarea se ajuste solo al
+contenido en vez de quedar con scroll interno.
+
+Efecto colateral esperado (no un bug): el test `test_modificaciones.py` verificaba que el texto
+de 2 párrafos se viera completo buscando la clase CSS `white-space:pre-wrap` del `<p>` anterior.
+Un `<textarea>` preserva saltos de línea de forma NATIVA sin necesitar ese CSS, así que se ajustó
+esa aserción para buscar el `<textarea>` en vez de la clase — el comportamiento visible (texto
+completo, con sus saltos de línea) es el mismo o mejor (ahora además editable).
+
+### Validación
+
+Test nuevo en el scratchpad (`test_editar_obs_modificacion.py`): confirma que el texto aparece en
+un `<textarea class="auto-expand">` en vez de un `<p>`; edita el texto Y aprueba en el mismo
+submit (mismo patrón que la Revisión normal), confirma que el texto quedó editado, el estado
+cambió y la `referencia_normativa` no se tocó; y confirma que Eliminar sigue funcionando a través
+del formulario oculto enlazado por `form=`. `pyflakes` limpio (mismo warning preexistente, no
+relacionado). Se repitió toda la suite de Modificaciones (con el ajuste de
+`test_modificaciones.py` descrito arriba) y el test de regresión de sincronización Diseñador
+v135 — todo pasa.
+
+---
+
