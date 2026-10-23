@@ -5030,6 +5030,7 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
         "request": request, "user": user, "proyecto": mod, "grupos_respuestas": grupos_respuestas,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "n_pendientes_respuesta": n_pendientes_respuesta,
+        "costo_api": _costo_para_vista(mod),
         "item_ok": request.query_params.get("item_ok"),
     })
 

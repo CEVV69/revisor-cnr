@@ -5519,6 +5519,33 @@ de sincronización Diseñador v135 — todo pasa.
 
 ---
 
+## Modificaciones de Proyecto — v1.17.1: selector de Estado en Respuestas mal ubicado (oct-2026)
+
+El usuario reportó que, tal como se agregó en v1.16, el selector de Estado dentro del `<nav
+class="proj-nav">` de Respuestas estaba mal: al vivir dentro del mismo contenedor flex que las
+pestañas, las empujaba y las apilaba a la izquierda en vez de dejarlas en una fila prolija. Pidió
+sacarlo de ahí y, ya que se crea una fila nueva para alojarlo, aprovechar esa misma fila para
+agregar "Costo API:" — que, a diferencia de Resumen y Revisión por ítem, nunca había existido en
+Respuestas.
+
+En `templates/modificacion_respuestas.html` se revirtió el selector fuera del `<nav>` (que vuelve
+a ser solo las 5 pestañas, sin estilos ni contenido extra) y se creó una `<div>` nueva ARRIBA del
+`<nav>` con: `<span>Costo API:</span>` + `{% include "_costo_api.html" %}` a la izquierda, y el
+mismo selector de Estado (sin cambios internos, solo de ubicación) empujado al extremo derecho
+con el truco de siempre (`<span style="flex:1;">`). En `main.py`, `pagina_respuestas_
+modificacion()` ahora pasa `"costo_api": _costo_para_vista(mod)` al contexto — antes no lo tenía,
+así que `_costo_api.html` (que espera esa variable) no mostraba nada.
+
+### Validación
+
+Se amplió `test_estado_resumen_respuestas.py`: confirma que el selector YA NO está dentro del
+`<nav class="proj-nav">...</nav>` (se busca el contenido entre esas dos etiquetas y se verifica
+que no contenga `menu-estado-wrapper`), y que "Costo API:" ya aparece en la página. `pyflakes`
+limpio (mismo warning preexistente, solo corrido de línea). Se repitió toda la suite de
+Modificaciones y el test de regresión de sincronización Diseñador v135 — todo pasa.
+
+---
+
 ## Modificaciones de Proyecto — v1.17: derivar observaciones de Coherencia Global (oct-2026)
 
 El usuario pidió el equivalente al "Derivar a ítem del SEP" que ya existe en la Revisión normal

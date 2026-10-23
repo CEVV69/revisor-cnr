@@ -16,14 +16,15 @@
     padding:0 0.4rem; margin-left:0.15rem; }
 </style>
 
-<nav class="proj-nav" style="align-items:center;">
-  <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
-  <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
-  <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
-  <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
-  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
+<!-- Fila propia para Costo API + selector de Estado — NO en el <nav> de pestañas: ahí el
+     selector empujaba las pestañas y las apilaba a la izquierda (reportado por el usuario,
+     oct-2026). Esta fila es nueva, pero de paso resuelve que "Costo API:" tampoco existía en
+     esta página (sí en Revisión por ítem). -->
+<div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin:1.2rem 0 0.6rem;">
+  <span class="text-muted">Costo API:</span>
+  {% include "_costo_api.html" %}
   <span style="flex:1;"></span>
-  <div style="position:relative; display:inline-block; margin-bottom:0.3rem;" id="menu-estado-wrapper">
+  <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
     <button onclick="toggleMenuEstado()" class="btn btn-sm"
             style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
       {{ proyecto.estado }} ▾
@@ -42,6 +43,14 @@
       {% endfor %}
     </div>
   </div>
+</div>
+
+<nav class="proj-nav">
+  <a href="/modificacion/{{ proyecto.id }}/resumen" class="proj-tab">Resumen</a>
+  <a href="/modificacion/{{ proyecto.id }}" class="proj-tab">Revisión por ítem</a>
+  <a href="/modificacion/{{ proyecto.id }}/respuestas" class="proj-tab activa">Respuestas{% if n_pendientes_respuesta %} <span class="nav-badge">{{ n_pendientes_respuesta }}</span>{% endif %}</a>
+  <a href="/modificacion/{{ proyecto.id }}/variables" class="proj-tab">Variables</a>
+  <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
 {% if grupos_respuestas %}
