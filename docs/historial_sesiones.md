@@ -5389,3 +5389,57 @@ sincronización Diseñador v135 y toda la suite existente de Modificaciones
 
 ---
 
+## Modificaciones de Proyecto — v1.12: Observación manual con selector de ítem (oct-2026)
+
+El usuario pidió que, igual que en la Revisión normal, se pudiera agregar una observación que la
+IA no hubiese sugerido, eligiendo a qué ítem va. En `proyecto.html` eso existe como
+`_form_obs_manual(proyecto_id, item_key)` — un formulario FIJO a un ítem, incrustado dentro de
+cada grupo ya abierto en Observaciones/Notas/"Cumple con la normativa" (`main.py`,
+`agregar_observacion_manual()`, ruta `POST /proyecto/{id}/item/{item_key}/observacion/agregar-manual`,
+con `item_key` en la URL). Eso funciona ahí porque TODO ítem termina en alguno de esos tres grupos
+una vez revisado. En Modificaciones eso no aplica igual: un ítem sin documentos ni observaciones
+nunca aparece en ningún grupo de la card "Observaciones", así que un formulario fijo por grupo
+dejaría sin forma de agregarle una observación manual a esos ítems.
+
+Se optó por un único formulario con un `<select name="item_key">` (todas las opciones de
+`ITEMS_MODIFICACION_ORDEN`), en vez de un formulario por grupo:
+
+- **Ruta** `POST /modificacion/{mod_id}/observacion/agregar-manual` (`main.py`, antes de
+  `actualizar_observacion_modificacion()`) — a diferencia de la Revisión normal, el `item_key` NO
+  va en la URL sino como campo del formulario (`Form(...)`), justamente porque el selector es uno
+  solo para cualquier ítem. Misma validación que la versión de Proyectos (`categoria` en
+  tecnica/legal/presupuesto/administrativa, `severidad` en mayor/menor/informativa, texto no
+  vacío, 404 si el ítem no existe en `ITEMS_MODIFICACION`). La observación queda con
+  `manual: True` y `agregada_por`, y por eso ya la protege la línea existente de
+  `revisar_item_modificacion()` que conserva las `manual` al reemplazar las de su ítem
+  (`mod["observaciones"] = [o for o in ... if o.get("item") != item_key or o.get("manual")]`) —
+  sin tocar código ahí. A diferencia de la versión de Proyectos, NO actualiza ningún contador tipo
+  `items_revisados[item_key].n_obs`: Modificaciones no usa ese contador para la tarjeta de cada
+  ítem (usa `obs_por_item` calculado al vuelo en cada render de `ver_modificacion()`), así que no
+  hay nada que mantener sincronizado.
+
+- **Template** `modificacion.html`, dentro de la card "Observaciones", justo bajo el botón
+  "Generar Ficha": un `<details>` colapsable "+ Agregar observación manual" (mismo patrón visual
+  que `_form_obs_manual` de Proyectos: textarea + fila de categoría/severidad/referencia +
+  botón), con el `<select>` de ítem agregado arriba del textarea. Siempre visible (no depende de
+  `hay_obs`), para cubrir también el caso de la primera observación de la modificación.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_obs_manual_modificacion.py`): confirma que el formulario con
+selector aparece en la página principal con todas las opciones de ítem; agrega una observación
+manual a un ítem SIN documentos ni análisis previo (`mod_otros`); verifica el redirect con
+`item_ok`, los campos guardados (`manual=True`, `item`, `agregada_por`), que el texto se vea en la
+página, que un `item_key` inválido devuelva 404, y que la observación sobreviva a un
+`revisar-item` posterior sobre el mismo ítem (sin documentos). Al correr la suite completa,
+`test_details_cerrados.py` falló por una razón de FRAGILIDAD DEL TEST, no del producto: su
+búsqueda de texto para ubicar el `<details>` de cada grupo partía de después del `<h2>`
+"Observaciones", y el nuevo `<select>` (que lista "Coherencia Global"/"Solicitud de Modificación"
+como texto de sus `<option>`) quedó ANTES de los grupos reales, adelantando el primer match. Se
+corrigió el test para buscar a partir del cierre (`</form>`) del nuevo formulario — comportamiento
+real verificado aparte con un script de depuración: abre/cierra exactamente el grupo correcto.
+`pyflakes` limpio (mismo warning preexistente de siempre, no relacionado). Se repitió toda la
+suite de Modificaciones y el test de regresión de sincronización Diseñador v135 — todo pasa.
+
+---
+

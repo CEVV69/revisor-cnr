@@ -4862,6 +4862,58 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
                             status_code=302)
 
 
+@app.post("/modificacion/{mod_id}/observacion/agregar-manual")
+async def agregar_observacion_manual_modificacion(
+    request: Request, mod_id: str,
+    item_key: str = Form(...), texto: str = Form(...),
+    categoria: str = Form(...), severidad: str = Form(...),
+    referencia_normativa: str = Form(""),
+):
+    """Equivalente a `agregar_observacion_manual()` de la Revisión normal (oct-2026, pedido del
+    usuario) — el revisor agrega una observación que la IA no sugirió, eligiendo a qué ítem de
+    Modificaciones pertenece. A diferencia de `proyecto.html` (un formulario fijo por grupo ya
+    abierto), acá el ítem se elige con un <select> en un único formulario en la pestaña Revisión
+    por ítem — así también sirve para un ítem que todavía no tiene ninguna observación (en la
+    Revisión normal eso se resuelve con el bloque "Cumple con la normativa", que en Modificaciones
+    no existe como tal). Queda marcada `manual=True`: el resto del código ya trata toda
+    observación de Modificaciones por igual sin mirar su origen (revisar-item no la borra al
+    reemplazar las de su ítem, ver más abajo)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    if item_key not in ITEMS_MODIFICACION:
+        raise HTTPException(status_code=404, detail="Ítem no válido")
+    if categoria not in ("tecnica", "legal", "presupuesto", "administrativa"):
+        raise HTTPException(status_code=400, detail="Categoría no válida")
+    if severidad not in ("mayor", "menor", "informativa"):
+        raise HTTPException(status_code=400, detail="Severidad no válida")
+    texto = texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="El texto no puede estar vacío")
+
+    nombre_item = ITEMS_MODIFICACION[item_key]["nombre"]
+    mod.setdefault("observaciones", []).append({
+        "id": str(uuid.uuid4())[:8],
+        "categoria": categoria,
+        "severidad": severidad,
+        "texto": texto,
+        "referencia_normativa": referencia_normativa.strip(),
+        "item": item_key,
+        "item_nombre": nombre_item,
+        "doc_nombre": f"{nombre_item} (agregada manualmente)",
+        "fecha": _ahora().isoformat(),
+        "estado": "pendiente",
+        "manual": True,
+        "agregada_por": user["nombre"],
+    })
+    db.save_proyecto(mod)
+    return RedirectResponse(
+        url=f"/modificacion/{mod_id}?item_ok={item_key}", status_code=302)
+
+
 @app.post("/modificacion/{mod_id}/observacion/{obs_id}/estado")
 async def actualizar_observacion_modificacion(
     request: Request, mod_id: str, obs_id: str,

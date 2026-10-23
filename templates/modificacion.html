@@ -190,6 +190,40 @@
       Generar Ficha
     </a>
   </div>
+
+  {# Observación que la IA no sugirió — el revisor elige a qué ítem va, a diferencia de
+     proyecto.html, donde cada grupo ya abierto trae su propio formulario fijo a ese ítem. #}
+  <details style="font-size:0.82rem; margin-bottom:0.9rem;">
+    <summary style="cursor:pointer; color:var(--text-2); user-select:none;">+ Agregar observación manual</summary>
+    <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/agregar-manual"
+          style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.4rem; max-width:560px;">
+      <select name="item_key" required style="width:100%; font-size:0.82rem; padding:0.4rem;">
+        <option value="" disabled selected>Ítem...</option>
+        {% for item in items_lista %}
+        <option value="{{ item.key }}">{{ item.nombre }}</option>
+        {% endfor %}
+      </select>
+      <textarea name="texto" rows="3" required placeholder="Texto de la observación..."
+                style="font-size:0.82rem; padding:0.4rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
+      <div style="display:flex; gap:0.4rem; flex-wrap:nowrap;">
+        <select name="categoria" style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+          <option value="tecnica">Técnica</option>
+          <option value="legal">Legal</option>
+          <option value="presupuesto">Presupuesto</option>
+          <option value="administrativa">Administrativa</option>
+        </select>
+        <select name="severidad" style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+          <option value="mayor">Mayor</option>
+          <option value="menor">Menor</option>
+          <option value="informativa">Informativa</option>
+        </select>
+        <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
+               style="width:auto; flex:2 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+      </div>
+      <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-start;">Agregar</button>
+    </form>
+  </details>
+
   {% set hay_obs = proyecto.observaciones | length > 0 %}
   {% if hay_obs %}
   {% for item in items_lista %}
