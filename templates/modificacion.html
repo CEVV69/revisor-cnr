@@ -215,6 +215,9 @@
         <span class="text-muted" style="font-size:0.74rem; white-space:nowrap;">{{ obs.fecha | fecha }}</span>
       </div>
       <p style="margin:0.4rem 0; white-space:pre-wrap;">{{ obs.texto }}</p>
+      {% if obs.referencia_normativa %}
+      <p class="text-muted" style="margin-bottom:0.4rem; font-size:0.78rem;">Ref. normativa: {{ obs.referencia_normativa }}</p>
+      {% endif %}
       <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
         <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado" style="display:inline;">
           <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>

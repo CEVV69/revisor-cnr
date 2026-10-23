@@ -42,6 +42,7 @@
     .grupo-item { font-size: 10.5pt; font-weight: bold; color: #2b6cb0; margin: 0.7rem 0 0.35rem;
                   page-break-after: avoid; }
     .obs-texto { margin-top: 2px; line-height: 1.5; white-space: pre-wrap; text-align: justify; }
+    .obs-ref { font-size: 9pt; color: #555; margin-top: 3px; font-style: italic; }
 
     .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
 
@@ -115,6 +116,9 @@
     {% for obs in grupo.obs %}
     <div class="obs-item">
       <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto | propuesta }}</div>
+      {% if obs.referencia_normativa %}
+      <div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>
+      {% endif %}
     </div>
     {% endfor %}
   {% endfor %}

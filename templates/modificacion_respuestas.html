@@ -43,6 +43,9 @@
     </span>
   </div>
   <p style="font-size:0.86rem; margin-bottom:0.6rem; white-space:pre-wrap;">{{ obs.texto | propuesta }}</p>
+  {% if obs.referencia_normativa %}
+  <p class="text-muted" style="font-size:0.8rem; margin:0 0 0.6rem;">Ref. normativa: {{ obs.referencia_normativa }}</p>
+  {% endif %}
 
   {% for r in obs.get('subsanacion', {}).get('rondas', []) %}
   <div style="border-left:3px solid var(--border); padding-left:0.7rem; margin-bottom:0.6rem; font-size:0.84rem;">

@@ -5443,3 +5443,42 @@ suite de Modificaciones y el test de regresión de sincronización Diseñador v1
 
 ---
 
+## Modificaciones de Proyecto — v1.13: faltaba mostrar la referencia normativa (oct-2026)
+
+El usuario notó que, a diferencia de la Revisión normal, las observaciones sugeridas por la IA en
+Modificaciones no mostraban la referencia normativa (manual/instructivo/base que la respalda). No
+era un problema de generación: `analizar_item()`/`_analizar_grupo()` usan el mismo `SYSTEM_PROMPT`
+único para ambos flujos (Revisión normal y Modificaciones comparten la misma función, solo cambia
+`item_override`/`ITEMS_MODIFICACION` vs. `ITEMS_SEP`), así que el modelo ya devuelve
+`referencia_normativa` en el JSON y `revisar_item_modificacion()` ya la guarda sin tocarla (el
+`for obs in resultado.get("observaciones", [])` solo AGREGA campos como `id`/`item`/`fecha`, no
+filtra los que ya trae el modelo). El dato estaba guardado en la base, simplemente ningún
+template de Modificaciones lo leía de vuelta — el único lugar que la mencionaba era el campo
+`<input name="referencia_normativa">` del formulario para agregarla A MANO.
+
+Se agregó el mismo patrón que usa la Revisión normal, en las 3 vistas de lectura:
+- `templates/modificacion.html` (Revisión por ítem): `<p class="text-muted">Ref. normativa:
+  {{ obs.referencia_normativa }}</p>` bajo el texto de cada observación — mismo patrón que
+  `proyecto.html` línea 126-130.
+- `templates/modificacion_respuestas.html`: igual, bajo `{{ obs.texto | propuesta }}` — mismo
+  patrón que `respuestas.html` línea 168-169.
+- `templates/modificacion_ficha.html`: clase `.obs-ref` nueva (copiada de `ficha.html`, 9pt
+  italic gris) y `<div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>` bajo cada
+  observación de la sección "Observaciones CNR" — mismo patrón que `ficha.html` línea 153-155.
+
+Las 3 vistas ya ocultan la línea cuando `referencia_normativa` viene vacía (observaciones
+manuales sin referencia, o notas informativas que no la llevan).
+
+### Validación
+
+Test nuevo en el scratchpad (`test_referencia_normativa_mod.py`): crea una modificación con una
+observación aprobada con `referencia_normativa` seteada, confirma que aparece en las 3 vistas
+(Revisión por ítem, Respuestas, Ficha — con el formato "Ref.:" exacto de esta última), y que al
+vaciar el campo la etiqueta deja de mostrarse (sin quedar un "Ref. normativa:" vacío). `pyflakes`
+limpio (mismo warning preexistente, no relacionado). Se repitió toda la suite de Modificaciones
+(`test_modificaciones.py`, `test_variables_concurso.py`, `test_resumen_modificacion.py`,
+`test_details_cerrados.py`, `test_ficha_modificacion.py`, `test_obs_manual_modificacion.py`) y el
+test de regresión de sincronización Diseñador v135 — todo sigue pasando.
+
+---
+
