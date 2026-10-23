@@ -5519,6 +5519,35 @@ de sincronización Diseñador v135 — todo pasa.
 
 ---
 
+## Modificaciones de Proyecto — v1.18: campo "Fecha límite respuestas" (oct-2026)
+
+El usuario pidió un campo nuevo "Fecha límite respuestas:" en el Resumen, visible también en la
+Ficha — en la sección "Revisión Convenio CNR", como una tercera columna de la fila
+Revisor/Estado revisión (no una fila nueva).
+
+- `templates/modificacion_resumen.html`: se agregó un `<input type="date" name=
+  "fecha_limite_respuestas">`, emparejado en la misma fila flex con "Tipo de modificación" (que
+  antes iba solo) para no sumar una fila nueva al formulario.
+- `main.py`, `guardar_resumen_modificacion()`: nuevo parámetro `fecha_limite_respuestas: str =
+  Form("")`, guardado tal cual (string ISO `YYYY-MM-DD`, el formato nativo de `<input
+  type="date">`) en `resumen["fecha_limite_respuestas"]` — sin conversión, igual que el resto de
+  los campos de ese formulario.
+- `templates/modificacion_ficha.html`, sección "Revisión Convenio CNR": se agregaron dos `<td>`
+  más a la fila existente (`Fecha límite respuestas` / valor), usando el filtro `|fecha` ya
+  existente (`_fmt_fecha()` en `main.py`) para mostrarla en formato chileno dd/mm/aaaa —
+  `datetime.fromisoformat()` acepta directamente una fecha sin hora, así que no hizo falta
+  tocar el filtro. Si no se ha completado, muestra "—" en vez de dejar la celda vacía o reventar.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_fecha_limite_respuestas.py`): confirma que el campo aparece en
+el formulario de Resumen, que se guarda y se precarga al volver a esa página, que aparece en la
+Ficha ya formateada (`2026-11-15` → `15/11/2026`), y que una modificación sin esa fecha muestra
+"—" en la Ficha en vez de fallar. `pyflakes` limpio (mismo warning preexistente). Se repitió toda
+la suite de Modificaciones y el test de regresión de sincronización Diseñador v135 — todo pasa.
+
+---
+
 ## Modificaciones de Proyecto — v1.17.1: selector de Estado en Respuestas mal ubicado (oct-2026)
 
 El usuario reportó que, tal como se agregó en v1.16, el selector de Estado dentro del `<nav

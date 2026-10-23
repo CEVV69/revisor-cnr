@@ -78,14 +78,21 @@
       <input type="text" name="consultor" value="{{ resumen.consultor or '' }}"
              style="width:100%; max-width:400px; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
     </div>
-    <div class="form-group">
-      <label>Tipo de modificación</label>
-      <select name="tipo_modificacion" style="width:100%; max-width:400px; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
-        <option value="">— Sin clasificar —</option>
-        {% for key, label in tipos_modificacion.items() %}
-        <option value="{{ key }}" {% if proyecto.tipo_modificacion == key %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+    <div class="flex gap-2" style="gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:220px;">
+        <label>Tipo de modificación</label>
+        <select name="tipo_modificacion" style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+          <option value="">— Sin clasificar —</option>
+          {% for key, label in tipos_modificacion.items() %}
+          <option value="{{ key }}" {% if proyecto.tipo_modificacion == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Fecha límite respuestas</label>
+        <input type="date" name="fecha_limite_respuestas" value="{{ resumen.fecha_limite_respuestas or '' }}"
+               style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
     </div>
     <div class="flex gap-2" style="gap:1rem; flex-wrap:wrap;">
       <div class="form-group" style="flex:1; min-width:180px;">

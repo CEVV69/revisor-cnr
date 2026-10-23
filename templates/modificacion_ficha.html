@@ -111,6 +111,8 @@
     <td class="valor">{{ proyecto.revisor_nombre }}</td>
     <td class="label">Estado revisión</td>
     <td class="valor">{{ proyecto.estado | estado_label }}</td>
+    <td class="label">Fecha límite respuestas</td>
+    <td class="valor">{{ resumen.fecha_limite_respuestas | fecha if resumen.fecha_limite_respuestas else "—" }}</td>
   </tr>
 </table>
 

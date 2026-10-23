@@ -5179,7 +5179,7 @@ async def guardar_resumen_modificacion(
     consultor: str = Form(""), superficie_inicial_ha: str = Form(""),
     superficie_final_ha: str = Form(""), costo_inicial_uf: str = Form(""),
     costo_final_uf: str = Form(""), justificacion: str = Form(""),
-    tipo_modificacion: str = Form(""),
+    tipo_modificacion: str = Form(""), fecha_limite_respuestas: str = Form(""),
 ):
     user = get_current_user(request)
     if not user:
@@ -5194,6 +5194,7 @@ async def guardar_resumen_modificacion(
     resumen["costo_inicial_uf"] = costo_inicial_uf.strip()
     resumen["costo_final_uf"] = costo_final_uf.strip()
     resumen["justificacion"] = justificacion.strip()
+    resumen["fecha_limite_respuestas"] = fecha_limite_respuestas.strip()
     if tipo_modificacion in TIPOS_MODIFICACION:
         mod["tipo_modificacion"] = tipo_modificacion
     db.save_proyecto(mod)
