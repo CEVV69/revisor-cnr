@@ -5482,6 +5482,43 @@ test de regresión de sincronización Diseñador v135 — todo sigue pasando.
 
 ---
 
+## Modificaciones de Proyecto — v1.15: tablas de la Ficha no se cortan entre hojas (oct-2026)
+
+El usuario reportó que al imprimir o exportar a PDF el Informe de Modificación, las tablas de la
+Conclusión (Aumenta/Igual/Disminuye en UF) o del Cuadro de Variables de Concurso podían quedar
+cortadas a la mitad y repartidas en dos hojas, dependiendo de cuántas observaciones hubiera antes
+(la sección 4 "Observaciones CNR" es de largo variable, así que dónde cae el salto de página de
+las secciones 5/6 varía caso a caso).
+
+En `templates/modificacion_ficha.html` se agregó `page-break-inside: avoid;` a `.tabla-proyecto`,
+`.tabla-conclusion` y `.vc-tabla` (ya existía ese mismo criterio en `.obs-item`, de la sección 4).
+Además, se envolvió cada sección completa (encabezado + tabla(s) + párrafo de conclusión) en un
+`<div class="bloque-no-partir">` nuevo (mismo `page-break-inside: avoid`) para las secciones 5 y
+6 — así, si una de las dos no entra completa en lo que queda de la hoja actual, salta ENTERA a la
+siguiente en vez de partir solo la tabla a la mitad y dejar el título o el párrafo de conclusión
+separado de ella.
+
+Esto alcanza para `window.print()` (el navegador respeta `page-break-inside` nativamente), pero
+para "Descargar PDF" (html2pdf.js, que renderiza vía html2canvas + corta el canvas resultante en
+páginas) se agregó además la opción `pagebreak: { mode: ['css', 'legacy'], avoid: ['table',
+'.bloque-no-partir', '.obs-item'] }` en `descargarPDF()` — el modo `'css'` solo a veces alcanza a
+aplicarse bien sobre `<table>` en el render por canvas, así que se lo indica también de forma
+explícita vía `avoid` para no depender solo de que html2pdf detecte el CSS por sí mismo.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_ficha_no_partir.py`): confirma que la clase `.bloque-no-partir`
+está definida con `page-break-inside: avoid`, que las secciones "Conclusión" y "Cuadro de
+Variables de Concurso" quedan envueltas en ella, que `.tabla-conclusion` y `.vc-tabla` tienen el
+mismo `page-break-inside: avoid`, y que la opción `pagebreak` explícita llega al script de
+`descargarPDF()`. No se puede probar el resultado visual del PDF/impreso desde un TestClient (no
+hay navegador real) — la validación queda a nivel de que el HTML/CSS/opciones generadas son las
+correctas; el usuario confirma el resultado visual en la app. `pyflakes` limpio (mismo warning
+preexistente, no relacionado). Se repitió toda la suite de Modificaciones y el test de regresión
+de sincronización Diseñador v135 — todo pasa.
+
+---
+
 ## Modificaciones de Proyecto — v1.14: observaciones sugeridas editables (oct-2026)
 
 El usuario pidió que las observaciones sugeridas por la IA se puedan editar en Revisión por

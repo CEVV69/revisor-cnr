@@ -28,7 +28,7 @@
                          text-transform: uppercase; font-weight: bold; }
     .header-fecha { font-size: 9pt; color: #555; text-align: right; }
 
-    .tabla-proyecto { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; }
+    .tabla-proyecto { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; page-break-inside: avoid; }
     .tabla-proyecto td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; }
     .tabla-proyecto .label { background: #d0d8e8; font-weight: bold; white-space: nowrap; width: 1%; }
     .tabla-proyecto .valor { background: white; }
@@ -46,15 +46,21 @@
 
     .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
 
-    .tabla-conclusion { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; text-align: center; }
+    .tabla-conclusion { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; text-align: center;
+                         page-break-inside: avoid; }
     .tabla-conclusion th { background: #d0d8e8; border: 1px solid #999; padding: 5px; font-size: 10pt; }
     .tabla-conclusion td { border: 1px solid #999; padding: 8px; font-size: 11pt; font-weight: bold; }
 
-    .vc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
+    .vc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; page-break-inside: avoid; }
     .vc-tabla th, .vc-tabla td { border: 1px solid #999; padding: 4px 8px; font-size: 10pt; }
     .vc-tabla th { background: #d0d8e8; text-align: left; }
     .vc-tabla td.num { text-align: right; }
     .vc-tabla td.col-mod, .vc-tabla th.col-mod { background: #eef3fa; }
+
+    /* Secciones 5 y 6 completas (encabezado + tabla(s) + conclusión en texto) no deben partirse
+       entre hojas — pedido del usuario, oct-2026: con pocas/muchas observaciones variaba dónde
+       caía el salto de página y a veces cortaba la tabla a la mitad. */
+    .bloque-no-partir { page-break-inside: avoid; }
   </style>
 </head>
 <body>
@@ -127,6 +133,7 @@
 {% endif %}
 
 <!-- 5. Conclusión — Estado de revisión + Aumenta/Igual/Disminuye en UF -->
+<div class="bloque-no-partir">
 <div class="titulo-seccion">Conclusión</div>
 <table class="tabla-proyecto">
   <tr>
@@ -150,8 +157,10 @@
 {% else %}
 <p class="sin-obs" style="color:#744210;">— pendiente de completar en la pestaña Variables —</p>
 {% endif %}
+</div>
 
 <!-- 6. Cuadro de Variables de Concurso -->
+<div class="bloque-no-partir">
 <div class="titulo-seccion">Cuadro de Variables de Concurso</div>
 {% if resultado_var %}
 <table class="vc-tabla">
@@ -186,6 +195,7 @@
 {% else %}
 <p class="sin-obs" style="color:#744210;">— pendiente de completar en la pestaña Variables —</p>
 {% endif %}
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
@@ -206,7 +216,12 @@ function descargarPDF() {
     filename:     nombre,
     image:        { type: 'jpeg', quality: 0.97 },
     html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    // Ademas del page-break-inside:avoid (CSS, lo respeta window.print() nativo), se lo indica
+    // explicito a html2pdf — el modo 'css' a veces no alcanza a aplicarse bien sobre <table>
+    // en el render por canvas (pedido del usuario, oct-2026: las tablas de Conclusion/Variables
+    // quedaban cortadas entre hojas segun cuantas observaciones hubiera antes).
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['table', '.bloque-no-partir', '.obs-item'] }
   };
   html2pdf().set(opt).from(document.body).save().then(function() {
     botones.style.display = '';
