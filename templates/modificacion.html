@@ -211,6 +211,9 @@
           {% if obs.categoria %}<span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>{% endif %}
           {% if obs.severidad %}<span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>{% endif %}
           <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}">{{ obs.estado }}</span>
+          {% if obs.derivada_de %}
+          <span class="badge badge-administrativa" title="Derivada desde {{ obs.derivada_de }}">derivada</span>
+          {% endif %}
         </div>
         <span class="text-muted" style="font-size:0.74rem; white-space:nowrap;">{{ obs.fecha | fecha }}</span>
       </div>
@@ -233,6 +236,22 @@
       </form>
       <form id="elim-{{ obs.id }}" method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/eliminar"
             onsubmit="return confirm('¿Eliminar esta observación?')" style="display:none;"></form>
+      {% if item.key == 'mod_coherencia' %}
+      <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/derivar-item"
+            style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; margin-top:0.6rem;
+                   padding-top:0.6rem; border-top:1px dashed var(--border);">
+        <label style="font-size:0.78rem; color:var(--text-2);">Derivar a ítem:</label>
+        <select name="item_key" style="width:auto; font-size:0.78rem; padding:0.25rem 0.4rem;" required>
+          <option value="" disabled selected>Elegir ítem...</option>
+          {% for it in items_lista %}
+          {% if it.key != 'mod_coherencia' %}
+          <option value="{{ it.key }}">{{ it.nombre }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline btn-sm">Derivar</button>
+      </form>
+      {% endif %}
     </div>
     {% endfor %}
   </div>

@@ -5519,6 +5519,43 @@ de sincronización Diseñador v135 — todo pasa.
 
 ---
 
+## Modificaciones de Proyecto — v1.17: derivar observaciones de Coherencia Global (oct-2026)
+
+El usuario pidió el equivalente al "Derivar a ítem del SEP" que ya existe en la Revisión normal
+para Coherencia Global: igual que ahí, "Coherencia Global" en Modificaciones no es una categoría
+real del SEP — es un cierre transversal interno de la app que revisa el expediente completo — y
+muchas de sus observaciones corresponden en realidad a un ítem real (ej. "no se adjuntó el plano
+actualizado" debe terminar en el ítem Planos, no quedarse en Coherencia Global).
+
+- **Ruta** `POST /modificacion/{mod_id}/observacion/{obs_id}/derivar-item` (`main.py`, justo
+  después de `agregar_observacion_manual_modificacion()`) — copia exacta de la lógica de
+  `derivar_observacion_item()` (Revisión normal): valida que el `item_key` destino exista en
+  `ITEMS_MODIFICACION` y no sea `mod_coherencia`; guarda `obs["derivada_de"]` con el nombre de
+  origen SOLO la primera vez que se deriva desde Coherencia Global (si ya tenía ese campo, no se
+  pisa — conserva el origen real aunque se vuelva a derivar); actualiza `item`/`item_nombre`; no
+  usa el campo `numero` (Modificaciones no numera observaciones de forma persistente, a
+  diferencia de la Revisión normal — el número que se ve en pantalla/Ficha es solo
+  `loop.index` al renderizar).
+- **Template** `modificacion.html`: el formulario (mismo markup que `_form_derivar_item` de
+  `proyecto.html`, sin crear una macro nueva ya que en Modificaciones solo se necesita en un
+  lugar) aparece SOLO dentro del grupo cuyo `item.key == 'mod_coherencia'` — el `<select>` lista
+  todos los ítems de `items_lista` excepto `mod_coherencia` mismo. Se agregó también el badge
+  `<span class="badge badge-administrativa" title="Derivada desde ...">derivada</span>`, igual
+  al de `proyecto.html`, junto a los demás badges de cada observación.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_derivar_item_modificacion.py`): confirma que el formulario de
+derivar aparece solo en el grupo Coherencia Global (no en otros ítems) y que su `<select>` no
+ofrece `mod_coherencia` como destino; deriva una observación real a "Planos modificados" y
+confirma `item`/`item_nombre`/`derivada_de` actualizados, el redirect con `item_ok`, el badge
+"derivada" visible después, y que el formulario de derivar ya no aparece (no quedan observaciones
+en Coherencia Global); y que derivar a `mod_coherencia` o a un ítem inexistente devuelve 400.
+`pyflakes` limpio (mismo warning preexistente, solo corrido de línea). Se repitió toda la suite
+de Modificaciones y el test de regresión de sincronización Diseñador v135 — todo pasa.
+
+---
+
 ## Modificaciones de Proyecto — v1.16: selector de Estado también en Resumen/Respuestas (oct-2026)
 
 El usuario notó que el selector de Estado de la modificación (menú desplegable con los estados

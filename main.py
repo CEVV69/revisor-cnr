@@ -4928,6 +4928,44 @@ async def agregar_observacion_manual_modificacion(
         url=f"/modificacion/{mod_id}?item_ok={item_key}", status_code=302)
 
 
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/derivar-item")
+async def derivar_observacion_item_modificacion(
+    request: Request, mod_id: str, obs_id: str, item_key: str = Form(...)
+):
+    """Equivalente a `derivar_observacion_item()` de la Revisión normal (oct-2026, pedido del
+    usuario) — "Coherencia Global" tampoco existe como categoría real del SEP en Modificaciones
+    (es un cierre transversal interno de la app), así que muchas de sus observaciones deben
+    trasladarse al ítem real que corresponde (ej. "falta el plano actualizado" va al ítem
+    Planos, no se queda en Coherencia Global). El ítem destino no necesita tener documentos ni
+    haber sido revisado — derivar es solo una reclasificación de a quién pertenece."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    if item_key not in ITEMS_MODIFICACION or item_key == "mod_coherencia":
+        raise HTTPException(status_code=400, detail="Ítem destino no válido")
+
+    obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
+    if not obs:
+        raise HTTPException(status_code=404, detail="Observación no encontrada")
+
+    origen_key = obs.get("item")
+    origen_nombre = obs.get("item_nombre")
+    # Solo se guarda la primera vez — si ya se había derivado antes, conserva el origen real.
+    if origen_key == "mod_coherencia" and not obs.get("derivada_de"):
+        obs["derivada_de"] = origen_nombre
+
+    obs["item"] = item_key
+    obs["item_nombre"] = ITEMS_MODIFICACION[item_key]["nombre"]
+    obs["revisado_por"] = user["nombre"]
+
+    db.save_proyecto(mod)
+    return RedirectResponse(
+        url=f"/modificacion/{mod_id}?item_ok={item_key}", status_code=302)
+
+
 @app.post("/modificacion/{mod_id}/observacion/{obs_id}/estado")
 async def actualizar_observacion_modificacion(
     request: Request, mod_id: str, obs_id: str,
