@@ -5694,3 +5694,88 @@ v135 — todo pasa.
 
 ---
 
+
+## Rediseño visual "Liquid Glass" — toda la app (oct-2026)
+
+El usuario pidió una pasada estética general: "gráfica más al estilo Apple, con menús Liquid
+Glass y minimalismo funcional", con la condición explícita de no afectar el funcionamiento (solo
+estética y ordenamiento). La base ya era bastante "Apple-like" (SF system font, azul `#0071e3`,
+botones pastilla, blur en el nav, modo claro/oscuro) — el trabajo fue llevarla más lejos hacia
+el lenguaje "Liquid Glass" (vidrio esmerilado translúcido con blur+saturate, brillo superior
+simulando el filo del vidrio, sombras suaves en capas) y de paso ordenar: varias plantillas
+duplicaban exactamente el mismo bloque CSS, que ahora vive en un solo lugar.
+
+**Alcance: solo `templates/base.html`** (el sistema de diseño compartido) + eliminar bloques
+`<style>` duplicados en 9 templates que repetían la misma regla. Cero cambios de HTML
+estructural, cero JS, cero rutas de `main.py` — nada que pudiera afectar comportamiento.
+
+### Cambios en `base.html`
+
+- **Variables nuevas**: `--glass`, `--glass-strong`, `--glass-border`, `--glass-highlight`
+  (translúcidas, con su par en `html.dark-mode`), `--shadow-sm`. `--shadow` se hizo más suave y
+  extendida (sombra "flotante" en dos capas, típica de iOS/visionOS en vez de una sombra dura
+  y corta). Radios (`--r-lg`/`--r`/`--r-sm`) subieron levemente (14→18, 10→12, 7→8) para esquinas
+  más "continuas".
+- **Fondo del body**: un wash radial MUY sutil (dos manchas de color, azul y verde, al 4-6% de
+  opacidad) detrás de todo — sin esto, el blur de `.card`/`nav`/etc. no tiene nada que desenfocar
+  y el "vidrio" se ve idéntico a un panel opaco común. Con variante para `dark-mode`.
+  no afecta el contraste de texto (el texto vive en `--text`, no en el fondo).
+- **`nav`** (barra superior): pasó de un blanco semi-opaco fijo a `--glass-strong` + blur más
+  consistente con el resto, con un filo superior más claro (`box-shadow inset`) simulando luz
+  sobre el borde del vidrio.
+- **`.card`**: de superficie opaca (`var(--surface)`) a vidrio esmerilado real
+  (`background: var(--glass)` + `backdrop-filter: blur(20px) saturate(180%)` + borde translúcido
+  + el mismo brillo superior inset). Es el cambio más visible — TODA la app usa `.card` para casi
+  todo (resúmenes, formularios, tablas de resultados, etc.), así que este único cambio se propaga
+  a prácticamente cada pantalla sin tocar ningún template.
+- **Botones** (`.btn-primary/-danger/-success/-outline/-ghost`): mismo color de fondo que
+  siempre (no se tocó la semántica de color), pero con un `box-shadow: inset 0 1px 0
+  rgba(255,255,255,.25)` que da una leve textura de relieve/vidrio en vez de color plano, más una
+  micro-animación de presión (`transform: scale(0.97)` en `:active`) para feedback táctil.
+  `.btn-outline` pasó de fondo transparente a vidrio translúcido (`var(--glass)` + blur).
+- **Inputs/selects/textareas**: fondo translúcido (`rgba(255,255,255,0.6)` en vez de blanco
+  sólido) + sombra interior sutil, coherente con el resto del vidrio. El override de
+  `html.dark-mode input` pasó de `#0d1117` sólido a `rgba(13,17,23,0.7)` translúcido, mismo
+  criterio.
+- **`.costo-api-panel`/`.apps-menu-panel`** (los dos dropdowns flotantes que ya existían, con
+  patrón `<details>` sin JS): mismo tratamiento de vidrio que `.card`, para que el menú flotante
+  no se vea como un recorte opaco sobre el fondo con blur.
+- **`.proj-nav`/`.proj-tab`/`.proj-tab.proxima`/`.nav-badge`/`.spinner-chico` + `@keyframes
+  girar-spinner` — MOVIDOS a `base.html` (antes vivían duplicados, carácter por carácter
+  idéntico, en el `<style>` de cada template que los usaba: `proyecto.html`, `calculos.html`,
+  `respuestas.html`, `presupuesto.html`, `modificacion.html`, `modificacion_resumen.html`,
+  `modificacion_respuestas.html`, `modificacion_variables.html`, `modificacion_presupuesto.html`
+  — 9 archivos para `.proj-nav`, 3 de ellos también tenían `.spinner-chico` duplicado). De paso,
+  `.proj-tab` cambió de estilo: antes era un subrayado plano bajo el texto (estilo pestaña de
+  navegador); ahora es un "segmented control" estilo iOS — una pista translúcida
+  (`background: rgba(130,130,140,0.08)`) con una pastilla de vidrio flotando sobre la pestaña
+  activa (`.proj-tab.activa`, con su propia sombra suave), que es el patrón real que usa Apple en
+  Ajustes/Configuración. `.nav-badge` (el contador rojo de "N pendientes") pasó del hexadecimal
+  fijo `#c0392b` a `var(--red)`, para que en modo oscuro tome el rojo correcto del tema en vez de
+  quedar desfasado.
+
+**IMPORTANTE para cambios futuros**: cualquier ajuste a `.proj-nav`/`.proj-tab`/`.nav-badge`/
+`.spinner-chico` se hace SOLO en `base.html` de ahora en adelante — si una sesión futura necesita
+tocar el estilo de las pestañas de un proyecto o modificación, el lugar es `base.html`, no cada
+template individual (eso fue justamente lo que se corrigió acá).
+
+No se tocaron los colores semánticos de `.badge-*` (mayor/menor/informativa/etc.) ni los
+`#2b6cb0`/`#276749`/etc. hardcodeados dentro de templates individuales (botones específicos como
+"Generar Ficha", links de referencia normativa, etc.) — cambiarlos habría significado editar
+decenas de inline-styles dispersos por todo el código con alto riesgo de inconsistencia o de
+romper alguna aserción de test que compara ese string exacto, para un beneficio visual marginal
+frente a los cambios de `base.html`. Si en una sesión futura el usuario pide extender el "Liquid
+Glass" a esos elementos puntuales, conviene hacerlo acotado, color por color, no en bloque.
+
+### Validación
+
+Cambio puramente de CSS (ninguna ruta de `main.py` tocada, ningún atributo `class`/`id` de HTML
+tocado — solo contenido de `<style>`). Se verificó: balance de llaves del `<style>` de
+`base.html` (102 aperturas / 102 cierres), que no queda ninguna definición duplicada de
+`.proj-nav`/`.proj-tab`/`.nav-badge`/`.spinner-chico` fuera de `base.html` (`grep` sobre las 9
+plantillas), y que el dashboard renderiza 200 con el CSS centralizado presente. Se corrió TODA la
+suite de tests existente (Modificaciones completa + `test_coherencia_escaneado.py`,
+`test_presupuesto_modificacion.py`, `test_respuestas_coherencia.py`, `test_rondas.py` — este
+último ejercita `proyecto.html`/`respuestas.html` de la Revisión normal — y `test_sync_v135.py`/
+`test_sync_v135_render.py`) — todo sigue pasando, confirmando que ninguna aserción sobre HTML
+renderizado se vio afectada por el cambio de estilos.

@@ -3,15 +3,7 @@
 {% block content %}
 
 <style>
-  .proj-nav { display:flex; gap:0.3rem; margin:1.2rem 0 1.1rem; border-bottom:2px solid var(--border);
-    flex-wrap:wrap; }
-  .proj-tab { padding:0.6rem 1rem; font-size:0.92rem; font-weight:600; color:var(--text-2);
-    text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-2px;
-    border-radius:8px 8px 0 0; white-space:nowrap; }
-  .proj-tab:hover { color:var(--text); background:rgba(128,128,128,0.06); }
-  .proj-tab.activa { color:var(--blue); border-bottom-color:var(--blue); }
-  .nav-badge { background:#c0392b; color:#fff; font-size:0.72rem; border-radius:10px;
-    padding:0 0.4rem; margin-left:0.15rem; }
+  /* .proj-nav/.proj-tab/.nav-badge: centralizados en base.html (oct-2026) */
   .ppto-positivo { color:#276749; font-weight:700; }
   .ppto-negativo { color:#c0392b; font-weight:700; }
   .ppto-sin-dato { color:var(--text-2); font-style:italic; }
@@ -144,12 +136,5 @@
   </table>
 </div>
 {% endif %}
-
-<style>
-  .spinner-chico { display:inline-block; width:0.9rem; height:0.9rem; border-radius:50%;
-    border:2px solid var(--border); border-top-color:var(--text-2);
-    animation:girar-spinner 0.8s linear infinite; }
-  @keyframes girar-spinner { to { transform:rotate(360deg); } }
-</style>
 
 {% endblock %}

@@ -42,15 +42,18 @@ auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 **Nuevo: Modificaciones de Proyecto** (v1.18, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
 Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
-Global, checklist propio c/u — nuevos criterios de dominio van ahí (el usuario los da, Claude los
-redacta). Pestañas: Resumen (Justificación IA), Revisión por ítem y Respuestas (agrupadas por
-ítem, desplegable cerrado por defecto vía `?item_ok=`), Variables (calculadora propia,
-`variables_concurso.py`, regla REAL de bonificación — Art. 33°: nunca sube), Presupuesto (original
-vs. modificado por tipo de documento), Ficha (`/modificacion/{id}/ficha`, carta/Calibri 11). Observación
-manual editable con referencia normativa. Selector de Estado también en Resumen/Respuestas.
-Coherencia Global deriva observaciones a un ítem real. Campo "Fecha límite respuestas" en
-Resumen, visible en la Ficha — detalle de todo en `docs/historial_sesiones.md`. Pendiente: tope
-de bonificación en el diff de Presupuesto, IA en Respuestas.
+Global (deriva observaciones a un ítem real), checklist propio c/u — nuevos criterios de dominio
+van ahí (el usuario los da, Claude los redacta). Pestañas: Resumen (Justificación IA, Fecha límite
+respuestas), Revisión por ítem (observación manual editable con referencia normativa) y
+Respuestas, Variables (`variables_concurso.py`, bonificación nunca sube), Presupuesto, Ficha
+(`/modificacion/{id}/ficha`, carta/Calibri 11). Selector de Estado en Resumen/Respuestas/Revisión
+por ítem — detalle de todo en `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el
+diff de Presupuesto, IA en Respuestas.
+
+**Rediseño visual "Liquid Glass"** (oct-2026, toda la app) — cards/nav/dropdowns con vidrio
+esmerilado, `.proj-nav`/`.proj-tab`/`.nav-badge`/`.spinner-chico` centralizados en `base.html`
+(antes duplicados en 9 templates). Solo CSS, nada de HTML/JS/rutas — detalle en
+`docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
