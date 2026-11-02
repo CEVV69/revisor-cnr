@@ -48,12 +48,13 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 8ª ronda)** — v7 probó un degradé diagonal (`--glass-sheen`)
-para evitar depender de `backdrop-filter`: el usuario lo vio sucio, no como vidrio ("estaba mejor
-antes"). v8 revierte el degradé a color plano (`--glass-sheen`/`-strong` ahora son alias de
-`--glass`/`--glass-strong`, sin tocar las 9 reglas/5 templates que ya los usan). Bug real
-corregido en v7 (sigue en pie): `background:#f5f5f7` hardcodeado en el banner "obligatorios no
-aplica" de `proyecto.html`. Pendiente confirmación — detalle en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 9ª ronda)** — v7 probó un degradé diagonal: se veía sucio, se
+revirtió en v8. v9: `.btn-outline`/`.btn-ghost` vivían con fondo casi blanco DENTRO de `.card`
+(también casi blanco) → cero contraste; ahora usan el mismo gris translúcido que el riel de
+`.proj-nav` (la pieza que sí funcionaba), en vez del tono de la pastilla — es el botón, no su
+entorno, el que aporta el contraste, pero es la misma pareja de tonos. Bug real corregido:
+`background:#f5f5f7` hardcodeado en el banner "obligatorios no aplica" de `proyecto.html`.
+Pendiente confirmación — detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

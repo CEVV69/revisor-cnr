@@ -6141,3 +6141,34 @@ Balance de llaves de `base.html` (100/100). Toda la suite de tests (incluyendo
 `test_menu_estado_glass.py`, que sigue pasando porque solo verifica el NOMBRE de la variable CSS
 usada en el HTML, no a qué resuelve) — todo pasa. Pendiente que el usuario confirme que el
 resultado visual volvió al punto "aceptable" de la 6ª ronda.
+
+## Rediseño "Liquid Glass" — 9ª ronda: por qué la pestaña funcionaba y el botón no (nov-2026)
+
+El usuario preguntó directamente: "¿no puedes repetir exactamente lo mismo que resultó en el
+contenedor del menú en los botones?" — refiriéndose a `.proj-nav`/`.proj-tab.activa` (la franja
+de pestañas, que confirmó que SÍ se veía bien desde la 5ª ronda) vs. los botones secundarios
+(`.btn-outline`, `.btn-ghost`), que seguían sin notarse nada en la captura de la 7ª ronda.
+
+**Por qué no bastaba con copiar el color**: `.btn-outline`/`.btn-ghost` YA estaban usando
+`var(--glass-sheen-strong)` (alias de `--glass-strong`, el mismo tono casi blanco de
+`.proj-tab.activa`) desde la 6ª ronda — el color en sí ya era idéntico al de la pastilla que
+funcionaba. El problema no era el color del botón, era su ENTORNO: `.proj-tab.activa` vive sobre
+`.proj-nav`, cuyo fondo es gris translúcido — el botón, en cambio, vive casi siempre DENTRO de un
+`.card`, que es también casi blanco. Un elemento casi blanco sobre una tarjeta casi blanca no
+contrasta, sin importar cuán "correcto" sea el valor copiado — el contraste de la pestaña viene
+de la RELACIÓN entre dos tonos distintos, no del valor absoluto de uno de ellos.
+
+**La corrección**: en vez de copiar el tono de la PASTILLA (el elemento claro), `.btn-outline`/
+`.btn-ghost` pasaron a usar el tono del RIEL (`rgba(130,130,140,...)`, el mismo que
+`background: rgba(130,130,140,0.1)` de `.proj-nav`) — la misma pareja cromática gris-translúcido/
+superficie-clara que ya probó funcionar, aplicada en la dirección correcta para el contexto real
+donde vive cada botón (sobre blanco, no sobre gris). Se agregó además `var(--shadow-sm)` al
+`box-shadow` de ambos (antes solo tenían los dos insets de "rim", sin ninguna sombra hacia afuera
+que los separe visualmente de la tarjeta que los contiene) y se subió un poco la opacidad de
+`.btn-outline` en reposo (`rgba(0,113,227,0.1)`, antes solo aparecía ese tono en `:hover`).
+
+### Validación
+
+Balance de llaves de `base.html` (100/100). Toda la suite de tests — todo pasa (ningún test
+verifica colores específicos de `.btn-outline`/`.btn-ghost`, así que el cambio no rompió
+aserciones existentes). Pendiente confirmación visual del usuario.
