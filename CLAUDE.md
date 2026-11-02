@@ -43,17 +43,16 @@ auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
 Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
 Global (deriva observaciones a un ítem real), checklist propio c/u — nuevos criterios de dominio
-van ahí (el usuario los da, Claude los redacta). Pestañas: Resumen (Justificación IA, Fecha límite
-respuestas), Revisión por ítem (observación manual editable con referencia normativa) y
-Respuestas, Variables (`variables_concurso.py`, bonificación nunca sube), Presupuesto, Ficha
-(`/modificacion/{id}/ficha`, carta/Calibri 11). Selector de Estado en Resumen/Respuestas/Revisión
-por ítem — detalle de todo en `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el
-diff de Presupuesto, IA en Respuestas.
+van ahí (el usuario los da, Claude los redacta). Pestañas: Resumen/Revisión por ítem/Respuestas/
+Variables (`variables_concurso.py`, bonificación nunca sube)/Presupuesto/Ficha
+(`/modificacion/{id}/ficha`, carta/Calibri 11) — detalle de todo en `docs/historial_sesiones.md`.
+Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
 
-**Rediseño visual "Liquid Glass"** (nov-2026, toda la app, solo CSS) — cards/nav/dropdowns/tabs
-con vidrio esmerilado sobre un wash de color de fondo (sin eso no se nota el blur — 1ª versión
-no se notaba, corregido). `.proj-nav`/`.proj-tab`/etc. centralizados en `base.html` (antes
-duplicados en 9 templates) — detalle en `docs/historial_sesiones.md`.
+**Rediseño visual "Liquid Glass"** (nov-2026, toda la app, solo CSS) — receta tomada del skill
+stormaref/LiquidGlassSkill (CSS: mesh de fondo fijo + rim de 3 capas; NO se portó su directiva
+Angular de refracción SVG, Chromium-only e innecesaria). `.proj-nav`/`.proj-tab`/etc.
+centralizados en `base.html` (antes duplicados en 9 templates). 1ª/2ª versión no se notaban
+(backdrop-filter sin fondo con textura detrás) — detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

@@ -33,9 +33,18 @@
     :root {
       --bg:       #f5f5f7;
       --surface:  #ffffff;
-      --glass:    rgba(255,255,255,0.55);
-      --glass-strong: rgba(255,255,255,0.72);
-      --glass-border: rgba(255,255,255,0.5);
+      /* Vidrio: --glass para paneles sobre contenido denso (nuestras tablas/formularios
+         necesitan más opacidad que la receta original del skill — ahí el tinte es 6% porque el
+         texto es escaso; acá hay tablas completas adentro, por eso se quedó en un punto medio).
+         --glass-rim-* son las 3 capas de "filo de vidrio" del skill: una más clara arriba, una
+         línea fina, y un remate tenue abajo — eso es lo que de verdad lee como vidrio, no el
+         blur solo. */
+      --glass:    rgba(255,255,255,0.42);
+      --glass-strong: rgba(255,255,255,0.6);
+      --glass-border: rgba(30,33,45,0.12);
+      --glass-rim-top: rgba(255,255,255,0.65);
+      --glass-rim-hairline: rgba(255,255,255,0.35);
+      --glass-rim-bottom: rgba(255,255,255,0.12);
       --glass-highlight: rgba(255,255,255,0.6);
       --border:   rgba(0,0,0,0.08);
       --text:     #1d1d1f;
@@ -56,9 +65,12 @@
     html.dark-mode {
       --bg:      #0d1117;
       --surface: #161b22;
-      --glass:    rgba(22,27,34,0.58);
-      --glass-strong: rgba(22,27,34,0.76);
+      --glass:    rgba(22,27,34,0.46);
+      --glass-strong: rgba(22,27,34,0.64);
       --glass-border: rgba(255,255,255,0.08);
+      --glass-rim-top: rgba(255,255,255,0.5);
+      --glass-rim-hairline: rgba(255,255,255,0.18);
+      --glass-rim-bottom: rgba(255,255,255,0.06);
       --glass-highlight: rgba(255,255,255,0.05);
       --border:  rgba(255,255,255,0.08);
       --text:    #e6edf3;
@@ -87,7 +99,6 @@
     }
     html.dark-mode tr:hover td { background: rgba(255,255,255,0.03); }
     html.dark-mode .proj-tab:hover { background: rgba(255,255,255,0.07); }
-    html.dark-mode .proj-tab.activa { background: var(--glass-strong); }
     /* Indicador de modo en nav */
     #modo-indicator {
       font-size:0.75rem; color:var(--text-3); cursor:pointer;
@@ -96,32 +107,38 @@
     }
     #modo-indicator:hover { background: rgba(128,128,128,0.1); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Fondo ambiental ("mesh") detrás del vidrio ──────────────────────────────────────────
+       Receta del skill "Liquid Glass" (stormaref/LiquidGlassSkill) — la causa de que el vidrio
+       no se notara NO era el blur: es que el fondo estaba casi plano y backdrop-filter no tiene
+       textura/color que extraer. La solución del skill, textual: "Build the ambient mesh first
+       and check the page looks uneven with no glass on it at all" — un pseudo-elemento FIJO al
+       viewport (no al scroll), con isolation:isolate en el body para que quede garantizado
+       detrás de todo el contenido, no mezclado con el flujo normal (evita el problema de que un
+       `background` puesto directo en <body> a veces no compone igual con backdrop-filter en
+       todos los navegadores — reportado por el usuario: "no hay mejora, probé en Chrome y
+       Firefox" con la versión anterior que SÍ tenía blur pero el fondo era muy sutil). */
+    html, body { min-height: 100%; }
     body {
+      position: relative; isolation: isolate;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
-      /* Wash de color detrás de los paneles de vidrio — SIN esto, un fondo gris plano no le da a
-         la translucidez de .card/.proj-tab.activa/nav ningún color que dejar pasar, y el "vidrio"
-         se ve igual a un panel opaco gris claro (reportado por el usuario, nov-2026: "se ve como
-         una pastilla, pero de color claro, sin ningún efecto" — correcto, porque .card no se
-         superpone a nada que el blur pueda desenfocar; lo que SÍ se nota es el color de este
-         wash tiñendo la superficie translúcida, como el "vibrancy" real de Apple). Tres manchas
-         de color fijas (no scrollean con el contenido — fixed), bastante más marcadas que la
-         primera versión. */
-      background:
-        radial-gradient(1100px 900px at 10% -5%, rgba(0,113,227,0.16), transparent 55%),
-        radial-gradient(900px 800px at 100% 10%, rgba(52,199,89,0.14), transparent 55%),
-        radial-gradient(900px 700px at 50% 100%, rgba(255,159,10,0.10), transparent 55%),
-        var(--bg);
-      background-attachment: fixed;
+      background: var(--bg);
       color: var(--text); font-size: 15px;
       -webkit-font-smoothing: antialiased;
     }
-    html.dark-mode body {
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
       background:
-        radial-gradient(1100px 900px at 10% -5%, rgba(88,166,255,0.18), transparent 55%),
-        radial-gradient(900px 800px at 100% 10%, rgba(63,185,80,0.15), transparent 55%),
-        radial-gradient(900px 700px at 50% 100%, rgba(210,153,34,0.12), transparent 55%),
-        var(--bg);
-      background-attachment: fixed;
+        radial-gradient(40rem 32rem at 12% 8%, rgba(0,113,227,0.22), transparent 60%),
+        radial-gradient(34rem 30rem at 88% 18%, rgba(94,53,177,0.18), transparent 62%),
+        radial-gradient(38rem 34rem at 30% 92%, rgba(52,199,89,0.18), transparent 62%),
+        radial-gradient(42rem 36rem at 95% 95%, rgba(255,159,10,0.16), transparent 62%);
+    }
+    html.dark-mode body::before {
+      background:
+        radial-gradient(40rem 32rem at 12% 8%, rgba(88,166,255,0.28), transparent 60%),
+        radial-gradient(34rem 30rem at 88% 18%, rgba(167,139,250,0.22), transparent 62%),
+        radial-gradient(38rem 34rem at 30% 92%, rgba(63,185,80,0.24), transparent 62%),
+        radial-gradient(42rem 36rem at 95% 95%, rgba(210,153,34,0.2), transparent 62%);
     }
 
     /* Nav */
@@ -130,12 +147,11 @@
       backdrop-filter: saturate(180%) blur(20px);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
       border-bottom: 1px solid var(--glass-border);
-      box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, var(--shadow-sm);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom);
       position: sticky; top: 0; z-index: 100;
       height: 52px; display: flex; align-items: center;
       padding: 0 2rem; justify-content: space-between;
     }
-    html.dark-mode nav { box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, var(--shadow-sm); }
     .nav-logo { font-size: 0.95rem; font-weight: 600; color: var(--text); text-decoration: none; letter-spacing: -0.01em; }
     .nav-logo span { color: var(--blue); }
     .nav-right { display: flex; align-items: center; gap: 1rem; font-size: 0.83rem; color: var(--text-2); }
@@ -145,15 +161,20 @@
     /* Layout */
     .container { max-width: 1020px; margin: 2rem auto; padding: 0 1.5rem; }
 
-    /* Cards — vidrio esmerilado: superficie translúcida + blur, con un filo superior más claro
-       (inset) que simula el brillo que agarra el borde del vidrio. */
+    /* Cards — vidrio esmerilado: superficie translúcida + blur, con el "rim" de 3 capas
+       (receta del skill stormaref/LiquidGlassSkill: un filo claro arriba, una línea fina, un
+       remate tenue abajo) — eso es lo que realmente lee como borde de vidrio pulido, un solo
+       inset no alcanza a notarse. */
     .card {
       background: var(--glass);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       border: 1px solid var(--glass-border);
       border-radius: var(--r-lg);
-      box-shadow: var(--shadow), inset 0 1px 0 var(--glass-highlight);
+      box-shadow: var(--shadow),
+        inset 0 1px 0 var(--glass-rim-top),
+        inset 0 0 0 1px var(--glass-rim-hairline),
+        inset 0 -1px 0 var(--glass-rim-bottom);
       padding: 1.2rem 1.4rem; margin-bottom: 0.9rem;
     }
     .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
@@ -242,11 +263,17 @@
       color: var(--text-2); padding: 0.18rem 0.45rem; border-radius: 5px; white-space: nowrap; }
     .costo-api > summary::-webkit-details-marker { display: none; }
     .costo-api > summary:hover { background: rgba(128,128,128,0.09); color: var(--text); }
+    /* Dropdowns flotan sobre contenido arbitrario de la página — "tier menú" del skill: más
+       blur y más opacidad que .card, porque acá la legibilidad no puede depender de qué haya
+       quedado debajo al abrirse. */
     .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 300px;
-      background: var(--glass-strong); backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
       border: 1px solid var(--glass-border); border-radius: var(--r);
-      box-shadow: var(--shadow), inset 0 1px 0 var(--glass-highlight);
+      box-shadow: var(--shadow),
+        inset 0 1px 0 var(--glass-rim-top),
+        inset 0 0 0 1px var(--glass-rim-hairline),
+        inset 0 -1px 0 var(--glass-rim-bottom);
       padding: 0.6rem 0.75rem; font-size: 0.78rem; }
     .costo-api-fila { display: flex; justify-content: space-between; gap: 1.2rem;
       padding: 0.16rem 0; color: var(--text-2); }
@@ -268,10 +295,14 @@
     .apps-menu > summary:hover { color: var(--text); background: rgba(128,128,128,0.09); }
     .apps-menu[open] > summary { color: var(--blue); }
     .apps-menu-panel { position: absolute; right: 0; top: 115%; z-index: 200; min-width: 220px;
-      background: var(--glass-strong); backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
       border: 1px solid var(--glass-border); border-radius: var(--r);
-      box-shadow: var(--shadow), inset 0 1px 0 var(--glass-highlight); overflow: hidden; }
+      box-shadow: var(--shadow),
+        inset 0 1px 0 var(--glass-rim-top),
+        inset 0 0 0 1px var(--glass-rim-hairline),
+        inset 0 -1px 0 var(--glass-rim-bottom);
+      overflow: hidden; }
     .apps-menu-item { display: block; padding: 0.5rem 0.9rem; font-size: 0.83rem;
       color: var(--text); text-decoration: none; white-space: nowrap; }
     .apps-menu-item:hover { background: rgba(128,128,128,0.09); }
@@ -296,7 +327,10 @@
        textura de vidrio (reportado por el usuario). */
     .proj-tab.activa { color:var(--text); background: var(--glass-strong);
       backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
-      box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight); }
+      box-shadow: var(--shadow-sm),
+        inset 0 1px 0 var(--glass-rim-top),
+        inset 0 0 0 1px var(--glass-rim-hairline),
+        inset 0 -1px 0 var(--glass-rim-bottom); }
     .proj-tab.proxima { color:var(--text-3); cursor:default; }
     .proj-tab.proxima:hover { background:none; color:var(--text-3); }
     .nav-badge { background:var(--red); color:#fff; font-size:0.72rem; border-radius:10px;

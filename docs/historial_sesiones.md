@@ -5837,3 +5837,83 @@ y toda la suite de tests (Modificaciones completa + `test_coherencia_escaneado.p
 `test_sync_v135.py`/`test_sync_v135_render.py`) — todo sigue pasando. No se puede verificar el
 resultado visual desde este entorno (sin navegador real); queda a la espera de que el usuario
 confirme en la app.
+
+## Rediseño "Liquid Glass" — receta del skill stormaref/LiquidGlassSkill (nov-2026)
+
+El usuario probó la corrección anterior y reportó que SEGUÍA sin verse ningún cambio (confirmado
+en Chrome y Firefox, sin caché de por medio) y pidió explícitamente usar un skill externo:
+primero `zakisheriff/Claude-Liquid-Glass-Skill`, luego (al mostrarle que ese era para apps
+nativas iOS/React Native, inaplicable a una página web) `stormaref/LiquidGlassSkill`.
+
+Se clonaron ambos (`git clone` anónimo de solo lectura, sin agregarlos como repos del proyecto)
+para leerlos completos antes de decidir:
+
+- **`zakisheriff/Claude-Liquid-Glass-Skill`**: descartado — es para SwiftUI/UIKit nativo y React
+  Native/Expo. Sus "dos leyes" son literalmente lo contrario de lo que un navegador puede hacer:
+  prohíbe "nunca fingir vidrio con BlurView/.ultraThinMaterial/blur+opacidad" y exige usar APIs
+  nativas (`.glassEffect()`, `GlassEffectContainer`, `NativeTabs`) que no existen en HTML/CSS. No
+  aporta nada a una app FastAPI+Jinja renderizada en navegador.
+- **`stormaref/LiquidGlassSkill`**: SÍ aplicable — es CSS puro (+ una directiva Angular opcional
+  de refracción vía SVG, que no se portó: requiere un runtime JS que bakea un `displacement map`
+  por elemento, es Chromium-only, y el propio skill la describe como "progressive enhancement" —
+  sin ella "sigues teniendo un panel esmerilado decente", que es lo que se necesitaba). Confirmó
+  el diagnóstico de la ronda anterior casi palabra por palabra: *"Reaching for more blur when the
+  glass looks gray. The cause is almost always rule 1: the backdrop is flat."* — y entregó una
+  receta de tokens ya probada (`assets/liquid-glass.css`) en vez de improvisar valores.
+
+### Qué cambió en `templates/base.html` (receta del skill, adaptada)
+
+1. **El fondo ambiental pasó de `background` directo en `<body>` a un pseudo-elemento
+   `body::before` fijo al viewport** (`position: fixed; inset:0; z-index:-1`) + `body { position:
+   relative; isolation: isolate; }` — el patrón exacto que usa el skill (`.liquid-glass-backdrop`)
+   en vez de mi primer intento (un `background` con `background-attachment:fixed` puesto directo
+   en `body`). El skill es explícito en que esto es la forma recomendada, no decorativa — y es
+   más robusto entre navegadores que depender de cómo cada motor compone un `background` fijo del
+   propio elemento raíz con el `backdrop-filter` de sus descendientes.
+2. **El wash de color subió de intensidad otra vez**, ahora con 4 manchas (azul, morado/violeta,
+   verde, ámbar) en unidades `rem` como el skill (40rem≈640px de diámetro), con alfa 0.16-0.22 en
+   claro y 0.2-0.28 en oscuro — más fuerte que la versión anterior (que ya había subido de
+   4-6% a 10-18% y tampoco alcanzó).
+3. **El "rim" (filo de vidrio) pasó de 1 capa a 3**, calcado del skill:
+   `--glass-rim-top` (más clara, simula luz pegando arriba), `--glass-rim-hairline` (línea fina
+   intermedia), `--glass-rim-bottom` (remate tenue abajo) — aplicado a `.card`, `nav`,
+   `.proj-tab.activa`, `.costo-api-panel`, `.apps-menu-panel`. Antes solo había
+   `inset 0 1px 0 var(--glass-highlight)`, una sola capa — el skill es explícito en que un solo
+   inset no alcanza a leerse como "borde pulido".
+4. **Las variables `--glass`/`--glass-strong` bajaron de opacidad** (0.55/0.72 → 0.42/0.6 en
+   claro; 0.58/0.76 → 0.46/0.64 en oscuro) para que el wash de fondo se note más A TRAVÉS de la
+   superficie — pero NO se llevaron al 6% literal que usa el skill, porque esa receta está pensada
+   para paneles con poco texto (dashboards); esta app tiene tablas y formularios densos adentro
+   de cada `.card`, y a 6% de opacidad el texto pierde legibilidad sobre la parte más "ocupada"
+   del mesh (pitfall que el propio skill señala: "Text over the calm part of the mesh... switch
+   to a heavier tier when a surface must stay readable"). Se documenta la desviación a propósito
+   por si una sesión futura quiere ajustarlo.
+5. **Los dropdowns** (`.costo-api-panel`, `.apps-menu-panel`) subieron a blur(24px)/saturate(140%)
+   — el "tier menú" del skill, más blur/opacidad que `.card` porque flotan sobre contenido
+   arbitrario de la página y la legibilidad no puede depender de qué haya quedado debajo.
+6. Se eliminó `html.dark-mode .proj-tab.activa { background: var(--glass-strong); }` — quedó
+   redundante: `--glass-strong` ya cambia de valor automáticamente en modo oscuro vía la cascada
+   de variables, no hacía falta repetir la regla.
+
+**No se portó la directiva de refracción SVG** (el "segundo half" del skill) — requiere Angular o
+un port manual a JS vanilla que bakee un `<filter>` SVG con un `feDisplacementMap` por elemento,
+calculado en tiempo real contra el tamaño/radio de cada panel; es sustancialmente más trabajo,
+solo funciona en Chromium (Safari "parsea y no pinta nada", según el propio skill), y el mismo
+autor aclara que sin ella "sigues teniendo un panel esmerilado decente" — la mejora es el
+resplandor curvado en el borde, no la diferencia entre "se ve" y "no se ve". Si el usuario quiere
+ese nivel exacto de fidelidad más adelante, es un trabajo aparte y más grande (portar
+`liquid-glass.directive.ts` + `references/refraction.md` a JS plano).
+
+### Validación
+
+Mismo criterio que las rondas anteriores: balance de llaves (102/102), toda la suite de tests
+(Modificaciones completa + `test_coherencia_escaneado.py`, `test_presupuesto_modificacion.py`,
+`test_respuestas_coherencia.py`, `test_rondas.py`, `test_sync_v135.py`/`test_sync_v135_render.py`)
+— todo sigue pasando. **Sigue sin poder verificarse el resultado visual desde este entorno** (sin
+navegador real) — si esta ronda tampoco se nota, el paso siguiente recomendado es que el usuario
+abra DevTools (clic derecho → Inspeccionar → pestaña "Computed" sobre un `.card` o `nav`) y
+confirme si `backdrop-filter` aparece con un valor real (`blur(...) saturate(...)`) o `none`: si
+aparece `none` a pesar de estar declarado en el CSS, el problema deja de ser de diseño/CSS y pasa
+a ser de soporte/aceleración de hardware del navegador o del sistema, que requiere un diagnóstico
+distinto (y una estrategia sin `backdrop-filter`, apoyada solo en color/opacidad de las
+superficies, ya que esa síntesis es menos dependiente del compositor del navegador).
