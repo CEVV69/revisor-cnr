@@ -5779,3 +5779,61 @@ suite de tests existente (Modificaciones completa + `test_coherencia_escaneado.p
 último ejercita `proyecto.html`/`respuestas.html` de la Revisión normal — y `test_sync_v135.py`/
 `test_sync_v135_render.py`) — todo sigue pasando, confirmando que ninguna aserción sobre HTML
 renderizado se vio afectada por el cambio de estilos.
+
+## Rediseño "Liquid Glass" — corrección: el efecto no se notaba (nov-2026)
+
+El usuario probó el rediseño anterior (sección previa de este historial) y reportó: "no veo
+cambio alguno" — descartó caché (probó en pestaña normal de Chrome Y Firefox, sin la app
+instalada) y confirmó que el deploy sí se completó. Al pedirle que mirara específicamente las
+pestañas, confirmó: "se ve como una pastilla, pero es solo de color claro, sin ningún efecto".
+Esa descripción exacta apuntó al bug real, sin necesidad de ver captura de pantalla:
+
+**Causa 1 (bug real):** `.proj-tab.activa` tenía `background: var(--glass-strong)` pero NUNCA se
+le agregó `backdrop-filter` — se armó la pastilla (el cambio de forma SÍ se notaba, "subrayado" →
+"pastilla") pero sin ningún `blur()`/`saturate()` propio, quedaba como un simple rectángulo claro
+semi-opaco. Mismo problema en el contenedor `.proj-nav`.
+
+**Causa 2 (de diseño, no bug):** `.card` SÍ tenía `backdrop-filter` desde la primera versión,
+pero el blur de un elemento solo tiene efecto visible sobre lo que queda DEBAJO de él en pantalla
+— y los `.card` de esta app no se superponen a nada (van uno debajo del otro en flujo normal del
+documento), así que debajo de cada `.card` solo había el fondo liso de la página. Blurear un
+fondo prácticamente plano no produce ningún artefacto visible: por eso "no se nota". El wash de
+color que se agregó al `body` en la primera versión existía, pero con opacidades de 4-6% era
+demasiado sutil — ni siquiera entrecerrando los ojos se notaba la diferencia de tinte entre un
+`.card` translúcido y uno opaco.
+
+### Corrección aplicada (`templates/base.html`)
+
+1. **`.proj-tab.activa`** y **`.proj-nav`**: se les agregó `backdrop-filter: blur(14-16px)
+   saturate(160%)` (+ prefijo `-webkit-`) — el bug puntual que describió el usuario.
+2. **Wash de fondo del `body`**: subido de 4-6% de opacidad a 10-18%, con una tercera mancha de
+   color (naranja/ámbar) además de azul y verde, y `background-attachment: fixed` (para que no
+   se mueva con el scroll — un ancla de color estable detrás de todo). Con este wash más fuerte,
+   aunque `.card` siga sin blurear nada con detalle real debajo, el AUMENTO del color que se
+   filtra a través de la superficie translúcida (el "vibrancy" real del Liquid Glass de Apple —
+   tanto como el blur, es la transparencia tiñéndose con el color del fondo) ya es visible a
+   simple vista.
+3. **`--glass`/`--glass-strong`** (las variables de fondo translúcido que usan `.card`,
+   `.proj-tab.activa`, `nav`, los dropdowns, etc.): opacidad bajada de 0.72/0.86 a 0.55/0.72 en
+   modo claro (0.72/0.88 → 0.58/0.76 en oscuro) — menos "blanco opaco", más transparencia real,
+   para que el wash de fondo se note a través sin perder legibilidad del texto (el contraste del
+   texto no depende de esto: usa `--text`, que sigue siendo casi negro/casi blanco sobre un fondo
+   que sigue siendo predominantemente claro/oscuro, solo que ahora tintado).
+
+**Aprendizaje para la próxima vez que se toque esto**: el `backdrop-filter` (blur) solo es
+visible en elementos que se SUPERPONEN a otro contenido con detalle (la `nav` sticky al hacer
+scroll, los paneles flotantes `.costo-api-panel`/`.apps-menu-panel`/`.proj-tab.activa` sobre el
+resto de la pestaña) — en elementos que van en flujo normal del documento sin superponerse a
+nada (como `.card`), el efecto "vidrio" depende enteramente de la transparencia + el color de
+fondo detrás, NO del blur. Si en el futuro "no se nota" el vidrio en un elemento nuevo, revisar
+primero si tiene su propio `backdrop-filter` (no solo heredado de una variable de color) y
+segundo si hay algo con suficiente color/contraste detrás para que la transparencia se note.
+
+### Validación
+
+Mismo criterio que el cambio anterior: balance de llaves del `<style>` de `base.html` (102/102),
+y toda la suite de tests (Modificaciones completa + `test_coherencia_escaneado.py`,
+`test_presupuesto_modificacion.py`, `test_respuestas_coherencia.py`, `test_rondas.py`,
+`test_sync_v135.py`/`test_sync_v135_render.py`) — todo sigue pasando. No se puede verificar el
+resultado visual desde este entorno (sin navegador real); queda a la espera de que el usuario
+confirme en la app.

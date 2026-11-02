@@ -50,10 +50,10 @@ Respuestas, Variables (`variables_concurso.py`, bonificación nunca sube), Presu
 por ítem — detalle de todo en `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el
 diff de Presupuesto, IA en Respuestas.
 
-**Rediseño visual "Liquid Glass"** (oct-2026, toda la app) — cards/nav/dropdowns con vidrio
-esmerilado, `.proj-nav`/`.proj-tab`/`.nav-badge`/`.spinner-chico` centralizados en `base.html`
-(antes duplicados en 9 templates). Solo CSS, nada de HTML/JS/rutas — detalle en
-`docs/historial_sesiones.md`.
+**Rediseño visual "Liquid Glass"** (nov-2026, toda la app, solo CSS) — cards/nav/dropdowns/tabs
+con vidrio esmerilado sobre un wash de color de fondo (sin eso no se nota el blur — 1ª versión
+no se notaba, corregido). `.proj-nav`/`.proj-tab`/etc. centralizados en `base.html` (antes
+duplicados en 9 templates) — detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
