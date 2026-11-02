@@ -31,31 +31,25 @@
 
   <style>
     :root {
-      /* --bg deliberadamente más gris que blanco: es EXACTAMENTE lo que hace que la pastilla de
-         .proj-tab.activa se note (su "riel" .proj-nav es gris translúcido, la pastilla blanca
-         resalta contra ESE gris, no contra el fondo de la página) — confirmado por el usuario:
-         esa franja sí se ve con relieve. El fondo de colores degradados que se había agregado
-         para que el blur tuviera algo que "teñir" no funcionó igual en los demás paneles y además
-         se veía raro — se sacó. El contraste ahora viene de LIGHTNESS (gris vs. casi blanco), no
-         de un mesh de color de fondo. */
-      --bg:       #e7e8ec;
+      /* --bg con bastante más gris que antes (rondas anteriores: #f5f5f7, luego #e7e8ec — ambos
+         demasiado cerca del blanco del panel para notarse, confirmado por el usuario: "demasiado
+         sutil... no tan sutil"). La matemática del porqué: con --bg #e7e8ec (~91% de luminosidad)
+         y un panel casi blanco (92% opacidad), la diferencia de luminosidad resultante es de
+         apenas ~8% — imperceptible para la mayoría. Ahora el salto es grande a propósito. */
+      --bg:       #d6d8de;
       --surface:  #ffffff;
-      /* Vidrio — tres rondas anteriores con --glass muy transparente (0.42-0.55) no se notaron
-         en la máquina del usuario (confirmó: ve el fondo de colores de body::before, pero los
-         paneles no se distinguen de él en absoluto — ni color, ni borde, ni sombra). Prioridad
-         ahora: que el panel sea INCONFUNDIBLE aunque backdrop-filter no esté renderizando nada
-         (caso más conservador posible) — bastante más opaco, borde más marcado. Si el blur SÍ
-         funciona en su navegador, de todas formas se ve con textura de vidrio (un panel opaco
-         con blur activado simplemente no muestra nada raro detrás, pero conserva el tinte y el
-         filo). Si no funciona, sigue siendo un panel claramente diferenciado del fondo. */
-      --glass:    rgba(255,255,255,0.82);
-      --glass-strong: rgba(255,255,255,0.92);
-      --glass-border: rgba(30,33,45,0.22);
-      --glass-rim-top: rgba(255,255,255,0.8);
-      --glass-rim-hairline: rgba(255,255,255,0.4);
-      --glass-rim-bottom: rgba(255,255,255,0.15);
+      /* Vidrio — el panel queda prácticamente opaco (97%) para maximizar el salto de luminosidad
+         contra el --bg mucho más gris de arriba; el borde y el "rim" también se marcan fuerte
+         (antes 0.22/0.15, invisibles a simple vista) para que el filo del panel sea inconfundible
+         incluso sin que backdrop-filter esté haciendo nada. */
+      --glass:    rgba(255,255,255,0.88);
+      --glass-strong: rgba(255,255,255,0.97);
+      --glass-border: rgba(30,33,45,0.35);
+      --glass-rim-top: rgba(255,255,255,0.95);
+      --glass-rim-hairline: rgba(255,255,255,0.5);
+      --glass-rim-bottom: rgba(0,0,0,0.06);
       --glass-highlight: rgba(255,255,255,0.6);
-      --border:   rgba(0,0,0,0.08);
+      --border:   rgba(0,0,0,0.12);
       --text:     #1d1d1f;
       --text-2:   #6e6e73;
       --text-3:   #86868b;
@@ -72,16 +66,16 @@
     }
     /* ── Modo oscuro (19:00 – 07:00) ─────────────────────────── */
     html.dark-mode {
-      --bg:      #07080b;
+      --bg:      #000000;
       --surface: #161b22;
-      --glass:    rgba(22,27,34,0.82);
-      --glass-strong: rgba(22,27,34,0.92);
-      --glass-border: rgba(255,255,255,0.16);
-      --glass-rim-top: rgba(255,255,255,0.5);
-      --glass-rim-hairline: rgba(255,255,255,0.18);
+      --glass:    rgba(35,41,51,0.88);
+      --glass-strong: rgba(42,49,61,0.95);
+      --glass-border: rgba(255,255,255,0.22);
+      --glass-rim-top: rgba(255,255,255,0.55);
+      --glass-rim-hairline: rgba(255,255,255,0.22);
       --glass-rim-bottom: rgba(255,255,255,0.06);
       --glass-highlight: rgba(255,255,255,0.05);
-      --border:  rgba(255,255,255,0.08);
+      --border:  rgba(255,255,255,0.14);
       --text:    #e6edf3;
       --text-2:  #8b949e;
       --text-3:  #6e7681;
@@ -157,7 +151,7 @@
       background: var(--glass);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid var(--glass-border);
+      border: 1.5px solid var(--glass-border);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow),
         inset 0 1px 0 var(--glass-rim-top),
@@ -194,7 +188,7 @@
     .btn-outline:hover { background: rgba(0,113,227,0.1); }
     .btn-ghost    { background: var(--glass-strong); backdrop-filter: blur(14px) saturate(160%);
       -webkit-backdrop-filter: blur(14px) saturate(160%);
-      color: var(--text); border: 1px solid var(--glass-border);
+      color: var(--text); border: 1.5px solid var(--glass-border);
       box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
     .btn-ghost:hover { background: rgba(130,130,140,0.22); }
     .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
@@ -266,7 +260,7 @@
     .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 300px;
       background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
-      border: 1px solid var(--glass-border); border-radius: var(--r);
+      border: 1.5px solid var(--glass-border); border-radius: var(--r);
       box-shadow: var(--shadow),
         inset 0 1px 0 var(--glass-rim-top),
         inset 0 0 0 1px var(--glass-rim-hairline),
@@ -294,7 +288,7 @@
     .apps-menu-panel { position: absolute; right: 0; top: 115%; z-index: 200; min-width: 220px;
       background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
-      border: 1px solid var(--glass-border); border-radius: var(--r);
+      border: 1.5px solid var(--glass-border); border-radius: var(--r);
       box-shadow: var(--shadow),
         inset 0 1px 0 var(--glass-rim-top),
         inset 0 0 0 1px var(--glass-rim-hairline),

@@ -6005,3 +6005,50 @@ oscura). Toda la suite de tests (Modificaciones completa + `test_coherencia_esca
 `test_sync_v135.py`/`test_sync_v135_render.py`) — todo sigue pasando. Pendiente que el usuario
 confirme si ahora SÍ se nota en `.card`/`nav`/botones el mismo relieve que ya veía en las
 pestañas.
+
+## Rediseño "Liquid Glass" — 6ª ronda: bug real + contraste mucho más agresivo (nov-2026)
+
+El usuario probó la 5ª ronda y reportó: el botón "Inicio" (`.btn-ghost`) mostraba ALGO sutilmente,
+el resto de los botones nada, el menú desplegable de Estado "se ve tal como antes, no hay efecto
+alguno ahí", y en general "es a TODA la app y no tan sutil" lo que pedía.
+
+**Se encontró un bug real** al investigar por qué el menú desplegable no cambiaba en absoluto:
+`#menu-estado` (el dropdown de Estado, en `modificacion.html`, `modificacion_resumen.html`,
+`modificacion_respuestas.html`, `proyecto.html`, `respuestas.html`) tenía
+`background: var(--surface)` escrito INLINE en el HTML, no en `base.html` — ninguna de las 5
+rondas anteriores lo tocó porque todas editaron solo la hoja de estilos compartida. Literalmente
+no había cambiado nada ahí desde antes del rediseño. Se reemplazó en los 5 templates por el mismo
+tratamiento de vidrio que ya tenían `.costo-api-panel`/`.apps-menu-panel` en `base.html`
+(`var(--glass-strong)` + `backdrop-filter: blur(24px) saturate(140%)` + rim de 3 capas).
+
+**Para el resto** (`.card`, botones, nav): se hizo la cuenta de por qué no se notaba pese a que
+el CSS SÍ se aplicaba correctamente (confirmado: "Inicio" mostraba "algo"). Con `--bg: #e7e8ec`
+(~91% de luminosidad) y un panel casi blanco al 92% de opacidad, la diferencia de luminosidad
+resultante es de apenas ~8% — la franja de pestañas se notaba más porque ahí hay DOS saltos
+encadenados (página → riel gris de `.proj-nav` → pastilla blanca), que entre los dos acumulan más
+contraste que un panel único flotando directo sobre la página.
+
+Se subió el contraste de forma deliberadamente agresiva, ya no "elegante y sutil":
+- `--bg`: `#e7e8ec` → `#d6d8de` en claro (gris notorio); `#07080b` → `#000000` en oscuro (negro
+  puro).
+- `--glass`/`--glass-strong`: `0.82/0.92` → `0.88/0.97` en claro (casi opaco). En oscuro, además
+  de subir opacidad (`0.82/0.92` → `0.88/0.95`), se aclaró el color base del panel de
+  `rgb(22,27,34)` (casi idéntico al nuevo `--bg` negro) a `rgb(35,41,51)`/`rgb(42,49,61)` — un gris
+  azulado claramente más claro que el negro puro de fondo.
+- `--glass-border`: `0.22/0.16` → `0.35/0.22` — de invisible a un filo claramente visible.
+- `--border` general: `0.08` (ambos modos) → `0.12/0.14`.
+- Ancho de borde de `.card`/`.btn-outline`/`.btn-ghost`/dropdowns: `1px` → `1.5px` (más nítido).
+- `--glass-rim-top`/`--glass-rim-hairline`: subidos (`0.65/0.35` → `0.95/0.5` en claro) para que
+  el "brillo" superior del panel sea evidente, no una insinuación.
+
+### Validación
+
+Test nuevo en el scratchpad (`test_menu_estado_glass.py`): confirma que las 3 páginas de
+Modificaciones con el dropdown de Estado (Revisión por ítem, Resumen, Respuestas) ya usan
+`var(--glass-strong)` + `backdrop-filter` y ya NO usan `background:var(--surface)`. Balance de
+llaves de `base.html` (100/100). Toda la suite de tests (Modificaciones completa +
+`test_coherencia_escaneado.py`, `test_presupuesto_modificacion.py`,
+`test_respuestas_coherencia.py`, `test_rondas.py`, `test_sync_v135.py`/`test_sync_v135_render.py`)
+— todo pasa. Pendiente que el usuario confirme si esta vez el salto de contraste es suficiente
+(ya no debería depender para nada de que `backdrop-filter` esté o no renderizando, dado que los
+paneles ahora son casi opacos).
