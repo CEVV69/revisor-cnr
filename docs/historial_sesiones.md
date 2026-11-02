@@ -6208,3 +6208,46 @@ Balance de llaves de `base.html` (100/100). Toda la suite de tests (`test_menu_e
 incluido — sigue pasando porque verifica el nombre de la variable CSS usada, no su valor interno)
 — todo pasa. Pendiente confirmación visual del usuario: esta vez ningún color base cambió en
 ningún elemento, solo se agregó la franja de brillo encima.
+
+## Rediseño visual — 11ª ronda: limpieza general, pedido aparte del "vidrio" (nov-2026)
+
+El usuario aclaró que, junto con el tema del efecto Liquid Glass (10 rondas documentadas arriba,
+aún sin confirmación visual porque está revisando desde el celular), había pedido algo más
+amplio desde el principio que no se había atendido directamente: "aspecto más limpio, más
+minimalista como las apps originales de Apple" — no solo la textura de vidrio, sino prolijidad
+general (espaciado, tipografía, orden).
+
+Como el usuario no puede revisar visualmente en este momento (está en el celular, sin acceso al
+Mac/iMac), se optó por avanzar con una pasada de limpieza razonada en vez de esperar — cambios
+conservadores y bien fundamentados en los principios reales del minimalismo de Apple (espacio en
+blanco generoso, jerarquía tipográfica clara, consistencia), sin tocar nada de lo que está
+pendiente de confirmación de las rondas de vidrio (`--glass-border`, `--shadow`, los `--*-sheen`)
+para no mezclar ambos hilos ni arriesgar otro ciclo de "se ve peor".
+
+### Cambios en `templates/base.html`
+
+- **Más aire**: `.container` (margen vertical 2rem → 2.5rem), `.card` (padding 1.2rem 1.4rem →
+  1.5rem 1.7rem, margen entre cards 0.9rem → 1.1rem), filas de tabla (`td`/`th` padding subido),
+  `.alert` (padding y margen subidos), `.badge` (padding subido levemente para una pastilla más
+  cómoda).
+- **Jerarquía tipográfica global** (`h1`/`h2`/`h3`/`p` en `base.html`): varios templates traían
+  encabezados SIN ningún estilo propio (ni clase ni inline), heredando el tamaño/peso por defecto
+  del navegador — grueso, con márgenes inconsistentes, nada parecido al resto de la app. Se
+  agregó una jerarquía base (`h1`: 1.5rem/700/-0.02em; `h2`: 1.05rem/600/-0.01em; `h3`:
+  0.92rem/600) que cualquier encabezado sin estilo propio hereda automáticamente — un `<h1>`/
+  `<h2>` que YA tenía un `style` inline en algún template sigue ganando (mayor especificidad),
+  así que esto no pisa nada de lo que ya estaba bien, solo nivela lo que no tenía nada.
+
+### Qué NO se tocó (a propósito)
+
+`--glass-border`, `--shadow`/`--shadow-sm`, `--glass-sheen`/`--glass-sheen-strong`/`--btn-sheen`
+— todo lo relacionado al efecto de vidrio de las 10 rondas anteriores queda intacto, pendiente de
+que el usuario lo revise desde el computador. Mezclar ese ajuste con esta limpieza habría hecho
+más difícil aislar qué cambio produjo qué efecto si algo sigue sin convencer.
+
+### Validación
+
+Balance de llaves de `base.html` (104/104 — subió de 100 por las 3 reglas nuevas de tipografía +
+la de `p`). Toda la suite de tests — todo pasa (ningún test depende de padding/margen/tamaño de
+fuente exactos). **Pendiente**: el usuario no ha podido confirmar visualmente ni esta ronda ni la
+10ª (vidrio) — próxima sesión, cuando esté en el computador, revisar AMBAS rondas juntas.

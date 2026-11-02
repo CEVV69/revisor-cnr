@@ -48,13 +48,12 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 10ª ronda)** — v9 recoloreó botones a gris: el usuario lo
-rechazó ("no se trata de cambiar los colores, se trata de replicar el EFECTO"). v10: franja de
-brillo vertical (`--btn-sheen`/`--glass-sheen`/`-strong`, se apaga a la mitad, NO diagonal —
-diferente del degradé rechazado en v7) como 1ª capa de `background`, ENCIMA del color de siempre
-de cada botón/card/nav/pestaña/dropdown — ningún color base cambia. Bug real corregido en v7-v9
-(sigue en pie): `background:#f5f5f7` hardcodeado en `proyecto.html`. Pendiente confirmación —
-detalle en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 10 rondas de vidrio + 1 de limpieza general)** — v10: franja
+de brillo vertical sobre el color de siempre (detalle de las 10 rondas en
+`docs/historial_sesiones.md`). v11 (pedido aparte, NO del debate de vidrio — "aspecto más
+limpio/minimalista como Apple"): más aire en `.container`/`.card`/tabla/alertas, jerarquía h1/h2/
+h3 global en `base.html` (antes muchos templates heredaban el h2 crudo del navegador). Usuario
+revisa desde el celular — sin confirmación visual de ninguna de las dos todavía.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
