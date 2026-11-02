@@ -279,7 +279,7 @@
            (pensado para la barra superior del sitio) también alcanza a `.proj-nav` de acá abajo
            (sigue siendo un <nav>), así que sin esto el menú quedaba tapado detrás de las
            pestañas Chequeo de Cálculos / Respuestas. -->
-      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--glass-strong);
+      <div id="menu-estado" style="display:none;position:absolute;right:0;top:110%;background:var(--glass-sheen-strong);
            backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%);
            border:1px solid var(--glass-border);border-radius:var(--r);
            box-shadow:var(--shadow), inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom);
@@ -370,7 +370,8 @@
      por defecto (jul-2026): una vez registrado el motivo no hace falta seguir viéndolo desplegado,
      solo agrega alto a la página; el resumen de una línea alcanza para recordar que existe. -->
 {% if obligatorios_exceptuados %}
-<details style="background:#f5f5f7; border:1px solid var(--border); border-radius:6px; padding:0.5rem 1rem; margin-bottom:0.8rem;">
+<details style="background:var(--glass-sheen); border:1.5px solid var(--glass-border); border-radius:var(--r-sm); padding:0.5rem 1rem; margin-bottom:0.8rem;
+                box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom);">
   <summary style="font-size:0.8rem; color:var(--text-2); font-weight:600; cursor:pointer;">
     {{ obligatorios_exceptuados | length }} documento{{ 's' if obligatorios_exceptuados | length != 1 else '' }}
     obligatorio{{ 's' if obligatorios_exceptuados | length != 1 else '' }} marcado{{ 's' if obligatorios_exceptuados | length != 1 else '' }}

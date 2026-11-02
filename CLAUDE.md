@@ -48,14 +48,12 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 6ª ronda)** — `.proj-nav`/`.proj-tab`/etc. centralizados en
-`base.html`. Bug real encontrado en v6: el `#menu-estado` (5 templates) tenía `background:
-var(--surface)` INLINE, ajeno a todos los cambios de `base.html` — corregido a vidrio real. Resto
-de la app seguía "demasiado sutil" (usuario): la diferencia de luminosidad panel-vs-fondo era de
-~8%, imperceptible. `--bg` ahora bastante más gris (`#d6d8de` claro / negro puro oscuro) y
-`--glass`/`--glass-strong` casi opacos (0.88/0.97) con borde/rim mucho más marcados — salto de
-contraste grande a propósito. Pendiente que el usuario confirme — detalle en
-`docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 7ª ronda)** — captura del usuario: 6 rondas de
+`backdrop-filter` (blur) sin NINGÚN efecto visible en su navegador. v7 reemplaza el blur por un
+degradé diagonal estático (`--glass-sheen`/`--glass-sheen-strong`) en todos los paneles — no
+depende de que el navegador soporte backdrop-filter. Se corrigió además un `background:#f5f5f7`
+hardcodeado (banner "obligatorios no aplica" de `proyecto.html`), ajeno al sistema de diseño.
+Pendiente confirmación — detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

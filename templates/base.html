@@ -44,6 +44,14 @@
          incluso sin que backdrop-filter esté haciendo nada. */
       --glass:    rgba(255,255,255,0.88);
       --glass-strong: rgba(255,255,255,0.97);
+      /* "Sheen": gradiente diagonal (claro arriba-izquierda → más gris abajo-derecha) en vez de
+       un color plano. 6 rondas con blur (`backdrop-filter`) no mostraron NINGUNA textura en el
+       navegador del usuario (confirmado con captura: ni el botón ni el menú desplegable tenían
+       ningún brillo o relieve, solo color sólido) — este gradiente reemplaza al blur como la
+       fuente del aspecto "vidrio pulido": es 100% independiente de que el navegador soporte o
+       renderice backdrop-filter, porque es un degradé estático, no una propiedad de filtro. */
+      --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.86) 45%, rgba(214,217,224,0.94) 100%);
+      --glass-sheen-strong: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 45%, rgba(222,225,231,0.97) 100%);
       --glass-border: rgba(30,33,45,0.35);
       --glass-rim-top: rgba(255,255,255,0.95);
       --glass-rim-hairline: rgba(255,255,255,0.5);
@@ -70,6 +78,8 @@
       --surface: #161b22;
       --glass:    rgba(35,41,51,0.88);
       --glass-strong: rgba(42,49,61,0.95);
+      --glass-sheen: linear-gradient(135deg, rgba(52,60,74,0.94) 0%, rgba(35,41,51,0.88) 45%, rgba(20,24,31,0.92) 100%);
+      --glass-sheen-strong: linear-gradient(135deg, rgba(62,70,86,0.97) 0%, rgba(42,49,61,0.95) 45%, rgba(24,28,36,0.95) 100%);
       --glass-border: rgba(255,255,255,0.22);
       --glass-rim-top: rgba(255,255,255,0.55);
       --glass-rim-hairline: rgba(255,255,255,0.22);
@@ -125,7 +135,7 @@
 
     /* Nav */
     nav {
-      background: var(--glass-strong);
+      background: var(--glass-sheen-strong);
       backdrop-filter: saturate(180%) blur(20px);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
       border-bottom: 1px solid var(--glass-border);
@@ -148,7 +158,7 @@
        remate tenue abajo) — eso es lo que realmente lee como borde de vidrio pulido, un solo
        inset no alcanza a notarse. */
     .card {
-      background: var(--glass);
+      background: var(--glass-sheen);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       border: 1.5px solid var(--glass-border);
@@ -181,12 +191,12 @@
     .btn-danger:hover { background: var(--red-h); }
     .btn-success  { background: var(--green-dk); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
     .btn-success:hover { background: #1e7a35; }
-    .btn-outline  { background: var(--glass-strong); backdrop-filter: blur(14px) saturate(160%);
+    .btn-outline  { background: var(--glass-sheen-strong); backdrop-filter: blur(14px) saturate(160%);
       -webkit-backdrop-filter: blur(14px) saturate(160%);
       color: var(--blue); border: 1px solid rgba(0,113,227,0.3);
       box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
     .btn-outline:hover { background: rgba(0,113,227,0.1); }
-    .btn-ghost    { background: var(--glass-strong); backdrop-filter: blur(14px) saturate(160%);
+    .btn-ghost    { background: var(--glass-sheen-strong); backdrop-filter: blur(14px) saturate(160%);
       -webkit-backdrop-filter: blur(14px) saturate(160%);
       color: var(--text); border: 1.5px solid var(--glass-border);
       box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
@@ -258,7 +268,7 @@
        blur y más opacidad que .card, porque acá la legibilidad no puede depender de qué haya
        quedado debajo al abrirse. */
     .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 300px;
-      background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
+      background: var(--glass-sheen-strong); backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
       border: 1.5px solid var(--glass-border); border-radius: var(--r);
       box-shadow: var(--shadow),
@@ -286,7 +296,7 @@
     .apps-menu > summary:hover { color: var(--text); background: rgba(128,128,128,0.09); }
     .apps-menu[open] > summary { color: var(--blue); }
     .apps-menu-panel { position: absolute; right: 0; top: 115%; z-index: 200; min-width: 220px;
-      background: var(--glass-strong); backdrop-filter: blur(24px) saturate(140%);
+      background: var(--glass-sheen-strong); backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
       border: 1.5px solid var(--glass-border); border-radius: var(--r);
       box-shadow: var(--shadow),
@@ -316,7 +326,7 @@
     /* El filtro acá (no solo en .proj-nav) es lo que de verdad faltaba: antes .activa solo tenía
        un fondo semi-opaco plano SIN backdrop-filter propio — por eso se veía la pastilla pero sin
        textura de vidrio (reportado por el usuario). */
-    .proj-tab.activa { color:var(--text); background: var(--glass-strong);
+    .proj-tab.activa { color:var(--text); background: var(--glass-sheen-strong);
       backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
       box-shadow: var(--shadow-sm),
         inset 0 1px 0 var(--glass-rim-top),

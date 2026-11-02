@@ -6052,3 +6052,59 @@ llaves de `base.html` (100/100). Toda la suite de tests (Modificaciones completa
 — todo pasa. Pendiente que el usuario confirme si esta vez el salto de contraste es suficiente
 (ya no debería depender para nada de que `backdrop-filter` esté o no renderizando, dado que los
 paneles ahora son casi opacos).
+
+## Rediseño "Liquid Glass" — 7ª ronda: abandonar el blur, usar degradé estático (nov-2026)
+
+El usuario adjuntó una captura de pantalla de la app (pestaña "Resumen" del proyecto). Se ve: la
+pastilla de la pestaña activa SÍ tiene forma distinta (blanca redondeada sobre riel gris), pero
+ni ahí ni en los botones ("Autocompletar con IA", "Imprimir informe") ni en el banner superior
+hay ninguna textura de vidrio — todo plano, sin brillo. Confirmó: "exactamente igual que antes,
+no hay contraste, no hay efecto de glass".
+
+Con 6 rondas de `backdrop-filter` (blur) correctamente declarado y CERO textura visible en dos
+navegadores distintos (Chrome y Firefox, confirmado en rondas previas), la conclusión práctica es
+que `backdrop-filter` no está renderizando nada en el entorno del usuario (motivo exacto
+desconocido — GPU/aceleración de hardware, versión del navegador, o configuración del sistema;
+no se pudo diagnosticar más porque el usuario no llegó a hacer el chequeo de DevTools pedido en
+rondas anteriores). En vez de seguir insistiendo con blur, se cambió de mecanismo por completo.
+
+### El cambio: degradé diagonal estático en vez de blur
+
+Se agregaron dos variables nuevas, `--glass-sheen` y `--glass-sheen-strong`, que reemplazan a
+`var(--glass)`/`var(--glass-strong)` como `background` en TODOS los paneles de vidrio
+(`.card`, `nav`, `.btn-outline`, `.btn-ghost`, `.proj-tab.activa`, `.costo-api-panel`,
+`.apps-menu-panel`, los 5 `#menu-estado`): un `linear-gradient(135deg, ...)` más claro arriba-
+izquierda y más gris abajo-derecha (claro: blanco casi puro → `rgba(214,217,224,0.94)`; oscuro:
+`rgba(52,60,74,0.94)` → `rgba(20,24,31,0.92)`). Es la técnica clásica de "botón brillante/vidrio
+pulido" de antes de que existiera `backdrop-filter` (años de Web 2.0/iOS temprano) — un degradé
+estático no depende de que el navegador soporte ni renderice ningún filtro: se ve igual en
+cualquier navegador, con o sin aceleración de hardware. `backdrop-filter: blur(...)` se DEJÓ en
+el CSS (no hace daño, y si en algún navegador sí funciona, suma textura extra), pero ya no es la
+fuente principal del efecto — el degradé lo es.
+
+### Bug adicional encontrado: banner de documentos obligatorios
+
+Al revisar la captura con cuidado, el banner "1 documento obligatorio marcado como 'no aplica'
+en este proyecto" (`proyecto.html`, el `<details>` sobre el panel de ítems) tenía
+`background:#f5f5f7` escrito a mano, un color fijo completamente ajeno al sistema de diseño de
+`base.html` — ni siquiera usaba una variable CSS. Nunca cambió en las 6 rondas anteriores porque
+ninguna tocó ese archivo en ese punto. Se corrigió a `background:var(--glass-sheen)` con el mismo
+borde/rim que el resto de los paneles.
+
+**Aprendizaje para sesiones futuras**: cada vez que "no se nota el cambio" en un elemento
+puntual, antes de seguir ajustando `base.html` conviene `grep` ese elemento específico por
+colores hardcodeados (`#f5f5f7`, `var(--surface)`, `white` sueltos) — van dos bugs reales de este
+tipo encontrados así en las últimas dos rondas (`#menu-estado` en la 6ª, este banner en la 7ª),
+ambos invisibles si solo se revisa `base.html`.
+
+### Validación
+
+Test ampliado en el scratchpad (`test_menu_estado_glass.py`): confirma que los 3 `#menu-estado`
+de Modificaciones usan `var(--glass-sheen-strong)` (no `var(--surface)` ni `var(--glass-strong)`
+plano) y conservan `backdrop-filter` como extra; y que `templates/proyecto.html` ya no contiene
+`background:#f5f5f7` y sí `background:var(--glass-sheen)` en el banner corregido. Balance de
+llaves de `base.html` (100/100). Toda la suite de tests — todo pasa. Pendiente que el usuario
+confirme: esta vez el efecto NO depende de ninguna propiedad de filtro, así que si tampoco se ve
+el degradé diagonal, el problema ya no sería de CSS sino de que el deploy no está llegando o de
+caché — ahí sí convendría pedir una captura de "ver código fuente" (Ctrl/Cmd+U) del `<style>` de
+`base.html` para confirmar qué versión del CSS está realmente sirviendo el navegador.
