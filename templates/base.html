@@ -33,18 +33,20 @@
     :root {
       --bg:       #f5f5f7;
       --surface:  #ffffff;
-      /* Vidrio: --glass para paneles sobre contenido denso (nuestras tablas/formularios
-         necesitan más opacidad que la receta original del skill — ahí el tinte es 6% porque el
-         texto es escaso; acá hay tablas completas adentro, por eso se quedó en un punto medio).
-         --glass-rim-* son las 3 capas de "filo de vidrio" del skill: una más clara arriba, una
-         línea fina, y un remate tenue abajo — eso es lo que de verdad lee como vidrio, no el
-         blur solo. */
-      --glass:    rgba(255,255,255,0.42);
-      --glass-strong: rgba(255,255,255,0.6);
-      --glass-border: rgba(30,33,45,0.12);
-      --glass-rim-top: rgba(255,255,255,0.65);
-      --glass-rim-hairline: rgba(255,255,255,0.35);
-      --glass-rim-bottom: rgba(255,255,255,0.12);
+      /* Vidrio — tres rondas anteriores con --glass muy transparente (0.42-0.55) no se notaron
+         en la máquina del usuario (confirmó: ve el fondo de colores de body::before, pero los
+         paneles no se distinguen de él en absoluto — ni color, ni borde, ni sombra). Prioridad
+         ahora: que el panel sea INCONFUNDIBLE aunque backdrop-filter no esté renderizando nada
+         (caso más conservador posible) — bastante más opaco, borde más marcado. Si el blur SÍ
+         funciona en su navegador, de todas formas se ve con textura de vidrio (un panel opaco
+         con blur activado simplemente no muestra nada raro detrás, pero conserva el tinte y el
+         filo). Si no funciona, sigue siendo un panel claramente diferenciado del fondo. */
+      --glass:    rgba(255,255,255,0.82);
+      --glass-strong: rgba(255,255,255,0.92);
+      --glass-border: rgba(30,33,45,0.22);
+      --glass-rim-top: rgba(255,255,255,0.8);
+      --glass-rim-hairline: rgba(255,255,255,0.4);
+      --glass-rim-bottom: rgba(255,255,255,0.15);
       --glass-highlight: rgba(255,255,255,0.6);
       --border:   rgba(0,0,0,0.08);
       --text:     #1d1d1f;
@@ -57,17 +59,17 @@
       --green:    #34c759;
       --green-dk: #248a3d;
       --orange:   #ff9f0a;
-      --shadow:   0 1px 1px rgba(0,0,0,0.03), 0 10px 28px rgba(0,0,0,0.07);
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow:   0 2px 4px rgba(0,0,0,0.05), 0 14px 32px rgba(0,0,0,0.12);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
       --r-lg: 18px; --r: 12px; --r-sm: 8px;
     }
     /* ── Modo oscuro (19:00 – 07:00) ─────────────────────────── */
     html.dark-mode {
       --bg:      #0d1117;
       --surface: #161b22;
-      --glass:    rgba(22,27,34,0.46);
-      --glass-strong: rgba(22,27,34,0.64);
-      --glass-border: rgba(255,255,255,0.08);
+      --glass:    rgba(22,27,34,0.82);
+      --glass-strong: rgba(22,27,34,0.92);
+      --glass-border: rgba(255,255,255,0.16);
       --glass-rim-top: rgba(255,255,255,0.5);
       --glass-rim-hairline: rgba(255,255,255,0.18);
       --glass-rim-bottom: rgba(255,255,255,0.06);

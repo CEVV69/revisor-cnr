@@ -5917,3 +5917,39 @@ aparece `none` a pesar de estar declarado en el CSS, el problema deja de ser de 
 a ser de soporte/aceleración de hardware del navegador o del sistema, que requiere un diagnóstico
 distinto (y una estrategia sin `backdrop-filter`, apoyada solo en color/opacidad de las
 superficies, ya que esa síntesis es menos dependiente del compositor del navegador).
+
+## Rediseño "Liquid Glass" — 4ª ronda: priorizar que se note por sobre la sutileza (nov-2026)
+
+El usuario probó la ronda anterior (receta del skill `stormaref/LiquidGlassSkill`) y reportó:
+"el fondo se ve sutilmente de varios colores, pero es el fondo — no hay efecto de glass ni nada
+parecido en los paneles". Esto confirma que `body::before` (el mesh de color) SÍ renderiza — lo
+ve — pero `.card`/`nav`/`.proj-tab.activa` no se distinguen de ese fondo en absoluto: ni color,
+ni borde, ni sombra. También preguntó si no había instalado el skill como plugin formal de
+Claude Code (`/plugin install`) — se le aclaró que un skill de Claude Code son instrucciones
+para el asistente, no algo que se despliegue al navegador del usuario: lo que importa es el CSS
+escrito en `base.html`, que ya se tomó literalmente del skill en la ronda anterior.
+
+Con 3 rondas de ajustes "sutiles" sin ningún resultado perceptible, se cambió de estrategia: en
+vez de seguir afinando valores de opacidad baja (vidrio "elegante" pero posiblemente invisible
+si `backdrop-filter` no está renderizando en el entorno del usuario, por el motivo que sea), se
+subió la opacidad de los paneles MUCHO más arriba — de 0.42/0.6 a 0.82/0.92 en claro (0.46/0.64 a
+0.82/0.92 en oscuro) — y se marcó más el borde (`--glass-border` de 0.12 a 0.22 alfa) y la
+sombra (`--shadow` más extendida y oscura). La lógica: un panel casi opaco con sombra marcada se
+distingue del fondo SIEMPRE, tenga o no blur activo — si el navegador sí soporta
+`backdrop-filter`, igual conserva algo de transparencia/vidrio; si no lo soporta (la hipótesis
+más probable dado que 3 rondas con blur correctamente declarado no se notaron en absoluto, ni en
+Chrome ni en Firefox), al menos el panel se ve como una tarjeta clara flotando sobre el fondo de
+color, en vez de invisible.
+
+No se tocó la estructura del mesh de fondo (`body::before`, ya confirmado visible) ni el rim de
+3 capas (ya aplicado) — solo los niveles de opacidad base de `--glass`/`--glass-strong` y el
+contraste del borde/sombra.
+
+### Validación
+
+Mismo criterio: balance de llaves (102/102), toda la suite de tests — todo pasa. Sigue sin poder
+verificarse el resultado visual desde este entorno. **Pendiente real para la próxima sesión**: si
+esta ronda tampoco se nota, el diagnóstico de DevTools (Computed → `backdrop-filter` sobre un
+`.card`) ya no es opcional — sin ese dato no hay forma de saber si el problema es de diseño (CSS
+mal aplicado) o de soporte/hardware del navegador del usuario, y seguir ajustando valores a
+ciegas no es productivo.
