@@ -31,7 +31,14 @@
 
   <style>
     :root {
-      --bg:       #f5f5f7;
+      /* --bg deliberadamente más gris que blanco: es EXACTAMENTE lo que hace que la pastilla de
+         .proj-tab.activa se note (su "riel" .proj-nav es gris translúcido, la pastilla blanca
+         resalta contra ESE gris, no contra el fondo de la página) — confirmado por el usuario:
+         esa franja sí se ve con relieve. El fondo de colores degradados que se había agregado
+         para que el blur tuviera algo que "teñir" no funcionó igual en los demás paneles y además
+         se veía raro — se sacó. El contraste ahora viene de LIGHTNESS (gris vs. casi blanco), no
+         de un mesh de color de fondo. */
+      --bg:       #e7e8ec;
       --surface:  #ffffff;
       /* Vidrio — tres rondas anteriores con --glass muy transparente (0.42-0.55) no se notaron
          en la máquina del usuario (confirmó: ve el fondo de colores de body::before, pero los
@@ -65,7 +72,7 @@
     }
     /* ── Modo oscuro (19:00 – 07:00) ─────────────────────────── */
     html.dark-mode {
-      --bg:      #0d1117;
+      --bg:      #07080b;
       --surface: #161b22;
       --glass:    rgba(22,27,34,0.82);
       --glass-strong: rgba(22,27,34,0.92);
@@ -109,38 +116,17 @@
     }
     #modo-indicator:hover { background: rgba(128,128,128,0.1); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    /* ── Fondo ambiental ("mesh") detrás del vidrio ──────────────────────────────────────────
-       Receta del skill "Liquid Glass" (stormaref/LiquidGlassSkill) — la causa de que el vidrio
-       no se notara NO era el blur: es que el fondo estaba casi plano y backdrop-filter no tiene
-       textura/color que extraer. La solución del skill, textual: "Build the ambient mesh first
-       and check the page looks uneven with no glass on it at all" — un pseudo-elemento FIJO al
-       viewport (no al scroll), con isolation:isolate en el body para que quede garantizado
-       detrás de todo el contenido, no mezclado con el flujo normal (evita el problema de que un
-       `background` puesto directo en <body> a veces no compone igual con backdrop-filter en
-       todos los navegadores — reportado por el usuario: "no hay mejora, probé en Chrome y
-       Firefox" con la versión anterior que SÍ tenía blur pero el fondo era muy sutil). */
+    /* El fondo ya NO lleva el mesh de colores degradados — se veía raro (reportado por el
+       usuario) y además no era lo que hacía que .proj-tab.activa se notara. El contraste real
+       viene de que --bg es gris (no blanco) y los paneles de vidrio son casi blancos: la misma
+       diferencia de tono que ya funcionaba en .proj-nav (riel gris) / .proj-tab.activa (pastilla
+       clara) se aplica ahora en toda la app. */
     html, body { min-height: 100%; }
     body {
-      position: relative; isolation: isolate;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
       background: var(--bg);
       color: var(--text); font-size: 15px;
       -webkit-font-smoothing: antialiased;
-    }
-    body::before {
-      content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-      background:
-        radial-gradient(40rem 32rem at 12% 8%, rgba(0,113,227,0.22), transparent 60%),
-        radial-gradient(34rem 30rem at 88% 18%, rgba(94,53,177,0.18), transparent 62%),
-        radial-gradient(38rem 34rem at 30% 92%, rgba(52,199,89,0.18), transparent 62%),
-        radial-gradient(42rem 36rem at 95% 95%, rgba(255,159,10,0.16), transparent 62%);
-    }
-    html.dark-mode body::before {
-      background:
-        radial-gradient(40rem 32rem at 12% 8%, rgba(88,166,255,0.28), transparent 60%),
-        radial-gradient(34rem 30rem at 88% 18%, rgba(167,139,250,0.22), transparent 62%),
-        radial-gradient(38rem 34rem at 30% 92%, rgba(63,185,80,0.24), transparent 62%),
-        radial-gradient(42rem 36rem at 95% 95%, rgba(210,153,34,0.2), transparent 62%);
     }
 
     /* Nav */
@@ -181,8 +167,10 @@
     }
     .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
 
-    /* Botones — pastilla con un leve brillo superior (inset) que da sensación de relieve de
-       vidrio, en vez de un color plano. Mismo color de fondo que antes: solo cambia la textura. */
+    /* Botones — mismo "rim" de 3 capas que .card/.proj-tab.activa (filo claro arriba, línea
+       fina, remate tenue abajo), para que se sientan vidrio igual que el resto, no solo color
+       plano. Los de color (primary/danger/success) mantienen su color — el rim se les agrega
+       ENCIMA (receta "colored glass" del skill: el tinte cambia, el filo no). */
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       padding: 0.4rem 1rem; border-radius: 980px;
@@ -190,18 +178,25 @@
       cursor: pointer; text-decoration: none; border: none;
       transition: opacity .15s, background .15s, transform .1s; white-space: nowrap;
       font-family: inherit; line-height: 1.4;
+      box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom);
     }
     .btn:active { opacity: 0.7; transform: scale(0.97); }
-    .btn-primary  { background: var(--blue); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 1px 2px rgba(0,113,227,0.3); }
+    .btn-primary  { background: var(--blue); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,113,227,0.35); }
     .btn-primary:hover { background: var(--blue-h); }
-    .btn-danger   { background: var(--red); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 1px 2px rgba(255,59,48,0.3); }
+    .btn-danger   { background: var(--red); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(255,59,48,0.35); }
     .btn-danger:hover { background: var(--red-h); }
-    .btn-success  { background: var(--green-dk); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 1px 2px rgba(36,138,61,0.3); }
+    .btn-success  { background: var(--green-dk); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
     .btn-success:hover { background: #1e7a35; }
-    .btn-outline  { background: var(--glass); backdrop-filter: blur(10px); color: var(--blue); border: 1px solid rgba(0,113,227,0.3); }
-    .btn-outline:hover { background: rgba(0,113,227,0.08); }
-    .btn-ghost    { background: rgba(130,130,140,0.1); color: var(--text); border: none; }
-    .btn-ghost:hover { background: rgba(130,130,140,0.16); }
+    .btn-outline  { background: var(--glass-strong); backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      color: var(--blue); border: 1px solid rgba(0,113,227,0.3);
+      box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
+    .btn-outline:hover { background: rgba(0,113,227,0.1); }
+    .btn-ghost    { background: var(--glass-strong); backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      color: var(--text); border: 1px solid var(--glass-border);
+      box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
+    .btn-ghost:hover { background: rgba(130,130,140,0.22); }
     .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
 
     /* Formularios */

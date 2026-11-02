@@ -5953,3 +5953,55 @@ esta ronda tampoco se nota, el diagnóstico de DevTools (Computed → `backdrop-
 `.card`) ya no es opcional — sin ese dato no hay forma de saber si el problema es de diseño (CSS
 mal aplicado) o de soporte/hardware del navegador del usuario, y seguir ajustando valores a
 ciegas no es productivo.
+
+## Rediseño "Liquid Glass" — 5ª ronda: el contraste era de TONO, no de color (nov-2026)
+
+El usuario probó la 4ª ronda (opacidad alta) y dio el dato que finalmente explica todo: **la
+franja de pestañas (`.proj-nav`/`.proj-tab`) SÍ se ve con relieve de vidrio** — el resto de la
+app (nav superior, botones, listado de proyectos del dashboard) sigue sin notarse nada, y además
+el fondo degradado de colores "se ve raro". Pidió generalizar el estilo de esa franja (que
+funcionó) a toda la app, en vez de seguir con el mesh de colores (que no funcionó y no gustó).
+
+**Por qué la franja de pestañas SÍ se notaba y el resto no**: `.proj-tab.activa` no flota sobre
+el fondo de la página — flota sobre `.proj-nav`, su propio contenedor, que tiene un fondo gris
+translúcido (`rgba(130,130,140,0.1)`). La pastilla activa (`var(--glass-strong)`, casi blanca) se
+ve CLARAMENTE distinta de ese riel gris inmediato — es una diferencia de **luminosidad** (gris vs.
+casi blanco) codificada directo en el CSS, que no depende de que `backdrop-filter` esté
+renderizando ni de qué color tenga el fondo de la página. `.card`, en cambio, flotaba
+directamente sobre `--bg` (`#f5f5f7`, casi blanco) — un panel casi blanco (`--glass` a 0.82) sobre
+un fondo casi blanco es básicamente invisible, con o sin blur, con o sin mesh de colores detrás:
+mismo problema que main.py/CLAUDE.md venían explicando mal en las 4 rondas anteriores (se asumía
+que faltaba textura/color de fondo para que el blur tuviera algo que extraer, pero el verdadero
+problema era que no había diferencia de TONO entre panel y fondo).
+
+### Corrección (`templates/base.html`)
+
+1. **Se eliminó el mesh de colores** (`body::before` con los 4 radiales azul/violeta/verde/ámbar)
+   — no aportaba el contraste que faltaba y el usuario lo encontraba visualmente raro. `body`
+   volvió a un `background: var(--bg)` plano.
+2. **`--bg` pasó de casi-blanco/casi-negro a gris real**: `#f5f5f7` → `#e7e8ec` en modo claro,
+   `#0d1117` → `#07080b` en modo oscuro (más oscuro aún, para la misma lógica: que el panel de
+   vidrio, ya opaco en 82-92%, se note claramente más claro/distinto que la página). Es
+   exactamente la misma relación de tono que ya tenía `.proj-nav` (riel gris) vs `.proj-tab.activa`
+   (pastilla clara) — ahora aplicada como el fondo de TODA la app, no solo de esa franja.
+3. **Botones** (`.btn-outline`/`.btn-ghost`): antes `.btn-outline` era `background: var(--glass)`
+   sin más (muy transparente, perdido contra cualquier fondo) y `.btn-ghost` usaba un gris plano
+   sin blur ni rim. Ambos pasaron a `background: var(--glass-strong)` + `backdrop-filter:
+   blur(14px) saturate(160%)` + el mismo rim de 2 capas (`--glass-rim-top`/`--glass-rim-bottom`)
+   que ya tenían `.card`/`.proj-tab.activa` — mismo tratamiento, mismo resultado esperado.
+4. **Botones de color** (`.btn-primary`/`.btn-danger`/`.btn-success`): mantienen su color (el
+   azul/rojo/verde no cambia — es información, no decoración), pero el inset único se cambió por
+   un rim de 2 capas (brillo arriba, sombra tenue abajo) — receta "colored glass" del skill: el
+   tinte cambia, el filo de vidrio no.
+
+El `.proj-nav`/`.proj-tab` y los dropdowns (`.costo-api-panel`/`.apps-menu-panel`) no se tocaron
+en esta ronda — ya funcionaban.
+
+### Validación
+
+Balance de llaves (100/100 — bajó de 102 al eliminar el bloque `body::before` y su variante
+oscura). Toda la suite de tests (Modificaciones completa + `test_coherencia_escaneado.py`,
+`test_presupuesto_modificacion.py`, `test_respuestas_coherencia.py`, `test_rondas.py`,
+`test_sync_v135.py`/`test_sync_v135_render.py`) — todo sigue pasando. Pendiente que el usuario
+confirme si ahora SÍ se nota en `.card`/`nav`/botones el mismo relieve que ya veía en las
+pestañas.

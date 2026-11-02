@@ -48,13 +48,13 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 4 rondas sin confirmación visual del usuario)** — receta
-del skill stormaref/LiquidGlassSkill, `.proj-nav`/`.proj-tab`/etc. centralizados en `base.html`.
-3 rondas con vidrio sutil no se notaron EN ABSOLUTO (ni blur ni color); 4ª ronda subió
-`--glass`/`--glass-strong` a 0.82/0.92 para que el panel se distinga del fondo aunque
-`backdrop-filter` no esté renderizando. **Si el usuario reporta que sigue sin verse: pedirle el
-diagnóstico de DevTools (Computed → `backdrop-filter` sobre un `.card`) ANTES de seguir ajustando
-valores a ciegas** — detalle completo en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 5ª ronda)** — `.proj-nav`/`.proj-tab`/etc. centralizados en
+`base.html`. v1-v4 (mesh de colores de fondo) NO se notaban y además "se veía raro" (usuario). v5:
+usuario confirmó que SOLO `.proj-tab.activa` sí tenía relieve — el porqué: su contraste viene de
+que el "riel" `.proj-nav` es gris y la pastilla casi blanca, NO del mesh. Se sacó el mesh de
+colores, `--bg` pasó a gris (`#e7e8ec` claro / `#07080b` oscuro, antes casi blanco/negro) para que
+TODOS los paneles (`.card`, `nav`, botones) tengan ese mismo contraste de tono. Pendiente que el
+usuario confirme — detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
