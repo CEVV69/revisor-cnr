@@ -42,17 +42,19 @@ auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 **Nuevo: Modificaciones de Proyecto** (v1.18, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
 Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
-Global (deriva observaciones a un ítem real), checklist propio c/u — nuevos criterios de dominio
-van ahí (el usuario los da, Claude los redacta). Pestañas: Resumen/Revisión por ítem/Respuestas/
-Variables (`variables_concurso.py`, bonificación nunca sube)/Presupuesto/Ficha
-(`/modificacion/{id}/ficha`, carta/Calibri 11) — detalle de todo en `docs/historial_sesiones.md`.
-Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
+Global (deriva observaciones a un ítem real), checklist propio c/u (criterios de dominio los da
+el usuario). Pestañas: Resumen/Revisión por ítem/Respuestas/Variables (`variables_concurso.py`,
+bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — detalle en
+`docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
+Respuestas.
 
-**Rediseño visual "Liquid Glass"** (nov-2026, toda la app, solo CSS) — receta tomada del skill
-stormaref/LiquidGlassSkill (CSS: mesh de fondo fijo + rim de 3 capas; NO se portó su directiva
-Angular de refracción SVG, Chromium-only e innecesaria). `.proj-nav`/`.proj-tab`/etc.
-centralizados en `base.html` (antes duplicados en 9 templates). 1ª/2ª versión no se notaban
-(backdrop-filter sin fondo con textura detrás) — detalle en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 4 rondas sin confirmación visual del usuario)** — receta
+del skill stormaref/LiquidGlassSkill, `.proj-nav`/`.proj-tab`/etc. centralizados en `base.html`.
+3 rondas con vidrio sutil no se notaron EN ABSOLUTO (ni blur ni color); 4ª ronda subió
+`--glass`/`--glass-strong` a 0.82/0.92 para que el panel se distinga del fondo aunque
+`backdrop-filter` no esté renderizando. **Si el usuario reporta que sigue sin verse: pedirle el
+diagnóstico de DevTools (Computed → `backdrop-filter` sobre un `.card`) ANTES de seguir ajustando
+valores a ciegas** — detalle completo en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
