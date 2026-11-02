@@ -44,14 +44,14 @@
          incluso sin que backdrop-filter esté haciendo nada. */
       --glass:    rgba(255,255,255,0.88);
       --glass-strong: rgba(255,255,255,0.97);
-      /* "Sheen": gradiente diagonal (claro arriba-izquierda → más gris abajo-derecha) en vez de
-       un color plano. 6 rondas con blur (`backdrop-filter`) no mostraron NINGUNA textura en el
-       navegador del usuario (confirmado con captura: ni el botón ni el menú desplegable tenían
-       ningún brillo o relieve, solo color sólido) — este gradiente reemplaza al blur como la
-       fuente del aspecto "vidrio pulido": es 100% independiente de que el navegador soporte o
-       renderice backdrop-filter, porque es un degradé estático, no una propiedad de filtro. */
-      --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.86) 45%, rgba(214,217,224,0.94) 100%);
-      --glass-sheen-strong: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 45%, rgba(222,225,231,0.97) 100%);
+      /* El degradé diagonal ("sheen") de la ronda anterior se descartó — el usuario lo vio como
+         una mancha sucia, no como vidrio ("ensucia lo que ya estaba aceptable"). El color PLANO
+         de antes (sin degradé) sí se veía bien en la pastilla de pestañas — se vuelve a eso acá.
+         --glass-sheen/--glass-sheen-strong quedan como ALIAS de los colores planos (en vez de
+         borrar las 9 reglas y 5 templates que ya los usan) para no tener que volver a tocar cada
+         uno; si hace falta remover el degradé en el futuro, es borrar estas dos líneas. */
+      --glass-sheen: var(--glass);
+      --glass-sheen-strong: var(--glass-strong);
       --glass-border: rgba(30,33,45,0.35);
       --glass-rim-top: rgba(255,255,255,0.95);
       --glass-rim-hairline: rgba(255,255,255,0.5);
@@ -78,8 +78,8 @@
       --surface: #161b22;
       --glass:    rgba(35,41,51,0.88);
       --glass-strong: rgba(42,49,61,0.95);
-      --glass-sheen: linear-gradient(135deg, rgba(52,60,74,0.94) 0%, rgba(35,41,51,0.88) 45%, rgba(20,24,31,0.92) 100%);
-      --glass-sheen-strong: linear-gradient(135deg, rgba(62,70,86,0.97) 0%, rgba(42,49,61,0.95) 45%, rgba(24,28,36,0.95) 100%);
+      --glass-sheen: var(--glass);
+      --glass-sheen-strong: var(--glass-strong);
       --glass-border: rgba(255,255,255,0.22);
       --glass-rim-top: rgba(255,255,255,0.55);
       --glass-rim-hairline: rgba(255,255,255,0.22);

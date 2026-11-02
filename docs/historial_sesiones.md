@@ -6108,3 +6108,36 @@ confirme: esta vez el efecto NO depende de ninguna propiedad de filtro, así que
 el degradé diagonal, el problema ya no sería de CSS sino de que el deploy no está llegando o de
 caché — ahí sí convendría pedir una captura de "ver código fuente" (Ctrl/Cmd+U) del `<style>` de
 `base.html` para confirmar qué versión del CSS está realmente sirviendo el navegador.
+
+## Rediseño "Liquid Glass" — 8ª ronda: el degradé se veía sucio, se revierte (nov-2026)
+
+El usuario adjuntó otra captura: el degradé diagonal de la 7ª ronda se ve como una mancha gris
+cruzando cada pieza, sin ningún efecto de volumen ni de vidrio — su valoración textual:
+"horrible... estaba mejor antes que ahora porque incluso ensucia lo que ya estaba aceptable". Es
+decir: el tratamiento PLANO de la 6ª ronda (sin degradé) sí era aceptable; el degradé de la 7ª
+ronda fue un paso atrás.
+
+Se revirtió el degradé sin deshacer el resto: `--glass-sheen`/`--glass-sheen-strong` (las
+variables que usan las 9 reglas de `base.html` y los 5 `#menu-estado` inline) pasaron de ser un
+`linear-gradient(...)` a ser simples alias de los colores planos —
+`--glass-sheen: var(--glass);` / `--glass-sheen-strong: var(--glass-strong);` — así no hizo falta
+volver a tocar ninguna de las 14 reglas/templates que ya las referenciaban, solo redefinir qué
+significan esas dos variables en la raíz. El resultado visual es exactamente el de la 6ª ronda
+(colores planos, opacidad alta, borde/rim marcados) pero conservando los dos bugs reales que SÍ
+se corrigieron en el camino (el `#menu-estado` ya no usa `var(--surface)` fijo, y el banner de
+"documentos obligatorios no aplica" ya no usa `background:#f5f5f7` hardcodeado).
+
+**Aprendizaje**: un degradé diagonal visible lee como "sucio"/"manchado" en superficies chicas o
+muy texturizadas (botones, pastillas de pestaña), no como vidrio — la textura de vidrio real se
+construye con blur+transparencia (que no renderiza en el entorno del usuario) o con bordes/rim
+muy sutiles sobre color CASI plano, no con un gradiente de color evidente. Si se vuelve a
+intentar un efecto de "brillo" sin depender de blur, probablemente conviene algo mucho más sutil
+(un gradiente de 2-3% de diferencia, casi imperceptible como gradiente en sí, solo como
+suavizado) en vez de los saltos de ~10-15% usados en la 7ª ronda.
+
+### Validación
+
+Balance de llaves de `base.html` (100/100). Toda la suite de tests (incluyendo
+`test_menu_estado_glass.py`, que sigue pasando porque solo verifica el NOMBRE de la variable CSS
+usada en el HTML, no a qué resuelve) — todo pasa. Pendiente que el usuario confirme que el
+resultado visual volvió al punto "aceptable" de la 6ª ronda.
