@@ -6172,3 +6172,39 @@ que los separe visualmente de la tarjeta que los contiene) y se subió un poco l
 Balance de llaves de `base.html` (100/100). Toda la suite de tests — todo pasa (ningún test
 verifica colores específicos de `.btn-outline`/`.btn-ghost`, así que el cambio no rompió
 aserciones existentes). Pendiente confirmación visual del usuario.
+
+## Rediseño "Liquid Glass" — 10ª ronda: franja de brillo vertical, sin cambiar colores (nov-2026)
+
+El usuario rechazó la 9ª ronda (botones recoloreados a gris): "ahora se ve peor... no se trata de
+cambiar los colores, se trata de replicar el efecto con los colores que tiene. Si es un tema de
+contraste, de una franja o un efecto de brillo, eso es". Pidió investigar si había un skill o
+herramienta que ayudara — se buscó con `SuggestSkills` (sin resultados nuevos; el skill externo
+ya usado en rondas anteriores, `stormaref/LiquidGlassSkill`, ya se había incorporado todo lo
+aplicable a CSS puro).
+
+**El cambio de enfoque**: en vez de un degradé diagonal que cubre TODA la pieza (rechazado en la
+7ª ronda, "se veía sucio") o un recoloreo completo (rechazado en la 9ª), se implementó el patrón
+real detrás de los botones brillantes clásicos (iOS/Aqua de mediados-de-2000s, Web 2.0 — mucho
+antes de que existiera `backdrop-filter`): una franja de brillo VERTICAL, confinada a la mitad
+SUPERIOR del elemento, que se apaga a transparente hacia la mitad — no un color nuevo, una capa
+de luz encima del color que ya tenía cada pieza.
+
+Técnicamente: `--btn-sheen` (botones) y `--glass-sheen`/`--glass-sheen-strong` (card/nav/
+pestañas/dropdowns) dejaron de ser alias de colores planos y pasaron a ser un valor de
+`background` de DOS capas: `linear-gradient(to bottom, blanco-translúcido → transparente a la
+mitad), <color original>` — en CSS, `background: capa1, capa2;` pinta `capa1` ENCIMA de `capa2`,
+así que el color de cada botón/card/pestaña queda exactamente igual, con la franja de brillo
+superpuesta. Se revirtieron además los colores de `.btn-outline`/`.btn-ghost` al azul/gris neutro
+original de antes de la 9ª ronda (se habían recoloreado a un gris más saturado, que el usuario
+tampoco pidió mantener).
+
+Se aplicó la misma franja también a los botones de color (`.btn-primary`/`.btn-danger`/
+`.btn-success`), que antes solo tenían un inset sutil — ahora llevan la misma banda de brillo
+sobre su azul/rojo/verde de siempre, el patrón de "botón de vidrio" coloreado clásico.
+
+### Validación
+
+Balance de llaves de `base.html` (100/100). Toda la suite de tests (`test_menu_estado_glass.py`
+incluido — sigue pasando porque verifica el nombre de la variable CSS usada, no su valor interno)
+— todo pasa. Pendiente confirmación visual del usuario: esta vez ningún color base cambió en
+ningún elemento, solo se agregó la franja de brillo encima.

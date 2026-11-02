@@ -50,8 +50,16 @@
          --glass-sheen/--glass-sheen-strong quedan como ALIAS de los colores planos (en vez de
          borrar las 9 reglas y 5 templates que ya los usan) para no tener que volver a tocar cada
          uno; si hace falta remover el degradé en el futuro, es borrar estas dos líneas. */
-      --glass-sheen: var(--glass);
-      --glass-sheen-strong: var(--glass-strong);
+      /* Brillo — pedido del usuario: "no es cambiar el color, es replicar el efecto con los
+         colores que tiene". A diferencia del degradé diagonal (cubría TODA la pieza, se veía
+         manchado), esto es una franja vertical de brillo SOLO en la mitad superior, apagándose a
+         transparente — el patrón clásico de "vidrio pulido" (iOS/Aqua de los 2000s, de antes de
+         que existiera backdrop-filter). --glass-sheen/--glass-sheen-strong/--btn-sheen son esa
+         misma franja, sentada como PRIMERA capa de `background` encima del color de siempre de
+         cada elemento — el color no cambia, solo gana volumen arriba. */
+      --glass-sheen: linear-gradient(to bottom, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 51%), var(--glass);
+      --glass-sheen-strong: linear-gradient(to bottom, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 51%), var(--glass-strong);
+      --btn-sheen: linear-gradient(to bottom, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 51%);
       --glass-border: rgba(30,33,45,0.35);
       --glass-rim-top: rgba(255,255,255,0.95);
       --glass-rim-hairline: rgba(255,255,255,0.5);
@@ -78,8 +86,9 @@
       --surface: #161b22;
       --glass:    rgba(35,41,51,0.88);
       --glass-strong: rgba(42,49,61,0.95);
-      --glass-sheen: var(--glass);
-      --glass-sheen-strong: var(--glass-strong);
+      --glass-sheen: linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0) 51%), var(--glass);
+      --glass-sheen-strong: linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 51%), var(--glass-strong);
+      --btn-sheen: linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0) 51%);
       --glass-border: rgba(255,255,255,0.22);
       --glass-rim-top: rgba(255,255,255,0.55);
       --glass-rim-hairline: rgba(255,255,255,0.22);
@@ -185,27 +194,27 @@
       box-shadow: inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom);
     }
     .btn:active { opacity: 0.7; transform: scale(0.97); }
-    .btn-primary  { background: var(--blue); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,113,227,0.35); }
-    .btn-primary:hover { background: var(--blue-h); }
-    .btn-danger   { background: var(--red); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(255,59,48,0.35); }
-    .btn-danger:hover { background: var(--red-h); }
-    .btn-success  { background: var(--green-dk); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
-    .btn-success:hover { background: #1e7a35; }
-    /* .btn-outline/.btn-ghost viven casi siempre DENTRO de un .card blanco — a diferencia de
-       .proj-nav, que vive directo sobre el --bg gris de la página. Un fondo casi blanco (como
-       tenían antes) sobre una tarjeta casi blanca no contrasta nada, por eso no se notaban. Acá
-       se usa el MISMO tono gris que el riel de .proj-nav (`rgba(130,130,140,...)`) como fondo
-       del botón — así el botón, no su entorno, es el elemento que aporta el contraste, pero es
-       exactamente la misma pareja de tonos (gris translúcido vs. superficie clara) que ya se
-       veía bien en las pestañas. */
-    .btn-outline  { background: rgba(0,113,227,0.1);
-      color: var(--blue); border: 1.5px solid rgba(0,113,227,0.4);
-      box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-outline:hover { background: rgba(0,113,227,0.18); }
-    .btn-ghost    { background: rgba(130,130,140,0.16);
+    /* Los colores de cada botón NO cambian (pedido explícito del usuario: "no se trata de
+       cambiar los colores") — lo que se agrega es --btn-sheen como PRIMERA capa de `background`,
+       una franja de brillo que se apaga hacia la mitad del botón, sentada ENCIMA del color de
+       siempre (la segunda capa, sin tocar). Mismo color, más volumen. */
+    .btn-primary  { background: var(--btn-sheen), var(--blue); color: #fff;
+      box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,113,227,0.35); }
+    .btn-primary:hover { background: var(--btn-sheen), var(--blue-h); }
+    .btn-danger   { background: var(--btn-sheen), var(--red); color: #fff;
+      box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(255,59,48,0.35); }
+    .btn-danger:hover { background: var(--btn-sheen), var(--red-h); }
+    .btn-success  { background: var(--btn-sheen), var(--green-dk); color: #fff;
+      box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
+    .btn-success:hover { background: var(--btn-sheen), #1e7a35; }
+    .btn-outline  { background: var(--btn-sheen), var(--glass-strong);
+      color: var(--blue); border: 1.5px solid rgba(0,113,227,0.35);
+      box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
+    .btn-outline:hover { background: var(--btn-sheen), rgba(0,113,227,0.12); }
+    .btn-ghost    { background: var(--btn-sheen), var(--glass-strong);
       color: var(--text); border: 1.5px solid var(--glass-border);
-      box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-rim-top), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-ghost:hover { background: rgba(130,130,140,0.26); }
+      box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
+    .btn-ghost:hover { background: var(--btn-sheen), rgba(130,130,140,0.26); }
     .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
 
     /* Formularios */
