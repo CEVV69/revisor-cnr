@@ -16,8 +16,8 @@
     font-family:inherit; font-size:0.8rem; box-sizing:border-box; }
   .calc-resultado { font-size:0.78rem; color:var(--text-2); white-space:normal; line-height:1.5; }
   .calc-resultado b { color:var(--text); }
-  .calc-alerta { color:#c0392b; font-weight:600; }
-  .calc-falta { color:#a35b00; font-style:italic; }
+  .calc-alerta { color:var(--red); font-weight:600; }
+  .calc-falta { color:var(--orange); font-style:italic; }
   .btn-elim-tramo { display:block; margin-top:3px; font-size:0.69rem; color:var(--text-2); background:none; border:none; cursor:pointer; padding:0; opacity:0.5; line-height:1.2; }
   .btn-elim-tramo:hover { opacity:1; color:#c00; }
   .agro-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(115px, 1fr));
@@ -49,7 +49,7 @@
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
-  <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Chequeo de Cálculos</h1>
+  <h1 style="margin:0;">{{ proyecto.codigo_sep }} — Chequeo de Cálculos</h1>
   {% include "_costo_api.html" %}
 </div>
 
@@ -498,7 +498,7 @@
               {% if t.nombre or t.caudal_ls is not none or t.diametro_mm is not none %}
               <button type="button" class="btn-elim-tramo" onclick="eliminarTramo(this)" title="Vacía este tramo y lo oculta. Guarda para confirmar.">× eliminar</button>
               {% endif %}
-              <label id="{{ sp }}t{{ loop.index0 }}_llenado_label" style="display:{{ 'block' if t.es_llenado_detectado else 'none' }}; font-size:0.77rem; margin-top:0.25rem; color:#666; cursor:pointer;">
+              <label id="{{ sp }}t{{ loop.index0 }}_llenado_label" style="display:{{ 'block' if t.es_llenado_detectado else 'none' }}; font-size:0.77rem; margin-top:0.25rem; color:var(--text-2); cursor:pointer;">
                 <input type="checkbox" id="{{ sp }}t{{ loop.index0 }}_llenado_chk" name="{{ sp }}t{{ loop.index0 }}_llenado_chk" onchange="recalcHidraulico()" {% if t.es_llenado %}checked{% endif %}> Bomba independiente (excluir del CDT)
               </label>
             </td>

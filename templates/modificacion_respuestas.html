@@ -50,9 +50,9 @@
 {% for grupo in grupos_respuestas %}
 <details {% if grupo.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
 <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
-            font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
+            font-weight:700; color:var(--blue); font-size:0.9rem; user-select:none;">
   {{ grupo.nombre }}
-  <span style="font-weight:400; color:#4a5568; font-size:0.8rem;">· {{ grupo.pares|length }} observación{{ 'es' if grupo.pares|length != 1 else '' }}</span>
+  <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ grupo.pares|length }} observación{{ 'es' if grupo.pares|length != 1 else '' }}</span>
 </summary>
 <div style="padding-top:0.6rem;">
 {% for par in grupo.pares %}

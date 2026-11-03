@@ -54,7 +54,7 @@
     </form>
   </div>
 
-  <h1 style="text-align:center; font-size:1.3rem; font-weight:700; letter-spacing:-0.02em; color:var(--text); margin-bottom:0.25rem; word-break:break-word;">
+  <h1 style="text-align:center; margin-bottom:0.25rem; word-break:break-word;">
     {{ proyecto.nombre }}
   </h1>
   <p style="text-align:center; color:var(--text-2); font-size:0.85rem;">
@@ -123,7 +123,7 @@
       <tr>
         <td style="max-width:220px; word-break:break-all;">
           <a href="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/ver" target="_blank" title="Ver documento"
-             style="color:#2b6cb0; text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
+             style="color:var(--blue); text-decoration:underline dotted; text-underline-offset:2px;">{{ doc.nombre_original }}</a>
         </td>
         <td class="text-muted" style="max-width:260px; word-break:break-word;">{{ doc.tipo_doc_label }}</td>
         <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida | fecha }}</td>
@@ -175,7 +175,7 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
     <h2 style="margin:0; border:none; padding:0;">Observaciones</h2>
-    <a href="/modificacion/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:#2b6cb0;">
+    <a href="/modificacion/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm" style="border-color:var(--blue);">
       Generar Ficha
     </a>
   </div>
@@ -187,9 +187,9 @@
   {% if obs_item %}
   <details {% if item.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
-              font-weight:700; color:#2b6cb0; font-size:0.9rem; user-select:none;">
+              font-weight:700; color:var(--blue); font-size:0.9rem; user-select:none;">
     {{ item.nombre }}
-    <span style="font-weight:400; color:#4a5568; font-size:0.8rem;">· {{ obs_item|length }} observación{{ 'es' if obs_item|length != 1 else '' }}</span>
+    <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ obs_item|length }} observación{{ 'es' if obs_item|length != 1 else '' }}</span>
   </summary>
   <div style="padding-top:0.6rem;">
     {% for obs in obs_item %}

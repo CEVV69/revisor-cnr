@@ -4,7 +4,7 @@
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
   <button type="button" onclick="history.back()" class="btn btn-ghost btn-sm">← Volver</button>
-  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Bases de Concursos</h1>
+  <h1 style="margin:0;">Bases de Concursos</h1>
 </div>
 
 {% if msg_ok %}
@@ -23,7 +23,7 @@
 
 <!-- Crear nuevo concurso -->
 <div class="card" style="max-width:560px; margin-bottom:2rem;">
-  <h2 style="font-size:1rem; margin-bottom:1rem;">Registrar nuevo concurso</h2>
+  <h2 style="margin-bottom:1rem;">Registrar nuevo concurso</h2>
   <form method="post" action="/admin/concursos/crear">
     <div class="form-group">
       <label>ID del concurso</label>
@@ -43,7 +43,7 @@
 </div>
 
 <!-- Lista de concursos -->
-<h2 style="font-size:1rem; color:#2d3748; margin-bottom:0.75rem;">Concursos registrados</h2>
+<h2 style="margin-bottom:0.75rem;">Concursos registrados</h2>
 
 {% if not concursos %}
 <p class="text-muted">No hay concursos registrados. Crea el primero arriba.</p>
@@ -55,22 +55,22 @@
       <div style="font-weight:600; font-size:0.95rem; color:#1a365d; font-family:monospace;">
         {{ c.id }}
       </div>
-      <div style="font-size:0.85rem; color:#4a5568; margin-top:0.2rem;">{{ c.nombre }}</div>
+      <div style="font-size:0.85rem; color:var(--text-2); margin-top:0.2rem;">{{ c.nombre }}</div>
     </div>
     <div style="font-size:0.8rem; text-align:center; min-width:120px;">
       {% if c.bases_texto %}
-        <span style="color:#276749; background:#f0fff4; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #68d391;">
+        <span style="color:var(--green-dk); background:#f0fff4; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #68d391;">
           Bases cargadas
         </span>
         <div class="text-muted" style="font-size:0.75rem; margin-top:0.25rem;">{{ c.bases_texto | length }} caracteres</div>
       {% else %}
-        <span style="color:#744210; background:#fffbeb; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #f6ad55;">
+        <span style="color:var(--orange); background:#fffbeb; padding:0.2rem 0.6rem; border-radius:12px; border:1px solid #f6ad55;">
           Sin bases
         </span>
       {% endif %}
     </div>
     <div style="font-size:0.8rem; text-align:center; min-width:90px;">
-      <div style="color:#4a5568;">
+      <div style="color:var(--text-2);">
         {{ (c.feedback or []) | length }} feedbacks
       </div>
     </div>

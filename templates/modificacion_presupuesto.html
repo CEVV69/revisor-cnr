@@ -4,8 +4,8 @@
 
 <style>
   /* .proj-nav/.proj-tab/.nav-badge: centralizados en base.html (oct-2026) */
-  .ppto-positivo { color:#276749; font-weight:700; }
-  .ppto-negativo { color:#c0392b; font-weight:700; }
+  .ppto-positivo { color:var(--green-dk); font-weight:700; }
+  .ppto-negativo { color:var(--red); font-weight:700; }
   .ppto-sin-dato { color:var(--text-2); font-style:italic; }
   .ppto-tbl { width:100%; border-collapse:collapse; font-size:0.88rem; }
   .ppto-tbl th, .ppto-tbl td { padding:0.55rem 0.7rem; border-bottom:1px solid var(--border); text-align:right; }
@@ -19,7 +19,7 @@
 
 <div class="flex items-center gap-2 mt-2" style="margin-bottom:0.4rem">
   <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
-  <h1 style="font-size:1.3rem; color:#1a365d;">Presupuesto — {{ proyecto.codigo_sep }}</h1>
+  <h1>Presupuesto — {{ proyecto.codigo_sep }}</h1>
   <span style="flex:1;"></span>
   {% include "_costo_api.html" %}
   <form method="post" action="/modificacion/{{ proyecto.id }}/presupuesto/extraer"

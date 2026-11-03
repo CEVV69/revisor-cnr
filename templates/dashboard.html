@@ -17,7 +17,7 @@
 </style>
 
 <div class="flex justify-between items-center mt-2" style="margin-bottom:1.5rem; gap:1rem; flex-wrap:wrap;">
-  <h1 style="font-size:1.4rem; color:#1a365d;">Proyectos asignados</h1>
+  <h1>Proyectos asignados</h1>
   <div style="display:flex; align-items:center; gap:0.4rem; flex:1; justify-content:flex-end; flex-wrap:wrap;">
     <div style="display:flex; gap:0.3rem;">
       <input type="text" id="buscar-codigo" placeholder="Código SEP..." title="Busca un proyecto por código SEP"
@@ -78,7 +78,7 @@
 </div>
 {% else %}
 <div class="card" style="text-align:center; padding:3rem;">
-  <p style="color:#718096; font-size:1rem;">No tienes proyectos asignados aún.</p>
+  <p style="color:var(--text-2); font-size:1rem;">No tienes proyectos asignados aún.</p>
   <a href="/proyecto/nuevo" class="btn btn-primary" style="margin-top:1rem;">Crear primer proyecto</a>
 </div>
 {% endif %}
@@ -89,7 +89,7 @@
   <div id="modal-resumen-box" style="background:var(--surface); border-radius:var(--r-lg);
        box-shadow:var(--shadow); max-width:760px; width:100%; padding:1.4rem 1.6rem; height:fit-content;">
     <div class="flex justify-between items-center" style="margin-bottom:1rem; gap:0.6rem; flex-wrap:wrap;">
-      <h2 style="font-size:1.05rem; margin:0;">Resumen de proyectos</h2>
+      <h2 style="margin:0;">Resumen de proyectos</h2>
       <div style="display:flex; gap:0.4rem;">
         <button type="button" class="btn btn-outline btn-sm" onclick="window.print()">Imprimir</button>
         <a href="/resumen-proyectos.xlsx" class="btn btn-outline btn-sm">Descargar Excel</a>

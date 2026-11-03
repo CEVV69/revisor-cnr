@@ -48,11 +48,16 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 13 rondas)** — vidrio real de Apple es DINÁMICO (reflejo que
-se mueve), no textura fija: un degradado estático se iba a leer siempre como "solo un degradado"
-(queja v12). v13: brillo especular que sigue al puntero (JS `--mx`/`--my` + radial-gradient en
-`:hover` de `.card`/`.btn-*`/`.proj-tab.activa`). Si sigue sin notarse: pedir DevTools → Elements
-→ Computed en un `.card`, ver si `backdrop-filter` sale tachado. Detalle en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass"** — v13 (brillo especular que sigue al puntero) **confirmado: "se ve
+muy bien, aporta"**. Cerrado — Liquid Glass real es material del sistema de Apple, sin receta
+CSS equivalente (confirmado con su código fuente oficial, ver `docs/historial_sesiones.md`).
+
+**Pasada "estilo iOS" (uniformidad/tipografía, EN CURSO)** — causa de por qué rondas 11-12 no se
+notaban: casi todo `<h1>`/`<h2>` traía `font-size`/`color` hardcodeado inline, anulando las
+reglas de `base.html` por especificidad. Limpiado en 19 templates + ~85 hex sueltos sin modo
+oscuro → `var(--blue/green-dk/red/orange/text-2/text-3)`. NO tocar `ficha.html`/
+`modificacion_ficha.html`/`informe_calculo_completo.html` (no extienden `base.html`). Pendiente:
+confirmación visual; fondos pastel de badges de estado sin tono oscuro, fuera de este alcance.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

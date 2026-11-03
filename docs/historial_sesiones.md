@@ -6381,3 +6381,66 @@ sistema de esquinas/espaciado consistente y generoso (coherente con `--r-lg`/`--
 **Pendiente**: comunicar esto al usuario y decidir con él el siguiente paso — aceptar la 13ª
 ronda como el resultado final realista (y pasar a confirmar visualmente + resolver la queja de
 "estilo iOS" general pendiente), en vez de seguir buscando una "receta CSS" que no existe.
+
+## Rediseño "Liquid Glass" — CERRADO (confirmado por el usuario) + pasada de uniformidad (nov-2026)
+
+**Confirmación del usuario** sobre la 13ª ronda (brillo especular que sigue al puntero): "El
+resplandor del arreglo anterior se ve muy bien, no es efecto Liquid Glass, pero aporta." — cierra
+esa rama del rediseño. Pide continuar con "estilo iOS, tipografía, espacios, minimalismo,
+uniformidad, pureza".
+
+**Diagnóstico de por qué las rondas 11-12 (tipografía `h1`/`h2`/`h3` + espaciado agregados a
+`base.html`) no se habían notado**: un `grep` de `<h1`/`<h2` con `style=` en `templates/` mostró
+que casi TODA la app traía `font-size`/`color` hardcodeado inline en sus encabezados — ej.
+`<h1 style="font-size:1.4rem; color:#1a365d;">` en `dashboard.html`, `nuevo_proyecto.html`,
+`modificaciones_dashboard.html`, etc. Un estilo inline tiene más especificidad que la regla
+`h1 { ... }` de `base.html` — las reglas nuevas de las rondas 11-12 estaban siendo completamente
+anuladas en casi cada página. Mismo patrón de bug que los dos hallazgos anteriores de esta saga
+(`#menu-estado` con `var(--surface)` hardcoded, banner con `#f5f5f7`) — no era percepción del
+usuario, era que el cambio real nunca llegaba a renderizarse.
+
+**Corrección — tipografía**: script que recorre `templates/*.html` y, para cada `<h1>`/`<h2>`
+con estilo inline, elimina `font-size`/`color` (deja que `base.html` mande el tamaño/color/peso)
+y conserva solo lo estructural (`margin`, `border:none`, `padding:0`, `text-align:center`,
+`word-break`). 35 reemplazos en 19 templates. Caso especial: `respuestas.html` tenía
+`<h2 class="grupo-h2" style="font-size:1rem; color:#2b6cb0; ...">` — el `color` ahí es semántico
+(encabezado de acordeón clickeable), se reemplazó por `var(--blue)` en vez de eliminarlo; el
+`margin:0` ya lo traía la clase `.grupo-h2` del propio archivo, no hacía falta repetirlo inline.
+
+**Corrección — uniformidad de color (hallazgo adicional, mismo barrido)**: al revisar los
+templates aparecieron ~85 colores hex sueltos fuera del sistema de tokens — `#2b6cb0` (azul),
+`#276749`/`#2f855a` (verde), `#c0392b`/`#c41230`/`#9b2c2c`/`#742a2a` (rojo),
+`#c05621`/`#92400e`/`#744210`/`#a35b00` (naranja), `#4a5568`/`#718096`/`#2d3748`/`#666`/`#555`
+(gris de texto secundario), repetidos decenas de veces como colores de texto en botones, links,
+badges de severidad y alertas — ninguno se adapta a modo oscuro (quedan literalmente el mismo
+hex sin importar el tema). Reemplazados por `var(--blue)`/`var(--green-dk)`/`var(--red)`/
+`var(--orange)`/`var(--text-2)`/`var(--text-3)` ya existentes en `base.html`, vía el mismo tipo
+de script de reemplazo literal. También se corrigió un textarea en `proyecto.html`
+(observaciones tipo "nota") que tenía `background:#ffffff; color:#1a365d;` hardcodeado — un
+input blanco fijo con texto azul oscuro fijo, invisible/raro en modo oscuro — ahora hereda el
+estilo global de `textarea` de `base.html`.
+
+**Revertido a tiempo (verificación antes de commitear)**: el script de reemplazo de colores
+tocó inicialmente también `ficha.html`, `modificacion_ficha.html` e
+`informe_calculo_completo.html` — but esos tres NO usan `{% extends "base.html" %}` (son
+documentos imprimibles standalone, con su propio `<style>` fijo pensado para papel, no para la
+app ni para modo oscuro). `var(--blue)` etc. ahí no resuelve a nada — se habría roto el color de
+los textos de severidad/estado en la Ficha impresa. Se revirtieron esos 3 archivos a sus hex
+literales originales antes de pushear.
+
+**Fuera de alcance, pendiente**: los fondos pastel de los badges de estado (`#fffaf0` espera,
+`#f0fff4` resuelta, `#fff0f0` no resuelta, `#f3eeff` reobservada, `#ebf8ff`/`#fffbeb`/`#f7fafc`
+en alertas y chips varios) siguen hardcodeados — en modo oscuro quedan como manchas pastel claras
+sobre fondo oscuro. Arreglarlo bien requiere tokens de fondo por estado con variante oscura
+propia (`--bg-green`, `--bg-red`, etc.), no un simple alias — se dejó fuera de este barrido para
+no mezclar con el resto del cambio.
+
+### Validación
+
+`test_menu_estado_glass.py` — todo pasa. Balance de llaves de `base.html` (140/140). Render de
+los 19 templates tocados vía Jinja2 (`Environment.get_template`, sin errores de sintaxis) +
+render real vía `TestClient` de todas las páginas principales (dashboard, proyecto, items,
+cálculos, respuestas, presupuesto, resumen, consultar, ficha, modificación completa, admin) con
+datos reales — todas devuelven 200 sin excepciones. Revisión manual del diff completo
+(`git diff`) de los 21 archivos tocados antes de commitear. Pendiente de confirmación visual del
+usuario.

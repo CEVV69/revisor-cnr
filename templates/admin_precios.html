@@ -4,7 +4,7 @@
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
   <button type="button" onclick="history.back()" class="btn btn-ghost btn-sm">← Volver</button>
-  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Precios referenciales promedio</h1>
+  <h1 style="margin:0;">Precios referenciales promedio</h1>
 </div>
 
 {% if msg_ok %}
@@ -71,7 +71,7 @@
 </div>
 
 {% if grupos %}
-<h2 style="font-size:1rem; color:#2d3748; margin-bottom:0.75rem;">Ítems cargados por categoría</h2>
+<h2 style="margin-bottom:0.75rem;">Ítems cargados por categoría</h2>
 <div style="display:flex; flex-direction:column; gap:0.5rem;">
   {% for g in grupos %}
   <details style="border:1px solid var(--border); border-radius:8px;">

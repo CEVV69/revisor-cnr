@@ -4,7 +4,7 @@
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:1.5rem; flex-wrap:wrap;">
   <button type="button" onclick="history.back()" class="btn btn-ghost btn-sm">← Volver</button>
-  <h1 style="font-size:1.3rem; color:#1a365d; margin:0;">Aprendizaje</h1>
+  <h1 style="margin:0;">Aprendizaje</h1>
 </div>
 
 <p class="text-muted" style="font-size:0.85rem; margin:-0.8rem 0 1.3rem;">
@@ -25,7 +25,7 @@
 <!-- Criterios de énfasis por ítem: PERMANENTES, los escribe y edita el revisor a mano -->
 <form method="post" action="/admin/aprendizaje/criterios-item">
   <div class="card" style="margin-bottom:1.5rem; border-left:4px solid #2f855a;">
-    <h2 style="font-size:1rem; margin-bottom:0.4rem;">Criterios de énfasis por ítem</h2>
+    <h2 style="margin-bottom:0.4rem;">Criterios de énfasis por ítem</h2>
     <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
       Escribe aquí, con tus palabras, qué debe verificar la IA en cada ítem —
       <strong>sin importar el concurso</strong>: cruces entre documentos, normativa específica
@@ -40,7 +40,7 @@
       {% for g in grupos_enfasis %}
       <details style="border:1px solid var(--border); border-radius:8px;">
         <summary style="cursor:pointer; padding:0.5rem 0.75rem; font-weight:600; font-size:0.85rem;">
-          {{ g.nombre }}{% if g.texto %} <span style="color:#2f855a;">●</span>{% endif %}
+          {{ g.nombre }}{% if g.texto %} <span style="color:var(--green-dk);">●</span>{% endif %}
         </summary>
         <div style="padding:0 0.75rem 0.75rem;">
           <textarea name="enfasis__{{ g.key }}" rows="3"
@@ -64,7 +64,7 @@
 
 <!-- Aprendizaje por consultor (cruza proyectos y concursos por diseño) -->
 <div class="card" style="border-left:4px solid #2b6cb0;">
-  <h2 style="font-size:1rem; margin-bottom:0.4rem;">Aprendizaje por consultor</h2>
+  <h2 style="margin-bottom:0.4rem;">Aprendizaje por consultor</h2>
   <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
     La IA acumula los patrones de cada consultor (metodología, fortalezas y fallas recurrentes)
     a través de sus proyectos, sin importar el concurso. Desde el 3° proyecto de un mismo
@@ -86,7 +86,7 @@
         {{ c.nombre }}
         <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ c.n_feedback }} decisión(es){% if not c.perfil %} · perfil sin consolidar{% endif %}{% if c.perfil_fecha %} · consolidado {{ c.perfil_fecha | fecha_hora }}{% endif %}</span>
       </summary>
-      <pre style="white-space:pre-wrap; font-size:0.82rem; line-height:1.5; padding:0 0.8rem 0.8rem; margin:0; font-family:inherit; color:#4a5568;">{{ c.perfil or '(Aún sin perfil destilado. Se usa el historial de decisiones hasta consolidar.)' }}</pre>
+      <pre style="white-space:pre-wrap; font-size:0.82rem; line-height:1.5; padding:0 0.8rem 0.8rem; margin:0; font-family:inherit; color:var(--text-2);">{{ c.perfil or '(Aún sin perfil destilado. Se usa el historial de decisiones hasta consolidar.)' }}</pre>
     </details>
     {% endfor %}
   </div>

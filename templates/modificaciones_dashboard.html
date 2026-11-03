@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="flex justify-between items-center mt-2" style="margin-bottom:1.5rem; gap:1rem; flex-wrap:wrap;">
-  <h1 style="font-size:1.4rem; color:#1a365d;">Modificaciones de proyecto</h1>
+  <h1>Modificaciones de proyecto</h1>
   <div style="display:flex; gap:0.5rem;">
     <a href="/" class="btn btn-outline">← Proyectos</a>
     <a href="/modificacion/nueva" class="btn btn-primary">+ Nueva modificación</a>
@@ -47,7 +47,7 @@
 </div>
 {% else %}
 <div class="card" style="text-align:center; padding:3rem;">
-  <p style="color:#718096; font-size:1rem;">No hay modificaciones de proyecto registradas aún.</p>
+  <p style="color:var(--text-2); font-size:1rem;">No hay modificaciones de proyecto registradas aún.</p>
   <a href="/modificacion/nueva" class="btn btn-primary" style="margin-top:1rem;">Registrar la primera</a>
 </div>
 {% endif %}

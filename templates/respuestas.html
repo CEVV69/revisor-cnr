@@ -7,9 +7,9 @@
 
   .sub-badge { font-size:0.72rem; font-weight:700; padding:0.15rem 0.55rem; border-radius:999px;
     white-space:nowrap; }
-  .sub-esperando { background:#fffaf0; color:#c05621; border:1px solid rgba(192,86,33,.3); }
-  .sub-resuelta  { background:#f0fff4; color:#276749; border:1px solid rgba(39,103,73,.3); }
-  .sub-noresuelta{ background:#fff0f0; color:#c41230; border:1px solid rgba(196,18,48,.3); }
+  .sub-esperando { background:#fffaf0; color:var(--orange); border:1px solid rgba(192,86,33,.3); }
+  .sub-resuelta  { background:#f0fff4; color:var(--green-dk); border:1px solid rgba(39,103,73,.3); }
+  .sub-noresuelta{ background:#fff0f0; color:var(--red); border:1px solid rgba(196,18,48,.3); }
   .sub-reobservada{ background:#f3eeff; color:#5e35b1; border:1px solid rgba(94,53,177,.28); }
 
   .obs-card { border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem; }
@@ -23,8 +23,8 @@
   .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
     font-size:0.85rem; line-height:1.45; white-space:pre-wrap; }
   .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
-  .ia-si { background:#f0fff4; color:#276749; border:1px solid rgba(39,103,73,.3); }
-  .ia-no { background:#fff0f0; color:#c41230; border:1px solid rgba(196,18,48,.3); }
+  .ia-si { background:#f0fff4; color:var(--green-dk); border:1px solid rgba(39,103,73,.3); }
+  .ia-no { background:#fff0f0; color:var(--red); border:1px solid rgba(196,18,48,.3); }
   .ia-ronda { margin-top:0.35rem; font-size:0.8rem; color:var(--text-2); white-space:pre-wrap; }
   .grupo-h2 { cursor:pointer; user-select:none; display:flex; align-items:center; gap:0.55rem; margin:0; }
   .grupo-chevron { display:inline-block; flex-shrink:0; width:0; height:0;
@@ -38,10 +38,10 @@
 
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
-  <h1 style="font-size:1.15rem; margin:0;">{{ proyecto.codigo_sep }} — Respuestas del consultor</h1>
+  <h1 style="margin:0;">{{ proyecto.codigo_sep }} — Respuestas del consultor</h1>
   {% include "_costo_api.html" %}
   <a href="/proyecto/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm"
-     style="border-color:#2b6cb0; margin-left:auto;">
+     style="border-color:var(--blue); margin-left:auto;">
     Generar Ficha de Revisión
   </a>
 </div>
@@ -85,7 +85,7 @@
       <strong>{{ n_resueltas }}</strong> de <strong>{{ total }}</strong> resueltas
       {% if n_esperando %}&nbsp;·&nbsp; <strong>{{ n_esperando }}</strong> esperando respuesta{% endif %}
       {% if n_reobservadas %}&nbsp;·&nbsp; <span style="color:#5e35b1;"><strong>{{ n_reobservadas }}</strong> re-observada{{ 's' if n_reobservadas != 1 }}</span>{% endif %}
-      {% if n_no_resueltas %}&nbsp;·&nbsp; <span style="color:#c41230;"><strong>{{ n_no_resueltas }}</strong> no resueltas</span>{% endif %}
+      {% if n_no_resueltas %}&nbsp;·&nbsp; <span style="color:var(--red);"><strong>{{ n_no_resueltas }}</strong> no resueltas</span>{% endif %}
     </div>
     <span style="flex:1;"></span>
 
@@ -123,13 +123,13 @@
 {% set cnt = namespace(res=0, nor=0, esp=0, reobs=0) %}
 {% for par in grupo.obs %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% elif par.sub.ronda_actual and par.sub.ronda_actual > 1 %}{% set cnt.reobs = cnt.reobs + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
 <div class="card grupo-card" id="grupo-{{ loop.index }}" data-grupo-key="{{ grupo.nombre }}" data-cnt-esp="{{ cnt.esp }}">
-  <h2 class="grupo-h2" style="font-size:1rem; color:#2b6cb0; border:none; padding:0;" onclick="toggleGrupo(this)">
+  <h2 class="grupo-h2" style="color:var(--blue); border:none; padding:0;" onclick="toggleGrupo(this)">
     <span class="grupo-chevron"></span>
     {{ grupo.nombre }}
     {% if grupo.key in items_evaluacion_conjunta %}
     <button type="button" class="btn btn-outline btn-sm" id="eval-grupo-btn-{{ loop.index }}"
             onclick="event.stopPropagation(); evaluarGrupoIA('{{ grupo.key }}', {{ loop.index }})"
-            style="border-color:#2b6cb0; color:#2b6cb0; flex-shrink:0;"
+            style="border-color:var(--blue); color:var(--blue); flex-shrink:0;"
             title="Evalúa con IA todas las observaciones de este ítem en una sola pasada, considerando el diseño como un conjunto (las observaciones de este ítem no son independientes entre sí).">
       Evaluar ítem con IA
     </button>
@@ -184,7 +184,7 @@
       {% if r.ia_recomendacion %}
       <div class="ia-ronda">
         <strong>IA sugirió:</strong>
-        {% if r.ia_recomendacion == 'resuelta' %}<span style="color:#276749;">resuelve</span>{% else %}<span style="color:#c41230;">no resuelve</span>{% endif %}
+        {% if r.ia_recomendacion == 'resuelta' %}<span style="color:var(--green-dk);">resuelve</span>{% else %}<span style="color:var(--red);">no resuelve</span>{% endif %}
         {% if r.ia_fundamento %}— {{ r.ia_fundamento }}{% endif %}
       </div>
       {% endif %}
@@ -239,7 +239,7 @@
       </div>
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-top:0.6rem;">
         <button type="button" class="btn btn-outline btn-sm" id="ia-btn-{{ obs.id }}"
-                onclick="evaluarIA('{{ obs.id }}')" style="border-color:#2b6cb0; color:#2b6cb0;">
+                onclick="evaluarIA('{{ obs.id }}')" style="border-color:var(--blue); color:var(--blue);">
           Evaluar respuesta con IA
         </button>
         <span style="flex:1;"></span>
