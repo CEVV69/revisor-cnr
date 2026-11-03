@@ -221,14 +221,20 @@
     .btn-success  { background: var(--btn-sheen), var(--green-dk); color: #fff;
       box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
     .btn-success:hover { background: var(--btn-sheen), #1e7a35; }
-    .btn-outline  { background: var(--btn-sheen), var(--glass-strong);
-      color: var(--blue); border: 1.5px solid rgba(0,113,227,0.35);
+    /* Corrección (nov-2026): acá estaba el retroceso puntual que el usuario detectó en "Inicio"
+       (.btn-ghost) — var(--glass-strong) es casi blanco (97%), y sobre una tarjeta .card casi
+       blanca eso es prácticamente invisible: MENOS visible que el gris plano simple
+       (rgba(0,0,0,0.05)) que el botón tenía antes de empezar con todo este rediseño. El tinte de
+       abajo ahora es un color translúcido que se nota solo (sin depender de blur/sheen) sobre
+       cualquier fondo claro U oscuro — no "casi blanco", un tinte real. */
+    .btn-outline  { background: var(--btn-sheen), rgba(0,113,227,0.14);
+      color: var(--blue); border: 1.5px solid rgba(0,113,227,0.4);
       box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-outline:hover { background: var(--btn-sheen), rgba(0,113,227,0.12); }
-    .btn-ghost    { background: var(--btn-sheen), var(--glass-strong);
+    .btn-outline:hover { background: var(--btn-sheen), rgba(0,113,227,0.22); }
+    .btn-ghost    { background: var(--btn-sheen), rgba(130,130,140,0.2);
       color: var(--text); border: 1.5px solid var(--glass-border);
       box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-ghost:hover { background: var(--btn-sheen), rgba(130,130,140,0.26); }
+    .btn-ghost:hover { background: var(--btn-sheen), rgba(130,130,140,0.3); }
     .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
 
     /* Formularios */

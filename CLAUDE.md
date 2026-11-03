@@ -48,12 +48,12 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 10 rondas de vidrio + 1 de limpieza general)** — v10: franja
-de brillo vertical sobre el color de siempre (detalle de las 10 rondas en
-`docs/historial_sesiones.md`). v11 (pedido aparte, NO del debate de vidrio — "aspecto más
-limpio/minimalista como Apple"): más aire en `.container`/`.card`/tabla/alertas, jerarquía h1/h2/
-h3 global en `base.html` (antes muchos templates heredaban el h2 crudo del navegador). Usuario
-revisa desde el celular — sin confirmación visual de ninguna de las dos todavía.
+**Rediseño "Liquid Glass" (EN CURSO, 12 rondas)** — usuario revisó v10+v11 desde el computador:
+"no veo cambios... solo el fondo más oscuro"; único cambio real notado: "Inicio" (.btn-ghost) con
+MENOS efecto que antes. v12: `.btn-outline`/`.btn-ghost` tenían fondo casi blanco sobre tarjeta
+casi blanca = invisible, peor que el gris plano original — ahora tinte translúcido real. **Si
+sigue sin verse nada en el resto: pedir captura fresca antes de seguir ajustando CSS a ciegas.**
+Detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

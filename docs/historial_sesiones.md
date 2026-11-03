@@ -6251,3 +6251,44 @@ Balance de llaves de `base.html` (104/104 — subió de 100 por las 3 reglas nue
 la de `p`). Toda la suite de tests — todo pasa (ningún test depende de padding/margen/tamaño de
 fuente exactos). **Pendiente**: el usuario no ha podido confirmar visualmente ni esta ronda ni la
 10ª (vidrio) — próxima sesión, cuando esté en el computador, revisar AMBAS rondas juntas.
+
+## Rediseño "Liquid Glass" — 12ª ronda: regresión puntual en "Inicio" (nov-2026)
+
+Ya desde el computador, el usuario revisó las rondas 10 (franja de brillo) y 11 (limpieza
+general) juntas: "no veo cambios, ni en el efecto de vidrio ni en el ordenamiento y estilo iOS...
+Sólo veo el fondo más oscuro, el botón de 'Inicio' ahora tiene menos efecto de cristal que
+antes." Pidió que se le dijera específicamente qué cambió y dónde fijarse.
+
+**Se encontró la causa exacta de la regresión en "Inicio"** (`.btn-ghost`, usado también en
+"Imprimir" y otros botones secundarios): tras las rondas 6-10, su `background` había quedado en
+`var(--btn-sheen), var(--glass-strong)` — `--glass-strong` es casi blanco (97% de opacidad) en
+modo claro. Sobre una `.card` (que también es casi blanca), un fondo casi blanco es
+prácticamente invisible — literalmente MENOS contraste que el `background: rgba(0,0,0,0.05)`
+simple y plano que el botón tenía ANTES de que empezara todo este rediseño (hace 12 rondas). El
+usuario tenía razón al decir que se veía peor: no era percepción, era un regresión real
+verificable en el código.
+
+### Corrección
+
+`.btn-outline`/`.btn-ghost` dejaron de usar `var(--glass-strong)` (casi blanco) como base y pasan
+a un tinte translúcido de verdad — `rgba(0,113,227,0.14)` (azul pálido) para outline,
+`rgba(130,130,140,0.2)` (gris) para ghost — que se nota como color por sí solo, sin depender de
+que `--btn-sheen`/blur/nada esté haciendo algo. Mismo criterio que ya se usó para corregir otros
+elementos de este rediseño: cuando hay dudas sobre si un efecto translúcido se está renderizando,
+la base debe ser visible IGUAL aunque el efecto extra no funcione.
+
+### Lo que sigue sin confirmarse
+
+El resto de la app (cards, nav, pestañas) sigue sin mostrar ningún cambio perceptible para el
+usuario más allá del fondo de página más oscuro (`--bg`). Se decidió: si tras esta corrección
+puntual el usuario reporta que SIGUE sin ver nada distinto en el resto, el paso siguiente es
+pedir una captura de pantalla actualizada ANTES de seguir ajustando valores de CSS — 12 rondas
+de iteración sin un diagnóstico visual preciso (más allá de las 2 capturas ya enviadas, que sí
+permitieron encontrar 2 bugs reales) no es un proceso sostenible; hace falta ver el estado actual
+real para seguir con criterio en vez de conjeturas.
+
+### Validación
+
+Balance de llaves de `base.html` (104/104). Toda la suite de tests — todo pasa. Pendiente
+confirmación visual del usuario sobre "Inicio" específicamente, y sobre si el resto de la app
+ahora muestra algo distinto.
