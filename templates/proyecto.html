@@ -701,6 +701,12 @@ function actualizarEtiqueta(input) {
       </form>
       {% endif %}
       </div>
+      {# Caso "cambio de revisor": el colega ya dejó el proyecto observado y a la espera de
+         respuestas — acá se transcriben esas observaciones tal cual, sin pasar por la IA (que
+         re-analizaría desde cero y no es lo que se quiere). Antes esta opción solo aparecía
+         DESPUÉS de revisar un ítem con IA o si ya tenía observaciones — un ítem recién llegado,
+         sin revisar, no tenía forma de recibir una observación a mano. #}
+      {{ _form_obs_manual(proyecto.id, item.key) }}
     </div>
     {% endfor %}
 

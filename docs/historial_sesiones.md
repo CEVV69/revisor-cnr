@@ -6569,3 +6569,47 @@ del dispositivo, refracción real del contenido de atrás) — no existe receta 
 replique de verdad en un navegador. Si en el futuro aparece una herramienta o técnica
 (WebGPU/shaders, alguna librería específica, etc.) que permita un acercamiento más fiel, vale la
 pena reevaluar desde cero en vez de seguir ajustando gradientes/blur a mano.
+
+## "Agregar observación manual" antes de revisar — caso "Cambio de revisor" (nov-2026)
+
+**Pedido del usuario**: "Necesito que en la pestaña de Revisión ítem SEP, aparezca antes de
+realizar revisión de cualquier ítem, la opción de agregar observaciones asociándolas a un ítem
+específico, como se hace hoy en Coherencia Global." Caso real: le asignaron terminar de revisar
+proyectos de un colega revisor que ya los dejó observados y a la espera de respuestas del
+consultor. El flujo que necesita: sube solo los documentos de los ítems que el colega observó,
+NO los revisa con la IA (eso re-analizaría desde cero, perdiendo el criterio ya aplicado por el
+colega), transcribe a mano las observaciones que el colega ya hizo, y desde la etapa de
+Respuestas en adelante la app sigue el flujo normal. Esto se llama internamente "Cambio de
+revisor".
+
+**Lo que ya existía**: la ruta `/proyecto/{id}/item/{item_key}/observacion/agregar-manual` (ver
+`main.py`, función `agregar_observacion_manual()`) ya aceptaba CUALQUIER `item_key` válido de
+`ITEMS_SEP`, sin requerir que el ítem ya estuviera revisado por IA — quedaba marcada
+`manual=True` y se trataba igual que cualquier otra observación en el resto del flujo (Ficha,
+Respuestas, aprendizaje, invalidación cruzada). El macro Jinja `_form_obs_manual(proyecto_id,
+item_key)` en `proyecto.html` ya generaba el formulario compacto (textarea + categoría +
+severidad + referencia normativa opcional). El único problema era DÓNDE se llamaba ese macro:
+solo al final de cada grupo de observaciones ya existentes (`bloque_observaciones`/
+`bloque_notas`) o en el banner "Cumple con la normativa" (`bloque_cumplimiento`, que solo lista
+ítems que la IA YA revisó con 0 observaciones) — un ítem que nunca se revisó y no tiene ninguna
+observación todavía no aparecía en ningún lado, así que no había forma de agregarle una
+observación a mano sin revisarlo primero con la IA.
+
+**Corrección**: se agrega la llamada a `_form_obs_manual(proyecto.id, item.key)` directo dentro
+de cada tarjeta del grid de ítems (`pagina == 'items'`, dentro del `for item in items_info`),
+justo después del botón "Revisar ítem" — queda disponible en las 19 tarjetas (18 ítems reales +
+Coherencia Global) sin importar si el ítem ya fue revisado, está en progreso, o nunca se tocó.
+Agregar una observación así NO marca el ítem como "revisado" (ese estado sigue viniendo
+únicamente de `items_revisados`, que solo lo escribe el análisis de IA) — el botón "Revisar
+ítem" sigue disponible normalmente por si más adelante se quiere correr la IA igual sobre ese
+ítem. Sin ruta nueva, sin cambios en `main.py` — fue puramente exponer en el lugar correcto algo
+que el backend ya soportaba.
+
+### Validación
+
+Render vía `TestClient`: página de ítems de un proyecto nuevo (sin revisar nada) muestra 19
+formularios "Agregar observación manual", uno por tarjeta. Se envió una observación manual a un
+ítem nunca revisado (`plano_ubicacion`) — se guardó, aparece en la página, y la tarjeta de ese
+ítem sigue mostrando "Revisar ítem" (no se marcó como revisado). Suite de regresión
+(`test_menu_estado_glass.py`) sigue pasando. Pendiente de confirmación visual/funcional del
+usuario con un caso real de cambio de revisor.

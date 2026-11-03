@@ -39,6 +39,14 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
+**Nuevo: "Agregar observación manual" en cada tarjeta de Revisión Ítem SEP** (nov-2026, caso
+"cambio de revisor": asumir proyectos ya observados por otro revisor, transcribir sus
+observaciones sin pasar por la IA) — la ruta ya existía
+(`/proyecto/{id}/item/{key}/observacion/agregar-manual`, usada hoy en Coherencia Global/grupos ya
+revisados) pero antes solo aparecía DESPUÉS de revisar un ítem con IA; ahora el macro
+`_form_obs_manual()` se llama directo en cada tarjeta del grid, sin esperar revisión. Sin ruta ni
+backend nuevo — pendiente de confirmación visual del usuario.
+
 **Nuevo: Modificaciones de Proyecto** (v1.18, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
 Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
