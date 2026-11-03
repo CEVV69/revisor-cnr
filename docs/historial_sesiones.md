@@ -6613,3 +6613,41 @@ formularios "Agregar observación manual", uno por tarjeta. Se envió una observ
 ítem sigue mostrando "Revisar ítem" (no se marcó como revisado). Suite de regresión
 (`test_menu_estado_glass.py`) sigue pasando. Pendiente de confirmación visual/funcional del
 usuario con un caso real de cambio de revisor.
+
+## "Agregar observación manual" — corrección: sección única, no una por tarjeta (nov-2026)
+
+**Rechazo del primer intento**: "No, lo que te pedí es que agregues una sección abajo, antes de
+'Evaluación del Consultor', para el ingreso de observaciones manualmente, parecido a como se
+hace en Modificaciones, no quiero agrandar más las tarjetas de cada ítem y escribir ahí, debe
+ser solo un lugar, donde se elija el ítem, y se escriba la observación, que suelen ser de más de
+una línea." El enfoque anterior (un formulario `_form_obs_manual` dentro de cada una de las 19
+tarjetas del grid) iba en la dirección correcta del backend pero no era lo pedido — el usuario
+quería explícitamente UN solo lugar con selector de ítem (como en Modificaciones), no 19 copias
+del formulario infladando cada tarjeta.
+
+**Corrección**: se revierte la llamada a `_form_obs_manual(proyecto.id, item.key)` dentro del
+grid (las tarjetas vuelven exactamente a su tamaño/markup original). En su lugar, se agrega una
+sección `.card` nueva, "Agregar observación manual", ubicada entre `bloque_cumplimiento(...)` y
+la tarjeta "Evaluación del Consultor" (`id="evaluacion-consultor"`) — un solo `<form>` con:
+`<select name="item_key">` (lista completa de `items_info`, incluye Coherencia Global), un
+`<textarea rows="4">` para texto de varias líneas, y los mismos `<select>` de categoría/
+severidad + referencia normativa opcional que ya usaba `_form_obs_manual`.
+
+**Decisión técnica — reusar la ruta existente en vez de duplicarla**: la ruta por ítem
+(`/proyecto/{id}/item/{item_key}/observacion/agregar-manual`) toma `item_key` como parámetro de
+RUTA, no como campo de formulario — a diferencia de la de Modificaciones
+(`/modificacion/{id}/observacion/agregar-manual`), que sí lo toma como `Form(...)` porque ahí el
+`<select>` vive en un único formulario desde el principio. Se evaluó agregar una ruta nueva
+equivalente en la Revisión normal (duplicando ~35 líneas de `agregar_observacion_manual()`) pero
+se optó por algo más simple: el `<form>` fija su propio `action` con JS en el momento del
+`onsubmit`, leyendo el `<select>` elegido (`this.action = '.../item/' + this.item_key.value +
+'/observacion/agregar-manual'`) — cero backend nuevo, cero duplicación, misma validación/
+guardado que ya usa toda la app para esta operación.
+
+### Validación
+
+Render vía `TestClient`: la página de ítems muestra el grid de tarjetas sin cambios (markup
+idéntico al original, confirmado línea por línea) + exactamente una sección "Agregar observación
+manual" con el `<select>` de 19 ítems. POST directo a la ruta por ítem con un texto de varias
+líneas — se guarda y aparece correctamente en la página. Suite de regresión
+(`test_menu_estado_glass.py`) sigue pasando. Pendiente de confirmación visual del usuario.

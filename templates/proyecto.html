@@ -701,12 +701,6 @@ function actualizarEtiqueta(input) {
       </form>
       {% endif %}
       </div>
-      {# Caso "cambio de revisor": el colega ya dejó el proyecto observado y a la espera de
-         respuestas — acá se transcriben esas observaciones tal cual, sin pasar por la IA (que
-         re-analizaría desde cero y no es lo que se quiere). Antes esta opción solo aparecía
-         DESPUÉS de revisar un ítem con IA o si ya tenía observaciones — un ítem recién llegado,
-         sin revisar, no tenía forma de recibir una observación a mano. #}
-      {{ _form_obs_manual(proyecto.id, item.key) }}
     </div>
     {% endfor %}
 
@@ -836,6 +830,48 @@ function actualizarEtiqueta(input) {
 {{ bloque_chat(items_info, 'item', item_ok, proyecto.id) }}
 
 {{ bloque_cumplimiento(items_cumplen, proyecto.id) }}
+
+<!-- Agregar observación manual — sección única (no una por tarjeta de ítem, para no agrandarlas):
+     caso "cambio de revisor", continuar un proyecto que otro revisor ya dejó observado y a la
+     espera de respuestas — se transcriben sus observaciones tal cual, sin pasar por la IA. Mismo
+     patrón que en Modificaciones (un solo formulario con selector de ítem), reutiliza la ruta ya
+     existente por ítem (`/proyecto/{id}/item/{item_key}/observacion/agregar-manual`) fijando el
+     `action` del formulario con JS según el ítem elegido, en vez de duplicar la ruta. -->
+<div class="card" id="agregar-obs-manual" style="margin-top:1rem;">
+  <h2 style="margin:0 0 0.5rem; border:none; padding:0;">Agregar observación manual</h2>
+  <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.9rem;">
+    Para observaciones que ya tienes por otra vía (ej. cambio de revisor: continuar un proyecto
+    que otro revisor ya dejó observado) — elige el ítem y escribe el texto, sin pasar por la IA.
+  </p>
+  <form method="post" onsubmit="this.action='/proyecto/{{ proyecto.id }}/item/' + this.item_key.value + '/observacion/agregar-manual'; return true;"
+        style="display:flex; flex-direction:column; gap:0.6rem;">
+    <select name="item_key" required
+            style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.86rem; font-family:inherit; background:var(--surface); color:var(--text);">
+      <option value="" disabled selected>Elegir ítem...</option>
+      {% for item in items_info %}
+      <option value="{{ item.key }}">{{ item.nombre }}</option>
+      {% endfor %}
+    </select>
+    <textarea name="texto" rows="4" required placeholder="Texto de la observación..."
+              style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.88rem; line-height:1.5; font-family:inherit; resize:vertical; box-sizing:border-box;"></textarea>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <select name="categoria" style="flex:1 1 160px; padding:0.4rem 0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.84rem; font-family:inherit; background:var(--surface); color:var(--text);">
+        <option value="tecnica">Técnica</option>
+        <option value="legal">Legal</option>
+        <option value="presupuesto">Presupuesto</option>
+        <option value="administrativa">Administrativa</option>
+      </select>
+      <select name="severidad" style="flex:1 1 160px; padding:0.4rem 0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.84rem; font-family:inherit; background:var(--surface); color:var(--text);">
+        <option value="mayor">Mayor</option>
+        <option value="menor">Menor</option>
+        <option value="informativa">Informativa</option>
+      </select>
+      <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
+             style="flex:2 1 220px; padding:0.4rem 0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.84rem; font-family:inherit;">
+    </div>
+    <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-start;">Agregar observación</button>
+  </form>
+</div>
 
 <!-- Evaluación del Consultor — cierre de la revisión, se copia al SEP igual que las observaciones -->
 <div class="card" id="evaluacion-consultor" style="margin-top:1rem;">
