@@ -39,11 +39,10 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Confirmado: sección "Agregar observación manual" en Revisión Ítem SEP** (caso "cambio de
-revisor") — funciona bien. De paso (nov-2026): esa sección + "Evaluación del Consultor" + 
-"Debatir con la IA" ahora son `<details>` cerrados por defecto en vez de tarjetas siempre
-abiertas — se abren solos con `item_ok` (ítem en curso) o, Evaluación, también con sus propios
-`eval_ok`/`eval_auto_ok`. Mismo criterio que ya usan los grupos de Observaciones/Notas.
+**Cerrado (confirmado, nov-2026):** sección "Agregar observación manual" en Revisión Ítem SEP
+(caso "cambio de revisor") + colapso por defecto de esa sección/"Evaluación del Consultor"/
+"Debatir con la IA" (se abren solas con `item_ok`/`eval_ok`). Todo funciona bien, sin pendientes.
+Detalle en `docs/historial_sesiones.md`.
 
 **Nuevo: Modificaciones de Proyecto** (v1.18, el usuario la está probando con un caso real) —
 separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
