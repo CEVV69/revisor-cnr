@@ -171,6 +171,7 @@
        remate tenue abajo) — eso es lo que realmente lee como borde de vidrio pulido, un solo
        inset no alcanza a notarse. */
     .card {
+      --mx: 50%; --my: 20%;
       background: var(--glass-sheen);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -181,6 +182,15 @@
         inset 0 0 0 1px var(--glass-rim-hairline),
         inset 0 -1px 0 var(--glass-rim-bottom);
       padding: 1.5rem 1.7rem; margin-bottom: 1.1rem;
+    }
+    /* Brillo especular que sigue al puntero (JS al final del archivo actualiza --mx/--my) — lo
+       que de verdad distingue al vidrio de Apple de un degradado estático es que reacciona al
+       movimiento, no el degradado en sí (ver developer.apple.com/.../liquid-glass: el material
+       real tiene reflejos dinámicos, no una textura fija). Capa adicional ENCIMA de --glass-sheen,
+       sin tocar color/opacidad de las capas de abajo. */
+    .card:hover {
+      background: radial-gradient(280px circle at var(--mx) var(--my), rgba(255,255,255,0.4), transparent 60%),
+        var(--glass-sheen);
     }
     .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
 
@@ -199,6 +209,7 @@
        plano. Los de color (primary/danger/success) mantienen su color — el rim se les agrega
        ENCIMA (receta "colored glass" del skill: el tinte cambia, el filo no). */
     .btn {
+      --mx: 50%; --my: 30%;
       display: inline-flex; align-items: center; justify-content: center;
       padding: 0.4rem 1rem; border-radius: 980px;
       font-size: 0.83rem; font-weight: 500;
@@ -211,16 +222,18 @@
     /* Los colores de cada botón NO cambian (pedido explícito del usuario: "no se trata de
        cambiar los colores") — lo que se agrega es --btn-sheen como PRIMERA capa de `background`,
        una franja de brillo que se apaga hacia la mitad del botón, sentada ENCIMA del color de
-       siempre (la segunda capa, sin tocar). Mismo color, más volumen. */
+       siempre (la segunda capa, sin tocar). Mismo color, más volumen. En :hover se agrega además
+       el brillo especular que sigue al puntero (--mx/--my, JS al final del archivo) — el mismo
+       recurso que .card, para que todo lo "vidrio" de la app reaccione igual al cursor. */
     .btn-primary  { background: var(--btn-sheen), var(--blue); color: #fff;
       box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,113,227,0.35); }
-    .btn-primary:hover { background: var(--btn-sheen), var(--blue-h); }
+    .btn-primary:hover { background: radial-gradient(140px circle at var(--mx) var(--my), rgba(255,255,255,0.45), transparent 60%), var(--btn-sheen), var(--blue-h); }
     .btn-danger   { background: var(--btn-sheen), var(--red); color: #fff;
       box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(255,59,48,0.35); }
-    .btn-danger:hover { background: var(--btn-sheen), var(--red-h); }
+    .btn-danger:hover { background: radial-gradient(140px circle at var(--mx) var(--my), rgba(255,255,255,0.45), transparent 60%), var(--btn-sheen), var(--red-h); }
     .btn-success  { background: var(--btn-sheen), var(--green-dk); color: #fff;
       box-shadow: var(--shadow-sm), inset 0 -1px 0 rgba(0,0,0,0.12), 0 1px 3px rgba(36,138,61,0.35); }
-    .btn-success:hover { background: var(--btn-sheen), #1e7a35; }
+    .btn-success:hover { background: radial-gradient(140px circle at var(--mx) var(--my), rgba(255,255,255,0.45), transparent 60%), var(--btn-sheen), #1e7a35; }
     /* Corrección (nov-2026): acá estaba el retroceso puntual que el usuario detectó en "Inicio"
        (.btn-ghost) — var(--glass-strong) es casi blanco (97%), y sobre una tarjeta .card casi
        blanca eso es prácticamente invisible: MENOS visible que el gris plano simple
@@ -230,11 +243,11 @@
     .btn-outline  { background: var(--btn-sheen), rgba(0,113,227,0.14);
       color: var(--blue); border: 1.5px solid rgba(0,113,227,0.4);
       box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-outline:hover { background: var(--btn-sheen), rgba(0,113,227,0.22); }
+    .btn-outline:hover { background: radial-gradient(140px circle at var(--mx) var(--my), rgba(255,255,255,0.5), transparent 60%), var(--btn-sheen), rgba(0,113,227,0.22); }
     .btn-ghost    { background: var(--btn-sheen), rgba(130,130,140,0.2);
       color: var(--text); border: 1.5px solid var(--glass-border);
       box-shadow: var(--shadow-sm), inset 0 -1px 0 var(--glass-rim-bottom); }
-    .btn-ghost:hover { background: var(--btn-sheen), rgba(130,130,140,0.3); }
+    .btn-ghost:hover { background: radial-gradient(140px circle at var(--mx) var(--my), rgba(255,255,255,0.5), transparent 60%), var(--btn-sheen), rgba(130,130,140,0.3); }
     .btn-sm { padding: 0.28rem 0.7rem; font-size: 0.76rem; }
 
     /* Formularios */
@@ -360,12 +373,13 @@
     /* El filtro acá (no solo en .proj-nav) es lo que de verdad faltaba: antes .activa solo tenía
        un fondo semi-opaco plano SIN backdrop-filter propio — por eso se veía la pastilla pero sin
        textura de vidrio (reportado por el usuario). */
-    .proj-tab.activa { color:var(--text); background: var(--glass-sheen-strong);
+    .proj-tab.activa { --mx: 50%; --my: 30%; color:var(--text); background: var(--glass-sheen-strong);
       backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
       box-shadow: var(--shadow-sm),
         inset 0 1px 0 var(--glass-rim-top),
         inset 0 0 0 1px var(--glass-rim-hairline),
         inset 0 -1px 0 var(--glass-rim-bottom); }
+    .proj-tab.activa:hover { background: radial-gradient(160px circle at var(--mx) var(--my), rgba(255,255,255,0.45), transparent 60%), var(--glass-sheen-strong); }
     .proj-tab.proxima { color:var(--text-3); cursor:default; }
     .proj-tab.proxima:hover { background:none; color:var(--text-3); }
     .nav-badge { background:var(--red); color:#fff; font-size:0.72rem; border-radius:10px;
@@ -450,6 +464,29 @@
       navigator.serviceWorker.register('/static/sw.js');
     });
   }
+
+  // ── Brillo especular que sigue al puntero sobre .card/.btn/.proj-tab.activa: esto es lo que
+  // de verdad distingue al vidrio real (reflejo que reacciona al movimiento) de un degradado
+  // fijo — un degradado estático siempre va a leerse como "solo un degradado", sin más. Acá
+  // solo se actualizan --mx/--my (posición del puntero relativa al elemento); el :hover en CSS
+  // decide si se pinta el brillo. ──
+  (function() {
+    var raf = null, lastEl = null, lastX = 0, lastY = 0;
+    function aplicar() {
+      raf = null;
+      var el = document.elementFromPoint(lastX, lastY);
+      var destino = el && el.closest('.card, .btn, .proj-tab.activa');
+      if (!destino) return;
+      var r = destino.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return;
+      destino.style.setProperty('--mx', ((lastX - r.left) / r.width * 100) + '%');
+      destino.style.setProperty('--my', ((lastY - r.top) / r.height * 100) + '%');
+    }
+    document.addEventListener('pointermove', function(e) {
+      lastX = e.clientX; lastY = e.clientY;
+      if (raf === null) raf = requestAnimationFrame(aplicar);
+    }, { passive: true });
+  })();
 </script>
 </body>
 </html>

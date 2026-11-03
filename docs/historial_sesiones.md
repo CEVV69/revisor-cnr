@@ -6292,3 +6292,54 @@ real para seguir con criterio en vez de conjeturas.
 Balance de llaves de `base.html` (104/104). Toda la suite de tests — todo pasa. Pendiente
 confirmación visual del usuario sobre "Inicio" específicamente, y sobre si el resto de la app
 ahora muestra algo distinto.
+
+## Rediseño "Liquid Glass" — 13ª ronda: brillo especular dinámico que sigue al puntero (nov-2026)
+
+**Reporte del usuario** (sesión nueva, tras la 12ª ronda): "La verdad todo mal, el botón Inicio no
+regresó a su mejor estado y efecto, lo demás sigue igual o peor, con un degradado gris que no da
+ningún efecto más que el propio degradado... aún no haces el arreglo del estilo iOS en toda la
+aplicación, dijiste que aplicaste algo, pero no se ve nada nuevo." Adjuntó el enlace de la
+documentación oficial de Apple sobre Liquid Glass.
+
+**Diagnóstico de fondo** (el que faltaba en las 12 rondas anteriores): el material Liquid Glass
+real de Apple no es una textura — es **dinámico**: reflejos especulares que se mueven con el
+movimiento del dispositivo/dedo, refracción que distorsiona lo que hay detrás del vidrio al
+moverse. Ningún degradado o sombra CSS ESTÁTICO puede replicar esto — por diseño, siempre se va
+a leer como "solo un degradado", sin importar cuántas rondas de ajuste de opacidad/color se
+hagan, porque la propiedad que falta no es de color sino de comportamiento (reacciona al input).
+Intento de leer la documentación de Apple directamente (`developer.apple.com/.../liquid-glass`)
+vía fetch falló — la página es renderizada por JS, el fetch solo trajo el `<title>`.
+
+**Cambio implementado**: brillo especular que sigue al cursor/puntero, en vez de un degradado
+fijo.
+- CSS: cada elemento "vidrio" (`.card`, `.btn-primary/danger/success/outline/ghost`,
+  `.proj-tab.activa`) define `--mx`/`--my` (posición del brillo, 50%/30% por defecto) y en
+  `:hover` agrega una CAPA EXTRA de `background` — `radial-gradient(<radio>px circle at
+  var(--mx) var(--my), rgba(255,255,255,<alfa>), transparent 60%)` — sentada ENCIMA de
+  `--glass-sheen`/`--btn-sheen` sin tocar ninguna capa de color existente (mismo patrón "no
+  cambiar colores" de rondas anteriores, solo que ahora la capa de brillo se MUEVE).
+- JS (al final de `base.html`, junto a los demás scripts globales): un listener de `pointermove`
+  en `document` (delegado, sin recorrer todos los elementos), usando
+  `requestAnimationFrame` para no disparar más de una vez por frame. En cada frame, usa
+  `document.elementFromPoint(x,y)` + `.closest('.card, .btn, .proj-tab.activa')` para encontrar
+  el elemento "vidrio" bajo el cursor (si hay uno) y le actualiza `--mx`/`--my` como porcentaje
+  relativo a su propio `getBoundingClientRect()`. El CSS `:hover` decide si el brillo se pinta o
+  no — el JS solo mueve la posición, nunca la visibilidad.
+- Por qué este enfoque y no un pseudo-elemento `::after` con `overflow:hidden`: los fondos CSS
+  (`background-image`) ya se recortan automáticamente al `border-radius` del elemento sin
+  necesidad de `overflow:hidden` — evita el riesgo de clip de contenido hijo (dropdowns
+  absolutos, etc.) que un wrapper nuevo hubiera introducido.
+
+### Validación
+
+Suite completa (`test_menu_estado_glass.py`) — todo pasa. Balance de llaves de `base.html`
+(140/140). Render de `/` vía TestClient confirma que `--mx` y `pointermove` están presentes en
+el HTML servido. Pendiente de confirmación visual real del usuario — si el brillo que sigue al
+puntero tampoco se nota, el diagnóstico siguiente ya no es de receta CSS sino de si
+`backdrop-filter` está realmente rindiendo en su navegador (pedir DevTools → Elements → Computed
+en un `.card`, confirmar si `backdrop-filter` aparece tachado/no soportado).
+
+También sigue pendiente, por separado: el usuario reporta que la pasada de "limpieza estilo iOS"
+general (tipografía `h1`-`h3`, espaciado de `.container`/`.card` de la 11ª-12ª ronda) tampoco se
+nota — no se tocó en esta ronda; si la especular tampoco se confirma, conviene abordar ambos
+juntos con una captura fresca en mano en vez de seguir ajustando a ciegas.

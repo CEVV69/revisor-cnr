@@ -48,12 +48,11 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass" (EN CURSO, 12 rondas)** — usuario revisó v10+v11 desde el computador:
-"no veo cambios... solo el fondo más oscuro"; único cambio real notado: "Inicio" (.btn-ghost) con
-MENOS efecto que antes. v12: `.btn-outline`/`.btn-ghost` tenían fondo casi blanco sobre tarjeta
-casi blanca = invisible, peor que el gris plano original — ahora tinte translúcido real. **Si
-sigue sin verse nada en el resto: pedir captura fresca antes de seguir ajustando CSS a ciegas.**
-Detalle en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" (EN CURSO, 13 rondas)** — vidrio real de Apple es DINÁMICO (reflejo que
+se mueve), no textura fija: un degradado estático se iba a leer siempre como "solo un degradado"
+(queja v12). v13: brillo especular que sigue al puntero (JS `--mx`/`--my` + radial-gradient en
+`:hover` de `.card`/`.btn-*`/`.proj-tab.activa`). Si sigue sin notarse: pedir DevTools → Elements
+→ Computed en un `.card`, ver si `backdrop-filter` sale tachado. Detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
