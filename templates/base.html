@@ -164,7 +164,7 @@
        más separación entre cards: el espacio en blanco generoso es el rasgo más característico
        del diseño de Apple, más que cualquier textura — y es independiente de la discusión de
        vidrio/blur de las rondas anteriores (no se tocan --glass-border/--shadow/.card acá). */
-    .container { max-width: 1020px; margin: 3rem auto; padding: 0 1.5rem; }
+    .container { max-width: 1020px; margin: 1.75rem auto; padding: 0 1.5rem; }
 
     /* Cards — vidrio esmerilado: superficie translúcida + blur, con el "rim" de 3 capas
        (receta del skill stormaref/LiquidGlassSkill: un filo claro arriba, una línea fina, un
@@ -181,7 +181,7 @@
         inset 0 1px 0 var(--glass-rim-top),
         inset 0 0 0 1px var(--glass-rim-hairline),
         inset 0 -1px 0 var(--glass-rim-bottom);
-      padding: 1.75rem 2rem; margin-bottom: 1.5rem;
+      padding: 1.15rem 1.4rem; margin-bottom: 0.85rem;
     }
     /* Brillo especular que sigue al puntero (JS al final del archivo actualiza --mx/--my) — lo
        que de verdad distingue al vidrio de Apple de un degradado estático es que reacciona al
@@ -204,12 +204,15 @@
     /* Tipografía de títulos — muchas páginas traían su propio <h1>/<h2> sin estilo (heredaban el
        tamaño/peso por defecto del navegador, grueso y desalineado con el resto de la app). Ya
        no quedan estilos inline de tamaño/color en los <h1>/<h2> de la app (barrido nov-2026,
-       ver docs/historial_sesiones.md) — esta regla manda en casi todos lados, no solo en los
-       que no tenían nada propio. El salto de tamaño es deliberadamente grande esta vez: los
-       anteriores (1.3-1.4rem → 1.5rem) eran apenas un ~10%, imperceptible para el usuario. */
-    h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.025em; color: var(--text); line-height: 1.2; margin: 0 0 0.3rem; }
-    h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.015em; color: var(--text); line-height: 1.3; margin-bottom: 1rem; }
-    h3 { font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 0.5rem; }
+       ver docs/historial_sesiones.md) — esta regla manda en casi todos lados. Ronda 2 lo subió
+       demasiado (1.7rem/1.15rem+700): el usuario lo reportó como letras enormes que inflaban la
+       altura de cada tarjeta — exactamente el ruido/espacio vertical que esta app necesita
+       evitar (listas largas de ítems/observaciones). Ronda 3: tamaños compactos, por debajo
+       incluso de los originales por template — la jerarquía se nota por peso/letter-spacing,
+       no por tamaño. */
+    h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); line-height: 1.25; margin: 0 0 0.2rem; }
+    h2 { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text); line-height: 1.3; margin-bottom: 0.5rem; }
+    h3 { font-size: 0.85rem; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 0.35rem; }
     p { line-height: 1.5; }
 
     /* Botones — mismo "rim" de 3 capas que .card/.proj-tab.activa (filo claro arriba, línea

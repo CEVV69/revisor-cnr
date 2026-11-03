@@ -6503,3 +6503,43 @@ hay ninguna `.card` de por medio, sin romper nada).
 todo 200. Confirmado que el JS de los 5 templates incluye `closest('.card')`. Pendiente de
 confirmación visual del usuario sobre el tamaño de títulos/espaciado y sobre si el menú de
 Estado en Respuestas ya aparece por encima de las tarjetas.
+
+## "Estilo iOS" — ronda 3: corregir el sobre-ajuste de tamaños (nov-2026)
+
+**Confirmación**: el menú de Estado en Respuestas "ya se corrigió, aparece delante de las
+tarjetas" — bug cerrado.
+
+**Sobre la 2ª ronda de tipografía**: "los tamaños de los títulos son muy grandes, la verdad
+ocupan mucho espacio, por ejemplo en la pestaña Respuestas, eso mismo hace que las tarjetas de
+cada ítem revisado sea más grande verticalmente ocupando más espacio vertical, que es
+justamente lo que NO queremos en esta app... disminuye los tamaños de letra, y junta un poco las
+tarjetas, mi idea del estilo iOS es que sea más minimalista y más limpio, sin tanto ruido visual
+y fácil de navegar, no que tenga letras enormes." Se había sobrecorregido en la dirección
+contraria al problema original (ronda 1 "imperceptible" → ronda 2 "letras enormes") sin pasar
+por un punto intermedio razonable.
+
+**Diagnóstico de por qué afectaba justo a las tarjetas de cada ítem en Respuestas**: cada ítem
+ahí es un `.grupo-card` (hereda de `.card`), y su encabezado es un `<h2 class="grupo-h2">`. La
+clase `.grupo-h2` ya tenía `margin:0` propio (gana por especificidad sobre el `margin-bottom` de
+`h2` en `base.html`, así que ESE no era el problema) — el bulto venía de: (1) el `font-size`/
+`font-weight` del propio `h2` subiendo a 1.15rem/700 en la ronda 2 (eso sí se nota en cada fila),
+y (2) el `padding`/`margin-bottom` de `.card` subiendo a 1.75rem 2rem / 1.5rem — eso se repite
+una vez por cada tarjeta, así que con una lista larga de ítems el espacio desperdiciado se
+multiplica rápido.
+
+**Corrección — ronda 3, valores compactos** (en `base.html`):
+- `h1`: 1.7rem → **1.25rem** (por debajo incluso del original pre-rediseño de cada template).
+- `h2`: 1.15rem/peso 700 → **0.95rem/peso 600**.
+- `h3`: 0.95rem → **0.85rem**.
+- `.container`: margin 3rem → **1.75rem**.
+- `.card`: padding 1.75rem 2rem → **1.15rem 1.4rem**; margin-bottom 1.5rem → **0.85rem**.
+
+Criterio: la jerarquía visual entre h1/h2/h3 se sostiene con peso (700/600/600) y
+letter-spacing, no con una diferencia grande de tamaño — eso es lo que de verdad lee como
+"limpio" sin generar ruido ni espacio vertical desperdiciado en listas largas.
+
+### Validación
+
+Balance de llaves de `base.html` (141/141). `test_menu_estado_glass.py` — todo pasa. Render vía
+`TestClient` de items/respuestas/resumen/cálculos de un proyecto real — todo 200. Pendiente de
+confirmación visual del usuario sobre el nuevo tamaño (más compacto) de títulos y tarjetas.
