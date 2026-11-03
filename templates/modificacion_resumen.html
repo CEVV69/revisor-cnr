@@ -140,11 +140,18 @@
 <script>
 function toggleMenuEstado() {
   var m = document.getElementById('menu-estado');
-  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';
+  var abrir = (m.style.display === 'none' || !m.style.display);
+  m.style.display = abrir ? 'block' : 'none';
+  var card = document.getElementById('menu-estado-wrapper').closest('.card');
+  if (card) card.classList.toggle('menu-estado-abierto', abrir);
 }
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('menu-estado-wrapper');
-  if (wrap && !wrap.contains(e.target)) document.getElementById('menu-estado').style.display = 'none';
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('menu-estado').style.display = 'none';
+    var card = wrap.closest('.card');
+    if (card) card.classList.remove('menu-estado-abierto');
+  }
 });
 </script>
 

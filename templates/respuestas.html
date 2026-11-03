@@ -269,12 +269,17 @@
 <script>
 function toggleMenuEstado() {
   var m = document.getElementById('menu-estado');
-  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  var abrir = m.style.display === 'none';
+  m.style.display = abrir ? 'block' : 'none';
+  var card = document.getElementById('menu-estado-wrapper').closest('.card');
+  if (card) card.classList.toggle('menu-estado-abierto', abrir);
 }
 document.addEventListener('click', function(e) {
   var w = document.getElementById('menu-estado-wrapper');
   if (w && !w.contains(e.target)) {
     document.getElementById('menu-estado').style.display = 'none';
+    var card = w.closest('.card');
+    if (card) card.classList.remove('menu-estado-abierto');
   }
 });
 

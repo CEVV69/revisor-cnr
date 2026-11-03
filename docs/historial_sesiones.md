@@ -6444,3 +6444,62 @@ cálculos, respuestas, presupuesto, resumen, consultar, ficha, modificación com
 datos reales — todas devuelven 200 sin excepciones. Revisión manual del diff completo
 (`git diff`) de los 21 archivos tocados antes de commitear. Pendiente de confirmación visual del
 usuario.
+
+## Liquid Glass cerrado + 2ª ronda "estilo iOS" + bug del menú de Estado (nov-2026)
+
+**Confirmación del usuario sobre el brillo especular (13ª ronda)**: "El resplandor del arreglo
+anterior se ve muy bien, no es efecto Liquid Glass, pero aporta." — cierra esa rama del
+rediseño (ver entradas anteriores).
+
+**Sobre la 1ª ronda de "estilo iOS"** (limpieza de `<h1>`/`<h2>` inline + unificación de colores
+hex): "La verdad vi algún cambio, pero es casi imperceptible." Diagnóstico: aunque la causa (los
+estilos inline anulando `base.html`) era real y se corrigió, el VALOR al que se corrigió era
+casi idéntico al que tenían antes — la mayoría de los `<h1>` inline eran 1.3rem/1.4rem contra el
+1.5rem nuevo de `base.html` (~10% de diferencia, bajo el umbral de lo perceptible a simple
+vista), y los `<h2>` eran casi todos `font-size:1rem` contra el 1.05rem nuevo (~5%). El bug de
+especificidad estaba bien diagnosticado, pero el tamaño de destino elegido no alcanzaba para que
+se notara.
+
+**Corrección — 2ª ronda, salto deliberadamente grande**: en `base.html`,
+- `h1`: 1.5rem → **1.7rem**, letter-spacing -0.02em → -0.025em, + `margin: 0 0 0.3rem` explícito
+  (antes dependía del margen por defecto del navegador, ~0.67em, inconsistente entre páginas).
+- `h2`: 1.05rem → **1.15rem**, peso 600 → **700** (más presencia como encabezado de sección),
+  margin-bottom 0.85rem → 1rem.
+- `.container`: margin 2.5rem → **3rem**.
+- `.card`: padding 1.5rem 1.7rem → **1.75rem 2rem**, margin-bottom 1.1rem → **1.5rem**.
+
+Se evaluó también suavizar `--glass-border` (el borde de 1.5px de cada `.card`, bastante marcado
+a 35% de opacidad) para un look "más puro" — se descartó: ese valor se subió a propósito en una
+ronda anterior porque antes era invisible (0.22 → 0.35, confirmado por el usuario como fix
+correcto). Bajarlo de nuevo ahora habría revertido una decisión ya cerrada sin que el usuario lo
+pidiera — se dejó intacto.
+
+**Bug reportado y corregido — menú de Estado escondido en Respuestas**: "cuando despliego el
+botón del estado para cambiarlo, esta desplegable se esconde detrás de las tarjetas de los
+ítems." Causa: `backdrop-filter` en `.card` (agregado en el rediseño Liquid Glass) crea un
+contexto de apilamiento CSS propio — cualquier descendiente con `z-index` alto (el menú
+desplegable, `z-index:200`) queda atrapado DENTRO de ese contexto y no puede superponerse a las
+`.card` siguientes del documento, sin importar cuán alto sea su z-index: las tarjetas de
+observaciones que vienen después en el DOM pintan por encima de toda la tarjeta anterior
+(incluido su contenido con z-index alto) porque son hermanas en un nivel de apilamiento superior.
+Solo pasaba en `respuestas.html` porque ahí el selector de Estado está DENTRO de una `.card` (el
+resumen de conteos); en `proyecto.html`/`modificacion*.html` el mismo selector vive en la fila de
+encabezado, fuera de cualquier `.card`, por eso no se veía ahí.
+
+Fix: nueva clase `.menu-estado-abierto` en `base.html` (`position:relative; z-index:250;`,
+aplicada solo a `.card`) que la función `toggleMenuEstado()` de cada template activa/desactiva
+sobre la `.card` ancestro (`closest('.card')`) al abrir/cerrar el menú — así esa tarjeta puntual
+sube por encima de sus hermanas solo mientras el menú está desplegado, sin tocar su apilamiento
+el resto del tiempo. Aplicado de forma uniforme en los 5 templates con este patrón
+(`respuestas.html`, `proyecto.html`, `modificacion.html`, `modificacion_resumen.html`,
+`modificacion_respuestas.html`) aunque solo `respuestas.html` tenía el bug — los otros 4 quedan
+protegidos igual ante un futuro cambio de estructura (`closest('.card')` devuelve `null` si no
+hay ninguna `.card` de por medio, sin romper nada).
+
+### Validación
+
+`test_menu_estado_glass.py` — todo pasa. Balance de llaves de `base.html` (141/141). Render vía
+`TestClient` de dashboard/items/cálculos/respuestas/presupuesto/resumen de un proyecto real —
+todo 200. Confirmado que el JS de los 5 templates incluye `closest('.card')`. Pendiente de
+confirmación visual del usuario sobre el tamaño de títulos/espaciado y sobre si el menú de
+Estado en Respuestas ya aparece por encima de las tarjetas.

@@ -52,12 +52,17 @@ Respuestas.
 muy bien, aporta"**. Cerrado — Liquid Glass real es material del sistema de Apple, sin receta
 CSS equivalente (confirmado con su código fuente oficial, ver `docs/historial_sesiones.md`).
 
-**Pasada "estilo iOS" (uniformidad/tipografía, EN CURSO)** — causa de por qué rondas 11-12 no se
-notaban: casi todo `<h1>`/`<h2>` traía `font-size`/`color` hardcodeado inline, anulando las
-reglas de `base.html` por especificidad. Limpiado en 19 templates + ~85 hex sueltos sin modo
-oscuro → `var(--blue/green-dk/red/orange/text-2/text-3)`. NO tocar `ficha.html`/
-`modificacion_ficha.html`/`informe_calculo_completo.html` (no extienden `base.html`). Pendiente:
-confirmación visual; fondos pastel de badges de estado sin tono oscuro, fuera de este alcance.
+**Pasada "estilo iOS" (uniformidad/tipografía, EN CURSO)** — ronda 1: limpiar `<h1>`/`<h2>`
+inline + ~85 hex sueltos → tokens `var(--*)`. "Casi imperceptible" (salto 1.3→1.5rem, ~10%).
+Ronda 2 (nov-2026): salto grande a propósito — h1 1.5→1.7rem, h2 1.05→1.15rem + peso 600→700,
+margin explícito; `.container` margin 2.5→3rem, `.card` padding/margin-bottom más generosos. NO
+tocar `ficha.html`/`modificacion_ficha.html`/`informe_calculo_completo.html` (no extienden
+`base.html`). Pendiente: confirmación visual; fondos pastel de badges sin tono oscuro.
+
+**Bug corregido:** menú de Estado (Respuestas) se escondía detrás de las tarjetas de ítems —
+`backdrop-filter` en `.card` atrapa el `z-index` de hijos en su propio contexto de apilamiento.
+Fix: clase `.menu-estado-abierto` (JS) sube la `.card` contenedora mientras el menú está abierto,
+en los 5 templates con este patrón.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
