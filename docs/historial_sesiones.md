@@ -6543,3 +6543,29 @@ letter-spacing, no con una diferencia grande de tamaño — eso es lo que de ver
 Balance de llaves de `base.html` (141/141). `test_menu_estado_glass.py` — todo pasa. Render vía
 `TestClient` de items/respuestas/resumen/cálculos de un proyecto real — todo 200. Pendiente de
 confirmación visual del usuario sobre el nuevo tamaño (más compacto) de títulos y tarjetas.
+
+## Rediseño "Liquid Glass" / estilo iOS — CERRADO por decisión del usuario (nov-2026)
+
+Después de 14 rondas (ver entradas anteriores: centralización de CSS, recetas de vidrio
+(diagonal/vertical/especular), hallazgo del código fuente oficial de Apple, 3 rondas de
+tipografía/espaciado), el usuario decidió cerrar el tema: "Sabes qué... dejémoslo así nada
+más... no se logró el efecto Liquid Glass de Apple, tampoco el estilo iOS en general en la
+app... pero el brillo que sigue al cursor fue un aporte, espero algún día exista una
+herramienta que permita hacer lo que deseo."
+
+**Estado final que queda en producción** (no tocar sin que lo pida de nuevo):
+- Brillo especular que sigue al puntero en `.card`/`.btn-*`/`.proj-tab.activa` (único elemento
+  que el usuario confirmó como aporte real).
+- Tipografía/espaciado en los valores "ronda 3" (compactos: h1 1.25rem, h2 0.95rem/600,
+  `.card` padding 1.15rem 1.4rem).
+- Limpieza de estilos inline de tamaño/color en `<h1>`/`<h2>` + unificación de ~85 colores hex
+  sueltos a tokens `var(--*)` — esto queda como mejora real independiente del resultado visual
+  "Liquid Glass"/"iOS" en sí (corrige inconsistencias y bugs de modo oscuro reales).
+- Fix del menú de Estado escondido detrás de tarjetas en Respuestas — confirmado, cerrado.
+
+**Para una futura sesión que quiera retomar esto**: el hallazgo central es que Liquid Glass real
+es un material dinámico del sistema operativo de Apple (reflejos que reaccionan al movimiento
+del dispositivo, refracción real del contenido de atrás) — no existe receta CSS estática que lo
+replique de verdad en un navegador. Si en el futuro aparece una herramienta o técnica
+(WebGPU/shaders, alguna librería específica, etc.) que permita un acercamiento más fiel, vale la
+pena reevaluar desde cero en vez de seguir ajustando gradientes/blur a mano.

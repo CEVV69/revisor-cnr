@@ -48,21 +48,13 @@ bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — det
 `docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
 Respuestas.
 
-**Rediseño "Liquid Glass"** — v13 (brillo especular que sigue al puntero) **confirmado: "se ve
-muy bien, aporta"**. Cerrado — Liquid Glass real es material del sistema de Apple, sin receta
-CSS equivalente (confirmado con su código fuente oficial, ver `docs/historial_sesiones.md`).
-
-**Pasada "estilo iOS" (uniformidad/tipografía, EN CURSO)** — ronda 1 imperceptible (~10%), ronda 2
-se fue al otro extremo ("letras enormes", infló la altura de cada tarjeta — justo el ruido
-vertical que esta app debe evitar en listas largas). **Ronda 3 (nov-2026, valores actuales):**
-h1 **1.25rem**/700, h2 **0.95rem**/600, h3 0.85rem — más chicos que el original de cada template,
-la jerarquía la da el peso/letter-spacing, no el tamaño. `.container` margin **1.75rem**, `.card`
-padding **1.15rem 1.4rem** / margin-bottom **0.85rem** (compacto). NO tocar `ficha.html`/
-`modificacion_ficha.html`/`informe_calculo_completo.html` (no extienden `base.html`). Pendiente:
-confirmación visual; fondos pastel de badges sin tono oscuro.
-
-**Bug cerrado (confirmado por el usuario):** menú de Estado en Respuestas ya no se esconde detrás
-de las tarjetas — detalle del fix en `docs/historial_sesiones.md`.
+**Rediseño "Liquid Glass" / estilo iOS — CERRADO por decisión del usuario (nov-2026)**: "dejémoslo
+así... no se logró el efecto Liquid Glass ni el estilo iOS en general, pero el brillo que sigue
+al cursor fue un aporte." Queda tal como está (14 rondas, detalle completo en
+`docs/historial_sesiones.md`) — **no tocar sin que el usuario lo pida de nuevo.** Único hallazgo
+reusable: Liquid Glass real es material del sistema de Apple (confirmado con su código fuente
+oficial), sin receta CSS equivalente — si vuelve a pedirse, no repetir el intento de replicarlo
+con capas CSS estáticas.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
