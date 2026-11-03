@@ -6343,3 +6343,41 @@ También sigue pendiente, por separado: el usuario reporta que la pasada de "lim
 general (tipografía `h1`-`h3`, espaciado de `.container`/`.card` de la 11ª-12ª ronda) tampoco se
 nota — no se tocó en esta ronda; si la especular tampoco se confirma, conviene abordar ambos
 juntos con una captura fresca en mano en vez de seguir ajustando a ciegas.
+
+## Rediseño "Liquid Glass" — hallazgo clave: código fuente real de Apple (nov-2026)
+
+El usuario compartió una carpeta de Google Drive
+(`drive.google.com/drive/u/2/folders/1RAwlKtNmbFyKlBfewrCqLNO58lRFzcEG`) con lo que describió
+como "instrucciones que da Apple para asumir su liquid glass". Al revisarla: **no son
+instrucciones de texto, es el proyecto de ejemplo oficial de Apple "Landmarks: Building an app
+with Liquid Glass"** (el que acompaña su doc
+`developer.apple.com/documentation/swiftui/landmarks-building-an-app-with-liquid-glass`) —
+código fuente SwiftUI completo (Xcode project, corre en iOS/iPadOS/macOS), no HTML/CSS.
+
+**Esto confirma, con evidencia directa en vez de solo inferencia, el diagnóstico de la 13ª
+ronda**: Liquid Glass real NO es una receta de capas (blur + gradiente + sombras) que la app
+dibuja — es un **material del sistema** que el propio SwiftUI/OS renderiza:
+- `.glassEffect(.regular, in: .rect(cornerRadius: ...))` — un modifier de una línea; nada de
+  blur/tinte/brillo manual, todo lo calcula el compositor del sistema (incluye el reflejo
+  dinámico y la refracción que motivó la ronda 13).
+- `.buttonStyle(.glass)` — mismo patrón en botones: un nombre de estilo, no CSS.
+- `GlassEffectContainer(spacing:)` + `.glassEffectID(_, in: namespace)` — agrupa piezas de
+  vidrio relacionadas (ej. `BadgesView.swift`: las medallas + el botón de mostrar/ocultar) para
+  que se fusionen/animen juntas en vez de competir como paneles separados.
+- `.backgroundExtensionEffect()` (`LandmarkFeaturedItemView.swift`) — extiende/refleja la imagen
+  de fondo real hacia los bordes/safe-area detrás del texto superpuesto; es la versión real de
+  "el color viene de atrás", pero operando sobre contenido real, no un gradiente aproximado.
+
+**Conclusión práctica**: no existe una receta CSS que replique el material real — ninguna rama
+del código de Apple tampoco lo intenta a mano, porque en su plataforma ESO LO HACE EL SISTEMA.
+Lo que ya se implementó en la 13ª ronda (blur+saturate vía `backdrop-filter`, rim de 3 capas,
+brillo especular que sigue al puntero) es el techo razonable para un navegador — no hay "la
+receta que faltaba" escondida en algún lado. Lo que sí es transferible y NO requiere material
+dinámico: valores concretos de `Constants.swift` — radio de esquina base 15pt (`cornerRadius`),
+8pt en grids, 24pt en medallas, padding estándar 14pt — como referencia de que Apple usa un
+sistema de esquinas/espaciado consistente y generoso (coherente con `--r-lg`/`--r`/`--r-sm` de
+`base.html`, sin necesidad de cambiarlos para igualar esto exactamente).
+
+**Pendiente**: comunicar esto al usuario y decidir con él el siguiente paso — aceptar la 13ª
+ronda como el resultado final realista (y pasar a confirmar visualmente + resolver la queja de
+"estilo iOS" general pendiente), en vez de seguir buscando una "receta CSS" que no existe.
