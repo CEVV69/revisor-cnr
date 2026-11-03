@@ -6651,3 +6651,42 @@ idéntico al original, confirmado línea por línea) + exactamente una sección 
 manual" con el `<select>` de 19 ítems. POST directo a la ruta por ítem con un texto de varias
 líneas — se guarda y aparece correctamente en la página. Suite de regresión
 (`test_menu_estado_glass.py`) sigue pasando. Pendiente de confirmación visual del usuario.
+
+## Confirmación + mejora: secciones colapsadas por defecto en Revisión Ítem SEP (nov-2026)
+
+**Confirmación**: "quedo bien y funciona bien" sobre la sección "Agregar observación manual" —
+cerrado.
+
+**Pedido de mejora**: "Solo una mejora de aspecto, tanto esa sección recién creada, como la de
+evaluar consultor y Debatir con la IA, deben estar inicialmente cerradas, es decir no
+desplegadas, y que lo hagan si se está trabajando en un ítem específico, como ya se hace con las
+otras de los ítems." Las tres secciones ("Agregar observación manual", "Evaluación del
+Consultor", "Debatir con la IA") eran `<div class="card">` siempre expandidas — a diferencia de
+los grupos de Observaciones/Notas/Chat por ítem, que ya son `<details>` cerrados y solo se abren
+cuando `item_ok` (el ítem recién trabajado, seteado por el redirect tras cualquier acción sobre
+un ítem) coincide con ese grupo.
+
+**Corrección — mismo patrón `<details>`/`abrir-por-item_ok` aplicado a las tres**:
+- `bloque_chat()` (Debatir con la IA): el `<div class="card">` exterior pasa a
+  `<details class="card">`, con `<summary>` en vez de `<h2>`. Se abre si `ok_actual` (el
+  `item_ok` recibido por parámetro) coincide con alguno de los ítems que tienen chat disponible
+  (`revisados|selectattr('key','equalto', ok_actual)`) — los `<details>` internos por ítem (que
+  ya se abrían individualmente) no cambian.
+- "Agregar observación manual": mismo cambio de `<div>` a `<details>`; se abre si `item_ok` está
+  presente (cualquier acción reciente sobre un ítem deja esta sección a la mano para seguir
+  agregando observaciones relacionadas).
+- "Evaluación del Consultor": mismo cambio; se abre con `item_ok` O con sus propias banderas
+  existentes `eval_ok`/`eval_auto_ok` (las que ya usaba para mostrar el aviso de "Evaluación
+  guardada" tras guardar) — así el aviso de guardado sigue siendo visible como antes, sin quedar
+  oculto detrás de un `<details>` cerrado.
+- El `<summary>` de las tres usa el mismo tamaño/peso que el resto de los `<h2>` de la app
+  (0.95rem/600, ver ronda 3 de tipografía) — no se reintroduce el problema de "letras grandes".
+
+### Validación
+
+Render vía `TestClient`: sin `item_ok` las tres secciones aparecen sin el atributo `open`
+(cerradas). Con `?item_ok=<item con chat>` las tres abren (incluido el `<details>` interno del
+ítem en Debatir con la IA). `POST /evaluacion` + `?eval_ok=1` abre Evaluación del Consultor sin
+necesidad de `item_ok`. Balance de `<details>`/`</details>` verificado línea por línea (10/10,
+la única discrepancia aparente era un comentario Jinja que menciona la palabra "details" sin
+ser una etiqueta real). Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.

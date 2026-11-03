@@ -219,8 +219,11 @@
 {% macro bloque_chat(lista, tipo, ok_actual, proyecto_id) %}
 {% set revisados = lista|selectattr('revisado')|list %}
 {% if revisados %}
-<div class="card">
-  <h2 style="margin:0 0 0.3rem; border:none; padding:0;">Debatir con la IA</h2>
+{# Cerrada por defecto — se abre sola solo si el ítem en curso (ok_actual) es uno de los que
+   tienen chat disponible, mismo criterio que ya abre el <details> de cada ítem más abajo. #}
+{% set hay_activo = revisados|selectattr('key', 'equalto', ok_actual)|list|length > 0 %}
+<details class="card" {% if hay_activo %}open{% endif %}>
+  <summary style="cursor:pointer; margin:0 0 0.5rem; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text);">Debatir con la IA</summary>
   <p style="font-size:0.82rem; color:var(--text-2); margin-bottom:0.75rem;">
     Discute las observaciones: aclara, corrige, o pídele reclasificar una a nota o descartarla
     — si la IA está de acuerdo, aplica el cambio directamente sobre la observación.
@@ -252,7 +255,7 @@
     </div>
   </details>
   {% endfor %}
-</div>
+</details>
 {% endif %}
 {% endmacro %}
 
@@ -837,8 +840,8 @@ function actualizarEtiqueta(input) {
      patrón que en Modificaciones (un solo formulario con selector de ítem), reutiliza la ruta ya
      existente por ítem (`/proyecto/{id}/item/{item_key}/observacion/agregar-manual`) fijando el
      `action` del formulario con JS según el ítem elegido, en vez de duplicar la ruta. -->
-<div class="card" id="agregar-obs-manual" style="margin-top:1rem;">
-  <h2 style="margin:0 0 0.5rem; border:none; padding:0;">Agregar observación manual</h2>
+<details class="card" id="agregar-obs-manual" style="margin-top:1rem;" {% if item_ok %}open{% endif %}>
+  <summary style="cursor:pointer; margin:0 0 0.5rem; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text);">Agregar observación manual</summary>
   <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.9rem;">
     Para observaciones que ya tienes por otra vía (ej. cambio de revisor: continuar un proyecto
     que otro revisor ya dejó observado) — elige el ítem y escribe el texto, sin pasar por la IA.
@@ -871,14 +874,15 @@ function actualizarEtiqueta(input) {
     </div>
     <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-start;">Agregar observación</button>
   </form>
-</div>
+</details>
 
 <!-- Evaluación del Consultor — cierre de la revisión, se copia al SEP igual que las observaciones -->
-<div class="card" id="evaluacion-consultor" style="margin-top:1rem;">
-  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.2rem;">
-    <h2 style="margin:0; border:none; padding:0;">Evaluación del Consultor</h2>
-    <span style="font-size:0.8rem; color:var(--text-2);">Editable siempre — la sugerencia es un punto de partida.</span>
-  </div>
+{% set eval_abrir = item_ok or request.query_params.get('eval_ok') or request.query_params.get('eval_auto_ok') %}
+<details class="card" id="evaluacion-consultor" style="margin-top:1rem;" {% if eval_abrir %}open{% endif %}>
+  <summary style="cursor:pointer; display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.2rem; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text);">
+    Evaluación del Consultor
+    <span style="font-size:0.8rem; font-weight:400; color:var(--text-2);">Editable siempre — la sugerencia es un punto de partida.</span>
+  </summary>
 
   {% if request.query_params.get('eval_ok') %}
   <div class="alert" style="background:#f0fff4; border:1px solid #68d391; color:var(--green-dk); margin:0.5rem 0; padding:0.5rem 0.8rem; border-radius:8px; font-size:0.85rem;">Evaluación guardada.</div>
@@ -938,7 +942,7 @@ function actualizarEtiqueta(input) {
       </button>
     </form>
   </div>
-</div>
+</details>
 
 <!-- Limpiar la revisión por ítems (no afecta los documentos) -->
 <form method="post" action="/proyecto/{{ proyecto.id }}/limpiar-items" style="margin-top:0.5rem;"
