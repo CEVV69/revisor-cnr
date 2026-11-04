@@ -6841,3 +6841,15 @@ Render vía `TestClient`: sin nada en curso, `<details class="card" >` sin `open
 con un ítem `en_progreso`, y con `revision_lote.activo`, los tres casos salen con `open`. Suite
 `test_menu_estado_glass.py` y `test_details_cerrados.py` (de la pasada anterior, Modificaciones)
 siguen pasando. Barrido de las 7 páginas principales del proyecto, todas 200.
+
+## Nombre del postulante visible en Respuestas (nov-2026)
+
+Pedido: "puedes poner el nombre del postulante, en algún lugar que no empuje el resto de esa
+página para abajo? algo discreto... como no lo recuerdo siempre, a ratos debo ir a resumen para
+verlo y eso me saca de donde estoy." Agregado un `<span class="text-muted">` con
+`proyecto.postulante` justo después del `<h1>` en `respuestas.html` — mismo renglón del
+encabezado (flex con wrap, como "Costo API:"), no agrega una fila nueva.
+
+### Validación
+Render vía `TestClient`: el nombre aparece junto al título, la página sigue en 200. Suite de
+regresión (`test_menu_estado_glass.py`) sigue pasando.

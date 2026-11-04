@@ -39,6 +39,9 @@
 <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.8rem; flex-wrap:wrap;">
   <a href="/proyecto/{{ proyecto.id }}/resumen" class="btn btn-ghost btn-sm">← Volver al proyecto</a>
   <h1 style="margin:0;">{{ proyecto.codigo_sep }} — Respuestas del consultor</h1>
+  {% if proyecto.postulante %}
+  <span class="text-muted" style="font-size:0.8rem;" title="Postulante del proyecto">{{ proyecto.postulante }}</span>
+  {% endif %}
   {% include "_costo_api.html" %}
   <a href="/proyecto/{{ proyecto.id }}/ficha" target="_blank" class="btn btn-outline btn-sm"
      style="border-color:var(--blue); margin-left:auto;">
