@@ -6869,3 +6869,23 @@ Dos ajustes al cambio anterior, mismo encabezado de `respuestas.html`:
 ### Validación
 Render vía `TestClient`: "Benef.: Juan Pérez Soto" aparece, el spacer queda antes de Costo
 API/Generar Ficha. Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.
+
+## Fix: "Generar Ficha de Revisión" se corrió a la izquierda (nov-2026)
+
+Al quitarle `margin-left:auto` en el cambio anterior (confiando solo en el `<span style="flex:1;">`
+agregado antes de Costo API), el botón quedaba mal alineado cuando el encabezado no alcanza en
+una sola línea (fila con `flex-wrap:wrap` — pasa seguido, ya que ahora el encabezado también
+lleva "Benef.: {nombre}"): si "Generar Ficha de Revisión" caía solo en su propia línea, el spacer
+de la línea anterior no lo alcanza — cada línea de un contenedor flex con wrap es independiente,
+el spacer solo empuja dentro de SU línea. El botón quedaba pegado a la izquierda en su línea.
+Fix: se le devuelve `margin-left:auto` al botón, ADEMÁS del spacer (no en vez de). No son
+redundantes: en una sola línea el spacer ya empuja todo el grupo (Costo API + botón) a la
+derecha, sin dejarle nada al margen automático del botón; si el botón cae solo en su propia
+línea, su propio margen automático lo empuja al borde derecho igual, sin depender de la línea
+anterior.
+
+### Validación
+Playwright sobre el HTML renderizado: en 1280px el botón queda pegado al borde derecho de su
+fila (mismo caso que un escritorio normal); forzando un viewport angosto (480px, el botón cae
+solo en su propia línea) también queda pegado al borde derecho. Suite de regresión
+(`test_menu_estado_glass.py`) sigue pasando.
