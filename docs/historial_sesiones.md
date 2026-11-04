@@ -6811,3 +6811,9 @@ a "todas las escrituras → una medición → todas las escrituras" (23→10 ms 
 listado, dashboard y polling; escritura de la versión anterior visible al instante; sincronización
 repara solo lo viejo; borrado limpia `plista`), `test_seguridad.py` (26) y
 `test_menu_estado_glass.py` siguen OK; en Chromium: 0 textareas cortados, 0 errores JS.
+
+**Cierre (nov-2026):** el usuario quedó conforme ("Excelentes noticias"); confirmado que las
+mejoras aplican igual en Safari, Chrome y Firefox (las del servidor no dependen del navegador; la
+del blur se midió en Chromium y beneficia a todos, más aún a Safari). Pendiente: que la pruebe en
+la app y que haga privado el repo. Agregada la regla 13 en CLAUDE.md (`CAMPOS_LISTADO` y no
+reponer `backdrop-filter` en elementos repetidos).

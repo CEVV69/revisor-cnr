@@ -39,15 +39,11 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Auditoría de seguridad + rendimiento (nov-2026, pendiente de prueba del usuario):** clave JWT
-ya no está en el código (aleatoria guardada en BD si no hay `SECRET_KEY`), XSS en vista de
-documento, `confirm()` con nombres de archivo (O'Higgins borraba sin confirmar), límite de
-intentos de login, cookie `secure`/`samesite`, gzip, cabeceras, tope de subida y zip bomb.
-**Pendiente del usuario:** hacer privado el repo en GitHub. NO se pasaron en masa las llamadas
-a BD a hilos: sin lock por proyecto arriesga pérdida de datos. Detalle en `docs/historial_sesiones.md`.
-**Velocidad (2ª parte, medida con PG local + Chromium):** registro liviano `plista:{id}` para
-listados (Inicio 322→4 ms con 59 proyectos; cae al proyecto completo si está viejo), sin
-`backdrop-filter` en `.card`/pestañas (scroll Ítems 51→18 ms/cuadro; solo queda en nav y menús).
+**Auditoría de seguridad + velocidad (nov-2026) — CERRADA, usuario conforme; falta que la pruebe
+en la app.** Seguridad: clave JWT fuera del código, XSS, confirm() de Eliminar, login, cookies,
+cabeceras, topes de subida. Velocidad: gzip, `plista:{id}` (Inicio 322→4 ms), sin blur en cards
+(scroll 51→18 ms). Sin lock por proyecto NO pasar en masa la BD a hilos. **Pendiente del usuario:
+hacer privado el repo en GitHub.** Detalle y mediciones en `docs/historial_sesiones.md`.
 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
@@ -155,3 +151,6 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
 12. **El repo es PÚBLICO en GitHub:** nunca escribir claves, contraseñas ni datos personales
     reales en el código ni en `docs/`. Texto del usuario/documentos en HTML o JS: siempre
     escapado (`html.escape`, `data-*` + `dataset`), nunca interpolado dentro de JavaScript.
+13. **Rendimiento ya medido, no deshacer sin medir:** campo nuevo en un listado/polling → sumarlo
+    a `CAMPOS_LISTADO` (database.py) o ese listado vuelve a leer proyectos completos; no volver a
+    poner `backdrop-filter` en `.card` ni en elementos repetidos (solo nav y menús flotantes).
