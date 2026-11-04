@@ -6853,3 +6853,19 @@ encabezado (flex con wrap, como "Costo API:"), no agrega una fila nueva.
 ### Validación
 Render vía `TestClient`: el nombre aparece junto al título, la página sigue en 200. Suite de
 regresión (`test_menu_estado_glass.py`) sigue pasando.
+
+## Ajuste a lo anterior: "Benef.:" + Costo API alineado a la derecha (nov-2026)
+
+Dos ajustes al cambio anterior, mismo encabezado de `respuestas.html`:
+1. Riesgo de confundir el nombre con el del consultor (el `<h1>` dice "...Respuestas del
+   consultor" justo antes) — se le agrega el prefijo "Benef.:" (beneficiario, término correcto
+   para el postulante de un proyecto Ley 18.450).
+2. "Costo API" quedaba a mitad del encabezado en vez de alineado a la derecha junto al botón
+   "Generar Ficha de Revisión". Se agrega un `<span style="flex:1;">` separador ANTES del
+   include de `_costo_api.html` (mismo patrón ya usado en `proyecto.html`/
+   `modificacion_respuestas.html` para empujar un grupo a la derecha) y se le quita el
+   `margin-left:auto` al botón de Ficha, que ya no lo necesita — el spacer empuja a los dos.
+
+### Validación
+Render vía `TestClient`: "Benef.: Juan Pérez Soto" aparece, el spacer queda antes de Costo
+API/Generar Ficha. Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.
