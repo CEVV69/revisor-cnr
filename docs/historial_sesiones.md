@@ -6889,3 +6889,30 @@ Playwright sobre el HTML renderizado: en 1280px el botón queda pegado al borde 
 fila (mismo caso que un escritorio normal); forzando un viewport angosto (480px, el botón cae
 solo en su propia línea) también queda pegado al borde derecho. Suite de regresión
 (`test_menu_estado_glass.py`) sigue pasando.
+
+## Fix: desplegable de Costo API se cortaba contra el borde derecho (nov-2026)
+
+Consecuencia del cambio anterior (Costo API ahora alineado a la derecha en Respuestas, junto a
+"Generar Ficha de Revisión"): el panel del desglose (`.costo-api-panel`, `min-width:300px`) se
+abre siempre pegado al borde IZQUIERDO de su botón (`left:0`, CSS fijo en `base.html`) — con el
+botón cerca del borde derecho de la ventana, el panel se extendía más allá y quedaba cortado
+(invisible lo que no entraba en la ventana).
+
+**Fix, sin tocar el posicionamiento por defecto de las otras páginas:** `_costo_api.html`/
+`base.html` es un componente compartido por 7 templates, con el botón en distintas posiciones de
+cada encabezado (cerca del borde izquierdo en la mayoría, cerca del derecho en Respuestas y
+Modificaciones/Presupuesto) — fijar `right:0` a mano habría arreglado Respuestas rompiendo las
+demás. En vez de eso, un único listener del evento `toggle` en `base.html` (document, fase de
+*captura* — `toggle` no burbujea, pero la captura sí alcanza al elemento aunque no burbujee):
+al abrirse cualquier `.costo-api`, mide si el panel (ya abierto a la izquierda, por defecto) se
+sale de la ventana (`getBoundingClientRect().right > window.innerWidth`) y, si es así, le agrega
+la clase `.costo-api-panel-izq` (`left:auto; right:0`) para que en vez de eso se abra hacia la
+izquierda desde el borde derecho del botón. Un solo mecanismo que se ajusta solo en cualquier
+página, sin tener que decidir de antemano cuál necesita cuál alineación. De paso,
+`max-width: calc(100vw - 2rem)` por si la ventana es más angosta que el panel.
+
+### Validación
+Playwright: abriendo el desplegable en Respuestas (botón cerca del borde derecho) el panel
+obtiene la clase `costo-api-panel-izq` y queda completo dentro de la ventana; en Resumen (botón
+cerca del borde izquierdo, posición sin cambios) NO se agrega la clase y el panel se abre igual
+que siempre. Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.

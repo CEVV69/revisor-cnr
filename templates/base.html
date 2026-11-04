@@ -326,6 +326,7 @@
        blur y más opacidad que .card, porque acá la legibilidad no puede depender de qué haya
        quedado debajo al abrirse. */
     .costo-api-panel { position: absolute; left: 0; top: 130%; z-index: 200; min-width: 300px;
+      max-width: calc(100vw - 2rem);
       background: var(--glass-sheen-strong); backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
       border: 1.5px solid var(--glass-border); border-radius: var(--r);
@@ -334,6 +335,10 @@
         inset 0 0 0 1px var(--glass-rim-hairline),
         inset 0 -1px 0 var(--glass-rim-bottom);
       padding: 0.6rem 0.75rem; font-size: 0.78rem; }
+    /* Agregada por JS (ver el listener de "toggle" más abajo) cuando, abierto a la izquierda
+       (el valor por defecto), el panel se cortaría contra el borde derecho de la ventana —
+       pasa en páginas donde el botón de Costo API queda cerca de ese borde (ej. Respuestas). */
+    .costo-api-panel.costo-api-panel-izq { left: auto; right: 0; }
     .costo-api-fila { display: flex; justify-content: space-between; gap: 1.2rem;
       padding: 0.16rem 0; color: var(--text-2); }
     .costo-api-fila > :last-child { white-space: nowrap; }
@@ -493,6 +498,22 @@
       if (raf === null) raf = requestAnimationFrame(aplicar);
     }, { passive: true });
   })();
+
+  // ── Desplegable de Costo API: se abre pegado al borde izquierdo del botón (CSS, left:0) —
+  // si el botón está cerca del borde derecho de la pantalla (ej. en Respuestas, donde ahora
+  // comparte fila con "Generar Ficha de Revisión"), el panel se corta. "toggle" no burbujea,
+  // pero sí se puede capturar en la fase de captura (document, {capture:true}) aunque no
+  // burbuje — por eso un solo listener acá sirve para cualquier .costo-api de cualquier
+  // página, sin tener que saber de antemano dónde queda cada una. ──
+  document.addEventListener('toggle', function(e) {
+    if (!e.target.classList || !e.target.classList.contains('costo-api') || !e.target.open) return;
+    var panel = e.target.querySelector('.costo-api-panel');
+    if (!panel) return;
+    panel.classList.remove('costo-api-panel-izq');
+    if (panel.getBoundingClientRect().right > window.innerWidth) {
+      panel.classList.add('costo-api-panel-izq');
+    }
+  }, true);
 </script>
 </body>
 </html>
