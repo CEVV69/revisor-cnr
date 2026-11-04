@@ -611,7 +611,7 @@ function actualizarEtiqueta(input) {
         <td style="white-space:nowrap;">
           <form method="post" action="/proyecto/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar"
                 style="display:inline"
-                onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
+                data-confirm="¿Eliminar {{ doc.nombre_original }}?" onsubmit="return confirm(this.dataset.confirm)">
             <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
           </form>
         </td>

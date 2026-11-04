@@ -5,8 +5,21 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 
-SECRET_KEY = os.getenv("SECRET_KEY", "revisor-cnr-clave-secreta-2024")
 ALGORITHM = "HS256"
+
+# Antes había un valor por defecto fijo escrito acá — con el repositorio público en GitHub,
+# cualquiera podía firmar un token de administrador si Railway no tenía SECRET_KEY configurada.
+# Sin la variable de entorno, se usa una clave aleatoria generada una vez y guardada en la base
+# (sobrevive redeploys; ver Database.obtener_o_crear_clave_sesion).
+_secret_key = os.getenv("SECRET_KEY") or None
+
+
+def _clave() -> str:
+    global _secret_key
+    if not _secret_key:
+        from database import db  # diferido: database.py importa este módulo
+        _secret_key = db.obtener_o_crear_clave_sesion()
+    return _secret_key
 
 
 def hash_password(password: str) -> str:
@@ -20,12 +33,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_token(data: dict) -> str:
     payload = data.copy()
     payload["exp"] = datetime.utcnow() + timedelta(hours=8)
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _clave(), algorithm=ALGORITHM)
 
 
 def verify_token(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _clave(), algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None

@@ -110,7 +110,13 @@ def extract_zip(zip_path: str, dest_dir: str) -> list:
     dest = Path(dest_dir)
     dest.mkdir(parents=True, exist_ok=True)
 
+    import shutil
     archivos = []
+    # Topes contra un ZIP malformado o "zip bomb" (pocos KB que se descomprimen a GB y llenan la
+    # memoria/disco del servidor) — muy por encima de cualquier expediente real.
+    max_por_archivo = 300 * 1024 * 1024
+    max_total = 2 * 1024 * 1024 * 1024
+    total = 0
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         for member in zf.infolist():
@@ -118,6 +124,9 @@ def extract_zip(zip_path: str, dest_dir: str) -> list:
             # Ignorar carpetas, archivos ocultos y formatos no soportados
             if member.is_dir():
                 continue
+            if member.file_size > max_por_archivo or total + member.file_size > max_total:
+                continue
+            total += member.file_size
             if nombre.startswith(".") or nombre.startswith("__"):
                 continue
             ext = Path(nombre).suffix.lower()
@@ -133,7 +142,7 @@ def extract_zip(zip_path: str, dest_dir: str) -> list:
                 contador += 1
 
             with zf.open(member) as src, open(destino, "wb") as dst:
-                dst.write(src.read())
+                shutil.copyfileobj(src, dst)
 
             tipo_doc, label = detectar_anexo(nombre)
             texto = extract_text(str(destino), ext)

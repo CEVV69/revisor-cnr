@@ -129,7 +129,7 @@
         <td class="text-muted" style="white-space:nowrap;">{{ doc.fecha_subida | fecha }}</td>
         <td style="white-space:nowrap;">
           <form method="post" action="/modificacion/{{ proyecto.id }}/documento/{{ doc.id }}/eliminar" style="display:inline"
-                onsubmit="return confirm('¿Eliminar {{ doc.nombre_original }}?')">
+                data-confirm="¿Eliminar {{ doc.nombre_original }}?" onsubmit="return confirm(this.dataset.confirm)">
             <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
           </form>
         </td>

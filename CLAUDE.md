@@ -39,27 +39,20 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Cerrado (confirmado, nov-2026):** sección "Agregar observación manual" en Revisión Ítem SEP
-(caso "cambio de revisor") + colapso por defecto de esa sección/"Evaluación del Consultor"/
-"Debatir con la IA" (se abren solas con `item_ok`/`eval_ok`). Todo funciona bien, sin pendientes.
-Detalle en `docs/historial_sesiones.md`.
+**Auditoría de seguridad + rendimiento (nov-2026, pendiente de prueba del usuario):** clave JWT
+ya no está en el código (aleatoria guardada en BD si no hay `SECRET_KEY`), XSS en vista de
+documento, `confirm()` con nombres de archivo (O'Higgins borraba sin confirmar), límite de
+intentos de login, cookie `secure`/`samesite`, gzip, cabeceras, tope de subida y zip bomb.
+**Pendiente del usuario:** hacer privado el repo en GitHub. NO se pasaron en masa las llamadas
+a BD a hilos: sin lock por proyecto arriesga pérdida de datos. Detalle en `docs/historial_sesiones.md`.
 
-**Nuevo: Modificaciones de Proyecto** (v1.18, el usuario la está probando con un caso real) —
-separada de la Revisión normal (art. 6° Ley 18.450, **Art. 33° del Reglamento D.S. 95/2015** +
-Instructivo 3661/2021), rutas `/modificacion*` propias. 10 categorías reales del SEP + Coherencia
-Global (deriva observaciones a un ítem real), checklist propio c/u (criterios de dominio los da
-el usuario). Pestañas: Resumen/Revisión por ítem/Respuestas/Variables (`variables_concurso.py`,
-bonificación nunca sube)/Presupuesto/Ficha (`/modificacion/{id}/ficha`) — detalle en
-`docs/historial_sesiones.md`. Pendiente: tope de bonificación en el diff de Presupuesto, IA en
-Respuestas.
+**Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
+Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
+propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
+Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
 
-**Rediseño "Liquid Glass" / estilo iOS — CERRADO por decisión del usuario (nov-2026)**: "dejémoslo
-así... no se logró el efecto Liquid Glass ni el estilo iOS en general, pero el brillo que sigue
-al cursor fue un aporte." Queda tal como está (14 rondas, detalle completo en
-`docs/historial_sesiones.md`) — **no tocar sin que el usuario lo pida de nuevo.** Único hallazgo
-reusable: Liquid Glass real es material del sistema de Apple (confirmado con su código fuente
-oficial), sin receta CSS equivalente — si vuelve a pedirse, no repetir el intento de replicarlo
-con capas CSS estáticas.
+**Rediseño "Liquid Glass"/iOS — CERRADO por el usuario (nov-2026), no tocar sin que lo pida.**
+Liquid Glass real es material del sistema de Apple, sin receta CSS: no reintentarlo con capas.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
@@ -156,3 +149,6 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
 11. **Prompts de handoff a otra sesión (ej. Diseñador de Riego):** antes de armar uno nuevo,
     revisar si queda algo pendiente de una ronda anterior del mismo tema e incluirlo siempre —
     nunca armar solo con el hallazgo más reciente (se perdió un punto así una vez, ago-2026).
+12. **El repo es PÚBLICO en GitHub:** nunca escribir claves, contraseñas ni datos personales
+    reales en el código ni en `docs/`. Texto del usuario/documentos en HTML o JS: siempre
+    escapado (`html.escape`, `data-*` + `dataset`), nunca interpolado dentro de JavaScript.

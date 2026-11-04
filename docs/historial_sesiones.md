@@ -6690,3 +6690,83 @@ Render vía `TestClient`: sin `item_ok` las tres secciones aparecen sin el atrib
 necesidad de `item_ok`. Balance de `<details>`/`</details>` verificado línea por línea (10/10,
 la única discrepancia aparente era un comentario Jinja que menciona la palabra "details" sin
 ser una etiqueta real). Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.
+
+## Auditoría de seguridad y rendimiento (nov-2026)
+
+Pedido: "revisa en detalle la app, elimina código muerto o sin uso, y optimiza todos los procesos
+factibles de optimizar, para darle mayor fluidez, rapidez y seguridad". Las auditorías de jul/ago/
+sep-2026 ya habían cubierto rendimiento y código muerto a fondo; **seguridad nunca se había
+auditado** — fue el foco. Hallazgo de contexto clave: **el repositorio es PÚBLICO en GitHub**.
+
+**Seguridad (corregido):**
+1. **Clave de firma de sesiones expuesta (crítico).** `auth.py` tenía `SECRET_KEY` con valor por
+   defecto fijo en el código; Railway no tiene esa variable en la lista del proyecto → con el repo
+   público cualquiera podía firmar un JWT `{"rol": "admin"}` y entrar sin contraseña. Ahora: si no
+   hay `SECRET_KEY`, `auth._clave()` usa una clave aleatoria (`secrets.token_urlsafe(48)`)
+   generada una vez y guardada en la BD (`Database.obtener_o_crear_clave_sesion`, clave
+   `meta_clave_sesion`) — sobrevive redeploys. Efecto: todas las sesiones abiertas se invalidan
+   una vez (hay que volver a iniciar sesión).
+2. **Contraseña inicial pública `admin/admin123`.** Si el login se hace con esa contraseña, se
+   redirige a `/mi-cuenta?aviso=clave_inicial` con aviso; cambiar de vuelta a `admin123` se rechaza.
+3. **XSS almacenado en `ver_documento`.** La vista de respaldo (archivo perdido) armaba HTML con
+   `doc["nombre_original"]` y el texto extraído del PDF sin escapar — ambos vienen de documentos
+   del consultor (externos). Ahora `html.escape`.
+4. **`confirm()` con nombres dentro de JavaScript.** `onsubmit="return confirm('¿Eliminar
+   {{ doc.nombre_original }}?')"`: el escape de Jinja (`&#39;`) se decodifica antes de ejecutar el
+   JS, así que un apóstrofe (ej. "Plano_O'Higgins.pdf", común en la VI Región) rompía el script y
+   **el documento se borraba sin pedir confirmación**; un nombre malicioso podía ejecutar código.
+   Cambiado a `data-confirm="..." onsubmit="return confirm(this.dataset.confirm)"` en Documentos
+   (proyecto y modificación), dashboards (código SEP) y usuarios (nombre).
+5. **Header `Content-Disposition`.** Nombres con caracteres fuera de latin-1 ("–", comillas
+   tipográficas) daban error 500 al descargar; una comilla doble rompía el header. Nuevo helper
+   `_content_disposition()` (fallback ASCII + `filename*=UTF-8''`), en las 6 descargas.
+6. **Fuerza bruta en login.** Máximo 8 intentos fallidos por (IP, usuario) cada 15 min (429),
+   en memoria del proceso. IP desde `x-forwarded-for` (detrás de Railway `request.client` es el
+   proxy).
+7. **Cookie de sesión** con `samesite="lax"` explícito y `secure` cuando la petición llega por
+   HTTPS (`x-forwarded-proto`), vía `_set_cookie_sesion()` (login y cambio de nombre).
+8. **Cabeceras**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`,
+   `Referrer-Policy: same-origin`.
+9. **Tamaño de envíos y ZIP bomb.** Rechazo inmediato (413) de envíos > 1 GB por
+   `content-length`; en `extract_zip`, miembros > 300 MB o total > 2 GB se omiten y se copian con
+   `shutil.copyfileobj` (antes `src.read()` cargaba cada archivo entero en memoria). El nombre ya
+   se tomaba con `Path(...).name`, así que no había "zip slip" (verificado en test).
+- Verificado sin problemas: todas las rutas exigen sesión (barrido AST), todas las `/admin/*`
+  exigen rol admin, autoescape de Jinja activo, ningún `|safe`, archivos guardados con nombre
+  `uuid+ext` (sin path traversal), JS del navegador usa `textContent` o escapa antes de `innerHTML`.
+
+**Rendimiento (corregido):**
+- **GZip** para páginas (`_Compresion`, nivel 6, mínimo 1 KB): Ítems 82→17 KB, Chequeo de
+  cálculos 190→44 KB, Resumen 71→15 KB. Se excluyen las rutas `/documento/` (PDF/Excel ya vienen
+  comprimidos; recomprimir MB en el event loop solo gasta CPU).
+- **Escrituras/lecturas de archivos en BD a un hilo**: `guardar_archivo` (5 rutas de subida, BYTEA
+  de varios MB) y `obtener_archivo` en `ver_documento` bloqueaban el servidor entero mientras
+  duraban. Todas esas rutas ya tenían `await` entre leer y guardar el proyecto, así que no cambia
+  su atomicidad.
+- **Decisión: NO se pasaron en masa las ~220 llamadas síncronas a BD dentro de `async def`.** Hoy
+  la consistencia de la app depende de que una ruta sin `await` lea→modifique→guarde el proyecto
+  sin que otra corrutina (ej. un análisis de IA en segundo plano) se intercale. Mandarlas a hilos
+  sin un lock por proyecto abre la puerta a pérdidas de datos (aprobar una observación mientras
+  termina un análisis → una de las dos escrituras se pierde). Cada una cuesta pocos ms; el riesgo
+  no compensa. Si algún día se quiere, hacerlo junto con un lock por `proyecto_id`.
+
+**Código muerto / duplicado:**
+- `Database.get_concurso_campos()` sin uso (reemplazada antes por `resumen_concurso`): eliminada.
+- `SUELO_DEFAULT_POR_TEXTURA` estaba copiada a mano en el JS de `calculos.html` ("si se corrige
+  allá, replicar acá"). Ahora el JS la recibe de `calculos_riego.py` (global Jinja
+  `SUELO_DEFAULT_POR_TEXTURA_JSON`, con `json.dumps` y no `|tojson` porque tojson ordena las claves
+  y el orden es el del selector de textura).
+- 7 f-strings sin variables (pyflakes): prefijo `f` quitado solo de las partes sin llaves — texto
+  idéntico byte a byte (no afecta la caché de prompts). pyflakes queda limpio en todos los módulos.
+
+**Pendiente del usuario:** hacer privado el repositorio en GitHub (Settings → General → Danger
+Zone → Change visibility). Mientras sea público, todo `docs/` (que describe la app y casos reales)
+es visible para cualquiera.
+
+### Validación
+`test_seguridad.py` (scratchpad, 26 comprobaciones con TestClient): token forjado con la clave
+antigua rechazado, clave persistida estable, aviso admin123, samesite/secure, bloqueo tras 8
+fallos sin afectar otra IP, nombre con apóstrofe/comillas/`<script>`/"–" (data-confirm, escape,
+descarga 200 con `filename*`), texto del documento escapado, gzip en HTML y no en PDF, cabeceras,
+413, ZIP con `../` sin escribir afuera, tabla de suelos en el orden original. Más barrido de 40
+rutas GET (todas 200/302/307 esperados) y la suite previa `test_menu_estado_glass.py`.

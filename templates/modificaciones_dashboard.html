@@ -36,7 +36,7 @@
         <td style="white-space:nowrap;">
           <a href="/modificacion/{{ m.id }}" class="btn btn-outline btn-sm">Abrir</a>
           <form method="post" action="/modificacion/{{ m.id }}/eliminar" style="display:inline; margin-left:1.5rem;"
-                onsubmit="return confirm('¿Eliminar la modificación {{ m.codigo_sep }}? Esta acción no se puede deshacer.')">
+                data-confirm="¿Eliminar la modificación {{ m.codigo_sep }}? Esta acción no se puede deshacer." onsubmit="return confirm(this.dataset.confirm)">
             <button type="submit" class="btn btn-danger btn-sm" title="Eliminar" style="padding-left:0.5rem; padding-right:0.5rem;">×</button>
           </form>
         </td>

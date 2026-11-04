@@ -848,14 +848,8 @@
   }
 
   // ── Desglose de Humedad Aprovechable por capas de suelo (Aspersión/Carrete) ──
-  // Duplica SUELO_DEFAULT_POR_TEXTURA de calculos_riego.py — si se corrige allá, replicar acá.
-  var SUELO_DEFAULT_POR_TEXTURA = {
-    franco_arenoso:   { cc: 14, pmp: 6,  da: 1.50 },
-    franco:           { cc: 22, pmp: 10, da: 1.40 },
-    franco_limoso:    { cc: 20, pmp: 10, da: 1.30 },
-    franco_arcilloso: { cc: 27, pmp: 13, da: 1.35 },
-    arcilloso:        { cc: 35, pmp: 17, da: 1.25 },
-  };
+  // Fuente única: calculos_riego.SUELO_DEFAULT_POR_TEXTURA (inyectada desde main.py).
+  var SUELO_DEFAULT_POR_TEXTURA = {{ SUELO_DEFAULT_POR_TEXTURA_JSON }};
   var estadoCapas = {};
   window.toggleCapas = function(p) {
     var chk = document.getElementById(p + "capas_chk");

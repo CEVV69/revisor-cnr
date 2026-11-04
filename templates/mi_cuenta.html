@@ -31,6 +31,10 @@
 
     <div class="card-title">Cambiar contraseña</div>
 
+    {% if aviso_clave_inicial %}
+    <div class="alert alert-error" style="margin-bottom:1rem;">Estás usando la contraseña inicial, que es pública. Cámbiala ahora.</div>
+    {% endif %}
+
     {% if ok_pass %}
     <div class="alert alert-success" style="margin-bottom:1rem;">Contraseña actualizada correctamente.</div>
     {% endif %}

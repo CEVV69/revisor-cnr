@@ -2242,9 +2242,9 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                       f"escorrentía; mismo criterio del Diseñador de Riego): VIB={vib} mm/hr, "
                       f"Precipitación del sistema={precip} mm/hr.")
             if not vib_check["vib_ok"]:
-                texto += (f" La precipitación SUPERA la VIB del suelo — genera una observación "
-                          f"citando estos números exactos (riesgo de escorrentía; se sugiere "
-                          f"reducir el caudal del aspersor o aumentar el espaciamiento).")
+                texto += (" La precipitación SUPERA la VIB del suelo — genera una observación "
+                          "citando estos números exactos (riesgo de escorrentía; se sugiere "
+                          "reducir el caudal del aspersor o aumentar el espaciamiento).")
             else:
                 texto += " VIB > Precipitación — dentro de rango, no lo menciones como observación."
 
@@ -2371,12 +2371,12 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             # KeyError acá se traga TODO el bloque de verificación (hidráulico + agronómico) del
             # ítem, no solo esta sección, porque el llamador envuelve todo en un único try/except.
             texto += (
-                f"\n\nVERIFICACIÓN DE OPERACIÓN DEL CARRETE (cálculo determinístico, metodología "
-                f"INIA-Carillanca 2001/Simpfendörfer — misma fórmula que usa el Diseñador de "
-                f"Riego, no una estimación de la IA. El Revisor NO asume un viento medio como sí "
-                f"hace el Diseñador — si el expediente no declara la velocidad del viento de "
-                f"diseño, los resultados que dependen de ella simplemente no se calculan, y se "
-                f"señala cuáles son):\n")
+                "\n\nVERIFICACIÓN DE OPERACIÓN DEL CARRETE (cálculo determinístico, metodología "
+                "INIA-Carillanca 2001/Simpfendörfer — misma fórmula que usa el Diseñador de "
+                "Riego, no una estimación de la IA. El Revisor NO asume un viento medio como sí "
+                "hace el Diseñador — si el expediente no declara la velocidad del viento de "
+                "diseño, los resultados que dependen de ella simplemente no se calculan, y se "
+                "señala cuáles son):\n")
             if carrete.get("q_diseno_m3h") is not None:
                 texto += (f"- Caudal de diseño = Caudal de catálogo × (1 + margen de seguridad) = "
                           f"{carrete['q_diseno_m3h']} m³/hr ({carrete['q_diseno_ls']} l/s)\n")
@@ -2591,7 +2591,7 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             comparaciones.append(f"Db declarada = {declarado['db_mm']} mm — no coincide con el recálculo ({r['db_mm']} mm).")
     texto += ("\n\nVERIFICACIÓN AGRONÓMICA (cálculo determinístico, misma fórmula normativa del "
             "Diseñador de Riego — no es una estimación de la IA, es un recálculo exacto a partir "
-            f"de los datos base que declara el expediente):\n" + "\n".join(f"- {l}" for l in lineas))
+            "de los datos base que declara el expediente):\n" + "\n".join(f"- {l}" for l in lineas))
     if comparaciones:
         texto += ("\n\nDISCREPANCIAS con lo declarado en el expediente:\n"
                   + "\n".join(f"- {c}" for c in comparaciones) +
@@ -2772,9 +2772,9 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                         linea_ciclo += ": cabe dentro del ciclo."
                     else:
                         linea_ciclo += (": EXCEDE las horas disponibles del ciclo — el diseño no es "
-                                         f"viable así, debe justificar/ajustar el caudal (ej. con "
-                                         f"acumulador), la superficie, o la frecuencia de riego. "
-                                         f"Genera una observación citando estos números.")
+                                         "viable así, debe justificar/ajustar el caudal (ej. con "
+                                         "acumulador), la superficie, o la frecuencia de riego. "
+                                         "Genera una observación citando estos números.")
                 lineas_diseno.append(linea_ciclo)
             if "tiempo_total_dia_hr" in diseno:
                 if "dias_necesarios" in diseno:
@@ -3651,11 +3651,11 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                          f"gráficos (ej. descenso/recuperación de una prueba de bombeo) — nunca "
                          f"midas a escala ni estimes a ojo.")
         if ids_con_tiles:
-            nota_imagenes += (f"\nOJO con los PLANOS/MAPAS: cada página viene como una vista "
-                              f"completa MÁS 4 cuadrantes AMPLIADOS de esa MISMA página (para "
-                              f"leer cotas, diámetros y textos chicos) — los cuadrantes NO son "
-                              f"páginas ni láminas distintas, no dupliques conteos ni "
-                              f"superficies.")
+            nota_imagenes += ("\nOJO con los PLANOS/MAPAS: cada página viene como una vista "
+                              "completa MÁS 4 cuadrantes AMPLIADOS de esa MISMA página (para "
+                              "leer cotas, diámetros y textos chicos) — los cuadrantes NO son "
+                              "páginas ni láminas distintas, no dupliques conteos ni "
+                              "superficies.")
 
     # bloque_enfasis ya se armó más arriba (junto con bloque_feedback, antes de system_con_cache)
     # y quedó en "" si su contenido se movió al bloque cacheado — no se reconstruye acá.
@@ -3682,21 +3682,21 @@ async def _analizar_grupo(nombre: str, checklist: str, docs_grupo: list, documen
                   for o in observaciones_previas[:tope_lista]]
         if es_coherencia:
             cierre = (
-                f"\n\nTu tarea acá es EXCLUSIVAMENTE detectar lo que SOLO se ve mirando el "
-                f"expediente COMPLETO: si la idea del proyecto, su forma de operar y su lógica de "
-                f"diseño y construcción son coherentes y viables en conjunto. NO vuelvas a señalar "
-                f"algo de la lista de arriba aunque lo veas de nuevo en los documentos, aunque lo "
-                f"redactes distinto. Si no encuentras una incoherencia genuinamente NUEVA (no "
-                f"cubierta arriba), no fuerces una observación — la ausencia de hallazgos nuevos "
-                f"es un resultado válido.")
+                "\n\nTu tarea acá es EXCLUSIVAMENTE detectar lo que SOLO se ve mirando el "
+                "expediente COMPLETO: si la idea del proyecto, su forma de operar y su lógica de "
+                "diseño y construcción son coherentes y viables en conjunto. NO vuelvas a señalar "
+                "algo de la lista de arriba aunque lo veas de nuevo en los documentos, aunque lo "
+                "redactes distinto. Si no encuentras una incoherencia genuinamente NUEVA (no "
+                "cubierta arriba), no fuerces una observación — la ausencia de hallazgos nuevos "
+                "es un resultado válido.")
         else:
             cierre = (
-                f"\n\nNO vuelvas a señalar nada de esa lista, aunque lo veas otra vez en los "
-                f"documentos de este ítem y aunque lo redactes distinto: ya está registrado y el "
-                f"consultor lo va a corregir desde el ítem donde quedó. Sí puedes observar un "
-                f"problema DISTINTO sobre el mismo elemento, si le corresponde a este ítem según "
-                f"su checklist. No fuerces observaciones para llenar: quedarte con pocas (o "
-                f"ninguna) porque lo demás ya está cubierto es un resultado correcto.")
+                "\n\nNO vuelvas a señalar nada de esa lista, aunque lo veas otra vez en los "
+                "documentos de este ítem y aunque lo redactes distinto: ya está registrado y el "
+                "consultor lo va a corregir desde el ítem donde quedó. Sí puedes observar un "
+                "problema DISTINTO sobre el mismo elemento, si le corresponde a este ítem según "
+                "su checklist. No fuerces observaciones para llenar: quedarte con pocas (o "
+                "ninguna) porque lo demás ya está cubierto es un resultado correcto.")
         bloque_obs_previas = (
             f"\n\n{'═'*60}\nOBSERVACIONES YA REGISTRADAS EN OTROS ÍTEMS DE ESTE MISMO EXPEDIENTE "
             f"(NO LAS REPITAS — cada una ya se gestiona en su propio ítem)\n{'═'*60}\n"

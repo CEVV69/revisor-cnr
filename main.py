@@ -17,6 +17,10 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+from markupsafe import Markup
+import html as html_lib
+import time
 from fastapi.templating import Jinja2Templates
 import uvicorn
 from dotenv import load_dotenv
@@ -422,6 +426,48 @@ app = FastAPI(title="Revisor CNR")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+
+class _Compresion:
+    """GZip para las páginas (HTML de 50-200 KB que bajan 4-5 veces), excepto la descarga de
+    documentos: PDF/Excel ya vienen comprimidos y recomprimir varios MB en el event loop solo
+    gasta CPU."""
+    def __init__(self, app_asgi):
+        self.app = app_asgi
+        self.gzip = GZipMiddleware(app_asgi, minimum_size=1000, compresslevel=6)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and "/documento/" in scope.get("path", ""):
+            await self.app(scope, receive, send)
+        else:
+            await self.gzip(scope, receive, send)
+
+
+app.add_middleware(_Compresion)
+
+
+_MAX_REQUEST_BYTES = 1024 * 1024 * 1024  # 1 GB: holgado para un expediente completo en ZIP
+
+
+@app.middleware("http")
+async def _cabeceras_seguridad(request: Request, call_next):
+    largo = request.headers.get("content-length", "")
+    if largo.isdigit() and int(largo) > _MAX_REQUEST_BYTES:
+        return Response("Archivo demasiado grande (máximo 1 GB por envío).", status_code=413)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    return response
+
+
+def _content_disposition(tipo: str, nombre: str) -> str:
+    """Header Content-Disposition válido para cualquier nombre de archivo. Antes iba el nombre
+    original tal cual: un carácter fuera de latin-1 (ej. "–" o comillas tipográficas, comunes
+    en nombres de Windows) daba error 500 al descargar, y una comilla doble rompía el header."""
+    ascii_nombre = (unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode()
+                    .replace('"', "").replace("\\", "").replace("\r", "").replace("\n", "")) or "archivo"
+    return f"{tipo}; filename=\"{ascii_nombre}\"; filename*=UTF-8''{quote(nombre)}"
+
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -489,6 +535,10 @@ templates.env.filters["clp"] = _fmt_clp
 # fue justamente una copia desalineada de este criterio la que dejó a Microaspersión sin
 # verificación agronómica durante meses.
 templates.env.globals["SISTEMAS_ALTA_FRECUENCIA"] = SISTEMAS_ALTA_FRECUENCIA
+# json.dumps directo y no `|tojson`: tojson ordena las claves alfabéticamente, y el orden de
+# este dict (de arenoso a arcilloso) es el orden del selector de textura en calculos.html.
+templates.env.globals["SUELO_DEFAULT_POR_TEXTURA_JSON"] = Markup(
+    json.dumps(calculos_riego.SUELO_DEFAULT_POR_TEXTURA))
 
 
 # ── Contador de costo de la API por proyecto ────────────────────────────────────
@@ -701,7 +751,7 @@ def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
 async def startup_event():
     from database import DATABASE_URL, db
     if DATABASE_URL:
-        print(f"🐘 Modo: PostgreSQL (persistencia garantizada)")
+        print("🐘 Modo: PostgreSQL (persistencia garantizada)")
         try:
             from database import _get_pg
             _get_pg()
@@ -789,19 +839,53 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 
+# Intentos fallidos de login por (IP, usuario) — en memoria del proceso, se reinicia en cada
+# deploy (suficiente para frenar fuerza bruta; no es un registro de auditoría).
+_LOGIN_FALLIDOS: dict = {}
+_LOGIN_MAX_FALLIDOS = 8
+_LOGIN_VENTANA_S = 15 * 60
+
+
+def _ip_cliente(request: Request) -> str:
+    # Detrás del proxy de Railway request.client es siempre el proxy.
+    reenviada = request.headers.get("x-forwarded-for", "")
+    return reenviada.split(",")[0].strip() or (request.client.host if request.client else "")
+
+
+def _set_cookie_sesion(request: Request, response, token: str):
+    https = (request.headers.get("x-forwarded-proto", request.url.scheme) == "https")
+    response.set_cookie("session", token, httponly=True, max_age=28800,  # 8 horas
+                        samesite="lax", secure=https)
+
+
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    clave_intentos = (_ip_cliente(request), username.strip().lower())
+    ahora = time.monotonic()
+    recientes = [t for t in _LOGIN_FALLIDOS.get(clave_intentos, []) if ahora - t < _LOGIN_VENTANA_S]
+    if len(recientes) >= _LOGIN_MAX_FALLIDOS:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo."
+        }, status_code=429)
+
     user = db.get_user(username)
     # bcrypt es deliberadamente lento (~100-300ms) — sin to_thread bloquea el event loop
     # entero (toda la app) durante ese rato en cada login.
     if not user or not await asyncio.to_thread(verify_password, password, user["password_hash"]):
+        recientes.append(ahora)
+        _LOGIN_FALLIDOS[clave_intentos] = recientes
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Usuario o contraseña incorrectos"
         })
+    _LOGIN_FALLIDOS.pop(clave_intentos, None)
     token = create_token({"username": username, "nombre": user["nombre"], "rol": user["rol"]})
-    response = RedirectResponse(url="/", status_code=302)
-    response.set_cookie("session", token, httponly=True, max_age=28800)  # 8 horas
+    # La contraseña inicial del admin está escrita en este código (repositorio público):
+    # mientras siga siendo esa, se manda directo a cambiarla.
+    destino = "/mi-cuenta?aviso=clave_inicial" if password == "admin123" else "/"
+    response = RedirectResponse(url=destino, status_code=302)
+    _set_cookie_sesion(request, response, token)
     return response
 
 
@@ -863,7 +947,7 @@ async def resumen_proyectos_excel(request: Request):
     return Response(
         content=contenido,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'})
+        headers={"Content-Disposition": _content_disposition("attachment", nombre_archivo)})
 
 
 # ─── Proyectos ────────────────────────────────────────────────────────────────
@@ -1211,7 +1295,7 @@ async def subir_documento(
     content = await archivo.read()
     with open(filepath, "wb") as f:
         f.write(content)
-    db.guardar_archivo(proyecto_id, doc_id, filename, content)
+    await asyncio.to_thread(db.guardar_archivo, proyecto_id, doc_id, filename, content)
 
     # Extraer texto (en un thread aparte — PyMuPDF/openpyxl bloquean y un PDF grande
     # congelaría el resto de la app mientras se procesa)
@@ -2803,7 +2887,7 @@ async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
     codigo = (proyecto.get("codigo_sep", "") or "").replace("/", "-").replace(" ", "")
     filename = f"DR_{codigo}.json"
     return Response(content=contenido, media_type="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+                    headers={"Content-Disposition": _content_disposition("attachment", filename)})
 
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-disenador/{idx}")
@@ -2853,7 +2937,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
                  .encode("ascii", "ignore").decode("ascii"))
     filename = f"DR_{sis_ascii}_{codigo}.json".replace(" ", "_")
     return Response(content=contenido, media_type="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+                    headers={"Content-Disposition": _content_disposition("attachment", filename)})
 
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-revisor-fv")
@@ -2935,7 +3019,7 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     codigo = (proyecto.get("codigo_sep", "") or "").replace("/", "-").replace(" ", "")
     filename = f"FV_{codigo}.json" if codigo else "FV_proyecto.json"
     return Response(content=contenido, media_type="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+                    headers={"Content-Disposition": _content_disposition("attachment", filename)})
 
 
 @app.post("/proyecto/{proyecto_id}/calculos/agronomico/extraer")
@@ -3145,7 +3229,7 @@ async def subir_zip(
         textos_nuevos[doc_id] = arch["texto_extraido"]
         archivo_extraido = UPLOAD_DIR / proyecto_id / arch["filename"]
         if archivo_extraido.exists():
-            db.guardar_archivo(proyecto_id, doc_id, arch["filename"], archivo_extraido.read_bytes())
+            await asyncio.to_thread(db.guardar_archivo, proyecto_id, doc_id, arch["filename"], archivo_extraido.read_bytes())
 
     # Eliminar ZIP temporal
     zip_path.unlink(missing_ok=True)
@@ -3190,7 +3274,7 @@ async def subir_multiple(
         content = await archivo.read()
         with open(filepath, "wb") as f:
             f.write(content)
-        db.guardar_archivo(proyecto_id, doc_id, filename, content)
+        await asyncio.to_thread(db.guardar_archivo, proyecto_id, doc_id, filename, content)
 
         tipo_doc, label = detectar_anexo(nombre)
         texto = await asyncio.to_thread(extract_text, str(filepath), ext)
@@ -3390,36 +3474,39 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
     if not filepath.exists():
         # No está en disco (se pierde entre deploys en Railway) — probar la copia guardada
         # en PostgreSQL antes de resignarse a mostrar solo el texto extraído.
-        contenido = db.obtener_archivo(proyecto_id, doc_id)
+        contenido = await asyncio.to_thread(db.obtener_archivo, proyecto_id, doc_id)
         if contenido:
             return Response(
                 content=contenido,
                 media_type=media_type,
-                headers={"Content-Disposition": f'{disposition}; filename="{doc["nombre_original"]}"'}
+                headers={"Content-Disposition": _content_disposition(disposition, doc["nombre_original"])}
             )
         textos = await asyncio.to_thread(db.get_textos_proyecto, proyecto_id)
         texto = textos.get(doc_id, "")
         if texto == "__PDF_ESCANEADO__":
             texto = "(Documento escaneado — sin texto extraíble)"
+        # Nombre y texto vienen de archivos del consultor: escapados, o un documento con
+        # "<script>" en su texto se ejecutaría en la sesión del revisor.
+        nombre_html = html_lib.escape(doc["nombre_original"])
+        texto_html = html_lib.escape(texto[:50000]) if texto else "(Sin texto extraído)"
         html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>{doc['nombre_original']}</title>
+<title>{nombre_html}</title>
 <style>body{{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1d1d1f}}
 .aviso{{background:#fff8e6;border:1px solid #f6d860;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:0.9rem}}
 h1{{font-size:1.1rem;margin-bottom:0.3rem}}pre{{white-space:pre-wrap;font-size:0.85rem;line-height:1.6;background:#f5f5f7;padding:1rem;border-radius:8px}}</style>
 </head><body>
-<h1>{doc['nombre_original']}</h1>
+<h1>{nombre_html}</h1>
 <div class="aviso">El archivo original no está disponible en el servidor.
 Se muestra el texto extraído que sí está guardado en la base de datos.
 Para ver el archivo original, vuelve a subirlo al proyecto.</div>
-<pre>{texto[:50000] if texto else '(Sin texto extraído)'}</pre>
+<pre>{texto_html}</pre>
 </body></html>"""
         return HTMLResponse(content=html, status_code=200)
 
     return FileResponse(
         path=str(filepath),
         media_type=media_type,
-        filename=doc["nombre_original"],
-        headers={"Content-Disposition": f'{disposition}; filename="{doc["nombre_original"]}"'}
+        headers={"Content-Disposition": _content_disposition(disposition, doc["nombre_original"])}
     )
 
 
@@ -4458,7 +4545,7 @@ async def adjuntar_respaldo_subsanacion(
         content = await archivo.read()
         with open(filepath, "wb") as f:
             f.write(content)
-        db.guardar_archivo(proyecto_id, doc_id, filename, content)
+        await asyncio.to_thread(db.guardar_archivo, proyecto_id, doc_id, filename, content)
         texto = await asyncio.to_thread(extract_text, str(filepath), ext)
         texto_guardado = truncar_texto_guardado(texto)
         label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc)
@@ -4740,7 +4827,7 @@ async def subir_documento_modificacion(
     content = await archivo.read()
     with open(filepath, "wb") as f:
         f.write(content)
-    db.guardar_archivo(mod_id, doc_id, filename, content)
+    await asyncio.to_thread(db.guardar_archivo, mod_id, doc_id, filename, content)
 
     texto = await asyncio.to_thread(extract_text, str(filepath), ext)
     texto_guardado = truncar_texto_guardado(texto)
@@ -5882,7 +5969,9 @@ async def mi_cuenta_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("mi_cuenta.html", {"request": request, "user": user})
+    return templates.TemplateResponse("mi_cuenta.html", {
+        "request": request, "user": user,
+        "aviso_clave_inicial": request.query_params.get("aviso") == "clave_inicial"})
 
 
 @app.post("/mi-cuenta", response_class=HTMLResponse)
@@ -5908,6 +5997,8 @@ async def cambiar_password(
         return _render("Las contraseñas nuevas no coinciden.")
     if len(password_nuevo) < 6:
         return _render("La contraseña debe tener al menos 6 caracteres.")
+    if password_nuevo == "admin123":
+        return _render("Esa es la contraseña inicial pública — elige otra.")
     db.update_password(user["username"], password_nuevo)
     return _render(ok=True)
 
@@ -5935,7 +6026,7 @@ async def cambiar_nombre(request: Request, nombre_nuevo: str = Form(...)):
     user_actualizado = {**user, "nombre": nombre_nuevo}
     token = create_token({"username": user["username"], "nombre": nombre_nuevo, "rol": user["rol"]})
     response = _render(ok=True, user_actual=user_actualizado)
-    response.set_cookie("session", token, httponly=True, max_age=28800)
+    _set_cookie_sesion(request, response, token)
     return response
 
 

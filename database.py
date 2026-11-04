@@ -236,6 +236,17 @@ class Database:
         else:
             _json_save(filepath, data)
 
+    # ── Clave de firma de sesiones (ver auth._clave) ─────────────────────────
+
+    def obtener_o_crear_clave_sesion(self) -> str:
+        datos = self._load("meta_clave_sesion", DATA_DIR / "clave_sesion.json")
+        if not datos.get("clave"):
+            import secrets
+            self._save("meta_clave_sesion", DATA_DIR / "clave_sesion.json",
+                       {"clave": secrets.token_urlsafe(48)})
+            datos = self._load("meta_clave_sesion", DATA_DIR / "clave_sesion.json")
+        return datos["clave"]
+
     # ── Usuarios ──────────────────────────────────────────────────────────────
 
     def get_user(self, username: str) -> dict:
@@ -475,17 +486,6 @@ class Database:
             # (None — main.py lo usa para ofrecer crearlo) de "existe pero vacío".
             return _pg_load(f"concurso:{concurso_id}") or None
         return _json_load(CONCURSOS_FILE).get(concurso_id)
-
-    def get_concurso_campos(self, concurso_id: str, campos: list) -> dict:
-        """Como get_concurso(), pero trae SOLO los `campos` pedidos. Para la carga de página de
-        un proyecto, que solo necesita saber si el concurso tiene bases y cuáles son sus
-        documentos obligatorios — no los 85.000 caracteres del texto de las bases ni su historial
-        de feedback. `campos` son nombres FIJOS del código, nunca datos de un request (ver la
-        advertencia de _pg_load_prefix_campos). Devuelve None si el concurso no existe."""
-        if not self._use_pg:
-            c = _json_load(CONCURSOS_FILE).get(concurso_id)
-            return {k: c.get(k) for k in campos} if c else None
-        return _pg_load_campos(f"concurso:{concurso_id}", campos)
 
     @_reintenta_si_cae
     def resumen_concurso(self, concurso_id: str) -> dict:
