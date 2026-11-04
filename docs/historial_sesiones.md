@@ -6817,3 +6817,27 @@ mejoras aplican igual en Safari, Chrome y Firefox (las del servidor no dependen 
 del blur se midió en Chromium y beneficia a todos, más aún a Safari). Pendiente: que la pruebe en
 la app y que haga privado el repo. Agregada la regla 13 en CLAUDE.md (`CAMPOS_LISTADO` y no
 reponer `backdrop-filter` en elementos repetidos).
+
+## Revisión Ítem SEP: la sección de ítems también cerrada por defecto (nov-2026)
+
+Pedido del usuario: "En la pestaña de Revisión ítem SEP, puedes poner la sección de los ítems
+también desplegable y por defecto que esté cerrada?" — la grilla de 19 tarjetas ("Revisión por
+ítems del SEP") era la única sección de esa pestaña que seguía como `<div class="card">` fija;
+"Agregar observación manual"/"Evaluación del Consultor"/"Debatir con la IA" ya se habían
+convertido a `<details>` cerrados la sesión anterior.
+
+**Cambio en `proyecto.html`:** el `<div class="card">` que envuelve la grilla pasa a
+`<details class="card">`, con el `<h2>` + aclaración convertidos en `<summary>` (mismo tamaño de
+fuente que el resto de los títulos, 0.95rem/600 — no se reintroduce el problema de letras
+grandes de una ronda anterior). Se abre sola si `hay_item_activo`: `item_ok` (recién se actuó
+sobre un ítem), **o** `lote` (hay una revisión en tanda corriendo), **o** algún ítem con
+`en_progreso` (analizándose) — sin estos, el revisor decide. Los dos últimos criterios son
+nuevos acá: sin ellos, abrir el ítem al terminar un análisis individual (`item_ok`) bastaba, pero
+una revisión en tanda o un análisis recién lanzado hubieran quedado invisibles detrás de la
+sección cerrada, con el spinner/contador actualizándose sin que nadie lo viera.
+
+### Validación
+Render vía `TestClient`: sin nada en curso, `<details class="card" >` sin `open`; con `item_ok`,
+con un ítem `en_progreso`, y con `revision_lote.activo`, los tres casos salen con `open`. Suite
+`test_menu_estado_glass.py` y `test_details_cerrados.py` (de la pasada anterior, Modificaciones)
+siguen pasando. Barrido de las 7 páginas principales del proyecto, todas 200.

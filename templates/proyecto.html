@@ -630,11 +630,15 @@ function actualizarEtiqueta(input) {
 <!-- ══════════ PÁGINA: REVISIÓN POR ÍTEMS SEP ══════════ -->
 {% if pagina == 'items' %}
 {% if items_info %}
-<div class="card">
-  <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem;">
-    <h2 style="margin:0; border:none; padding:0;">Revisión por ítems del SEP</h2>
-    <span style="font-size:0.8rem; color:var(--text-2);">Cada ítem revisa su documento tal como se ingresa al Sistema Electrónico de Postulación</span>
-  </div>
+{# Cerrada por defecto (pedido del usuario, nov-2026) — se abre sola si hay algo en curso que
+   mostrar: un ítem recién trabajado (item_ok, mismo criterio que Observaciones/Notas más abajo),
+   un ítem analizándose, o una revisión en tanda activa. Sin nada de eso, el revisor decide. #}
+{% set hay_item_activo = item_ok or lote or (items_info|selectattr('en_progreso')|list) %}
+<details class="card" {% if hay_item_activo %}open{% endif %}>
+  <summary style="cursor:pointer; display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.4rem; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text);">
+    Revisión por ítems del SEP
+    <span style="font-size:0.8rem; font-weight:400; color:var(--text-2);">Cada ítem revisa su documento tal como se ingresa al Sistema Electrónico de Postulación</span>
+  </summary>
   {% if item_sin_docs %}
   <div class="alert alert-error" style="margin:0.5rem 0;">Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.</div>
   {% endif %}
@@ -817,7 +821,7 @@ function actualizarEtiqueta(input) {
       {% endif %}
     })();
   </script>
-</div>
+</details>
 {% endif %}
 
 {# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok, del redirect tras
