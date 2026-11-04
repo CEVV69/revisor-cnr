@@ -761,6 +761,7 @@ async def startup_event():
             # vuelve a guardar: si corriera con el blob legacy todavía sin migrar, escribiría
             # las claves nuevas y la migración posterior las pisaría con la versión vieja.
             db.migrar_concursos()
+            db.sincronizar_listado_proyectos()
         except Exception as e:
             print(f"❌ Error PostgreSQL: {e}")
     else:

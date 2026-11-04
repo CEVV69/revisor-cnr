@@ -152,6 +152,92 @@ def _pg_save(key: str, data: dict):
         """, (key, json.dumps(data, ensure_ascii=False)))
 
 
+# ── Registro liviano por proyecto (nov-2026) ───────────────────────────────────
+# `storage.value` es TEXT: para sacar 10 campos de un proyecto, Postgres tenía que convertir a
+# jsonb el JSON COMPLETO (observaciones, rondas de respuesta… 1+ MB en un proyecto grande). El
+# dashboard lo hacía con TODOS los proyectos en cada carga (62 ms con 26 proyectos y uno solo
+# grande — crece con cada proyecto). Junto a "proyecto:{id}" se guarda "plista:{id}" con solo
+# estos campos, en la MISMA sentencia (nunca quedan a medias). Al leer, si "plista" falta o es
+# más vieja que el proyecto (ej. la escribió la versión anterior durante un deploy), se usa el
+# proyecto completo: nunca devuelve datos viejos. Los campos son la unión de lo que piden
+# get_proyectos_ligero/get_proyecto_campos en main.py — si se pide uno que no está, se lee el
+# proyecto completo (correcto, solo más lento).
+CAMPOS_LISTADO = ("id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion",
+                  "fecha_estado", "revisor", "resumen", "costo_api", "tipo", "tipo_modificacion",
+                  "items_en_progreso", "items_error", "items_revisados", "revision_lote")
+
+
+def _registro_listado(proyecto: dict) -> dict:
+    return {k: proyecto.get(k) for k in CAMPOS_LISTADO}
+
+
+def _sql_objeto(campos) -> str:
+    # `campos` son nombres FIJOS del código (CAMPOS_LISTADO o los que pide main.py), nunca input.
+    return ", ".join(f"'{c}', v -> '{c}'" for c in campos)
+
+
+# "v" = el registro liviano si está al día, si no el proyecto completo (CASE no evalúa la rama
+# que no usa: con "plista" al día, el JSON grande ni se lee).
+_SQL_V_LISTADO = """
+    CASE WHEN l.updated_at >= p.updated_at THEN l.value::jsonb ELSE p.value::jsonb END AS v
+    FROM storage p LEFT JOIN storage l ON l.key = 'plista:' || substr(p.key, 10)"""
+
+
+@_reintenta_si_cae
+def _pg_save_proyecto(proyecto: dict):
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO storage (key, value, updated_at)
+            VALUES (%s, %s, NOW()), (%s, %s, NOW())
+            ON CONFLICT (key) DO UPDATE
+                SET value = EXCLUDED.value, updated_at = NOW()
+        """, (f"proyecto:{proyecto['id']}", json.dumps(proyecto, ensure_ascii=False),
+              f"plista:{proyecto['id']}", json.dumps(_registro_listado(proyecto), ensure_ascii=False)))
+
+
+@_reintenta_si_cae
+def _pg_listado_proyectos(campos: list) -> list:
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT jsonb_build_object({_sql_objeto(campos)})
+            FROM (SELECT {_SQL_V_LISTADO} WHERE p.key LIKE %s) t
+        """, ("proyecto:%",))
+        return [r[0] for r in cur.fetchall()]
+
+
+@_reintenta_si_cae
+def _pg_listado_un_proyecto(proyecto_id: str, campos: list):
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT jsonb_build_object({_sql_objeto(campos)})
+            FROM (SELECT {_SQL_V_LISTADO} WHERE p.key = %s) t
+        """, (f"proyecto:{proyecto_id}",))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+@_reintenta_si_cae
+def _pg_sincronizar_listado() -> int:
+    """Crea/actualiza "plista" de los proyectos que no la tienen o la tienen vieja (primer
+    arranque tras este cambio, o escrituras de la versión anterior). Una sola sentencia; solo
+    convierte el JSON de los proyectos desactualizados."""
+    conn = _get_pg()
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            INSERT INTO storage (key, value, updated_at)
+            SELECT 'plista:' || substr(t.key, 10), jsonb_build_object({_sql_objeto(CAMPOS_LISTADO)})::text, NOW()
+            FROM (SELECT p.key, p.value::jsonb AS v
+                  FROM storage p LEFT JOIN storage l ON l.key = 'plista:' || substr(p.key, 10)
+                  WHERE p.key LIKE %s
+                    AND (l.key IS NULL OR l.updated_at < p.updated_at)) t
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+        """, ("proyecto:%",))
+        return cur.rowcount
+
+
 @_reintenta_si_cae
 def _pg_load_prefix(prefix: str) -> list:
     """Carga todos los values cuyo key empieza con `prefix` (una sola query)."""
@@ -322,7 +408,8 @@ class Database:
         _pg_load_prefix_campos); en modo JSON local no vale la pena optimizar (disco local,
         datos chicos), se recorta igual para que el shape de retorno sea consistente."""
         if self._use_pg:
-            all_p = _pg_load_prefix_campos("proyecto:", campos)
+            all_p = (_pg_listado_proyectos(campos) if set(campos) <= set(CAMPOS_LISTADO)
+                     else _pg_load_prefix_campos("proyecto:", campos))
         else:
             all_p = [{k: p.get(k) for k in campos}
                      for p in _json_load(PROYECTOS_FILE).values()]
@@ -350,11 +437,19 @@ class Database:
         if not self._use_pg:
             p = _json_load(PROYECTOS_FILE).get(proyecto_id)
             return {k: p.get(k) for k in campos} if p else None
+        if set(campos) <= set(CAMPOS_LISTADO):
+            return _pg_listado_un_proyecto(proyecto_id, campos)
         return _pg_load_campos(f"proyecto:{proyecto_id}", campos)
+
+    def sincronizar_listado_proyectos(self):
+        if self._use_pg:
+            n = _pg_sincronizar_listado()
+            if n:
+                print(f"✅ Registro liviano de listado actualizado para {n} proyecto(s)")
 
     def save_proyecto(self, proyecto: dict):
         if self._use_pg:
-            _pg_save(f"proyecto:{proyecto['id']}", proyecto)
+            _pg_save_proyecto(proyecto)
             return
         proyectos = _json_load(PROYECTOS_FILE)
         proyectos[proyecto["id"]] = proyecto
@@ -363,6 +458,7 @@ class Database:
     def delete_proyecto(self, proyecto_id: str):
         if self._use_pg:
             _pg_delete(f"proyecto:{proyecto_id}")
+            _pg_delete(f"plista:{proyecto_id}")
             _pg_delete(f"textos:{proyecto_id}")
             return
         proyectos = _json_load(PROYECTOS_FILE)

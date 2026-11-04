@@ -6770,3 +6770,44 @@ fallos sin afectar otra IP, nombre con apóstrofe/comillas/`<script>`/"–" (dat
 descarga 200 con `filename*`), texto del documento escapado, gzip en HTML y no en PDF, cabeceras,
 413, ZIP con `../` sin escribir afuera, tabla de suelos en el orden original. Más barrido de 40
 rutas GET (todas 200/302/307 esperados) y la suite previa `test_menu_estado_glass.py`.
+
+## Velocidad — 2ª parte: medición real y dos cuellos de botella (nov-2026)
+
+Pedido: "Sobre la velocidad de la app, no hay nada que mejorar?… la he notado más lenta". En vez
+de suponer, se midió: PostgreSQL 16 local (mismo código y mismo modo que producción) con un
+proyecto grande realista (40 documentos, 180 observaciones con 2 rondas de respuesta, chats; 1,1
+MB de JSON) + 25-59 proyectos, y Chromium real vía Playwright.
+
+**Lo que NO era el problema:** el servidor responde cada página en 10-40 ms con solo 1-3
+consultas SQL; el ajuste de altura de textareas era ~20 ms (se optimizó igual, ver abajo).
+
+**Cuello 1 — efecto vidrio (la causa de "más lenta que antes").** `backdrop-filter: blur()` en
+cada `.card`, `.proj-nav` y `.proj-tab.activa` (rediseño Liquid Glass). Medido en scroll: Ítems
+50,7 ms/cuadro (~20 fps, 113/115 cuadros lentos) vs 17,2 sin blur; Documentos 31 vs 16,7;
+mover el mouse 1,6-3× más caro. Como las cards son casi opacas (88-97%) y detrás solo hay el
+fondo plano de la página, el blur no aportaba nada visible: diff de capturas actual vs sin blur =
+≤0,01% de píxeles distintos. Se quitó de `.card`, `.proj-nav` y `.proj-tab.activa`; queda en la
+nav superior fija y en los menús desplegables (ahí sí hay contenido detrás). El brillo que sigue
+al cursor (lo que el usuario valoró) no se tocó. Resultado: Ítems 18,3 ms/cuadro.
+
+**Cuello 2 — listados que convertían el JSON completo de cada proyecto.** `storage.value` es
+TEXT: para sacar ~10 campos, Postgres convertía a jsonb el proyecto ENTERO, de todos los
+proyectos, en cada carga del Inicio (322 ms con 59 proyectos, 30 grandes — crece con cada
+proyecto). Fix en `database.py`: registro liviano `plista:{id}` con `CAMPOS_LISTADO` (unión de lo
+que piden `get_proyectos_ligero`/`get_proyecto_campos` en main.py), escrito en la MISMA sentencia
+que `proyecto:{id}` (`_pg_save_proyecto`, INSERT de 2 filas). Al leer (`_SQL_V_LISTADO`), si
+`plista` falta o tiene `updated_at` menor que el proyecto (ej. la versión anterior escribió
+durante un deploy), se usa el proyecto completo → nunca datos viejos. `sincronizar_listado_proyectos()`
+al arrancar crea/repara solo los desactualizados. `delete_proyecto` borra también `plista`. Si se
+pide un campo fuera de `CAMPOS_LISTADO`, cae al método anterior (correcto, más lento): **al agregar
+un campo a un listado nuevo, sumarlo a `CAMPOS_LISTADO`**. Resultado: Inicio 322→3,7 ms; polling
+de estado 1,4→0,3 ms; guardar un proyecto grande sigue en ~12 ms.
+
+**Menor:** el ajuste de altura de textareas al cargar (`proyecto.html`, `modificacion.html`) pasa
+a "todas las escrituras → una medición → todas las escrituras" (23→10 ms con 184 textareas).
+
+### Validación
+`test_listado.py` (12 comprobaciones contra PG real: resultados idénticos al método anterior en
+listado, dashboard y polling; escritura de la versión anterior visible al instante; sincronización
+repara solo lo viejo; borrado limpia `plista`), `test_seguridad.py` (26) y
+`test_menu_estado_glass.py` siguen OK; en Chromium: 0 textareas cortados, 0 errores JS.

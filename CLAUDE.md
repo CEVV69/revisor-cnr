@@ -45,6 +45,9 @@ documento, `confirm()` con nombres de archivo (O'Higgins borraba sin confirmar),
 intentos de login, cookie `secure`/`samesite`, gzip, cabeceras, tope de subida y zip bomb.
 **Pendiente del usuario:** hacer privado el repo en GitHub. NO se pasaron en masa las llamadas
 a BD a hilos: sin lock por proyecto arriesga pérdida de datos. Detalle en `docs/historial_sesiones.md`.
+**Velocidad (2ª parte, medida con PG local + Chromium):** registro liviano `plista:{id}` para
+listados (Inicio 322→4 ms con 59 proyectos; cae al proyecto completo si está viejo), sin
+`backdrop-filter` en `.card`/pestañas (scroll Ítems 51→18 ms/cuadro; solo queda en nav y menús).
 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist

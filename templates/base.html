@@ -166,15 +166,14 @@
        vidrio/blur de las rondas anteriores (no se tocan --glass-border/--shadow/.card acá). */
     .container { max-width: 1020px; margin: 1.75rem auto; padding: 0 1.5rem; }
 
-    /* Cards — vidrio esmerilado: superficie translúcida + blur, con el "rim" de 3 capas
-       (receta del skill stormaref/LiquidGlassSkill: un filo claro arriba, una línea fina, un
-       remate tenue abajo) — eso es lo que realmente lee como borde de vidrio pulido, un solo
-       inset no alcanza a notarse. */
+    /* Cards — superficie casi opaca con el "rim" de 3 capas (filo claro arriba, línea fina,
+       remate tenue abajo). SIN backdrop-filter (nov-2026): detrás de una card solo hay el fondo
+       plano de la página, así que el blur no cambiaba nada visible (<0,01% de píxeles, medido)
+       pero era lo más caro de pintar — con él el scroll de Ítems bajaba a ~20 cuadros/s. El
+       blur queda solo donde hay contenido real detrás: nav fija y menús desplegables. */
     .card {
       --mx: 50%; --my: 20%;
       background: var(--glass-sheen);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
       border: 1.5px solid var(--glass-border);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow),
@@ -193,7 +192,8 @@
         var(--glass-sheen);
     }
     .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.85rem; letter-spacing: -0.01em; }
-    /* backdrop-filter en .card crea su propio contexto de apilamiento — un menú desplegable
+    /* (Histórico: cuando .card tenía backdrop-filter, creaba su propio contexto de apilamiento.)
+       Un menú desplegable
        (z-index alto) que vive DENTRO de una .card queda atrapado ahí y no puede superponerse a
        las .card siguientes del documento, aunque su z-index sea mayor (bug reportado en
        Respuestas: el menú de Estado se escondía detrás de las tarjetas de los ítems). La propia
@@ -373,19 +373,14 @@
        estilo iOS: una pista translúcida con una pastilla "flotante" (vidrio, con su propia
        sombra) marcando la pestaña activa, en vez del antiguo subrayado plano. */
     .proj-nav { display:flex; gap:0.2rem; margin:0 0 1.1rem; padding:0.3rem;
-      background: rgba(130,130,140,0.1); backdrop-filter: blur(16px) saturate(160%);
-      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      background: rgba(130,130,140,0.1);
       border: 1px solid var(--border);
       border-radius: calc(var(--r) + 4px); flex-wrap:wrap; }
     .proj-tab { padding:0.5rem 1rem; font-size:0.86rem; font-weight:600; color:var(--text-2);
       text-decoration:none; border-radius: var(--r); white-space:nowrap;
       transition: background .15s, color .15s; }
     .proj-tab:hover { color:var(--text); background:rgba(130,130,140,0.14); }
-    /* El filtro acá (no solo en .proj-nav) es lo que de verdad faltaba: antes .activa solo tenía
-       un fondo semi-opaco plano SIN backdrop-filter propio — por eso se veía la pastilla pero sin
-       textura de vidrio (reportado por el usuario). */
     .proj-tab.activa { --mx: 50%; --my: 30%; color:var(--text); background: var(--glass-sheen-strong);
-      backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
       box-shadow: var(--shadow-sm),
         inset 0 1px 0 var(--glass-rim-top),
         inset 0 0 0 1px var(--glass-rim-hairline),

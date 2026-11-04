@@ -1153,8 +1153,13 @@ function autoExpand(el) {
   el.style.height = (el.scrollHeight + 2) + 'px';
 }
 document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('textarea.auto-expand').forEach(function(t) {
-    autoExpand(t);
+  // Al cargar: todas las escrituras, UNA medición, todas las escrituras. Llamar autoExpand() uno
+  // por uno obligaba a recalcular la página entera por cada textarea (~130 ms con 200 de ellos).
+  var tas = Array.prototype.slice.call(document.querySelectorAll('textarea.auto-expand'));
+  tas.forEach(function(t) { t.style.height = 'auto'; });
+  var altos = tas.map(function(t) { return t.scrollHeight; });
+  tas.forEach(function(t, i) {
+    t.style.height = (altos[i] + 2) + 'px';
     t.addEventListener('input', function() { autoExpand(t); });
   });
 });
