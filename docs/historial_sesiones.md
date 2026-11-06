@@ -6964,3 +6964,40 @@ necesario):
 vía `TestClient`: el menú "Apps" enlaza a `/static/invernadero_diseno_v31.html` (200, 181.258
 bytes), `v30.html` ya no existe (404, esperado). Playwright: la app standalone carga sin errores
 de JS y calcula (zona de viento y velocidad básica se completan solas al cargar).
+
+## Consulta de capacidad: cuántos proyectos "aguanta" la app (nov-2026)
+
+Pregunta del usuario (sin pedir cambios): "hasta cuántos proyectos revisados podría aguantar
+sin entrar en problemas de rendimiento, velocidad o capacidad de almacenamiento", con ~58
+documentos por proyecto (28 en revisión + 30 en respuestas, todas las rondas).
+
+**Método**: PostgreSQL 16 local, cargado con proyectos sintéticos del mismo tamaño/forma real
+(observaciones con rondas de subsanación, 58 documentos, textos extraídos variables) hasta
+15.000 proyectos, midiendo en checkpoints.
+
+**Hallazgo real (no solo espacio en disco): el listado del Dashboard ("/") degrada linealmente
+con el número TOTAL de proyectos**, incluso con el fix `plista:{id}` de la auditoría de
+velocidad de esta misma sesión. Causa: `get_proyectos_ligero()`/`get_proyecto_campos()` hacen
+`WHERE key LIKE 'proyecto:%'` sobre la tabla `storage` (compartida con `textos:`, `plista:`,
+`concurso:`, etc.) — el índice de la PRIMARY KEY (`key`) no sirve para ese patrón con la
+collation default de Postgres, así que cae a un *sequential scan* de TODA la tabla cada vez.
+Medido: 50 proy. → 22 ms; 500 → 135 ms; 1.000 → 284 ms; 2.000 → 538 ms; 4.000 → 1.106 ms; 8.000
+→ 2.283 ms. Las operaciones por UN proyecto (abrir, guardar, *polling* de un análisis) NO se ven
+afectadas — se midieron planas en 0,2-0,5 ms sin importar cuántos proyectos haya en total (son
+lookups directos por clave primaria, sí usan el índice).
+
+**No se tocó código** (consulta informativa, no pedido de cambio) — si en algún momento el
+Dashboard se siente lento, el fix es un índice adicional con `text_pattern_ops` sobre `key`, o
+separar `storage` en tablas por tipo de entidad.
+
+**Almacenamiento de archivos**: la tabla `archivos` (BYTEA) no se infla por el número de
+*proyectos en el listado* (no pasa por el mismo query), así que no comparte el cuello de botella
+anterior — ahí el techo real es el tamaño del volumen de Postgres que tenga contratado en
+Railway (no verificable desde el código). Estimado con una muestra sintética: BYTEA de
+contenido aleatorio ocupa en Postgres prácticamente 1:1 respecto del tamaño bruto (sin
+compresión TOAST real, porque el contenido aleatorio no comprime) — un PDF real de texto
+comprime algo mejor, así que esto es una estimación conservadora (por el lado alto).
+
+**Respuesta dada al usuario**: aproximada, sin perseguir el número exacto (pidió no hacerlo) —
+el límite probable es el almacenamiento de archivos antes que la velocidad, y depende del plan
+de Postgres en Railway, que el usuario puede ver directo en su panel.
