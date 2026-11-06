@@ -39,9 +39,8 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Auditoría de seguridad + velocidad (nov-2026) — CERRADA.** Clave JWT fuera del código, XSS,
-gzip, `plista:{id}`, sin blur en cards. Sin lock por proyecto NO pasar en masa la BD a hilos.
-**Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en `docs/historial_sesiones.md`.
+**Auditoría de seguridad + velocidad — CERRADA.** Sin lock por proyecto NO pasar en masa la BD
+a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en `docs/historial_sesiones.md`.
 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
@@ -54,10 +53,15 @@ Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
 observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
 
-**Diseño de Invernadero → v31 (nov-2026):** cambio de norma de viento, `NCh432.Of2010` (Método 1
-simplificado) → `NCh432:2025` (Anexo A completo: Kzt/Kd/I/exposición/GCp por área tributaria).
-`normativa/Invernaderos_Criterios.txt` actualizado a juego — de paso corregido un error
-preexistente que tenía NCh431/NCh432 invertidos (NCh431 es nieve, NCh432 es viento).
+**Diseño de Invernadero → v31 (nov-2026, CERRADO):** cambio de norma de viento a `NCh432:2025`,
+`normativa/Invernaderos_Criterios.txt` actualizado a juego (de paso corregido un error
+preexistente: tenía NCh431/NCh432 invertidos).
+
+**Capacidad real (nov-2026):** Railway Postgres plan Hobby, volumen **5 GB**. Producción real:
+46 proyectos, ~20 MB/proyecto promedio (confirmado con datos reales, no estimado) → margen de
+~200 proyectos más. "Dar por terminado" un concurso borra solo `archivos` (no observaciones ni
+texto) — usar siempre el botón de la app para borrar, nunca `DELETE` SQL manual (deja archivos
+huérfanos). Detalle en `docs/historial_sesiones.md`.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

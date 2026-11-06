@@ -7001,3 +7001,27 @@ comprime algo mejor, así que esto es una estimación conservadora (por el lado 
 **Respuesta dada al usuario**: aproximada, sin perseguir el número exacto (pidió no hacerlo) —
 el límite probable es el almacenamiento de archivos antes que la velocidad, y depende del plan
 de Postgres en Railway, que el usuario puede ver directo en su panel.
+
+**Datos reales de producción (mismo día, el usuario corrió las consultas en la consola SQL de
+Railway)**: plan Hobby, volumen de **5 GB**. 46 proyectos reales en total — 44 del concurso
+202-2026 (el que usa de verdad) + 2 Modificaciones de prueba (ver v1.18 en "Estado actual"),
+del concurso 202-2024 (nunca creado en `/admin/concursos`, sin bases — no es un error, solo no
+se ha configurado todavía). `archivos` (tabla completa): 934 MB. `storage` (todos los
+proyectos): 6 MB. Base total: 948 MB (~19% de los 5 GB). La tarjeta de "Dar por terminado" del
+concurso 202-2026 mostró 1.441 archivos / 44 proyectos / 901,4 MB — coincide con los datos de
+Railway una vez se entiende que mide SOLO ese concurso (no los otros 2) y con `SUM(tamano)`
+(tamaño declarado al subir) en vez de `pg_total_relation_size` (tamaño físico, que incluye el
+índice de la tabla + overhead normal de Postgres, ~30 MB de diferencia sobre 903 MB reales —
+~3,4%, sano). **Promedio real confirmado por dos caminos distintos: ~20-20,5 MB/proyecto**
+(934/46 y 901,4/44 dan prácticamente lo mismo). Con eso: ~200 proyectos más de margen antes de
+tocar el límite de 5 GB (ya usado ~19%).
+
+**Confirmado con código, no supuesto**: "Dar por terminado" un concurso
+(`liberar_archivos_concurso`) borra SOLO la tabla `archivos` (PDF/Word/Excel originales) de
+todos los proyectos de ese concurso — NO toca observaciones, texto extraído ni respuestas (cae
+al mismo estado que si Railway hubiera perdido el archivo en un redeploy; se puede resubir si
+hace falta volver a analizar con visión). Igual para `eliminar_modificacion`/`eliminar_proyecto`
+— ambos limpian carpeta local + tabla `archivos` + el registro completo (`delete_proyecto`),
+nada queda huérfano. Recomendado al usuario: borrar las 2 Modificaciones de prueba (cuando
+termine con ellas) desde el botón de la app, nunca con `DELETE` manual por SQL (dejaría
+archivos huérfanos en la tabla `archivos` sin un proyecto que los reclame).
