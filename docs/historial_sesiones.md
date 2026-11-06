@@ -7025,3 +7025,42 @@ hace falta volver a analizar con visión). Igual para `eliminar_modificacion`/`e
 nada queda huérfano. Recomendado al usuario: borrar las 2 Modificaciones de prueba (cuando
 termine con ellas) desde el botón de la app, nunca con `DELETE` manual por SQL (dejaría
 archivos huérfanos en la tabla `archivos` sin un proyecto que los reclame).
+
+---
+
+## Nuevo estado de proyecto "Retirado" (nov-2026)
+
+**Pedido del usuario:** "Necesito que exista la posibilidad de poner la categoría o estado de
+'Retirado', que es cuando un postulante decide no responder observaciones e ingresa una carta de
+retiro del proyecto... hoy no existe y los he declarado como rechazados simplemente, pero no
+ayuda a saber la causa exácta."
+
+**Implementación** (todo en `main.py`, bloque de definiciones de estado ~línea 626-669, el único
+punto de mantención del sistema de estados):
+- `"Retirado"` agregado al final de la lista `ESTADOS_PROYECTO`.
+- `ESTADOS_PROYECTO_BADGE["Retirado"] = "badge-retirado"`.
+- `ESTADOS_PROYECTO_COLOR_SOLIDO["Retirado"] = "#6b4423"` (café).
+- CSS nuevo en `templates/base.html` (sección "Badges"): `.badge-retirado { background:
+  #f3ece6; color: #6b4423; border: 1px solid rgba(107,68,35,.25); }`.
+
+**Por qué un color nuevo y no reusar una clase existente:** los 6 colores de badge ya estaban
+tomados por otros estados, y los dos "libres" por nombre de clase (`badge-informativa` = azul,
+muy parecido al azul de "En revisión"; `badge-presupuesto` = naranjo, parecido al de "Observado")
+se habrían confundido a simple vista con estados reales que SÍ siguen en trámite. Mismo criterio
+que cuando "Pendiente" necesitó su propio color en su momento: un estado terminal nuevo que debe
+distinguirse de "Aprobado"/"Rechazado" a simple vista en el dashboard merece un color propio.
+
+**Sin lógica especial:** a diferencia de "Aprobado" (que habilita el botón "Enviar Ficha a CNR"
+en `modificacion.html`/`modificacion_resumen.html`), "Retirado" no dispara ningún comportamiento
+adicional — igual que "Rechazado", es solo una opción más del mismo selector de estado que ya
+existía. El selector (`estados_proyecto_opciones`) se construye igual en las 5 rutas que lo usan
+como `[(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO]` — totalmente dirigido
+por datos, no requirió tocar ningún template para que apareciera la opción nueva.
+
+**Validado con TestClient** (proyectos y modificaciones, en modo JSON local): el estado se puede
+elegir y guardar vía `POST /proyecto/{id}/estado` y `POST /modificacion/{id}/estado`, se ve con
+su badge café en la página de resumen del proyecto, en la de resumen de modificación, en el
+dashboard de proyectos (`/`) y en el de modificaciones (`/modificaciones`), y en el Excel de
+resumen (`/resumen-proyectos.xlsx`, que usa `ESTADOS_PROYECTO_COLOR_SOLIDO` para colorear filas —
+tiene fallback seguro a gris si un estado no está en el dict, no aplica aquí). Suite de
+regresión `test_menu_estado_glass.py` sigue pasando sin cambios.

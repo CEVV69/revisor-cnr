@@ -625,7 +625,7 @@ def _costo_para_vista(proyecto: dict) -> dict:
 # lado por otro más urgente) no pase desapercibido en el dashboard.
 ESTADOS_PROYECTO = ["En revisión", "Pendiente", "Observado", "Resp. Obs.1", "Obs. Ronda 2",
                     "Resp. Obs.2", "Obs. Ronda 3", "Resp. Obs.3", "Obs. Ronda 4", "Resp. Obs.4",
-                    "Aprobado", "Rechazado"]
+                    "Aprobado", "Rechazado", "Retirado"]
 # "Con respuesta Observaciones"/"Con respuesta Obs." (nombres anteriores, hasta sep-2026) se
 # reemplazan por un estado por ronda — el revisor elige cuál corresponde. Sin forma de saber a
 # qué ronda corresponde un proyecto ya guardado con el nombre viejo, cae a la ronda 1 por
@@ -639,6 +639,12 @@ ESTADOS_LEGACY = {"Con respuesta Observaciones": "Resp. Obs.1", "Con respuesta O
 # "Obs. Ronda 4"/"Resp. Obs.4" (oct-2026): tope de subsanación MAX_RONDAS_SUBSANACION, ver más
 # abajo — lo normal son hasta 3 rondas; la 4ª es el caso excepcional pero ya tiene su propio
 # estado, igual que las anteriores.
+# "Retirado" (nov-2026): el postulante decide no responder observaciones e ingresa una carta de
+# retiro — antes no había forma de distinguirlo de "Rechazado" (una decisión del revisor por
+# causa técnica), y el revisor terminaba declarándolo Rechazado igual, perdiendo esa distinción.
+# Sin lógica especial propia: el revisor lo elige a mano en el mismo selector, como cualquier
+# otro estado — color café/marrón nuevo (los 6 colores existentes ya estaban tomados, mismo
+# criterio que "Pendiente" en su momento: necesitaba uno bien distinto de Aprobado/Rechazado).
 ESTADOS_PROYECTO_BADGE = {
     "En revisión":         "badge-estado",     # celeste
     "Pendiente":           "badge-pendiente",   # rosa/magenta
@@ -652,6 +658,7 @@ ESTADOS_PROYECTO_BADGE = {
     "Resp. Obs.4":         "badge-legal",       # morado claro
     "Aprobado":            "badge-tecnica",     # verde
     "Rechazado":           "badge-mayor",       # rojo
+    "Retirado":            "badge-retirado",    # café
 }
 ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "En revisión":         "#2b6cb0",
@@ -666,6 +673,7 @@ ESTADOS_PROYECTO_COLOR_SOLIDO = {
     "Resp. Obs.4":         "#5e35b1",
     "Aprobado":            "#276749",
     "Rechazado":           "#c41230",
+    "Retirado":            "#6b4423",
 }
 templates.env.filters["estado_label"] = lambda e: ESTADOS_LEGACY.get(e, e)
 templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(ESTADOS_LEGACY.get(e, e), "badge-estado")
