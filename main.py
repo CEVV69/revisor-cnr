@@ -3312,6 +3312,35 @@ async def subir_multiple(
 
 # ─── Eliminar documento ───────────────────────────────────────────────────────
 
+def _purgar_adjuntos_huerfanos(proyecto: dict) -> bool:
+    """Un documento puede haber llegado como respaldo de subsanación (`adjuntar-respaldo`) y
+    quedar referenciado aparte, por `id`, en `adjuntos_pendientes` o ya archivado en el
+    `adjuntos` de una ronda registrada (ver `registrar_respuesta_subsanacion`) — si ese
+    documento se borra sin limpiar también esa referencia, la pestaña Respuestas sigue
+    mostrando el enlace a un documento que ya no existe (link roto; bug real, nov-2026).
+    Se llama al borrar un documento (individual o en lote) Y defensivamente al cargar
+    Respuestas, para sanear datos que quedaron huérfanos de antes de este fix. Devuelve True
+    si cambió algo (para que el caller decida si vale la pena guardar)."""
+    doc_ids = {d["id"] for d in proyecto.get("documentos", [])}
+    cambio = False
+    for o in proyecto.get("observaciones", []):
+        sub = o.get("subsanacion")
+        if not sub:
+            continue
+        pend = sub.get("adjuntos_pendientes", [])
+        pend_limpios = [a for a in pend if a.get("id") in doc_ids]
+        if len(pend_limpios) != len(pend):
+            sub["adjuntos_pendientes"] = pend_limpios
+            cambio = True
+        for ronda in sub.get("rondas", []):
+            adj = ronda.get("adjuntos", [])
+            adj_limpios = [a for a in adj if a.get("id") in doc_ids]
+            if len(adj_limpios) != len(adj):
+                ronda["adjuntos"] = adj_limpios
+                cambio = True
+    return cambio
+
+
 @app.post("/proyecto/{proyecto_id}/documento/{doc_id}/eliminar")
 async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
     user = get_current_user(request)
@@ -3330,18 +3359,7 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         db.eliminar_texto_documento(proyecto_id, doc_id)
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
-        # Un documento puede haber llegado como respaldo de subsanación (adjuntar-respaldo) y
-        # quedar referenciado en "adjuntos_pendientes" o ya archivado en el "adjuntos" de una
-        # ronda ya registrada — si no se limpia acá, la pestaña Respuestas sigue mostrando el
-        # enlace a un documento que ya no existe (link roto).
-        for o in proyecto["observaciones"]:
-            sub = o.get("subsanacion")
-            if not sub:
-                continue
-            sub["adjuntos_pendientes"] = [a for a in sub.get("adjuntos_pendientes", [])
-                                          if a.get("id") != doc_id]
-            for ronda in sub.get("rondas", []):
-                ronda["adjuntos"] = [a for a in ronda.get("adjuntos", []) if a.get("id") != doc_id]
+        _purgar_adjuntos_huerfanos(proyecto)
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
@@ -3373,14 +3391,7 @@ async def eliminar_todos_documentos(request: Request, proyecto_id: str):
         db.eliminar_textos_proyecto(proyecto_id)
         proyecto["documentos"] = []
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") not in doc_ids]
-        for o in proyecto["observaciones"]:
-            sub = o.get("subsanacion")
-            if not sub:
-                continue
-            sub["adjuntos_pendientes"] = [a for a in sub.get("adjuntos_pendientes", [])
-                                          if a.get("id") not in doc_ids]
-            for ronda in sub.get("rondas", []):
-                ronda["adjuntos"] = [a for a in ronda.get("adjuntos", []) if a.get("id") not in doc_ids]
+        _purgar_adjuntos_huerfanos(proyecto)
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
@@ -4121,6 +4132,12 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
+
+    # Defensivo: sanea referencias a documentos ya borrados que hayan quedado huérfanas en
+    # adjuntos_pendientes/rondas[].adjuntos ANTES de este fix (nov-2026) — así el link roto
+    # desaparece solo, al abrir la página, sin esperar a que se borre otro documento más.
+    if _purgar_adjuntos_huerfanos(proyecto):
+        db.save_proyecto(proyecto)
 
     # Solo entran al flujo las observaciones APROBADAS (las que se enviaron al consultor).
     aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]

@@ -7102,3 +7102,28 @@ confirmado por grep, no se tocó.
 HTML de Respuestas; (2) adjunto que ya pasó a formar parte de una ronda registrada
 (`POST .../responder`) — se borra el documento y el `adjuntos` de esa ronda queda vacío, sin
 link roto. Suite de regresión `test_menu_estado_glass.py` sigue pasando sin cambios.
+
+---
+
+## Fix (continuación): auto-saneo de referencias ya huérfanas, no solo las nuevas (nov-2026)
+
+El fix anterior de esta misma sesión evitaba que un NUEVO borrado de documento dejara huérfana
+una referencia en `adjuntos_pendientes`/`rondas[].adjuntos` — pero el usuario reportó, tras el
+deploy, que el link roto de SU caso (el documento que ya había borrado antes de ese deploy)
+seguía apareciendo en Respuestas. Correcto: el fix solo actuaba hacia adelante, no limpiaba el
+dato que ya había quedado huérfano guardado en la BD con el código viejo.
+
+**Solución:** se extrajo la lógica de limpieza a `_purgar_adjuntos_huerfanos(proyecto)` (función
+pura, filtra por los `id` de `proyecto["documentos"]` vigentes) y se reusa en tres puntos:
+`eliminar_documento()`, `eliminar_todos_documentos()` (los dos de antes, ahora sin duplicar
+código) y, nuevo, al cargar `GET /proyecto/{id}/respuestas` — si encuentra alguna referencia
+huérfana la limpia y guarda antes de armar la vista. Así cualquier dato que haya quedado roto
+por el bug original (de este caso o de cualquier otro proyecto) se autocorrige la primera vez
+que se abre esa pestaña, sin necesitar una migración aparte ni que el usuario haga nada.
+
+**Validado con TestClient:** (1) se simuló el estado ya roto directamente en el proyecto
+(`adjuntos_pendientes`/ronda con un `id` que no existe en `documentos`, como quedaría el caso
+real del usuario) y se confirmó que `GET /respuestas` lo sanea y lo persiste en el primer load;
+(2) se repitió el flujo completo (subir respaldo → aparece → borrar documento → ya no aparece)
+para confirmar que el camino original sigue funcionando igual. Suite de regresión
+`test_menu_estado_glass.py` sigue pasando sin cambios.
