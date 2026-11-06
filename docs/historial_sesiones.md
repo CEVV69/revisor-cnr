@@ -7127,3 +7127,7 @@ real del usuario) y se confirmó que `GET /respuestas` lo sanea y lo persiste en
 (2) se repitió el flujo completo (subir respaldo → aparece → borrar documento → ya no aparece)
 para confirmar que el camino original sigue funcionando igual. Suite de regresión
 `test_menu_estado_glass.py` sigue pasando sin cambios.
+
+**Confirmado por el usuario en producción (nov-2026):** "ok, y funcionó, desapareció la
+referencia al documento borrado" — el auto-saneo al abrir Respuestas limpió el caso real
+reportado sin necesitar ninguna acción manual del usuario ni migración aparte. Fix cerrado.

@@ -58,9 +58,10 @@ Invernadero → v31 (norma de viento `NCh432:2025`) · estado de proyecto "Retir
 "Rechazado", badge café `#6b4423`) · fix link roto en Respuestas al borrar un documento que
 había quedado referenciado en `adjuntos_pendientes`/`rondas[].adjuntos` de una observación —
 `_purgar_adjuntos_huerfanos()` se llama al borrar Y defensivamente al abrir Respuestas, para
-autosanear también lo que ya había quedado roto antes del fix · capacidad real Railway Postgres
-Hobby (5 GB, ~20 MB/proyecto, ~200 proyectos de margen; "Dar por terminado" un concurso borra
-solo `archivos`, siempre con el botón de la app, nunca `DELETE` SQL manual).
+autosanear también lo que ya había quedado roto antes del fix (**confirmado por el usuario en
+producción**, nov-2026) · capacidad real Railway Postgres Hobby (5 GB, ~20 MB/proyecto, ~200
+proyectos de margen; "Dar por terminado" un concurso borra solo `archivos`, siempre con el botón
+de la app, nunca `DELETE` SQL manual).
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
