@@ -39,22 +39,25 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
 auditorías, casos de prueba) en `docs/historial_sesiones.md`.
 
-**Auditoría de seguridad + velocidad (nov-2026) — CERRADA, usuario conforme.** Clave JWT fuera
-del código, XSS, gzip, `plista:{id}` (listados), sin blur en cards. Sin lock por proyecto NO
-pasar en masa la BD a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle
-en `docs/historial_sesiones.md`.
+**Auditoría de seguridad + velocidad (nov-2026) — CERRADA.** Clave JWT fuera del código, XSS,
+gzip, `plista:{id}`, sin blur en cards. Sin lock por proyecto NO pasar en masa la BD a hilos.
+**Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en `docs/historial_sesiones.md`.
 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
 propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
 Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
 
-**Rediseño "Liquid Glass"/iOS — CERRADO por el usuario (nov-2026), no tocar sin que lo pida.**
-Liquid Glass real es material del sistema de Apple, sin receta CSS: no reintentarlo con capas.
+**Rediseño "Liquid Glass"/iOS — CERRADO, no tocar sin que el usuario lo pida.**
 
 **Revisión Ítem SEP (nov-2026):** las 4 secciones de esa pestaña (grilla de ítems, Agregar
 observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
+
+**Diseño de Invernadero → v31 (nov-2026):** cambio de norma de viento, `NCh432.Of2010` (Método 1
+simplificado) → `NCh432:2025` (Anexo A completo: Kzt/Kd/I/exposición/GCp por área tributaria).
+`normativa/Invernaderos_Criterios.txt` actualizado a juego — de paso corregido un error
+preexistente que tenía NCh431/NCh432 invertidos (NCh431 es nieve, NCh432 es viento).
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
@@ -96,7 +99,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
                  disenador_riego_v135.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v12.html,
-                 invernadero_diseno_v30.html (obras anexas CNR)
+                 invernadero_diseno_v31.html (obras anexas CNR)
 ```
 
 ### Modelo de datos

@@ -13,8 +13,13 @@ documentos, no solo en uno.
   y puerta de acceso con su propio marco y diagonal.
 - Memoria de cálculo estructural: cargas vivas (peso humano, referencia ~70 kg/m²), cargas
   muertas (peso propio de cercha + costaneras + cubierta de policarbonato/polietileno),
-  sobrecarga de viento y sobrecarga de nieve — según NCh431 (viento) y la tabla de sobrecargas
-  de nieve por altitud y latitud geográfica del lugar del proyecto (NCh432 o equivalente).
+  sobrecarga de nieve según NCh431 Of.2010 (tabla de zonificación por altitud y latitud
+  geográfica del lugar del proyecto) y sobrecarga de viento según NCh432:2025 (actualizada
+  nov-2026, reemplaza el método simplificado de la edición anterior) — exige zona de viento y
+  velocidad básica V según latitud/altitud (Tabla 1), categoría de exposición del terreno,
+  factor topográfico Kzt, factor de direccionalidad Kd, factor de importancia según categoría
+  de ocupación, y los coeficientes de presión/succión del Anexo A (SPRFV y revestimientos,
+  estos últimos según área tributaria del elemento).
 - Cubicación de perfiles metálicos (tipo, dimensión, espesor, largo total y peso total por
   elemento) — debe respaldar la(s) partida(s) del presupuesto de la obra del invernadero.
 
@@ -28,6 +33,11 @@ documentos, no solo en uno.
   la altitud y ubicación geográfica real del proyecto (comuna/coordenadas) — si NO declara
   memoria de cálculo estructural (cargas vivas/muertas/nieve/viento) para el invernadero, es
   observación mayor. Termina esa observación con "Debe justificar."
+- Si declara un factor topográfico Kzt > 1,0, debe justificar que el invernadero está en la
+  cima aislada de un cerro, escarpe o colina prominente (NCh432:2025, 5.6) — en terreno plano u
+  ondulado corresponde Kzt = 1,0; usarlo sin esa justificación es observación.
+- La categoría de exposición declarada (terreno abierto/suburbano/urbano) debe ser coherente con
+  el entorno real del predio descrito en el expediente (zona rural abierta ≠ categoría urbana).
 - La superficie del invernadero debe ser proporcional a la escala del proyecto de riego (evitar
   sobredimensionamiento respecto del predio o del cultivo bonificado).
 - Puerta y ventana(s) deben quedar acotadas y con su propio detalle estructural (marco, diagonal).

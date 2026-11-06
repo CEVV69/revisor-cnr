@@ -6916,3 +6916,51 @@ Playwright: abriendo el desplegable en Respuestas (botón cerca del borde derech
 obtiene la clase `costo-api-panel-izq` y queda completo dentro de la ventana; en Resumen (botón
 cerca del borde izquierdo, posición sin cambios) NO se agrega la clase y el panel se abre igual
 que siempre. Suite de regresión (`test_menu_estado_glass.py`) sigue pasando.
+
+## Diseño de Invernadero: actualización v30 → v31 (cambio de norma de viento) + criterios de revisión (nov-2026)
+
+**Pedido del usuario**: "Actualiza la app de Diseño de Invernaderos, por un cambio en la norma
+de cargas de viento, se actualizó la app. Te adjunto nuevo enlace. Junto a eso revisa y actualiza
+los criterios que pueden actualizarse en la revisión de este tipo de estructuras en la revisión
+de un proyecto." Adjuntó `Diseno_Invernadero_v31.html`.
+
+**Qué cambió realmente, confirmado leyendo ambos archivos** (no solo el nombre de versión):
+- v30: viento con `NCh432.Of2010`, "Método 1 simplificado" (cap. 7) — velocidad básica V por
+  zonificación de latitud (Tabla 6), un factor de ajuste λ (Tabla 2) por altura/exposición, y
+  presión directa de Tabla 1/3 según ángulo de techo y área tributaria.
+- v31: viento con `NCh432:2025` — metodología completa del Anexo A (Figura A.1, dos casos:
+  viento perpendicular y paralelo a la cumbrera), con factor topográfico Kzt (5.6), factor de
+  direccionalidad Kd (Tabla 3), factor de importancia I según categoría de ocupación (Tabla 2,
+  con su período de retorno asociado), categoría de exposición del terreno (5.5.3), y
+  coeficientes GCp interpolados en log(área tributaria) tanto para el Sistema Principal
+  Resistente a Fuerzas de Viento como para revestimientos/elementos secundarios.
+- Nieve sigue con `NCh431 Of.2010` en ambas versiones, sin cambios.
+
+**Reemplazo del archivo**: `static/invernadero_diseno_v30.html` → `static/invernadero_diseno_v31.html`
+(`git mv` + contenido nuevo, mismo patrón que las actualizaciones v7→v14→v20 anteriores).
+Actualizado el enlace en `templates/_apps_menu.html` y la referencia en `CLAUDE.md`. Verificado
+con Playwright: la app nueva carga y calcula sin errores de consola.
+
+**Criterios de revisión actualizados** (`normativa/Invernaderos_Criterios.txt`, se carga
+automáticamente al system prompt vía `analyzer.cargar_normativa()` — ningún cambio de código
+necesario):
+- **Bug preexistente corregido de paso**: el texto anterior decía "sobrecarga de viento...
+  según NCh431 (viento)" y "tabla de sobrecargas de nieve... (NCh432 o equivalente)" — los
+  números de norma estaban INVERTIDOS (NCh431 es nieve, NCh432 es viento, confirmado en ambas
+  versiones de la app). Posible fuente de observaciones mal fundamentadas si la IA citaba el
+  número de norma equivocado al revisar un proyecto real.
+- Sección "Qué debe incluir el diseño": ahora especifica `NCh432:2025` para viento (con la lista
+  de parámetros que exige: zona/V por Tabla 1, categoría de exposición, Kzt, Kd, factor de
+  importancia, GCp del Anexo A) y `NCh431 Of.2010` para nieve, correctamente asignados.
+- Dos verificaciones de coherencia NUEVAS (propias de la norma 2025, no existían en la versión
+  anterior del criterio): declarar Kzt > 1,0 sin que el predio esté en una cima/escarpe/colina
+  prominente es observable; la categoría de exposición declarada debe ser coherente con el
+  entorno real del predio descrito en el expediente.
+- Tamaño final: 3.811 caracteres, bajo el tope `MAX_CHARS_POR_NORMATIVA` (5.000) — no se corta.
+
+### Validación
+`analyzer.NORMATIVA_CNR` (tras recargar el módulo) incluye el texto actualizado completo, con
+"NCh432:2025" presente. Suite de regresión (`test_menu_estado_glass.py`) sigue pasando. Render
+vía `TestClient`: el menú "Apps" enlaza a `/static/invernadero_diseno_v31.html` (200, 181.258
+bytes), `v30.html` ya no existe (404, esperado). Playwright: la app standalone carga sin errores
+de JS y calcula (zona de viento y velocidad básica se completan solas al cargar).
