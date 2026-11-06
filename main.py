@@ -3330,6 +3330,18 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         db.eliminar_texto_documento(proyecto_id, doc_id)
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
+        # Un documento puede haber llegado como respaldo de subsanación (adjuntar-respaldo) y
+        # quedar referenciado en "adjuntos_pendientes" o ya archivado en el "adjuntos" de una
+        # ronda ya registrada — si no se limpia acá, la pestaña Respuestas sigue mostrando el
+        # enlace a un documento que ya no existe (link roto).
+        for o in proyecto["observaciones"]:
+            sub = o.get("subsanacion")
+            if not sub:
+                continue
+            sub["adjuntos_pendientes"] = [a for a in sub.get("adjuntos_pendientes", [])
+                                          if a.get("id") != doc_id]
+            for ronda in sub.get("rondas", []):
+                ronda["adjuntos"] = [a for a in ronda.get("adjuntos", []) if a.get("id") != doc_id]
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
@@ -3361,6 +3373,14 @@ async def eliminar_todos_documentos(request: Request, proyecto_id: str):
         db.eliminar_textos_proyecto(proyecto_id)
         proyecto["documentos"] = []
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") not in doc_ids]
+        for o in proyecto["observaciones"]:
+            sub = o.get("subsanacion")
+            if not sub:
+                continue
+            sub["adjuntos_pendientes"] = [a for a in sub.get("adjuntos_pendientes", [])
+                                          if a.get("id") not in doc_ids]
+            for ronda in sub.get("rondas", []):
+                ronda["adjuntos"] = [a for a in ronda.get("adjuntos", []) if a.get("id") not in doc_ids]
         db.save_proyecto(proyecto)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 

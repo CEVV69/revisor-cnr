@@ -7064,3 +7064,41 @@ dashboard de proyectos (`/`) y en el de modificaciones (`/modificaciones`), y en
 resumen (`/resumen-proyectos.xlsx`, que usa `ESTADOS_PROYECTO_COLOR_SOLIDO` para colorear filas —
 tiene fallback seguro a gris si un estado no está en el dict, no aplica aquí). Suite de
 regresión `test_menu_estado_glass.py` sigue pasando sin cambios.
+
+---
+
+## Fix: link roto en Respuestas tras borrar un documento (nov-2026)
+
+**Reporte del usuario:** "subí por error un archivo en las respuestas, lo borré en la sección de
+documentos, pero me sigue apareciendo en la sección de Respuestas, pero al pincharlo no se puede
+abrir, porque al parecer efectivamente no existe, pero sigue apareciendo como el enlace de un
+documento existente en la pestaña Respuestas".
+
+**Causa:** `/proyecto/{id}/observacion/{obs_id}/adjuntar-respaldo` (botón del consultor para
+subir un respaldo adicional en Respuestas) hace dos cosas con el documento nuevo: lo agrega a
+`proyecto["documentos"]` (igual que cualquier otro documento del expediente) Y guarda una
+referencia liviana `{id, nombre, tipo_label}` en `obs["subsanacion"]["adjuntos_pendientes"]` (o,
+una vez registrada la respuesta, en `obs["subsanacion"]["rondas"][-1]["adjuntos"]` — ver
+`registrar_respuesta_subsanacion`, línea ~4310). `respuestas.html` pinta esos adjuntos como link
+a `/proyecto/{id}/documento/{a.id}/ver`.
+
+`eliminar_documento()` (línea ~3315, borrado individual desde la pestaña Documentos) y
+`eliminar_todos_documentos()` (línea ~3349, borrado masivo) sí sacaban el doc de
+`proyecto["documentos"]` y de `observaciones` (por `doc_id`, el mecanismo legacy de observación
+por documento) — pero NUNCA tocaban `adjuntos_pendientes` ni `rondas[].adjuntos`, que es una
+referencia aparte con su propio `id`. Resultado: el archivo físico y el registro en
+`documentos` desaparecían, pero el link en Respuestas seguía ahí apuntando a un `doc_id`
+inexistente — exactamente lo que reportó el usuario.
+
+**Fix:** ambas rutas ahora recorren `proyecto["observaciones"]` después de borrar y filtran por
+`doc_id` tanto `sub["adjuntos_pendientes"]` como `adjuntos` de cada ronda en `sub["rondas"]`.
+
+**Fuera de alcance:** Modificaciones de Proyecto no tiene flujo de `adjuntar-respaldo` (solo
+subida de documentos normal), así que `eliminar_documento_modificacion()` no tenía este bug —
+confirmado por grep, no se tocó.
+
+**Validado con TestClient** (modo JSON local), los dos casos: (1) adjunto recién subido, aún en
+`adjuntos_pendientes` (nunca se registró la respuesta) — se borra el documento y desaparece del
+HTML de Respuestas; (2) adjunto que ya pasó a formar parte de una ronda registrada
+(`POST .../responder`) — se borra el documento y el `adjuntos` de esa ronda queda vacío, sin
+link roto. Suite de regresión `test_menu_estado_glass.py` sigue pasando sin cambios.

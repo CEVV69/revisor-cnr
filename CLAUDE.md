@@ -53,20 +53,13 @@ Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
 observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
 
-**Diseño de Invernadero → v31 (nov-2026, CERRADO):** norma de viento `NCh432:2025`. Detalle en
-`docs/historial_sesiones.md`.
-
-**Estado "Retirado" (nov-2026, CERRADO):** nueva categoría de estado de proyecto, distinta de
-"Rechazado" — para cuando el postulante no responde observaciones y entra carta de retiro en vez
-de subsanar. Sin lógica propia: se elige a mano en el mismo selector de estado de siempre; badge
-café (`#6b4423`, color nuevo — los 6 existentes ya estaban tomados). Detalle en
-`docs/historial_sesiones.md`.
-
-**Capacidad real (nov-2026):** Railway Postgres plan Hobby, volumen **5 GB**. Producción real:
-46 proyectos, ~20 MB/proyecto promedio (confirmado con datos reales, no estimado) → margen de
-~200 proyectos más. "Dar por terminado" un concurso borra solo `archivos` (no observaciones ni
-texto) — usar siempre el botón de la app para borrar, nunca `DELETE` SQL manual (deja archivos
-huérfanos). Detalle en `docs/historial_sesiones.md`.
+**Cerrados recientes (nov-2026), detalle de cada uno en `docs/historial_sesiones.md`:**
+Invernadero → v31 (norma de viento `NCh432:2025`) · estado de proyecto "Retirado" (distinto de
+"Rechazado", badge café `#6b4423`) · fix link roto en Respuestas al borrar un documento que
+había quedado referenciado en `adjuntos_pendientes`/`rondas[].adjuntos` de una observación ·
+capacidad real Railway Postgres Hobby (5 GB, ~20 MB/proyecto, ~200 proyectos de margen; "Dar por
+terminado" un concurso borra solo `archivos`, siempre con el botón de la app, nunca `DELETE` SQL
+manual).
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
