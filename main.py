@@ -5219,9 +5219,17 @@ async def registrar_respuesta_modificacion(
             obs["subsanacion"]["adjuntos_pendientes"] = []
         obs["subsanacion"]["rondas"].append(ronda)
         db.save_proyecto(mod)
-    return RedirectResponse(
-        url=f"/modificacion/{mod_id}/respuestas?item_ok={obs.get('item', '')}#obs-{obs_id}",
-        status_code=302)
+    # Si al ítem ya no le queda ninguna observación por responder (ronda 1 sin tocar), el redirect
+    # va SIN ancla: con `#obs-…` el navegador abre solo el <details> que contiene esa observación
+    # y el ítem terminado quedaba desplegado (reproducido en Chromium, nov-2026).
+    item_key = obs.get("item", "")
+    quedan = any(o.get("estado") == "aprobada" and o.get("item") == item_key
+                 and _estado_subsanacion(o)["estado"] == "esperando"
+                 and (_estado_subsanacion(o)["ronda_actual"] or 1) <= 1
+                 for o in mod.get("observaciones", []))
+    ancla = f"#obs-{obs_id}" if quedan else ""
+    return RedirectResponse(url=f"/modificacion/{mod_id}/respuestas?item_ok={item_key}{ancla}",
+                            status_code=302)
 
 
 @app.post("/modificacion/{mod_id}/observacion/{obs_id}/subsanacion/deshacer")

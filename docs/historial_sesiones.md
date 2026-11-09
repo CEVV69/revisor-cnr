@@ -7195,3 +7195,11 @@ TestClient (abierto con 1 de 2 respondidas; cerrado al responder la última, tam
 los mismos contadores que la Revisión normal ("N resuelta(s)", "N no resuelta(s)", "N re-observada(s)",
 "N esperando"), con las mismas clases/colores (`.sub-badge`) y el mismo criterio de conteo. Validado
 con TestClient en los cuatro estados (incluida una observación que agotó sus rondas).
+
+**Fix: el ítem terminado seguía abierto en Modificaciones → Respuestas (nov-2026):** el servidor ya
+entregaba el `<details>` cerrado (el cierre automático por plantilla funcionaba), pero el redirect de
+`registrar_respuesta_modificacion` terminaba en `#obs-{id}` y los navegadores abren solos el
+`<details>` que contiene el ancla. Reproducido en Chromium real (Playwright) y corregido: si al ítem no
+le queda ninguna observación por responder (ronda 1 sin tocar), el redirect va SIN ancla; con
+pendientes se conserva el ancla para seguir con la siguiente. Lección: un TestClient no ve este tipo
+de comportamiento del navegador — para estados de `<details>`/anclas probar en navegador real.
