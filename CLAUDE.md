@@ -45,8 +45,13 @@ a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
 propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
-Respuestas (nov-2026): respaldo adjunto + "Evaluar respuesta con IA" iguales a la Revisión normal
-(en prueba). Pendiente: tope de bonificación en el diff de Presupuesto.
+**Respuestas = misma mecánica que la Revisión normal (nov-2026, en prueba):** adjuntar respaldo,
+"Evaluar respuesta con IA" (`evaluar_respuesta_subsanacion` con `item_override`), Deshacer última
+ronda, etiquetas de estado por ítem, ítem terminado se cierra solo, "Benef.:" junto al Estado, y la
+Ficha con "R:"/Contra Observación/tachado. Presupuesto: extracción AUTOMÁTICA (al analizar el ítem y
+al responder con respaldo de presupuesto) + aviso de diferencias en Respuestas y Variables; el botón
+"Extraer datos" queda de respaldo. Botón "Generar Ficha" también en Variables. Pendiente: tope de
+bonificación en el diff de Presupuesto; sin probar con la API real la extracción automática.
 
 **Rediseño "Liquid Glass"/iOS — CERRADO, no tocar sin que el usuario lo pida.**
 
@@ -55,14 +60,11 @@ observación manual, Evaluación del Consultor, Debatir con la IA) son `<details
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
 
 **Cerrados recientes (nov-2026), detalle de cada uno en `docs/historial_sesiones.md`:**
-Invernadero → v31 (norma de viento `NCh432:2025`) · estado de proyecto "Retirado" (distinto de
-"Rechazado", badge café `#6b4423`) · fix link roto en Respuestas al borrar un documento que
-había quedado referenciado en `adjuntos_pendientes`/`rondas[].adjuntos` de una observación —
-`_purgar_adjuntos_huerfanos()` se llama al borrar Y defensivamente al abrir Respuestas, para
-autosanear también lo que ya había quedado roto antes del fix (**confirmado por el usuario en
-producción**, nov-2026) · capacidad real Railway Postgres Hobby (5 GB, ~20 MB/proyecto, ~200
-proyectos de margen; "Dar por terminado" un concurso borra solo `archivos`, siempre con el botón
-de la app, nunca `DELETE` SQL manual).
+Invernadero → v31 (`NCh432:2025`) · estado "Retirado" (badge café `#6b4423`) · fix link roto en
+Respuestas al borrar un documento (`_purgar_adjuntos_huerfanos()`, también al abrir la página;
+confirmado en producción) · capacidad Railway Postgres Hobby (5 GB, ~20 MB/proyecto, ~200 proyectos
+de margen; borrar siempre con el botón de la app, nunca `DELETE` SQL manual). Lección: estados de
+`<details>`/anclas (`#obs-…` abre solo el `<details>`) se prueban en Chromium real, no con TestClient.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
