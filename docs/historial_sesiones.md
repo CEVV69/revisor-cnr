@@ -7237,3 +7237,13 @@ el análisis de otro ítem no lanza extracción. No se probó la extracción rea
 que en Revisión por ítem (`/modificacion/{id}/ficha`, nueva pestaña), colocado a la derecha de la fila
 del título para no empujar contenido hacia abajo. Verificado en Chromium (misma fila que el `h1`, la
 barra de pestañas no se desplazó).
+
+**Ficha de Modificaciones: respuestas y Contra Observación igual que la ficha de Revisión (nov-2026,
+pedido del usuario):** `modificacion_ficha.html` solo mostraba el texto de cada observación. Se copió
+el mecanismo de `ficha.html` (mismas reglas, CSS en pt por el formato Carta/Calibri): cada ronda como
+"R: [respuesta]" (con "(ronda N)" si hay más de una), la "Contra Observación" de la ronda anterior
+antes de cada respuesta siguiente, la Contra Observación final si la última ronda quedó reiterada, y la
+observación completa tachada (`.obs-resuelta`, opacidad .65) si la última ronda es "resuelta". Sin
+cambios en `main.py`. Validado con 4 casos (sin respuesta; resuelta en 1 ronda; reiterada con contra
+observación; reiterada→resuelta en 2 rondas). Diferencia conservada a propósito y no pedida: la ficha de
+Revisión excluye observaciones de severidad "informativa", la de Modificaciones las incluye.

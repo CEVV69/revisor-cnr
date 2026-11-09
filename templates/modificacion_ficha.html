@@ -43,6 +43,13 @@
                   page-break-after: avoid; }
     .obs-texto { margin-top: 2px; line-height: 1.5; white-space: pre-wrap; text-align: justify; }
     .obs-ref { font-size: 9pt; color: #555; margin-top: 3px; font-style: italic; }
+    /* Respuestas / Contra Observación / resuelta tachada: mismo mecanismo que ficha.html */
+    .obs-resp { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #ccc; line-height: 1.5;
+                white-space: pre-wrap; text-align: justify; }
+    .obs-resp-r { font-weight: bold; color: #276749; }
+    .obs-contra-label { font-size: 9.5pt; font-weight: bold; color: #1a365d; margin-top: 4px; }
+    .obs-resuelta, .obs-resuelta * { text-decoration: line-through; }
+    .obs-resuelta { opacity: 0.65; }
 
     .sin-obs { color: #276749; font-style: italic; padding: 0.5rem 0; }
 
@@ -122,10 +129,23 @@
   {% for grupo in grupos_ficha %}
   <div class="grupo-item">{{ grupo.nombre }}</div>
     {% for obs in grupo.obs %}
-    <div class="obs-item">
+    {% set rondas_obs = (obs.subsanacion or {}).get("rondas", []) %}
+    {% set es_resuelta = rondas_obs and rondas_obs[-1].get("evaluacion") == "resuelta" %}
+    <div class="obs-item{% if es_resuelta %} obs-resuelta{% endif %}">
       <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto | propuesta }}</div>
       {% if obs.referencia_normativa %}
       <div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>
+      {% endif %}
+      {% for r in rondas_obs %}
+      {% if loop.index0 > 0 %}
+      <div class="obs-contra-label">Contra Observación</div>
+      <div class="obs-texto">{{ rondas_obs[loop.index0 - 1].comentario }}</div>
+      {% endif %}
+      <div class="obs-resp"><span class="obs-resp-r">R{% if rondas_obs|length > 1 %} (ronda {{ r.ronda }}){% endif %}:</span> {{ r.respuesta }}</div>
+      {% endfor %}
+      {% if rondas_obs and rondas_obs[-1].evaluacion == 'reiterada' and rondas_obs[-1].comentario %}
+      <div class="obs-contra-label">Contra Observación</div>
+      <div class="obs-texto">{{ rondas_obs[-1].comentario }}</div>
       {% endif %}
     </div>
     {% endfor %}
