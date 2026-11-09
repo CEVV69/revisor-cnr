@@ -7232,3 +7232,8 @@ con el costo UF automáticamente.
 cambios, re-extrae solo "modificado" ante un respaldo nuevo, un respaldo "otros" no gatilla, el botón
 manual sigue (incl. `sindocs`), el aviso aparece en ambas pestañas con diferencia positiva y negativa, y
 el análisis de otro ítem no lanza extracción. No se probó la extracción real con la API.
+
+**Botón "Generar Ficha" en Modificaciones → Variables (nov-2026, pedido del usuario):** mismo botón
+que en Revisión por ítem (`/modificacion/{id}/ficha`, nueva pestaña), colocado a la derecha de la fila
+del título para no empujar contenido hacia abajo. Verificado en Chromium (misma fila que el `h1`, la
+barra de pestañas no se desplazó).
