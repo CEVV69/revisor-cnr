@@ -4,6 +4,15 @@
 
 <style>
   /* .proj-nav/.proj-tab/.nav-badge: centralizados en base.html (oct-2026) */
+  .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
+    font-size:0.85rem; line-height:1.45; white-space:pre-wrap; }
+  .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
+  .ia-si { background:#f0fff4; color:var(--green-dk); border:1px solid rgba(39,103,73,.3); }
+  .ia-no { background:#fff0f0; color:var(--red); border:1px solid rgba(196,18,48,.3); }
+  .ia-ronda { margin-top:0.35rem; font-size:0.8rem; color:var(--text-2); white-space:pre-wrap; }
+  .form-resp textarea { width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;
+    font-size:0.88rem; line-height:1.5; font-family:inherit; box-sizing:border-box; resize:none;
+    overflow:hidden; min-height:2.6rem; }
 </style>
 
 <!-- Fila propia para Costo API + selector de Estado — NO en el <nav> de pestañas: ahí el
@@ -77,25 +86,70 @@
       {{ 'Resuelta' if r.evaluacion == 'resuelta' else 'Reiterada' }}
     </span>
     {% if r.comentario %}<p class="text-muted" style="margin:0.3rem 0 0; white-space:pre-wrap;">{{ r.comentario }}</p>{% endif %}
+    {% if r.adjuntos %}
+    <div style="font-size:0.8rem; color:var(--text-2); margin-top:0.35rem;">
+      <strong>Documentos adjuntados:</strong>
+      {% for a in r.adjuntos %}<a href="/proyecto/{{ proyecto.id }}/documento/{{ a.id }}/ver" target="_blank">{{ a.nombre }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+    {% if r.ia_recomendacion %}
+    <div class="ia-ronda">
+      <strong>IA sugirió:</strong>
+      {% if r.ia_recomendacion == 'resuelta' %}<span style="color:var(--green-dk);">resuelve</span>{% else %}<span style="color:var(--red);">no resuelve</span>{% endif %}
+      {% if r.ia_fundamento %}— {{ r.ia_fundamento }}{% endif %}
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 
   {% if sub.puede_responder %}
-  <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/responder">
-    <div class="form-group">
-      <label>Respuesta del consultor (ronda {{ sub.ronda_actual }})</label>
-      <textarea name="respuesta" rows="3" required style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit;"></textarea>
+  <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/responder"
+        id="form-resp-{{ obs.id }}" class="form-resp" data-obs="{{ obs.id }}"
+        onsubmit="borrarIAGuardada(this.dataset.obs)">
+    <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;">
+      Respuesta del consultor (ronda {{ sub.ronda_actual }})
+    </label>
+    <textarea name="respuesta" rows="1" required oninput="limpiarIA(this.form.dataset.obs); autoResize(this);"
+      placeholder="Transcribe o resume qué respondió el consultor a este punto..."></textarea>
+    <input type="hidden" name="ia_recomendacion" id="ia-rec-{{ obs.id }}">
+    <input type="hidden" name="ia_fundamento" id="ia-fund-{{ obs.id }}">
+
+    <label style="display:block; font-size:0.82rem; font-weight:600; margin:0.6rem 0 0.3rem;">
+      Contra Observación (opcional)
+    </label>
+    <textarea name="comentario" rows="1" oninput="autoResize(this);"
+      placeholder="Por qué la das por resuelta, o qué sigue faltando si la reiteras..."></textarea>
+
+    <div style="margin-top:0.6rem; border:1px dashed var(--border); border-radius:8px; padding:0.5rem 0.7rem;">
+      <div style="font-size:0.78rem; color:var(--text-2); margin-bottom:0.4rem;">
+        <strong>Documento de respaldo/respuesta (opcional):</strong> documento nuevo o
+        corregido que respalde la respuesta. Súbelo <strong>antes</strong> de evaluar con IA.
+      </div>
+      <ul id="adjuntos-{{ obs.id }}" style="margin:0 0 0.4rem; padding-left:1.1rem; font-size:0.82rem;{% if not par.adjuntos_pendientes %} display:none;{% endif %}">
+        {% for a in par.adjuntos_pendientes %}<li><a href="/proyecto/{{ proyecto.id }}/documento/{{ a.id }}/ver" target="_blank">{{ a.nombre }}</a> <span class="text-muted">({{ a.tipo_label }})</span></li>{% endfor %}
+      </ul>
+      <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:nowrap;">
+        <input type="file" id="file-{{ obs.id }}" accept=".pdf,.doc,.docx,.xls,.xlsx"
+               style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+        <select id="tipo-{{ obs.id }}"
+                style="width:auto; flex:1 1 0; min-width:0; font-size:0.78rem; padding:0.3rem;">
+          {% for op in par.tipo_docs %}<option value="{{ op.key }}"{% if op.key == par.preselect %} selected{% endif %}>{{ op.label }}</option>{% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" id="adj-btn-{{ obs.id }}" data-obs="{{ obs.id }}" onclick="adjuntar(this.dataset.obs)" style="flex:0 0 auto; white-space:nowrap;">Adjuntar</button>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Comentario del revisor (opcional)</label>
-      <input type="text" name="comentario" style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px;">
-    </div>
-    <div style="display:flex; gap:0.5rem;">
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-top:0.6rem;">
+      <button type="button" class="btn btn-outline btn-sm" id="ia-btn-{{ obs.id }}" data-obs="{{ obs.id }}"
+              onclick="evaluarIA(this.dataset.obs)" style="border-color:var(--blue); color:var(--blue);">
+        Evaluar respuesta con IA
+      </button>
+      <span style="flex:1;"></span>
       <button type="submit" name="evaluacion" value="resuelta" class="btn btn-success btn-sm">Marcar como resuelta</button>
       <button type="submit" name="evaluacion" value="reiterada" class="btn btn-danger btn-sm">
         {% if sub.ronda_actual == 4 %}Obs. No resuelta{% else %}Reiterar (no la resuelve){% endif %}
       </button>
     </div>
+    <div class="ia-box" id="ia-result-{{ obs.id }}"></div>
   </form>
   {% endif %}
 </div>
@@ -117,6 +171,175 @@ function toggleMenuEstado() {
   var card = document.getElementById('menu-estado-wrapper').closest('.card');
   if (card) card.classList.toggle('menu-estado-abierto', abrir);
 }
+// Evaluación con IA y respaldos — mismo comportamiento que respuestas.html (Revisión normal).
+// La evaluación es client-side hasta guardar la respuesta; se conserva en sessionStorage para
+// sobrevivir a navegar a otra pestaña y volver, y se descarta si el texto evaluado cambió.
+function iaStorageKey(obsId) { return 'iaEvalMod_{{ proyecto.id }}_' + obsId; }
+function guardarIA(obsId, resp, rec, fundamento) {
+  try { sessionStorage.setItem(iaStorageKey(obsId), JSON.stringify({respuesta: resp, rec: rec, fundamento: fundamento})); } catch (e) {}
+}
+function borrarIAGuardada(obsId) { try { sessionStorage.removeItem(iaStorageKey(obsId)); } catch (e) {} }
+
+function mostrarResultadoIA(obsId, rec, fundamento) {
+  var box = document.getElementById('ia-result-' + obsId);
+  if (!box) return;
+  var etiqueta = rec === 'resuelta' ? 'La IA sugiere: RESUELVE la observación'
+    : (rec === 'no_resuelta' ? 'La IA sugiere: NO la resuelve' : 'Recomendación de la IA');
+  box.className = 'ia-box ' + (rec === 'resuelta' ? 'ia-si' : (rec === 'no_resuelta' ? 'ia-no' : 'ia-neutral'));
+  box.textContent = '';
+  var t = document.createElement('strong'); t.textContent = etiqueta; box.appendChild(t);
+  if (fundamento) { box.appendChild(document.createElement('br')); box.appendChild(document.createTextNode(fundamento)); }
+  box.appendChild(document.createElement('br'));
+  var nota = document.createElement('span');
+  nota.style.cssText = 'font-size:0.78rem; opacity:0.8;';
+  nota.textContent = 'Es solo una recomendación — la decisión final es tuya.';
+  box.appendChild(nota);
+  box.style.display = 'block';
+}
+
+function restaurarIA(obsId) {
+  var form = document.getElementById('form-resp-' + obsId);
+  if (!form) return;
+  var raw;
+  try { raw = sessionStorage.getItem(iaStorageKey(obsId)); } catch (e) { return; }
+  if (!raw) return;
+  var data;
+  try { data = JSON.parse(raw); } catch (e) { return; }
+  var textarea = form.querySelector('textarea[name=respuesta]');
+  if (!textarea) return;
+  if (!textarea.value.trim()) {
+    textarea.value = data.respuesta;
+  } else if (textarea.value.trim() !== data.respuesta) {
+    borrarIAGuardada(obsId);
+    return;
+  }
+  document.getElementById('ia-rec-' + obsId).value = data.rec || '';
+  document.getElementById('ia-fund-' + obsId).value = data.fundamento || '';
+  mostrarResultadoIA(obsId, data.rec, data.fundamento);
+}
+
+function limpiarIA(obsId) {
+  var box = document.getElementById('ia-result-' + obsId);
+  if (box) { box.style.display = 'none'; box.textContent = ''; }
+  var rec = document.getElementById('ia-rec-' + obsId);
+  var fund = document.getElementById('ia-fund-' + obsId);
+  if (rec) rec.value = '';
+  if (fund) fund.value = '';
+  borrarIAGuardada(obsId);
+}
+
+async function adjuntar(obsId) {
+  var fileInput = document.getElementById('file-' + obsId);
+  if (!fileInput.files.length) { alert('Elige un archivo primero.'); return; }
+  var btn = document.getElementById('adj-btn-' + obsId);
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Subiendo…';
+  try {
+    var fd = new FormData();
+    fd.append('archivo', fileInput.files[0]);
+    fd.append('tipo_doc', document.getElementById('tipo-' + obsId).value);
+    var r = await fetch('/modificacion/{{ proyecto.id }}/observacion/' + obsId + '/adjuntar-respaldo',
+      { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
+    var data = await r.json();
+    if (!data.ok) {
+      alert('No se pudo subir: ' + (data.error || 'error desconocido'));
+    } else {
+      var ul = document.getElementById('adjuntos-' + obsId);
+      ul.style.display = '';
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = '/proyecto/{{ proyecto.id }}/documento/' + data.doc.id + '/ver';
+      a.target = '_blank';
+      a.textContent = data.doc.nombre;
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(' (' + data.doc.tipo_label + ')'));
+      ul.appendChild(li);
+      fileInput.value = '';
+      limpiarIA(obsId);  // la evaluación previa no consideraba este documento nuevo
+    }
+  } catch (e) {
+    alert('Error al subir: ' + e);
+  }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+async function evaluarIA(obsId) {
+  var form = document.getElementById('form-resp-' + obsId);
+  var resp = form.querySelector('textarea[name=respuesta]').value.trim();
+  var box = document.getElementById('ia-result-' + obsId);
+  box.style.display = 'block';
+  if (!resp) {
+    box.className = 'ia-box ia-neutral';
+    box.textContent = 'Escribe primero la respuesta del consultor.';
+    return;
+  }
+  var btn = document.getElementById('ia-btn-' + obsId);
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Evaluando…';
+  box.className = 'ia-box ia-neutral';
+  box.textContent = 'La IA está evaluando la respuesta con los antecedentes de la modificación…';
+  try {
+    var fd = new FormData();
+    fd.append('respuesta', resp);
+    var r = await fetch('/modificacion/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
+      { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
+    var data = await r.json();
+    if (!data.ok) {
+      box.className = 'ia-box ia-neutral';
+      box.textContent = 'No se pudo evaluar: ' + (data.error || 'error desconocido');
+    } else {
+      var rec = data.recomendacion || '';
+      document.getElementById('ia-rec-' + obsId).value = rec;
+      document.getElementById('ia-fund-' + obsId).value = data.fundamento || '';
+      mostrarResultadoIA(obsId, rec, data.fundamento || '');
+      guardarIA(obsId, resp, rec, data.fundamento || '');
+      actualizarCostoApi(data.costo_api);
+    }
+  } catch (e) {
+    box.className = 'ia-box ia-neutral';
+    box.textContent = 'Error al evaluar: ' + e;
+  }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+// Repone el contador de costo del encabezado tras la evaluación AJAX (mismo formato que
+// respuestas.html / _fmt_usd: coma decimal).
+function actualizarCostoApi(costoApi) {
+  var det = document.querySelector('.costo-api');
+  if (!det || !costoApi) return;
+  var fmt = function(v, dec) { return Number(v).toFixed(dec || 2).replace('.', ','); };
+  det.querySelector('summary').textContent = 'US$ ' + fmt(costoApi.total_usd);
+  var filas = '<div class="costo-api-fila"><strong>Total del proyecto</strong><strong>US$ '
+    + fmt(costoApi.total_usd) + '</strong></div>';
+  costoApi.pasos.forEach(function(p) {
+    filas += '<div class="costo-api-fila"><span>' + p.nombre + '</span><span>US$ ' + fmt(p.usd) + '</span></div>';
+  });
+  if (costoApi.por_item && costoApi.por_item.length) {
+    filas += '<div class="costo-api-sub">Revisión, por ítem</div>';
+    costoApi.por_item.forEach(function(i) {
+      filas += '<div class="costo-api-fila"><span>' + i.nombre + '</span><span>US$ ' + fmt(i.usd, 3) + '</span></div>';
+    });
+  }
+  filas += '<div class="costo-api-pie">' + costoApi.llamadas + ' llamada' + (costoApi.llamadas === 1 ? '' : 's')
+    + ' a la API · última ' + costoApi.actualizado + '</div>';
+  det.querySelector('.costo-api-panel').innerHTML = filas;
+}
+
+function autoResize(el) {
+  if (el.offsetParent === null) return;   // dentro de un <details> cerrado scrollHeight da 0
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.form-resp').forEach(function(f) { restaurarIA(f.dataset.obs); });
+  document.querySelectorAll('.form-resp textarea').forEach(autoResize);
+  // Los <details> arrancan cerrados: al abrirlos recién se puede medir el alto real.
+  document.querySelectorAll('details').forEach(function(d) {
+    d.addEventListener('toggle', function() { if (d.open) d.querySelectorAll('.form-resp textarea').forEach(autoResize); });
+  });
+});
+
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('menu-estado-wrapper');
   if (wrap && !wrap.contains(e.target)) {

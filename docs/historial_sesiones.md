@@ -7131,3 +7131,45 @@ para confirmar que el camino original sigue funcionando igual. Suite de regresi�
 **Confirmado por el usuario en producción (nov-2026):** "ok, y funcionó, desapareció la
 referencia al documento borrado" — el auto-saneo al abrir Respuestas limpió el caso real
 reportado sin necesitar ninguna acción manual del usuario ni migración aparte. Fix cerrado.
+
+---
+
+## Modificaciones → Respuestas: respaldo adjunto + evaluación IA, igual que la Revisión normal (nov-2026)
+
+**Pedido del usuario:** al revisar las respuestas a observaciones de una modificación, esa pestaña
+no permitía subir archivos al expediente ni pedir la revisión de la respuesta por la IA; quería que
+se tratara igual que Respuestas de la Revisión de proyectos.
+
+**Implementación** (`/modificacion/{id}/respuestas`, `main.py` + `analyzer.py` +
+`templates/modificacion_respuestas.html`):
+- `POST /modificacion/{id}/observacion/{obs}/adjuntar-respaldo` (nuevo): espejo de la ruta de la
+  Revisión normal. Guarda el documento en el expediente de la modificación (tipo de
+  `TIPO_DOC_LABELS_MODIFICACION`, preseleccionando el `tipo_docs[0]` del ítem observado;
+  `origen_subsanacion`) y deja `{id, nombre, tipo_label}` en `adjuntos_pendientes`.
+- `POST /modificacion/{id}/observacion/{obs}/evaluar-respuesta` (nuevo): reutiliza
+  `evaluar_respuesta_subsanacion()`. Cambio en `analyzer.py`: parámetro opcional `item_override`
+  (mismo mecanismo que `analizar_item()`) en `_preparar_contexto_evaluacion` y
+  `evaluar_respuesta_subsanacion`; sin él sigue buscando en `ITEMS_SEP` (Revisión normal intacta).
+  Sin bases de concurso (Modificaciones no las usan). Incluye la "Contra Observación" de la ronda
+  reiterada anterior y los adjuntos pendientes; registra el costo (`"subsanacion"`).
+- `registrar_respuesta_modificacion`: ahora recibe `ia_recomendacion`/`ia_fundamento` y mueve
+  `adjuntos_pendientes` a `ronda["adjuntos"]`, igual que la Revisión normal.
+- `eliminar_documento_modificacion` y la carga de la página llaman a `_purgar_adjuntos_huerfanos`
+  (el mismo fix de link roto de más arriba) para que el bug no se repita en este flujo.
+- Plantilla: bloque "Documento de respaldo/respuesta", botón "Evaluar respuesta con IA", campos
+  ocultos de IA, "Contra Observación", y las rondas muestran "Documentos adjuntados" e "IA
+  sugirió". JS equivalente al de `respuestas.html` (evaluación persistida en sessionStorage, costo
+  API repuesto tras el AJAX); ids por `data-obs`, nunca interpolados en JS. Los enlaces a documentos
+  usan `/proyecto/{id}/documento/{doc}/ver` (esa ruta ya sirve también a modificaciones).
+
+**Fuera de alcance (no pedido):** "Deshacer última ronda" y "Evaluar ítem con IA" (evaluación
+conjunta) no existen en Modificaciones; comparación de versiones de presupuesto tampoco.
+
+**Validado con TestClient** (IA simulada para capturar los argumentos): página con botón y bloque
+de respaldo; tipo de documento inválido → 400; adjunto aparece como pendiente; la evaluación recibe
+`item_override` del ítem (también `mod_coherencia`), el adjunto en `doc_ids_extra` y la Contra
+Observación en la ronda 2; respuesta vacía → 400; al registrar, la ronda guarda IA + adjuntos y la
+página los muestra; al borrar el documento no queda link roto. Sin simulación se verificó que
+`_preparar_contexto_evaluacion` filtra por los tipos de Modificaciones, suma el adjunto de otro
+tipo y que Coherencia Global usa todos los documentos. Regresión `test_menu_estado_glass.py` OK.
+No se probó la llamada real a la API (clave de prueba): falta que el usuario la use con un caso real.

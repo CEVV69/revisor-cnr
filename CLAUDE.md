@@ -45,7 +45,8 @@ a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
 propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
-Pendiente: tope de bonificación en el diff de Presupuesto, IA en Respuestas.
+Respuestas (nov-2026): respaldo adjunto + "Evaluar respuesta con IA" iguales a la Revisión normal
+(en prueba). Pendiente: tope de bonificación en el diff de Presupuesto.
 
 **Rediseño "Liquid Glass"/iOS — CERRADO, no tocar sin que el usuario lo pida.**
 

@@ -4899,6 +4899,7 @@ async def eliminar_documento_modificacion(request: Request, mod_id: str, doc_id:
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     mod["documentos"] = [d for d in mod.get("documentos", []) if d["id"] != doc_id]
+    _purgar_adjuntos_huerfanos(mod)
     db.save_proyecto(mod)
     return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
 
@@ -5147,8 +5148,21 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
     mod = db.get_proyecto(mod_id)
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
+    if _purgar_adjuntos_huerfanos(mod):
+        db.save_proyecto(mod)
     aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
-    obs_con_estado = [{"obs": o, "sub": _estado_subsanacion(o)} for o in aprobadas]
+    # Opciones de tipo_doc para clasificar el respaldo del consultor (catálogo completo de
+    # Modificaciones, preseleccionando el tipo del ítem observado) — mismo criterio que la
+    # Revisión normal. "mod_coherencia" no tiene tipo propio: sin preselección.
+    opciones_td = [{"key": k, "label": v} for k, v in TIPO_DOC_LABELS_MODIFICACION.items()]
+    obs_con_estado = []
+    for o in aprobadas:
+        tds = (ITEMS_MODIFICACION.get(o.get("item")) or {}).get("tipo_docs", [])
+        obs_con_estado.append({
+            "obs": o, "sub": _estado_subsanacion(o), "tipo_docs": opciones_td,
+            "preselect": tds[0] if tds else "",
+            "adjuntos_pendientes": (o.get("subsanacion") or {}).get("adjuntos_pendientes", []),
+        })
     n_pendientes_respuesta = sum(1 for par in obs_con_estado if par["sub"]["puede_responder"])
     # Agrupadas por ítem, con desplegable — mismo criterio visual que la Revisión normal (pedido
     # del usuario, oct-2026): antes era una lista plana, difícil de recorrer con varios ítems.
@@ -5172,9 +5186,11 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
 async def registrar_respuesta_modificacion(
     request: Request, mod_id: str, obs_id: str,
     respuesta: str = Form(...), evaluacion: str = Form(...), comentario: str = Form(""),
+    ia_recomendacion: str = Form(""), ia_fundamento: str = Form(""),
 ):
-    """v1 — mismo mecanismo de rondas que la Revisión normal (`_estado_subsanacion`, hasta
-    MAX_RONDAS_SUBSANACION), sin IA de apoyo ni comparación de presupuesto todavía."""
+    """Mismo mecanismo de rondas que la Revisión normal (`_estado_subsanacion`, hasta
+    MAX_RONDAS_SUBSANACION), con la recomendación de la IA y los respaldos adjuntados (nov-2026).
+    Todavía SIN comparación de versiones de presupuesto."""
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
@@ -5190,14 +5206,148 @@ async def registrar_respuesta_modificacion(
     sub = _estado_subsanacion(obs)
     if sub["puede_responder"] and respuesta.strip():
         obs.setdefault("subsanacion", {}).setdefault("rondas", [])
-        obs["subsanacion"]["rondas"].append({
+        ronda = {
             "ronda": sub["ronda_actual"], "respuesta": respuesta.strip(), "evaluacion": evaluacion,
             "comentario": comentario.strip(), "fecha": _ahora().isoformat(), "por": user["nombre"],
-        })
+        }
+        if ia_recomendacion in ("resuelta", "no_resuelta"):
+            ronda["ia_recomendacion"] = ia_recomendacion
+            ronda["ia_fundamento"] = (ia_fundamento or "").strip()
+        pendientes = obs["subsanacion"].get("adjuntos_pendientes", [])
+        if pendientes:
+            ronda["adjuntos"] = pendientes
+            obs["subsanacion"]["adjuntos_pendientes"] = []
+        obs["subsanacion"]["rondas"].append(ronda)
         db.save_proyecto(mod)
     return RedirectResponse(
         url=f"/modificacion/{mod_id}/respuestas?item_ok={obs.get('item', '')}#obs-{obs_id}",
         status_code=302)
+
+
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/adjuntar-respaldo")
+async def adjuntar_respaldo_modificacion(
+    request: Request, mod_id: str, obs_id: str,
+    archivo: UploadFile = File(...), tipo_doc: str = Form("")
+):
+    """Equivalente a `adjuntar_respaldo` de la Revisión normal (nov-2026): sube un documento
+    nuevo/corregido del consultor al expediente de la modificación y lo deja como "adjunto
+    pendiente" de la observación, para que la IA lo vea al evaluar la respuesta."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
+    try:
+        mod = db.get_proyecto(mod_id)
+        if not mod or mod.get("tipo") != "modificacion":
+            return JSONResponse({"ok": False, "error": "modificación no encontrada"}, status_code=404)
+        obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
+        if not obs:
+            return JSONResponse({"ok": False, "error": "observación no encontrada"}, status_code=404)
+        if not archivo.filename:
+            return JSONResponse({"ok": False, "error": "sin archivo"}, status_code=400)
+        if tipo_doc not in TIPO_DOC_LABELS_MODIFICACION:
+            return JSONResponse({"ok": False, "error": "tipo de documento no válido"}, status_code=400)
+
+        ext = Path(archivo.filename).suffix.lower()
+        doc_id = str(uuid.uuid4())[:8]
+        filename = f"{doc_id}{ext}"
+        filepath = UPLOAD_DIR / mod_id / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        content = await archivo.read()
+        with open(filepath, "wb") as f:
+            f.write(content)
+        await asyncio.to_thread(db.guardar_archivo, mod_id, doc_id, filename, content)
+        texto = await asyncio.to_thread(extract_text, str(filepath), ext)
+        texto_guardado = truncar_texto_guardado(texto)
+        label = TIPO_DOC_LABELS_MODIFICACION[tipo_doc]
+        mod.setdefault("documentos", []).append({
+            "id": doc_id, "nombre_original": archivo.filename, "filename": filename,
+            "tipo_doc": tipo_doc, "tipo_doc_label": label,
+            "fecha_subida": _ahora().isoformat(), "texto_len": _texto_len(texto_guardado),
+            "analizado": False, "origen_subsanacion": obs_id,
+        })
+        obs.setdefault("subsanacion", {}).setdefault("adjuntos_pendientes", []).append(
+            {"id": doc_id, "nombre": archivo.filename, "tipo_label": label})
+        db.save_proyecto(mod)
+        await asyncio.to_thread(db.set_texto_documento, mod_id, doc_id, texto_guardado)
+        return JSONResponse({"ok": True, "doc": {"id": doc_id, "nombre": archivo.filename,
+                                                 "tipo_label": label}})
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en adjuntar-respaldo (modificación) {obs_id}: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
+
+
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/evaluar-respuesta")
+async def evaluar_respuesta_ia_modificacion(request: Request, mod_id: str, obs_id: str):
+    """AJAX — equivalente a `evaluar_respuesta_ia` de la Revisión normal (nov-2026): la IA evalúa
+    si la respuesta del consultor (aún sin guardar) resuelve la observación, contra los documentos
+    de la modificación (incluidos los respaldos recién adjuntados). Reutiliza
+    `evaluar_respuesta_subsanacion()` con `item_override=ITEMS_MODIFICACION[...]`. Sin bases de
+    concurso: las Modificaciones no las usan. Es un apoyo — decide el revisor."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
+    try:
+        mod = db.get_proyecto(mod_id)
+        if not mod or mod.get("tipo") != "modificacion":
+            return JSONResponse({"ok": False, "error": "modificación no encontrada"}, status_code=404)
+        obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
+        if not obs:
+            return JSONResponse({"ok": False, "error": "observación no encontrada"}, status_code=404)
+        form = await request.form()
+        respuesta = (form.get("respuesta") or "").strip()
+        if not respuesta:
+            return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
+        item_key = obs.get("item", "")
+        if item_key not in ITEMS_MODIFICACION:
+            return JSONResponse({"ok": False, "error": "ítem no válido"}, status_code=400)
+
+        pendientes = (obs.get("subsanacion") or {}).get("adjuntos_pendientes", [])
+        doc_ids_extra = [a.get("id") for a in pendientes]
+        await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
+        documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
+        n_obs_item = sum(1 for o in mod.get("observaciones", [])
+                         if o.get("estado") == "aprobada" and o.get("item", "") == item_key)
+
+        # Si hubo una ronda reiterada, su "Contra Observación" acota el punto — se suma al texto.
+        observacion_texto = obs.get("texto", "")
+        rondas_previas = (obs.get("subsanacion") or {}).get("rondas", [])
+        if rondas_previas:
+            ult = rondas_previas[-1]
+            contra_obs = (ult.get("comentario") or "").strip()
+            if ult.get("evaluacion") == "reiterada" and contra_obs:
+                observacion_texto += (f"\n\nContra Observación del revisor (ronda {ult.get('ronda')}, "
+                                      f"tras la respuesta anterior): {contra_obs}")
+
+        acc_costo = iniciar_costo()
+        resultado = await evaluar_respuesta_subsanacion(
+            observacion_texto=observacion_texto,
+            referencia=obs.get("referencia_normativa", ""),
+            respuesta_consultor=respuesta, item_key=item_key,
+            documentos=documentos_con_texto, resumen=mod.get("resumen", {}),
+            doc_ids_extra=doc_ids_extra, n_obs_item=n_obs_item,
+            ruta_uploads=str(UPLOAD_DIR / mod_id),
+            item_override=ITEMS_MODIFICACION[item_key],
+        )
+
+        # Copia FRESCA antes de guardar el costo: la evaluación tarda decenas de segundos.
+        mod_fresco = db.get_proyecto(mod_id)
+        costo_api = None
+        if mod_fresco:
+            _registrar_costo(mod_fresco, "subsanacion", acc_costo)
+            db.save_proyecto(mod_fresco)
+            costo_api = _costo_para_vista(mod_fresco)
+            if costo_api:
+                costo_api["actualizado"] = _fmt_fecha(costo_api["actualizado"], con_hora=True)
+
+        return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
+                             "fundamento": resultado.get("fundamento", ""), "costo_api": costo_api})
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR en evaluar-respuesta (modificación) {obs_id}: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
 
 
 @app.get("/modificacion/{mod_id}/variables", response_class=HTMLResponse)

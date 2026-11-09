@@ -5078,7 +5078,7 @@ sin repetir la palabra "{etiqueta}" al inicio. Ve directo al punto técnico."""
 
 async def _preparar_contexto_evaluacion(documentos: list, item_key: str, ids_extra: set,
                                         ruta_uploads: str, max_img_cuota: int,
-                                        nombre_llamador: str) -> tuple:
+                                        nombre_llamador: str, item_override: dict = None) -> tuple:
     """Selecciona y prepara los documentos de contexto para evaluar una respuesta de subsanación
     — código COMPARTIDO entre `evaluar_respuesta_subsanacion` (una observación) y
     `evaluar_respuestas_item` (un lote), antes duplicado entre ambas casi línea por línea (~70
@@ -5096,7 +5096,9 @@ async def _preparar_contexto_evaluacion(documentos: list, item_key: str, ids_ext
     prompt final ni decide cacheo: eso varía entre los dos llamadores (la versión individual
     cachea el bloque de antecedentes cuando conviene — ver `cachear_antecedentes` ahí —, la de
     lote nunca porque ya es una sola llamada)."""
-    item = ITEMS_SEP.get(item_key)
+    # `item_override`: ítem de Modificaciones (ITEMS_MODIFICACION), que no está en ITEMS_SEP — mismo
+    # mecanismo que `analizar_item()`. "mod_coherencia" lleva tipo_docs=[] y cae a "todos".
+    item = item_override if item_override is not None else ITEMS_SEP.get(item_key)
     if item and item_key != "coherencia" and item.get("tipo_docs"):
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
@@ -5203,8 +5205,12 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
                                         bases_texto: str = "", concurso_id: str = "",
                                         doc_ids_extra: list = None,
                                         n_obs_item: int = 1,
-                                        ruta_uploads: str = None) -> dict:
+                                        ruta_uploads: str = None,
+                                        item_override: dict = None) -> dict:
     """Devuelve {"recomendacion": "resuelta"|"no_resuelta"|"", "fundamento": "..."}.
+
+    `item_override`: dict del ítem para Modificaciones (ITEMS_MODIFICACION[key]); sin él se busca
+    `item_key` en ITEMS_SEP (Revisión normal).
 
     `doc_ids_extra`: IDs de documentos que el consultor adjuntó junto a ESTA respuesta (ej. una
     nueva prueba de bombeo). Se incluyen SIEMPRE en el contexto, aunque su tipo_doc no pertenezca
@@ -5233,7 +5239,7 @@ async def evaluar_respuesta_subsanacion(observacion_texto: str, referencia: str,
     item, nombre_item, contexto_docs, imagenes_por_doc, nota_imagenes = \
         await _preparar_contexto_evaluacion(
             documentos, item_key, set(doc_ids_extra or []), ruta_uploads,
-            MAX_IMG_SUBSANACION, "evaluar_respuesta_subsanacion")
+            MAX_IMG_SUBSANACION, "evaluar_respuesta_subsanacion", item_override)
 
     bloque_resumen = _construir_bloque_resumen(resumen)
     system_con_cache = [{"type": "text", "text": SYSTEM_PROMPT,
