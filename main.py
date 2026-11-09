@@ -560,6 +560,7 @@ PASOS_COSTO = {
     "consulta":    "Consulta al expediente",
     "subsanacion": "Respuestas del consultor",
     "evaluacion_consultor": "Evaluación del Consultor",
+    "presupuesto": "Extracción de presupuesto",
 }
 
 
@@ -5006,6 +5007,13 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     }
     _registrar_costo(mod, "revision", acc_costo, detalle=item_key)
     db.save_proyecto(mod)
+    # Presupuesto: extrae solo el cuadro resumen (nov-2026) — EN SEGUNDO PLANO para no alargar esta
+    # petición (el análisis ya es síncrono y largo); aparece en Presupuesto/Respuestas/Variables
+    # en cuanto termina.
+    if item_key == "mod_presupuesto":
+        tarea = asyncio.create_task(_autoextraer_presupuesto_modificacion(mod_id))
+        _tareas_fondo.add(tarea)
+        tarea.add_done_callback(_tareas_fondo.discard)
     return RedirectResponse(url=f"/modificacion/{mod_id}?item_ok={item_key}#item-{item_key}",
                             status_code=302)
 
@@ -5178,6 +5186,7 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "n_pendientes_respuesta": n_pendientes_respuesta,
         "costo_api": _costo_para_vista(mod),
+        "presupuesto_resumen": _resumen_presupuesto_modificacion(mod),
         "item_ok": request.query_params.get("item_ok"),
     })
 
@@ -5219,6 +5228,12 @@ async def registrar_respuesta_modificacion(
             obs["subsanacion"]["adjuntos_pendientes"] = []
         obs["subsanacion"]["rondas"].append(ronda)
         db.save_proyecto(mod)
+        # Un respaldo de tipo presupuesto cambia el cuadro: se re-extrae solo (como en la Revisión
+        # normal) y se ESPERA, para que el aviso de diferencias ya aparezca al volver a Respuestas.
+        if any(d.get("tipo_doc") in _TIPO_DOC_PRESUPUESTO_MOD.values()
+               and d.get("id") in {a.get("id") for a in pendientes}
+               for d in mod.get("documentos", [])):
+            await _autoextraer_presupuesto_modificacion(mod_id)
     # Si al ítem ya no le queda ninguna observación por responder (ronda 1 sin tocar), el redirect
     # va SIN ancla: con `#obs-…` el navegador abre solo el <details> que contiene esa observación
     # y el ítem terminado quedaba desplegado (reproducido en Chromium, nov-2026).
@@ -5416,7 +5431,7 @@ async def pagina_variables_modificacion(request: Request, mod_id: str):
     return templates.TemplateResponse("modificacion_variables.html", {
         "request": request, "user": user, "proyecto": mod,
         "datos": datos or {}, "resultado": resultado,
-        "resumen": resumen_num,
+        "resumen": resumen_num, "presupuesto_resumen": _resumen_presupuesto_modificacion(mod),
         "n_pendientes_respuesta": n_pendientes_respuesta,
     })
 
@@ -5619,40 +5634,47 @@ async def pagina_presupuesto_modificacion(request: Request, mod_id: str):
     })
 
 
-@app.post("/modificacion/{mod_id}/presupuesto/extraer")
-async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
-    """Extrae (o re-extrae) el cuadro resumen de AMBOS presupuestos a partir de los documentos ya
-    subidos — `mod_presupuesto_original` y `mod_presupuesto` — y guarda el resultado en
-    `mod["presupuesto_modificacion"]`. Si solo uno de los dos está subido, igual se extrae y se
-    guarda (la comparación se completa cuando llegue el que falta)."""
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
-    if not mod or mod.get("tipo") != "modificacion":
-        raise HTTPException(status_code=404)
+_TIPO_DOC_PRESUPUESTO_MOD = {"original": "mod_presupuesto_original", "modificado": "mod_presupuesto"}
 
-    docs_orig = [d for d in mod.get("documentos", []) if d.get("tipo_doc") == "mod_presupuesto_original"]
-    docs_modi = [d for d in mod.get("documentos", []) if d.get("tipo_doc") == "mod_presupuesto"]
-    if not docs_orig and not docs_modi:
-        return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto?extraer=sindocs",
-                                status_code=302)
 
-    await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
-    documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
-    docs_orig_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "mod_presupuesto_original"]
-    docs_modi_ct = [d for d in documentos_con_texto if d.get("tipo_doc") == "mod_presupuesto"]
+def _lados_presupuesto_desactualizados(mod: dict) -> list:
+    """Lados ("original"/"modificado") que tienen documento subido pero cuya extracción falta o es
+    anterior al documento más reciente de ese tipo — son los únicos que vale la pena (y cuesta) volver
+    a extraer solos. Las fechas son ISO generadas por `_ahora()`, comparables como texto."""
+    datos = mod.get("presupuesto_modificacion") or {}
+    pendientes = []
+    for lado, tipo in _TIPO_DOC_PRESUPUESTO_MOD.items():
+        docs = [d for d in mod.get("documentos", []) if d.get("tipo_doc") == tipo]
+        if not docs:
+            continue
+        guardado = datos.get(lado)
+        if not guardado or any((d.get("fecha_subida") or "") > (guardado.get("fecha") or "")
+                               for d in docs):
+            pendientes.append(lado)
+    return pendientes
 
-    tareas = {}
-    if docs_orig_ct:
-        tareas["original"] = extraer_presupuesto_general(docs_orig_ct)
-    if docs_modi_ct:
-        tareas["modificado"] = extraer_presupuesto_general(docs_modi_ct)
-    resultados = dict(zip(tareas.keys(), await asyncio.gather(*tareas.values())))
 
+async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
+    """Extrae el cuadro resumen de los `lados` pedidos y lo guarda en
+    `mod["presupuesto_modificacion"]` (copia FRESCA al guardar, el costo va al paso "presupuesto").
+    Devuelve "ok", "vacio" (la IA no sacó nada: se conserva lo anterior) o "sindocs"."""
     mod = db.get_proyecto(mod_id)
     if not mod:
-        return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto", status_code=302)
+        return "sindocs"
+    lados = [l for l in lados
+             if any(d.get("tipo_doc") == _TIPO_DOC_PRESUPUESTO_MOD[l] for d in mod.get("documentos", []))]
+    if not lados:
+        return "sindocs"
+    await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
+    documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
+    acc_costo = iniciar_costo()
+    resultados = dict(zip(lados, await asyncio.gather(*[
+        extraer_presupuesto_general(
+            [d for d in documentos_con_texto if d.get("tipo_doc") == _TIPO_DOC_PRESUPUESTO_MOD[l]])
+        for l in lados])))
+    mod = db.get_proyecto(mod_id)
+    if not mod:
+        return "vacio"
     datos = mod.setdefault("presupuesto_modificacion", {})
     estado = "vacio"
     for lado, datos_lado in resultados.items():
@@ -5660,7 +5682,37 @@ async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
             datos[lado] = {"fecha": _ahora().isoformat(), "items": datos_lado["items"],
                            "total": datos_lado.get("total")}
             estado = "ok"
+    _registrar_costo(mod, "presupuesto", acc_costo)
     db.save_proyecto(mod)
+    return estado
+
+
+async def _autoextraer_presupuesto_modificacion(mod_id: str) -> None:
+    """Extracción AUTOMÁTICA (nov-2026): solo de los lados desactualizados, y sin romper al llamador
+    si falla — el botón "Extraer datos" de la pestaña Presupuesto sigue como respaldo manual."""
+    try:
+        mod = db.get_proyecto(mod_id)
+        lados = _lados_presupuesto_desactualizados(mod) if mod else []
+        if lados:
+            await _extraer_presupuesto_modificacion(mod_id, lados)
+    except Exception as e:
+        print(f"⚠️ extracción automática de presupuesto ({mod_id}) falló: {type(e).__name__}: {e}")
+
+
+@app.post("/modificacion/{mod_id}/presupuesto/extraer")
+async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
+    """Extrae (o re-extrae) el cuadro resumen de AMBOS presupuestos a partir de los documentos ya
+    subidos — `mod_presupuesto_original` y `mod_presupuesto` — y guarda el resultado en
+    `mod["presupuesto_modificacion"]`. Si solo uno de los dos está subido, igual se extrae y se
+    guarda (la comparación se completa cuando llegue el que falta). Respaldo manual: la extracción
+    también corre sola (ver `_autoextraer_presupuesto_modificacion`)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    estado = await _extraer_presupuesto_modificacion(mod_id, list(_TIPO_DOC_PRESUPUESTO_MOD))
     return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto?extraer={estado}",
                             status_code=302)
 

@@ -1,0 +1,18 @@
+{# Aviso de diferencias entre el presupuesto original y el modificado (Respuestas y Variables de
+   Modificaciones). Solo aparece cuando ambos están extraídos y los totales difieren. #}
+{% if presupuesto_resumen and presupuesto_resumen.hay_comparacion and presupuesto_resumen.diferencia_total %}
+<div class="card" style="display:flex; align-items:center; gap:0.6rem;"
+     title="Diferencia entre el cuadro resumen del presupuesto original y el modificado. Verifica que el costo total del proyecto coincida.">
+  <span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:1.15rem; height:1.15rem; border-radius:50%; background:#c05621; color:#fff;
+    font-size:0.75rem; font-weight:700;">!</span>
+  <p style="margin:0; font-size:0.88rem;">
+    Cambios en el presupuesto: ${{ presupuesto_resumen.total_original | clp }} original
+    {%- if presupuesto_resumen.fecha_original %} ({{ presupuesto_resumen.fecha_original | fecha }}){% endif %},
+    ${{ presupuesto_resumen.total_modificado | clp }} modificado
+    {%- if presupuesto_resumen.fecha_modificado %} ({{ presupuesto_resumen.fecha_modificado | fecha }}){% endif %}
+    · diferencia {{ '+' if presupuesto_resumen.diferencia_total > 0 else '-' }}${{ presupuesto_resumen.diferencia_total | abs | clp }}.
+    <a href="/modificacion/{{ proyecto.id }}/presupuesto">Ver detalle</a>
+  </p>
+</div>
+{% endif %}

@@ -7203,3 +7203,32 @@ entregaba el `<details>` cerrado (el cierre automático por plantilla funcionaba
 le queda ninguna observación por responder (ronda 1 sin tocar), el redirect va SIN ancla; con
 pendientes se conserva el ancla para seguir con la siguiente. Lección: un TestClient no ve este tipo
 de comportamiento del navegador — para estados de `<details>`/anclas probar en navegador real.
+
+## Modificaciones: extracción automática del presupuesto + aviso de diferencias (nov-2026)
+
+**Pedido:** que el cuadro resumen del presupuesto se extraiga solo (antes solo con el botón "Extraer
+datos") y que las diferencias se avisen en Respuestas y en Variables (el costo total pesa en el cuadro
+de variables).
+
+**Implementación (`main.py`):** `_extraer_presupuesto_modificacion(mod_id, lados)` (extracción de
+"original"/"modificado", guarda en copia fresca, costo en el nuevo paso `"presupuesto"`),
+`_lados_presupuesto_desactualizados()` (solo extrae un lado si falta o si hay un documento de ese tipo
+más nuevo que la extracción guardada — así no se paga dos veces lo mismo) y
+`_autoextraer_presupuesto_modificacion()` (tolerante a fallas; el botón manual sigue de respaldo y
+re-extrae ambos lados siempre). Gatillos: (1) al analizar el ítem `mod_presupuesto`, en SEGUNDO PLANO
+(`_tareas_fondo`) para no alargar la petición síncrona del análisis; (2) al registrar una respuesta
+cuyo respaldo es `mod_presupuesto`/`mod_presupuesto_original`, ESPERANDO el resultado para que el aviso
+ya aparezca al volver (un respaldo de otro tipo no gatilla). **No** se extrae al subir un documento
+en la pestaña Revisión por ítem (no pedido): para eso sigue el botón o el análisis del ítem.
+
+**Aviso:** parcial `templates/_aviso_presupuesto_modificacion.html` incluido en `modificacion_respuestas.html`
+y `modificacion_variables.html` (ambas rutas pasan `presupuesto_resumen`). Solo aparece con ambos
+presupuestos extraídos y totales distintos: "Cambios en el presupuesto: $X original (fecha), $Y
+modificado (fecha) · diferencia ±$Z" + enlace a Presupuesto; el recordatorio de verificar el costo total
+va en `title`. Los montos son en pesos (el cuadro resumen no trae UF), por eso Variables no los compara
+con el costo UF automáticamente.
+
+**Validado con TestClient** (extracción simulada): extrae ambos lados tras el análisis, no repite sin
+cambios, re-extrae solo "modificado" ante un respaldo nuevo, un respaldo "otros" no gatilla, el botón
+manual sigue (incl. `sindocs`), el aviso aparece en ambas pestañas con diferencia positiva y negativa, y
+el análisis de otro ítem no lanza extracción. No se probó la extracción real con la API.

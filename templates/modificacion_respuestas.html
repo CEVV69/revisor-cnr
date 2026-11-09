@@ -65,6 +65,7 @@
   <a href="/modificacion/{{ proyecto.id }}/presupuesto" class="proj-tab">Presupuesto</a>
 </nav>
 
+{% include "_aviso_presupuesto_modificacion.html" %}
 {% if grupos_respuestas %}
 {% for grupo in grupos_respuestas %}
 {# Tras guardar una respuesta el ítem queda abierto solo mientras le falte alguna observación por
