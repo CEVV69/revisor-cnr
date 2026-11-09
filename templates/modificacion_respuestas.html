@@ -4,6 +4,13 @@
 
 <style>
   /* .proj-nav/.proj-tab/.nav-badge: centralizados en base.html (oct-2026) */
+  .sub-badge { font-size:0.72rem; font-weight:700; padding:0.15rem 0.55rem; border-radius:999px;
+    white-space:nowrap; }
+  .sub-esperando { background:#fffaf0; color:var(--orange); border:1px solid rgba(192,86,33,.3); }
+  .sub-resuelta  { background:#f0fff4; color:var(--green-dk); border:1px solid rgba(39,103,73,.3); }
+  .sub-noresuelta{ background:#fff0f0; color:var(--red); border:1px solid rgba(196,18,48,.3); }
+  .sub-reobservada{ background:#f3eeff; color:#5e35b1; border:1px solid rgba(94,53,177,.28); }
+  .grupo-resumen { float:right; display:inline-flex; gap:0.35rem; flex-wrap:wrap; }
   .ia-box { display:none; margin-top:0.5rem; padding:0.6rem 0.8rem; border-radius:8px;
     font-size:0.85rem; line-height:1.45; white-space:pre-wrap; }
   .ia-neutral { background:rgba(128,128,128,0.08); color:var(--text-2); border:1px solid var(--border); }
@@ -62,13 +69,14 @@
 {% for grupo in grupos_respuestas %}
 {# Tras guardar una respuesta el ítem queda abierto solo mientras le falte alguna observación por
    responder (ronda 1 sin tocar); en cuanto todas están resueltas o reiteradas se cierra. #}
-{% set cnt = namespace(esp=0) %}
-{% for par in grupo.pares %}{% if par.sub.estado == 'esperando' and (par.sub.ronda_actual or 1) <= 1 %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
+{% set cnt = namespace(res=0, nor=0, esp=0, reobs=0) %}
+{% for par in grupo.pares %}{% if par.sub.estado == 'resuelta' %}{% set cnt.res = cnt.res + 1 %}{% elif par.sub.estado == 'no_resuelta' %}{% set cnt.nor = cnt.nor + 1 %}{% elif par.sub.ronda_actual and par.sub.ronda_actual > 1 %}{% set cnt.reobs = cnt.reobs + 1 %}{% else %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
 <details {% if grupo.key == item_ok and cnt.esp %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
 <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
             font-weight:700; color:var(--blue); font-size:0.9rem; user-select:none;">
   {{ grupo.nombre }}
   <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ grupo.pares|length }} observación{{ 'es' if grupo.pares|length != 1 else '' }}</span>
+  <span class="grupo-resumen">{% if cnt.res %}<span class="sub-badge sub-resuelta">{{ cnt.res }} resuelta{{ 's' if cnt.res > 1 }}</span>{% endif %}{% if cnt.nor %}<span class="sub-badge sub-noresuelta">{{ cnt.nor }} no resuelta{{ 's' if cnt.nor > 1 }}</span>{% endif %}{% if cnt.reobs %}<span class="sub-badge sub-reobservada">{{ cnt.reobs }} re-observada{{ 's' if cnt.reobs > 1 }}</span>{% endif %}{% if cnt.esp %}<span class="sub-badge sub-esperando">{{ cnt.esp }} esperando</span>{% endif %}</span>
 </summary>
 <div style="padding-top:0.6rem;">
 {% for par in grupo.pares %}

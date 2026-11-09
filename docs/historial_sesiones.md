@@ -7189,3 +7189,9 @@ terminar: tras guardar una respuesta, `item_ok` lo mantiene abierto solo mientra
 observación sin tocar (estado "esperando", ronda 1); cuando todas quedaron resueltas o reiteradas
 se cierra (mismo criterio de "pendiente" que `data-cnt-esp` en la Revisión normal). Validado con
 TestClient (abierto con 1 de 2 respondidas; cerrado al responder la última, también reiterada).
+
+**Etiquetas de estado por ítem en Modificaciones → Respuestas (nov-2026, pedido del usuario):** con los
+ítems cerrados no se veía el estado de sus observaciones. El encabezado de cada ítem muestra ahora
+los mismos contadores que la Revisión normal ("N resuelta(s)", "N no resuelta(s)", "N re-observada(s)",
+"N esperando"), con las mismas clases/colores (`.sub-badge`) y el mismo criterio de conteo. Validado
+con TestClient en los cuatro estados (incluida una observación que agotó sus rondas).
