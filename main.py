@@ -5224,6 +5224,29 @@ async def registrar_respuesta_modificacion(
         status_code=302)
 
 
+@app.post("/modificacion/{mod_id}/observacion/{obs_id}/subsanacion/deshacer")
+async def deshacer_respuesta_modificacion(request: Request, mod_id: str, obs_id: str):
+    """Equivalente a `deshacer_respuesta_subsanacion` de la Revisión normal: borra la ÚLTIMA ronda
+    (por un error al escribir o al presionar Reiterar/Resuelta) y devuelve sus adjuntos a
+    `adjuntos_pendientes` para que el respaldo no quede invisible en Respuestas."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mod = db.get_proyecto(mod_id)
+    if not mod or mod.get("tipo") != "modificacion":
+        raise HTTPException(status_code=404)
+    obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
+    if obs and (obs.get("subsanacion") or {}).get("rondas"):
+        ronda = obs["subsanacion"]["rondas"].pop()
+        adjuntos = ronda.get("adjuntos", [])
+        if adjuntos:
+            obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
+        db.save_proyecto(mod)
+    return RedirectResponse(
+        url=f"/modificacion/{mod_id}/respuestas?item_ok={(obs or {}).get('item', '')}#obs-{obs_id}",
+        status_code=302)
+
+
 @app.post("/modificacion/{mod_id}/observacion/{obs_id}/adjuntar-respaldo")
 async def adjuntar_respaldo_modificacion(
     request: Request, mod_id: str, obs_id: str,

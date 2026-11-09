@@ -152,6 +152,14 @@
     <div class="ia-box" id="ia-result-{{ obs.id }}"></div>
   </form>
   {% endif %}
+
+  {% if sub.rondas %}
+  <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/subsanacion/deshacer"
+        onsubmit="return confirm('¿Deshacer la última evaluación registrada de esta observación?')"
+        style="margin-top:0.5rem;">
+    <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--text-2); font-size:0.78rem;">Deshacer última ronda</button>
+  </form>
+  {% endif %}
 </div>
 {% endfor %}
 </div>

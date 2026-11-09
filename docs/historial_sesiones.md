@@ -7173,3 +7173,11 @@ página los muestra; al borrar el documento no queda link roto. Sin simulación 
 `_preparar_contexto_evaluacion` filtra por los tipos de Modificaciones, suma el adjunto de otro
 tipo y que Coherencia Global usa todos los documentos. Regresión `test_menu_estado_glass.py` OK.
 No se probó la llamada real a la API (clave de prueba): falta que el usuario la use con un caso real.
+
+**Ampliación (mismo día, pedido del usuario):** "Deshacer última ronda" también en Modificaciones, para
+corregir un error al escribir o al presionar Reiterar/Resuelta. `POST /modificacion/{id}/observacion/
+{obs}/subsanacion/deshacer` (espejo de la Revisión normal: quita la última ronda y devuelve sus
+adjuntos a `adjuntos_pendientes`) + botón en cada observación con rondas, con confirmación.
+Validado con TestClient (sin rondas no hay botón; tras deshacer la observación vuelve a ronda 1 y el
+respaldo queda pendiente). Siguen fuera de Modificaciones: "Evaluar ítem con IA" conjunta y la
+comparación de versiones de presupuesto.
