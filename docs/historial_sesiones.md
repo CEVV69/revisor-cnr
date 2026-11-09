@@ -7181,3 +7181,11 @@ adjuntos a `adjuntos_pendientes`) + botón en cada observación con rondas, con 
 Validado con TestClient (sin rondas no hay botón; tras deshacer la observación vuelve a ronda 1 y el
 respaldo queda pendiente). Siguen fuera de Modificaciones: "Evaluar ítem con IA" conjunta y la
 comparación de versiones de presupuesto.
+
+**Ajustes en Modificaciones → Respuestas (nov-2026, pedido del usuario):** (1) "Benef.: [nombre]"
+junto al botón de Estado (mismo span que `respuestas.html`; en la Revisión solo está en esa pestaña,
+así que no se agregó a las otras pestañas de Modificaciones). (2) El ítem ya no queda desplegado al
+terminar: tras guardar una respuesta, `item_ok` lo mantiene abierto solo mientras quede alguna
+observación sin tocar (estado "esperando", ronda 1); cuando todas quedaron resueltas o reiteradas
+se cierra (mismo criterio de "pendiente" que `data-cnt-esp` en la Revisión normal). Validado con
+TestClient (abierto con 1 de 2 respondidas; cerrado al responder la última, también reiterada).

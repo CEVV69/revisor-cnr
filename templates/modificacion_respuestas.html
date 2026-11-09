@@ -23,6 +23,9 @@
   <span class="text-muted">Costo API:</span>
   {% include "_costo_api.html" %}
   <span style="flex:1;"></span>
+  {% if proyecto.postulante %}
+  <span class="text-muted" style="font-size:0.8rem;" title="Beneficiario del proyecto">Benef.: {{ proyecto.postulante }}</span>
+  {% endif %}
   <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
     <button onclick="toggleMenuEstado()" class="btn btn-sm"
             style="background:{% for est in estados_proyecto_opciones %}{% if est[0] == proyecto.estado %}{{ est[1] }}{% endif %}{% endfor %};color:white;white-space:nowrap;">
@@ -57,7 +60,11 @@
 
 {% if grupos_respuestas %}
 {% for grupo in grupos_respuestas %}
-<details {% if grupo.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+{# Tras guardar una respuesta el ítem queda abierto solo mientras le falte alguna observación por
+   responder (ronda 1 sin tocar); en cuanto todas están resueltas o reiteradas se cierra. #}
+{% set cnt = namespace(esp=0) %}
+{% for par in grupo.pares %}{% if par.sub.estado == 'esperando' and (par.sub.ronda_actual or 1) <= 1 %}{% set cnt.esp = cnt.esp + 1 %}{% endif %}{% endfor %}
+<details {% if grupo.key == item_ok and cnt.esp %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
 <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
             font-weight:700; color:var(--blue); font-size:0.9rem; user-select:none;">
   {{ grupo.nombre }}
