@@ -7247,3 +7247,25 @@ observación completa tachada (`.obs-resuelta`, opacidad .65) si la última rond
 cambios en `main.py`. Validado con 4 casos (sin respuesta; resuelta en 1 ronda; reiterada con contra
 observación; reiterada→resuelta en 2 rondas). Diferencia conservada a propósito y no pedida: la ficha de
 Revisión excluye observaciones de severidad "informativa", la de Modificaciones las incluye.
+
+## Pendientes en Revisión Ítem SEP (nov-2026)
+
+**Pedido del usuario:** una tarjeta nueva en la pestaña Revisión Ítem SEP para ingresar notas que son
+"pendientes", de 3 tipos — Al inicio de obra, A la recepción de obras, Al momento de pago — pudiendo
+existir los tres en un mismo proyecto; clasificadas por tipo de pendiente (como las observaciones lo
+están por ítem).
+
+**Implementación:** datos en `proyecto["pendientes"]` = lista de `{id, tipo, texto, fecha, por}`;
+`TIPOS_PENDIENTE` (main.py, también global de Jinja). Rutas `POST /proyecto/{id}/pendientes/agregar`
+(tipo + texto) y `.../pendientes/{pid}/eliminar`; ambas redirigen a `/items?pend_ok=1#pendientes`, que
+deja la tarjeta abierta (cerrada por defecto, como las otras secciones). Tarjeta en `proyecto.html`
+entre "Agregar observación manual" y "Evaluación del Consultor": resumen con un contador por tipo
+visible aun cerrada, formulario (selector de tipo + nota) y lista agrupada por tipo, numerada por
+grupo, con "Eliminar" (confirm sin interpolar texto del usuario). **No** son observaciones: no pasan
+por Respuestas, ni por la ficha de revisión, ni por el aprendizaje/coherencia. Sin edición in situ (se
+elimina y se vuelve a agregar).
+
+**Validado en Chromium real:** cerrada por defecto; agregar 2 de inicio de obra + 1 de recepción + 1 de
+pago → contadores y grupos correctos, tarjeta abierta tras agregar; un texto con `<script>` se muestra
+como texto; eliminar funciona. Pregunta abierta al usuario: si los pendientes deben salir también en la
+ficha impresa.

@@ -880,6 +880,47 @@ function actualizarEtiqueta(input) {
   </form>
 </details>
 
+<!-- Pendientes — notas para una etapa posterior a la aprobación, clasificadas por tipo (nov-2026):
+     al inicio de obra, a la recepción de obras, al momento de pago. Un proyecto puede tener los tres.
+     No son observaciones: no entran a Respuestas ni a la ficha. -->
+{% set pendientes = proyecto.pendientes or [] %}
+<details class="card" id="pendientes" style="margin-top:1rem;" {% if request.query_params.get('pend_ok') %}open{% endif %}>
+  <summary style="cursor:pointer; display:flex; align-items:baseline; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.2rem; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text);">
+    Pendientes
+    {% for tk, tl in TIPOS_PENDIENTE.items() %}{% set n = pendientes | selectattr('tipo', 'equalto', tk) | list | length %}{% if n %}<span class="badge badge-pendiente" title="{{ tl }}">{{ tl }}: {{ n }}</span>{% endif %}{% endfor %}
+  </summary>
+
+  <form method="post" action="/proyecto/{{ proyecto.id }}/pendientes/agregar"
+        style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.6rem;">
+    <select name="tipo" required
+            style="width:100%; padding:0.45rem 0.6rem; border:1px solid var(--border); border-radius:6px; font-size:0.86rem; font-family:inherit; background:var(--surface); color:var(--text);">
+      <option value="" disabled selected>Elegir tipo de pendiente...</option>
+      {% for tk, tl in TIPOS_PENDIENTE.items() %}<option value="{{ tk }}">{{ tl }}</option>{% endfor %}
+    </select>
+    <textarea name="texto" rows="3" required placeholder="Nota del pendiente..."
+              style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-size:0.88rem; line-height:1.5; font-family:inherit; resize:vertical; box-sizing:border-box;"></textarea>
+    <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-start;">Agregar pendiente</button>
+  </form>
+
+  {% for tk, tl in TIPOS_PENDIENTE.items() %}
+  {% set lista = pendientes | selectattr('tipo', 'equalto', tk) | list %}
+  {% if lista %}
+  <div style="margin-top:1rem;">
+    <div style="font-weight:700; color:var(--blue); font-size:0.9rem; border-bottom:1px solid var(--border); padding-bottom:0.25rem; margin-bottom:0.5rem;">{{ tl }}</div>
+    {% for p in lista %}
+    <div style="display:flex; gap:0.6rem; align-items:flex-start; padding:0.4rem 0; {% if not loop.last %}border-bottom:1px dashed var(--border);{% endif %}">
+      <div style="flex:1; font-size:0.88rem; line-height:1.5; white-space:pre-wrap;"><strong>{{ loop.index }})</strong> {{ p.texto }}</div>
+      <form method="post" action="/proyecto/{{ proyecto.id }}/pendientes/{{ p.id }}/eliminar"
+            onsubmit="return confirm('¿Eliminar este pendiente?')">
+        <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--text-2); font-size:0.78rem;">Eliminar</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</details>
+
 <!-- Evaluación del Consultor — cierre de la revisión, se copia al SEP igual que las observaciones -->
 {% set eval_abrir = item_ok or request.query_params.get('eval_ok') or request.query_params.get('eval_auto_ok') %}
 <details class="card" id="evaluacion-consultor" style="margin-top:1rem;" {% if eval_abrir %}open{% endif %}>

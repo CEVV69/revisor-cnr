@@ -45,19 +45,17 @@ a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en 
 **Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
 Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
 propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
-**Respuestas = misma mecánica que la Revisión normal (nov-2026, en prueba):** adjuntar respaldo,
-"Evaluar respuesta con IA" (`evaluar_respuesta_subsanacion` con `item_override`), Deshacer última
-ronda, etiquetas de estado por ítem, ítem terminado se cierra solo, "Benef.:" junto al Estado, y la
-Ficha con "R:"/Contra Observación/tachado. Presupuesto: extracción AUTOMÁTICA (al analizar el ítem y
-al responder con respaldo de presupuesto) + aviso de diferencias en Respuestas y Variables; el botón
-"Extraer datos" queda de respaldo. Botón "Generar Ficha" también en Variables. Pendiente: tope de
-bonificación en el diff de Presupuesto; sin probar con la API real la extracción automática.
+**Respuestas, Ficha y Presupuesto de Modificaciones = misma mecánica que la Revisión normal (nov-2026,
+en prueba)**; extracción de presupuesto automática + aviso de diferencias. Detalle en `docs/`.
+Pendiente: tope de bonificación en el diff de Presupuesto; extracción automática sin probar con API real.
 
 **Rediseño "Liquid Glass"/iOS — CERRADO, no tocar sin que el usuario lo pida.**
 
 **Revisión Ítem SEP (nov-2026):** las 4 secciones de esa pestaña (grilla de ítems, Agregar
 observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
+**Pendientes (nov-2026, en prueba):** tarjeta nueva en esa pestaña, notas por tipo (inicio de obra,
+recepción de obras, pago) en `proyecto["pendientes"]`; NO son observaciones ni van a Respuestas/ficha.
 
 **Cerrados recientes (nov-2026), detalle de cada uno en `docs/historial_sesiones.md`:**
 Invernadero → v31 (`NCh432:2025`) · estado "Retirado" (badge café `#6b4423`) · fix link roto en

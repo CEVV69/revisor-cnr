@@ -1769,6 +1769,54 @@ async def estado_lote(request: Request, proyecto_id: str):
     })
 
 
+# ─── Pendientes (nov-2026) ───────────────────────────────────────────────────
+# Notas que el revisor deja para una etapa POSTERIOR a la aprobación, clasificadas por el momento
+# en que deben resolverse (un mismo proyecto puede tener los tres tipos a la vez). Viven en
+# `proyecto["pendientes"]` y NO son observaciones: no pasan por Respuestas/subsanación ni por la
+# ficha de revisión.
+TIPOS_PENDIENTE = {
+    "inicio_obra":    "Al inicio de obra",
+    "recepcion_obra": "A la recepción de obras",
+    "pago":           "Al momento de pago",
+}
+templates.env.globals["TIPOS_PENDIENTE"] = TIPOS_PENDIENTE
+
+
+@app.post("/proyecto/{proyecto_id}/pendientes/agregar")
+async def agregar_pendiente(request: Request, proyecto_id: str,
+                            tipo: str = Form(...), texto: str = Form(...)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    if tipo not in TIPOS_PENDIENTE:
+        raise HTTPException(status_code=400, detail="Tipo de pendiente no válido")
+    texto = texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="El texto no puede estar vacío")
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    proyecto.setdefault("pendientes", []).append({
+        "id": str(uuid.uuid4())[:8], "tipo": tipo, "texto": texto,
+        "fecha": _ahora().isoformat(), "por": user["nombre"],
+    })
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
+
+
+@app.post("/proyecto/{proyecto_id}/pendientes/{pend_id}/eliminar")
+async def eliminar_pendiente(request: Request, proyecto_id: str, pend_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    proyecto["pendientes"] = [p for p in proyecto.get("pendientes", []) if p.get("id") != pend_id]
+    db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
+
+
 @app.post("/proyecto/{proyecto_id}/item/{item_key}/observacion/agregar-manual")
 async def agregar_observacion_manual(
     request: Request, proyecto_id: str, item_key: str,
