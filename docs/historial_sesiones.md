@@ -7274,3 +7274,7 @@ ficha impresa.
 "Pendientes" al final (después de Evaluación del Consultor), agrupada por tipo en el orden inicio de
 obra / recepción / pago, numerada por grupo; no aparece si el proyecto no tiene pendientes. Texto
 escapado. Solo en la ficha de Revisión (Modificaciones no tiene Pendientes). Validado con TestClient.
+
+**Corrección de ubicación (nov-2026, el usuario aclaró):** los Pendientes van en la ficha DESPUÉS de las
+observaciones y ANTES de la Evaluación del Consultor (es un dato que se sube al SEP), no al final. Se
+movió el bloque en `ficha.html`; validado el orden observaciones < pendientes < evaluación.
