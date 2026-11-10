@@ -55,7 +55,8 @@ Pendiente: tope de bonificación en el diff de Presupuesto; extracción automát
 observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
 defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
 **Pendientes (nov-2026, en prueba):** tarjeta nueva en esa pestaña, notas por tipo (inicio de obra,
-recepción de obras, pago) en `proyecto["pendientes"]`; NO son observaciones ni van a Respuestas/ficha.
+recepción de obras, pago) en `proyecto["pendientes"]`; NO son observaciones ni van a Respuestas; salen
+al final de la ficha de Revisión (solo si hay).
 
 **Cerrados recientes (nov-2026), detalle de cada uno en `docs/historial_sesiones.md`:**
 Invernadero → v31 (`NCh432:2025`) · estado "Retirado" (badge café `#6b4423`) · fix link roto en

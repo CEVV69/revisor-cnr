@@ -7269,3 +7269,8 @@ elimina y se vuelve a agregar).
 pago → contadores y grupos correctos, tarjeta abierta tras agregar; un texto con `<script>` se muestra
 como texto; eliminar funciona. Pregunta abierta al usuario: si los pendientes deben salir también en la
 ficha impresa.
+
+**Pendientes en la ficha (nov-2026, respuesta del usuario: sí):** `ficha.html` muestra una sección
+"Pendientes" al final (después de Evaluación del Consultor), agrupada por tipo en el orden inicio de
+obra / recepción / pago, numerada por grupo; no aparece si el proyecto no tiene pendientes. Texto
+escapado. Solo en la ficha de Revisión (Modificaciones no tiene Pendientes). Validado con TestClient.

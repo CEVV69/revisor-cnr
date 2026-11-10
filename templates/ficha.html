@@ -206,6 +206,23 @@
 </table>
 </div>
 
+{# Pendientes (nov-2026): al final de la ficha, agrupados por tipo; solo si hay alguno. #}
+{% set pendientes = proyecto.pendientes or [] %}
+{% if pendientes %}
+<div style="font-size:13px; font-weight:bold; color:#2b6cb0; margin:1rem 0 0.5rem; border-bottom:1px solid #bee3f8; padding-bottom:2px;">Pendientes</div>
+{% for tk, tl in TIPOS_PENDIENTE.items() %}
+{% set lista = pendientes | selectattr('tipo', 'equalto', tk) | list %}
+{% if lista %}
+<div class="obs-item">
+  <div class="grupo-eje" style="margin-top:0;">{{ tl }}</div>
+  {% for pd in lista %}
+  <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ pd.texto }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 // Imprimir nativo (window.print()): la clase .imprimiendo (@media print, ver <style>) resta
