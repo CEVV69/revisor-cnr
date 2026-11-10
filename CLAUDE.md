@@ -33,37 +33,30 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 
 ---
 
-## Estado actual (oct-2026)
+## Estado actual (nov-2026)
 
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
-sin que él reporte primero. Detalle de cada ítem cerrado o pendiente de prueba (10 puntos,
-auditorías, casos de prueba) en `docs/historial_sesiones.md`.
+sin que él reporte primero. Detalle de todo lo cerrado o en prueba en `docs/historial_sesiones.md`.
 
-**Auditoría de seguridad + velocidad — CERRADA.** Sin lock por proyecto NO pasar en masa la BD
-a hilos. **Pendiente del usuario: hacer privado el repo en GitHub.** Detalle en `docs/historial_sesiones.md`.
+**Cerrado, no tocar sin que el usuario lo pida:** rediseño "Liquid Glass"/iOS · auditoría de
+seguridad + velocidad (sin lock por proyecto NO pasar en masa la BD a hilos; **pendiente del
+usuario: hacer privado el repo en GitHub**) · Invernadero v31 (`NCh432:2025`) · estado "Retirado"
+(badge café `#6b4423`) · fix link roto en Respuestas (`_purgar_adjuntos_huerfanos()`, confirmado en
+producción) · capacidad Railway Postgres Hobby 5 GB (~20 MB/proyecto, ~200 proyectos de margen;
+borrar siempre con el botón de la app, nunca `DELETE` SQL manual).
 
-**Modificaciones de Proyecto** (v1.18, en prueba con caso real; Art. 33° D.S. 95/2015 +
-Instructivo 3661/2021): rutas `/modificacion*`, 10 categorías SEP + Coherencia Global, checklist
-propio por ítem (criterios los da el usuario), `variables_concurso.py` (bonificación nunca sube).
-**Respuestas, Ficha y Presupuesto de Modificaciones = misma mecánica que la Revisión normal (nov-2026,
-en prueba)**; extracción de presupuesto automática + aviso de diferencias. Detalle en `docs/`.
-Pendiente: tope de bonificación en el diff de Presupuesto; extracción automática sin probar con API real.
+**Confirmado funcionando por el usuario (nov-2026):** Modificaciones — Respuestas (respaldo adjunto,
+"Evaluar respuesta con IA", Deshacer última ronda, etiquetas por ítem, ítem terminado se cierra solo,
+"Benef.:"), Ficha con "R:"/Contra Observación/tachado, botón Ficha en Variables, aviso de diferencias
+de presupuesto; Revisión — tarjeta "Pendientes" en Ítem SEP (`proyecto["pendientes"]`: inicio de obra,
+recepción de obras, pago; NO son observaciones; van en la ficha entre las observaciones y la
+Evaluación del Consultor).
 
-**Rediseño "Liquid Glass"/iOS — CERRADO, no tocar sin que el usuario lo pida.**
-
-**Revisión Ítem SEP (nov-2026):** las 4 secciones de esa pestaña (grilla de ítems, Agregar
-observación manual, Evaluación del Consultor, Debatir con la IA) son `<details>` cerrados por
-defecto — se abren solas con `item_ok`/`lote`/ítem `en_progreso`. Pendiente de confirmar.
-**Pendientes (nov-2026, en prueba):** tarjeta nueva en esa pestaña, notas por tipo (inicio de obra,
-recepción de obras, pago) en `proyecto["pendientes"]`; NO son observaciones ni van a Respuestas; salen
-en la ficha de Revisión entre las observaciones y la Evaluación del Consultor (solo si hay).
-
-**Cerrados recientes (nov-2026), detalle de cada uno en `docs/historial_sesiones.md`:**
-Invernadero → v31 (`NCh432:2025`) · estado "Retirado" (badge café `#6b4423`) · fix link roto en
-Respuestas al borrar un documento (`_purgar_adjuntos_huerfanos()`, también al abrir la página;
-confirmado en producción) · capacidad Railway Postgres Hobby (5 GB, ~20 MB/proyecto, ~200 proyectos
-de margen; borrar siempre con el botón de la app, nunca `DELETE` SQL manual). Lección: estados de
-`<details>`/anclas (`#obs-…` abre solo el `<details>`) se prueban en Chromium real, no con TestClient.
+**Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones (al analizar el
+ítem y al responder con respaldo) no se ha probado con la API real; tope de bonificación en el diff
+de Presupuesto de Modificaciones. Secciones de Revisión Ítem SEP en `<details>` cerrados: pendiente
+de confirmar. Lección: estados de `<details>`/anclas (`#obs-…` abre solo el `<details>`) se prueban
+en Chromium real, no con TestClient.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en

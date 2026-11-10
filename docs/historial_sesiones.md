@@ -7278,3 +7278,14 @@ escapado. Solo en la ficha de Revisión (Modificaciones no tiene Pendientes). Va
 **Corrección de ubicación (nov-2026, el usuario aclaró):** los Pendientes van en la ficha DESPUÉS de las
 observaciones y ANTES de la Evaluación del Consultor (es un dato que se sube al SEP), no al final. Se
 movió el bloque en `ficha.html`; validado el orden observaciones < pendientes < evaluación.
+
+## Cierre de sesión (nov-2026) — qué se hizo y qué sigue
+
+Hecho y confirmado por el usuario: estado "Retirado"; fix del link roto en Respuestas (con
+autosaneo); Modificaciones → Respuestas igual que la Revisión normal (respaldo adjunto, IA, deshacer,
+etiquetas por ítem, cierre automático del ítem — causa real era el ancla `#obs-…` del redirect —,
+"Benef.:"); extracción automática del presupuesto + aviso de diferencias en Respuestas y Variables;
+botón Ficha en Variables; Ficha de Modificaciones con R:/Contra Observación/tachado; tarjeta
+"Pendientes" en Revisión Ítem SEP y su sección en la ficha (entre observaciones y Evaluación del
+Consultor). Sigue sin probarse con la API real la extracción automática de presupuesto en
+Modificaciones. CLAUDE.md se reordenó para volver al límite de tamaño.
