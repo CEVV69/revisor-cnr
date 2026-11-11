@@ -7334,3 +7334,7 @@ y `test_details_cerrados.py` OK. Medido solo en Chromium (el arreglo usa solo DO
 
 **Propuesto al usuario, sin implementar:** pasar el análisis de ítems de Modificaciones a segundo
 plano (hoy es síncrono: la página queda esperando todo el análisis y depende del timeout del proxy).
+
+**Decisión del usuario (nov-2026):** NO pasar a segundo plano el análisis de ítems de Modificaciones —
+el modo síncrono no le ha dado problemas y no trabaja en la app mientras se analiza. No volver a
+proponerlo salvo que reporte un problema (ej. timeout del proxy).
