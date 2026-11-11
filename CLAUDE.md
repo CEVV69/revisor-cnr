@@ -158,4 +158,5 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
     escapado (`html.escape`, `data-*` + `dataset`), nunca interpolado dentro de JavaScript.
 13. **Rendimiento ya medido, no deshacer sin medir:** campo nuevo en un listado/polling → sumarlo
     a `CAMPOS_LISTADO` (database.py) o ese listado vuelve a leer proyectos completos; no volver a
-    poner `backdrop-filter` en `.card` ni en elementos repetidos (solo nav y menús flotantes).
+    poner `backdrop-filter` en `.card` ni en elementos repetidos (solo nav y menús flotantes); no
+    medir (`scrollHeight`/`offsetParent`) elementos dentro de un `<details>` cerrado al cargar.

@@ -7289,3 +7289,48 @@ botón Ficha en Variables; Ficha de Modificaciones con R:/Contra Observación/ta
 "Pendientes" en Revisión Ítem SEP y su sección en la ficha (entre observaciones y Evaluación del
 Consultor). Sigue sin probarse con la API real la extracción automática de presupuesto en
 Modificaciones. CLAUDE.md se reordenó para volver al límite de tamaño.
+
+## Búsqueda de optimizaciones — 3ª medición (nov-2026)
+
+Pedido: "Busca cualquier tipo de optimización del trabajo, rendimiento o velocidad." Se volvió a
+medir con el mismo banco de la auditoría anterior (PostgreSQL 16 local, proyecto de 1,4 MB con 40
+documentos y 180 observaciones, + una Modificación con 60 observaciones; Chromium real).
+
+**Servidor: sin nada que corregir.** Las 16 páginas (incluidas las 6 de Modificaciones) responden
+en 4-37 ms con 1-3 consultas SQL. Transferencia: Ítems 932 KB de HTML → 79 KB con gzip.
+
+**Único cuello encontrado y corregido — textareas medidos dentro de `<details>` cerrados.** El
+ajuste automático de altura al cargar leía `scrollHeight` (proyecto.html, modificacion.html) u
+`offsetParent` (modificacion_respuestas.html, código de esta misma tanda de sesiones) de textareas
+que están dentro de secciones cerradas. Chromium no calcula el diseño de ese contenido oculto…
+salvo que se le pregunte: cada lectura lo obligaba a calcularlo entero. Medido (diseño+estilos+
+scripts al cargar): Ítems 118 ms, Respuestas de Modificaciones 61 ms, Modificación 38 ms — contra
+3-6 ms con JavaScript desactivado. El problema creció cuando las secciones de Ítems pasaron a
+`<details>` cerrados. Fix: `ajustarTextareasVisibles(raiz)` filtra con
+`!t.closest('details:not([open])')` (no consulta diseño), y los ocultos se ajustan al abrirse su
+`<details>` con un `MutationObserver` sobre el atributo `open` (corre antes del siguiente pintado,
+a diferencia del evento `toggle`, así no se ve el salto de altura); el listener de `input` pasó a
+ser uno delegado en `document`. Resultado: 7 / 4 / 6 ms; carga total de Ítems 219→129 ms,
+Modificación 72→40, Respuestas de Modificaciones 106→36. `respuestas.html` (Revisión) no tenía el
+problema (usa `hidden`, 5 ms) y no se tocó.
+
+**Validación:** alturas de los 473 textareas de 5 páginas, con todo abierto, idénticas a las de
+antes del cambio (0 diferencias); clic real en un ítem → alturas correctas en el mismo cuadro;
+escribir hace crecer el textarea; cerrar/reabrir conserva; 0 errores JS; `test_menu_estado_glass.py`
+y `test_details_cerrados.py` OK. Medido solo en Chromium (el arreglo usa solo DOM estándar).
+
+**Medido y descartado (ganancia chica o riesgo que no compensa):**
+- `disenador_riego_v135.html` pesa 4,5 MB (3,0 MB con gzip, ~200 ms de CPU por descarga completa);
+  el ETag de StaticFiles depende de la fecha del archivo, así que tras cada deploy se vuelve a bajar
+  entero una vez. Solo afecta al abrir el Diseñador después de un deploy.
+- `_restaurar_archivos_necesarios()` recibe TODOS los documentos del proyecto aunque la operación
+  sea de un solo ítem: la primera acción de IA tras un deploy restaura desde Postgres todos los
+  planos/escaneados del proyecto. Es una vez por proyecto y deploy; filtrar por ítem toca 9 llamadas
+  con criterios distintos.
+- Subida múltiple/ZIP procesa archivo por archivo (guardar en BD + extraer texto); el tiempo lo
+  domina la subida desde el computador del usuario.
+- uvicorn sin uvloop/httptools: irrelevante a esta escala.
+- El lote de ítems es secuencial A PROPÓSITO (invalidación cruzada): no se paraleliza.
+
+**Propuesto al usuario, sin implementar:** pasar el análisis de ítems de Modificaciones a segundo
+plano (hoy es síncrono: la página queda esperando todo el análisis y depende del timeout del proxy).

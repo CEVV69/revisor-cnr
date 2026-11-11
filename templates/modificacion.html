@@ -323,16 +323,27 @@ function autoExpand(el) {
   el.style.height = 'auto';
   el.style.height = (el.scrollHeight + 2) + 'px';
 }
-document.addEventListener('DOMContentLoaded', function() {
-  // Al cargar: todas las escrituras, UNA medición, todas las escrituras. Llamar autoExpand() uno
-  // por uno obligaba a recalcular la página entera por cada textarea (~130 ms con 200 de ellos).
-  var tas = Array.prototype.slice.call(document.querySelectorAll('textarea.auto-expand'));
+// Ajusta en lote (todas las escrituras → UNA medición → todas las escrituras) solo los textareas
+// VISIBLES bajo `raiz`. Los que están dentro de un <details> cerrado NO se miden al cargar: medir
+// contenido oculto obliga al navegador a calcular su diseño completo (medido nov-2026 con un
+// proyecto grande: ~110 ms en Ítems, contra ~3 ms sin tocarlos). `closest()` no consulta diseño.
+function ajustarTextareasVisibles(raiz) {
+  var tas = Array.prototype.slice.call(raiz.querySelectorAll('textarea.auto-expand'))
+    .filter(function(t) { return !t.closest('details:not([open])'); });
   tas.forEach(function(t) { t.style.height = 'auto'; });
   var altos = tas.map(function(t) { return t.scrollHeight; });
-  tas.forEach(function(t, i) {
-    t.style.height = (altos[i] + 2) + 'px';
-    t.addEventListener('input', function() { autoExpand(t); });
+  tas.forEach(function(t, i) { t.style.height = (altos[i] + 2) + 'px'; });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  ajustarTextareasVisibles(document);
+  document.addEventListener('input', function(e) {
+    if (e.target.matches && e.target.matches('textarea.auto-expand')) autoExpand(e.target);
   });
+  // Los ocultos se ajustan al abrirse su <details>. MutationObserver (y no el evento "toggle")
+  // porque corre antes del siguiente pintado: no se alcanza a ver el salto de altura.
+  new MutationObserver(function(muts) {
+    muts.forEach(function(m) { if (m.target.open) ajustarTextareasVisibles(m.target); });
+  }).observe(document.body, { attributes: true, attributeFilter: ['open'], subtree: true });
 });
 </script>
 

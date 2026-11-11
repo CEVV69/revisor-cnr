@@ -350,7 +350,9 @@ function actualizarCostoApi(costoApi) {
 }
 
 function autoResize(el) {
-  if (el.offsetParent === null) return;   // dentro de un <details> cerrado scrollHeight da 0
+  // Dentro de un <details> cerrado no se mide: consultar el diseño de contenido oculto obliga al
+  // navegador a calcularlo entero (medido nov-2026: ~60 ms al cargar). `closest()` no lo consulta.
+  if (el.closest('details:not([open])')) return;
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
@@ -358,10 +360,11 @@ function autoResize(el) {
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.form-resp').forEach(function(f) { restaurarIA(f.dataset.obs); });
   document.querySelectorAll('.form-resp textarea').forEach(autoResize);
-  // Los <details> arrancan cerrados: al abrirlos recién se puede medir el alto real.
-  document.querySelectorAll('details').forEach(function(d) {
-    d.addEventListener('toggle', function() { if (d.open) d.querySelectorAll('.form-resp textarea').forEach(autoResize); });
-  });
+  // Los <details> arrancan cerrados: se ajustan al abrirse. MutationObserver (y no "toggle")
+  // porque corre antes del siguiente pintado: no se alcanza a ver el salto de altura.
+  new MutationObserver(function(muts) {
+    muts.forEach(function(m) { if (m.target.open) m.target.querySelectorAll('.form-resp textarea').forEach(autoResize); });
+  }).observe(document.body, { attributes: true, attributeFilter: ['open'], subtree: true });
 });
 
 document.addEventListener('click', function(e) {
