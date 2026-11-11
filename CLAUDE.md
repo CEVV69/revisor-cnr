@@ -43,7 +43,9 @@ seguridad + velocidad (sin lock por proyecto NO pasar en masa la BD a hilos; **p
 usuario: hacer privado el repo en GitHub**) · Invernadero v31 (`NCh432:2025`) · estado "Retirado"
 (badge café `#6b4423`) · fix link roto en Respuestas (`_purgar_adjuntos_huerfanos()`, confirmado en
 producción) · capacidad Railway Postgres Hobby 5 GB (~20 MB/proyecto, ~200 proyectos de margen;
-borrar siempre con el botón de la app, nunca `DELETE` SQL manual).
+borrar siempre con el botón de la app, nunca `DELETE` SQL manual) · 3ª medición de rendimiento
+(servidor 4-37 ms/página, nada que corregir; único cuello era medir textareas en `<details>`
+cerrados, corregido) · análisis de Modificaciones queda SÍNCRONO por decisión del usuario.
 
 **Confirmado funcionando por el usuario (nov-2026):** Modificaciones — Respuestas (respaldo adjunto,
 "Evaluar respuesta con IA", Deshacer última ronda, etiquetas por ítem, ítem terminado se cierra solo,
