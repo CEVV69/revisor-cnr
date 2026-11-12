@@ -7402,3 +7402,53 @@ modificaciones — Revisor CNR", agrupado solo sobre `tipo == "modificacion"`).
 (concurso más reciente abierto, modal se abre con el resumen por concurso, 0 errores JS) + Excel
 descargado con openpyxl (título correcto, filas por concurso/estado). `test_menu_estado_glass.py`
 sigue OK.
+
+## Diseño de Invernadero: v31 → v44, nueva tipología Túnel + criterios de revisión (nov-2026)
+
+**Pedido del usuario:** "Actualiza la app de Diseño de invernadero a la versión 44... Revisa los
+cambios al incluir el tipo de invernadero Túnel, pueden haber aspectos interesantes que incluir
+en la revisión de este tipo de estructuras en la app de revisión." Adjuntó `Diseno_Invernadero_v44.html`.
+
+**Cambio principal de la app (v31→v44):** agrega una segunda tipología completa, TÚNEL (arcos de
+tubo metálico), seleccionable en el Paso 1 junto a la ya existente CAPILLA — cada panel muestra
+solo lo que corresponde al tipo elegido (`body.tipo-tunel`/`tipo-capilla`). Túnel trae su propio
+motor: geometría del arco (flecha, relación altura-luz r, desarrollo), cargas de viento por el
+procedimiento direccional de techos arqueados (no el Anexo A simplificado de capilla), sismo
+NCh433 (nuevo — capilla no lo pide), verificación del arco por NCh427/1:2016 (esbeltez, espesor
+de diseño 0,93×nominal) y de la soldadura tubo-placa por NCh427/2:2019, y cimentación con poyo de
+hormigón + anclajes según NCh430.Of2008/ACI 318-05. Reemplazo de archivo: `static/
+invernadero_diseno_v31.html` → `static/invernadero_diseno_v44.html` (`git mv` + contenido nuevo,
+mismo patrón que v30→v31); `templates/_apps_menu.html` y `CLAUDE.md` actualizados.
+
+**Aspectos "interesantes" encontrados para la revisión (lo que pidió el usuario), volcados a
+`normativa/Invernaderos_Criterios.txt`:**
+- El Instructivo CNR 3.377/2025 describe la tipología CAPILLA con sus controles geométricos
+  propios; TÚNEL no tiene controles geométricos del Instructivo, solo normas estructurales
+  generales — hay que identificar el tipo ANTES de aplicar los controles (no observar "pendiente
+  de techo" ausente en un túnel, ni "sismo" ausente en una capilla).
+- Corrección de un dato impreciso del criterio anterior: la pendiente de techo de capilla no es
+  "30-45 %" (así estaba, sin fuente clara) sino **30° a 60° de ÁNGULO** — confirmado leyendo el
+  control exacto en el código de la app (`ctrl` en `recalc()`).
+- Tres controles del Instructivo que el criterio anterior NO mencionaba, también confirmados en
+  el código de la app: separación entre cerchas ≤1,20 m; ventilación ≥1 ventana por lado (ambas
+  dimensiones ≥1,0×0,7 m); abertura total (puertas+ventanas) ≥30 % del área de muros y techo.
+- Túnel: si la relación altura-luz del arco supera 0,6, NCh432:2025 no entrega coeficientes de
+  presión — exige justificación propia, igual criterio que ya existía para Kzt>1,0.
+- Verificación sísmica (NCh433) es obligatoria SOLO en túnel (capilla no la pide) — su ausencia en
+  un túnel es observable.
+- LÍMITES declarados por la propia app para túnel (sección "Alcances y límites" de su manual): el
+  arco se analiza aislado (sin frontones ni cubierta), NO verifica el revestimiento ni el espesor
+  de la placa base, y el catálogo de tubos es provisional — si el expediente se apoya solo en esta
+  app, esos tres puntos quedan abiertos y ameritan observación si no vienen respaldados aparte.
+
+**Restricción de tamaño:** `cargar_normativa()` trunca cada archivo de `normativa/*.txt` a 5.000
+caracteres — la primera versión reescrita (con ambas tipologías completas) quedó en 7.340; se
+compactó a 4.957 sin perder ningún criterio, solo acortando redacción.
+
+**Validado:** sintaxis JS del archivo nuevo OK (`new Function()` sobre el script embebido);
+Chromium real — recorrido completo de las 7 pestañas en modo Túnel y en modo Capilla sin errores
+de consola, cambio de tipo con el selector, informe de Túnel se arma con datos de prueba; `main.py`
+sirve `/static/invernadero_diseno_v44.html` (200) y ya no existe `v31` (404); el menú "Apps" de
+`proyecto.html` apunta a la v44; `cargar_normativa()` carga el criterio completo, sin truncar, y
+menciona "TÚNEL". `test_menu_estado_glass.py` sigue OK. No se probó un análisis real con la API
+(clave de prueba) — falta que el usuario pruebe la revisión de un invernadero tipo Túnel real.

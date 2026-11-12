@@ -1,48 +1,66 @@
 CRITERIOS DE REVISIÓN — INVERNADEROS (obra anexa/complementaria, Ley 18.450)
-Destilado de la Planilla CNR de verificación de diseño de invernaderos (estructura metálica
-tipo cercha, frecuente en proyectos de Pequeña Agricultura). El invernadero NO tiene un tipo de
-documento propio en el SEP: aparece como obra anexa dentro de Planos de tecnificación, Planos
-de obras civiles, Estudios complementarios o el Presupuesto, según cómo lo agrupe el consultor
-— aplica estos criterios cada vez que detectes un diseño de invernadero en CUALQUIERA de esos
-documentos, no solo en uno.
+Destilado de la Planilla CNR y de la app interna "Diseño de Invernadero"
+(static/invernadero_diseno_v44.html, nov-2026). El invernadero NO tiene tipo de documento propio
+en el SEP: aparece como obra anexa dentro de Planos de tecnificación, obras civiles, Estudios
+complementarios o el Presupuesto — aplica estos criterios donde detectes un diseño de
+invernadero, no solo en uno de esos documentos.
 
-1. QUÉ DEBE INCLUIR EL DISEÑO
-- Dimensiones básicas: ancho, largo, altura de hombro (h1) y altura de cumbrera (h2), área (m²).
-- Estructura metálica: marcos (frontal, central, posterior) con cercha, columnas, cuerdas
-  superior/inferior, montantes, diagonales y arriostres; tabiques frontal/posterior; ventana(s)
-  y puerta de acceso con su propio marco y diagonal.
-- Memoria de cálculo estructural: cargas vivas (peso humano, referencia ~70 kg/m²), cargas
-  muertas (peso propio de cercha + costaneras + cubierta de policarbonato/polietileno),
-  sobrecarga de nieve según NCh431 Of.2010 (tabla de zonificación por altitud y latitud
-  geográfica del lugar del proyecto) y sobrecarga de viento según NCh432:2025 (actualizada
-  nov-2026, reemplaza el método simplificado de la edición anterior) — exige zona de viento y
-  velocidad básica V según latitud/altitud (Tabla 1), categoría de exposición del terreno,
-  factor topográfico Kzt, factor de direccionalidad Kd, factor de importancia según categoría
-  de ocupación, y los coeficientes de presión/succión del Anexo A (SPRFV y revestimientos,
-  estos últimos según área tributaria del elemento).
-- Cubicación de perfiles metálicos (tipo, dimensión, espesor, largo total y peso total por
-  elemento) — debe respaldar la(s) partida(s) del presupuesto de la obra del invernadero.
+0. DOS TIPOLOGÍAS — identifica cuál se usó antes de aplicar el resto de estos criterios
+- CAPILLA: muros rectos, techo a dos aguas, cerchas Metalcon C. Tipología del Instructivo CNR
+  Res. Ex. N° 3.377/2025, con sus propios controles geométricos (punto 3).
+- TÚNEL: arcos de tubo metálico (con o sin pata recta). El Instructivo 3377/2025 NO le fija
+  controles geométricos propios — solo normas estructurales generales (punto 4). Tipología nueva
+  (nov-2026) en la app de cálculo; revisa con más cuidado estos expedientes.
+- Los controles de una tipología NO aplican a la otra (ej. no observes ausencia de "pendiente de
+  techo" en un túnel, ni de "verificación sísmica" en una capilla).
 
-2. VERIFICACIONES DE COHERENCIA
-- Pendiente de techo de la cercha: rango típico 30-45 %; muy fuera de ese rango sin
-  justificación amerita observación.
-- La cubicación de perfiles (kg totales, largos totales) debe ser coherente con la(s) partida(s)
-  de presupuesto del invernadero — cantidades y montos deben cuadrar entre memoria de cálculo,
-  planos y presupuesto.
-- El diseño debe declarar y justificar la sobrecarga de nieve y de viento usadas, coherentes con
-  la altitud y ubicación geográfica real del proyecto (comuna/coordenadas) — si NO declara
-  memoria de cálculo estructural (cargas vivas/muertas/nieve/viento) para el invernadero, es
+1. QUÉ DEBE INCLUIR EL DISEÑO — AMBOS TIPOS
+- Dimensiones: ancho, largo, área. CAPILLA: + altura de alero/cumbrera, N° de cerchas. TÚNEL: +
+  N° de arcos, altura total, altura de pata recta.
+- Estructura. CAPILLA: marcos con cercha, columnas, cuerdas, montantes, diagonales, arriostres
+  (Cruces de San Andrés), tabiques, ventana(s) y puerta con marco y diagonal propios. TÚNEL:
+  arcos (tubo simple/doble), travesaños, riostras tipo rodilla, marco de puerta.
+- Memoria de cálculo: cargas vivas (~70 kg/m², NCh1537), muertas (estructura + cubierta
+  policarbonato/polietileno), nieve (NCh431 Of.2010, según latitud/altitud) y viento (NCh432:2025
+  — zona, V según Tabla 1, exposición, Kzt, categoría de importancia, coef. de presión/succión:
+  Anexo A simplificado en capilla, procedimiento direccional para arcos en túnel).
+- Cubicación de perfiles/tubos (tipo, dimensión, espesor, largo y peso total) — debe respaldar
+  la(s) partida(s) de presupuesto del invernadero.
+- Cimentación. CAPILLA: dado de hormigón por columna. TÚNEL: poyo de hormigón por arco, con
+  barras de anclaje (NCh427/1:2016) y soldadura tubo-placa (NCh427/2:2019, rige con pared de tubo
+  ≤4,76 mm), más anclaje al hormigón (NCh430.Of2008/ACI 318-05, Apéndice D).
+
+2. VERIFICACIONES DE COHERENCIA — AMBOS TIPOS
+- Debe declarar y justificar la sobrecarga de nieve y viento, coherentes con la ubicación real
+  del proyecto — sin memoria de cálculo estructural (cargas vivas/muertas/nieve/viento), es
   observación mayor. Termina esa observación con "Debe justificar."
-- Si declara un factor topográfico Kzt > 1,0, debe justificar que el invernadero está en la
-  cima aislada de un cerro, escarpe o colina prominente (NCh432:2025, 5.6) — en terreno plano u
-  ondulado corresponde Kzt = 1,0; usarlo sin esa justificación es observación.
-- La categoría de exposición declarada (terreno abierto/suburbano/urbano) debe ser coherente con
-  el entorno real del predio descrito en el expediente (zona rural abierta ≠ categoría urbana).
-- La superficie del invernadero debe ser proporcional a la escala del proyecto de riego (evitar
-  sobredimensionamiento respecto del predio o del cultivo bonificado).
-- Puerta y ventana(s) deben quedar acotadas y con su propio detalle estructural (marco, diagonal).
+- Kzt > 1,0 exige justificar cima aislada de cerro/escarpe/colina (NCh432:2025, 5.6); en terreno
+  plano u ondulado corresponde 1,0 — sin justificar, observación.
+- Categoría de exposición coherente con el entorno real del predio (rural abierto ≠ urbana).
+- Superficie proporcional a la escala del proyecto de riego (evitar sobredimensionamiento).
+- Cubicación (kg, largos) coherente entre memoria de cálculo, planos y presupuesto.
+- Puerta y ventana(s) acotadas y con su propio detalle estructural.
 
-NOTA: Extracto destilado de la planilla de verificación de invernaderos que usa la CNR — no
-reemplaza el cálculo estructural completo (geometría de cercha, catálogo de perfiles, cargas de
-viento detalladas y diseño de cimentación quedan fuera de este resumen). Ante duda, exige que el
-consultor respalde con memoria de cálculo y planos acotados — no calcules tú los valores.
+3. ESPECÍFICAS — CAPILLA (Instructivo CNR 3.377/2025)
+- Pendiente del techo: entre 30° y 60° (ÁNGULO, no %) — fuera de rango sin justificar, observación.
+- Separación entre cerchas: máximo 1,20 m.
+- Ventilación: ≥1 ventana por lado (ambas dimensiones ≥1,0 × 0,7 m) y abertura total
+  (puertas+ventanas) ≥30 % del área de muros y techo — incumplimiento sin justificar, observación.
+
+4. ESPECÍFICAS — TÚNEL
+- Relación altura-luz del arco (flecha/ancho) > 0,6: NCh432:2025 no da coeficientes de presión
+  para arcos más peraltados — exige justificación propia de los coeficientes usados; sin ella,
+  observación.
+- Verificación sísmica (NCh433) declarada, con tipo de suelo coherente (sin estudio, tipo E) — a
+  diferencia de capilla, en túnel el sismo SÍ es obligatorio; su ausencia es observable.
+- Arco verificado según NCh427/1:2016 (esbeltez KL/r ≤ 200, espesor de diseño = 0,93 × nominal) y
+  soldadura tubo-placa según NCh427/2:2019 — exige que el expediente declare estos respaldos, no
+  solo la geometría del arco.
+- LÍMITES de la app propia de cálculo (no son errores del consultor si la usó, son sus alcances
+  declarados): el arco se analiza aislado, sin colaboración de frontones ni cubierta; NO verifica
+  el revestimiento ni el espesor de la placa base; el catálogo de tubos es provisional. Si el
+  expediente se apoya solo en esta app, esos tres puntos siguen abiertos y ameritan observación
+  si no vienen respaldados aparte.
+
+NOTA: Extracto destilado, no reemplaza el cálculo estructural completo. Ante duda, exige memoria
+de cálculo y planos acotados del consultor — no calcules tú los valores.
