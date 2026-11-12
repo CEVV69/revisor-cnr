@@ -7491,3 +7491,31 @@ todos" SÍ lo incluye y queda marcado como revisado en una sola pasada (análisi
 confirmado que, una vez que de verdad no queda nada pendiente, el redirect a `lote_vacio=1` sigue
 siendo el comportamiento correcto (no es el bug). `test_menu_estado_glass.py` y
 `test_details_cerrados.py` siguen OK.
+
+## Ficha de Revisión: solo el párrafo de propuesta, no el análisis (nov-2026)
+
+**Pedido:** "Al aprobar una observación sugerida por la IA, y que esta pase a la Ficha de
+revisión, necesito que solo pase el segundo párrafo, la observación redactada, no la
+fundamentación, esa queda en la revisión por ítem como respaldo posterior. Algo así ya se hace en
+la etapa de Respuestas."
+
+**Contexto:** el prompt principal (`REDACCIÓN DEL CAMPO "texto"`, analyzer.py ~L363) ya pide a la
+IA dos párrafos separados por línea en blanco: 1° ANÁLISIS (sustento técnico, para que el revisor
+lo entienda y contraste — "el revisor lo recorta a mano antes de subir la observación al SEP") y
+2° PROPUESTA DE OBSERVACIÓN (breve, "el párrafo que efectivamente se sube al SEP"). Ya existía
+`_propuesta_de_texto()` (analyzer.py) y el filtro Jinja `|propuesta` que la usa — pero solo estaba
+aplicado en Modificaciones (`modificacion_ficha.html`, `modificacion_respuestas.html`), no en la
+Ficha de la Revisión normal (`ficha.html`), que mostraba el texto completo (ambos párrafos).
+
+**Fix:** una línea en `ficha.html` — `{{ obs.texto }}` → `{{ obs.texto | propuesta }}` en el
+render de cada observación aprobada. `_propuesta_de_texto()` devuelve el texto completo tal cual
+si no tiene el formato de dos párrafos (observaciones agregadas a mano, notas legado), así que no
+hay riesgo de cortar algo que no corresponde.
+
+**Fuera de alcance (no pedido):** `respuestas.html` (Revisión normal) sigue mostrando el texto
+completo de la observación — el revisor SÍ necesita ver el análisis ahí, mientras evalúa si la
+respuesta del consultor resuelve el punto.
+
+**Validado con TestClient:** observación con dos párrafos → la ficha muestra solo el 2°, el 1°
+(análisis) no aparece; observación de un solo párrafo (agregada a mano) → se muestra completa, sin
+cambios. `test_ficha_no_partir.py` (regresión existente) sigue OK.

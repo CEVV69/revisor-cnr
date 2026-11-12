@@ -149,7 +149,7 @@
     {% set rondas_obs = (obs.subsanacion or {}).get("rondas", []) %}
     {% set es_resuelta = rondas_obs and rondas_obs[-1].get("evaluacion") == "resuelta" %}
     <div class="obs-item{% if es_resuelta %} obs-resuelta{% endif %}">
-      <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto }}</div>
+      <div class="obs-texto"><span class="obs-num">{{ loop.index }})</span> {{ obs.texto | propuesta }}</div>
       {% if obs.referencia_normativa %}
       <div class="obs-ref">Ref.: {{ obs.referencia_normativa }}</div>
       {% endif %}
