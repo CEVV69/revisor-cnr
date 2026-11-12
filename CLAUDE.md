@@ -46,12 +46,16 @@ cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario)
 
 **Confirmado funcionando por el usuario (nov-2026):** Modificaciones con la misma mecánica que la
 Revisión (Respuestas, Ficha, aviso de presupuesto, botón Ficha en Variables); tarjeta "Pendientes" en
-Revisión Ítem SEP (3 tipos; en la ficha van entre las observaciones y la Evaluación del Consultor);
-Inicio Y Modificaciones agrupados por concurso en `<details>` (abierto el más reciente, recordado en
-`localStorage`), con línea de total arriba y modal "Resumen"/Excel (`/resumen-modificaciones.xlsx`);
-Diseño de Invernadero v31→v44 con tipología Túnel (arcos de tubo, viento direccional, sismo NCh433,
-NCh427/1-2, cimentación ACI 318-05) + criterio de revisión actualizado (pendiente capilla corregida a
-30°-60° de ÁNGULO, controles de separación/ventilación agregados, límites de la app para túnel).
+Revisión Ítem SEP; Inicio Y Modificaciones agrupados por concurso en `<details>` + modal
+"Resumen"/Excel; Diseño de Invernadero v31→v44 con tipología Túnel + criterio de revisión
+actualizado; círculo verde "Realizado" en el `<details>` de cada ítem dentro de Observaciones
+(cuando ninguna de sus observaciones queda "pendiente").
+
+**En prueba, sin confirmar aún (nov-2026):** fix "Revisar todos" omitía ítems con un solo documento
+escaneado/plano (`_marcar_archivo_presente`); Ficha de Revisión muestra solo el párrafo de propuesta
+de cada observación (`|propuesta`, ya usado en Modificaciones); fix parpadeo/salto de scroll al
+aprobar/descartar/dejar pendiente una observación (nuevo parámetro `obs_ok`, sin `#ancla`, no reabre
+la grilla de ítems).
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
