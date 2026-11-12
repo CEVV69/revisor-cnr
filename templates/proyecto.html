@@ -633,6 +633,11 @@ function actualizarEtiqueta(input) {
 {% endif %}{# fin página documentos #}
 
 {% set item_ok = request.query_params.get('item_ok') %}
+{# `obs_ok`: redirect de aprobar/descartar/dejar pendiente/eliminar una observación (nov-2026) —
+   abre el MISMO grupo de Observaciones/Notas que ya estaba abierto, sin reabrir la grilla
+   "Revisión por ítems del SEP" (no se re-revisó nada) — ver `hay_item_activo` más abajo, que
+   deliberadamente NO lo incluye. #}
+{% set obs_ok = request.query_params.get('obs_ok') %}
 {% set item_sin_docs = request.query_params.get('item_sin_docs') %}
 {% set item_invalidadas = request.query_params.get('item_invalidadas', 0)|int %}
 
@@ -833,11 +838,11 @@ function actualizarEtiqueta(input) {
 </details>
 {% endif %}
 
-{# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok, del redirect tras
-   analizar/aprobar/descartar). Al entrar a la página sin acción previa NO se abre ninguno —
-   todos cerrados, el revisor decide cuál desplegar. #}
-{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok, items_info) }}
-{{ bloque_notas(grupos_notas_item, proyecto.id, item_ok, items_info) }}
+{# Solo se auto-abre el ítem sobre el que se acaba de actuar (item_ok tras analizar, u obs_ok tras
+   aprobar/descartar/dejar pendiente/eliminar una observación suya). Al entrar a la página sin
+   acción previa NO se abre ninguno — todos cerrados, el revisor decide cuál desplegar. #}
+{{ bloque_observaciones(grupos_obs_item, cont_item, proyecto.id, item_ok or obs_ok, items_info) }}
+{{ bloque_notas(grupos_notas_item, proyecto.id, item_ok or obs_ok, items_info) }}
 
 {# "Debatir con la IA" DESPUÉS de Observaciones/Notas (jul-2026, a pedido del usuario) — el
    flujo real es abrir un ítem, revisar sus documentos/observaciones y recién ahí, si hace

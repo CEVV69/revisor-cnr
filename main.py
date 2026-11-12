@@ -4095,10 +4095,14 @@ async def actualizar_observacion(
     if obs_actualizada and estado in ("aprobada", "descartada"):
         _registrar_feedback_obs(proyecto, obs_actualizada, estado, user)
 
-    # Volver al MISMO ítem que ya estaba abierto (no saltar al más recientemente analizado) —
-    # mismo patrón que revisar_item(): item_ok controla qué <details> queda expandido.
+    # Volver al MISMO grupo de Observaciones que ya estaba abierto, SIN reabrir la grilla
+    # "Revisión por ítems del SEP" (no se re-revisó nada) ni usar #ancla: el navegador salta solo
+    # a esa ancla ANTES de que corra el restaurador de scroll de base.html, y la pelea entre
+    # ambos es justo el parpadeo/salto reportado por el usuario (nov-2026) al aprobar/descartar/
+    # dejar pendiente. `obs_ok` (en vez de `item_ok`) solo controla el `<details>` del ítem en
+    # bloque_observaciones/bloque_notas — ver proyecto.html — no `hay_item_activo`.
     item_key = obs_actualizada.get("item") if obs_actualizada else None
-    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
+    extra = f"?obs_ok={item_key}" if item_key else ""
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
 
@@ -4122,8 +4126,8 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o["id"] != obs_id]
         db.save_proyecto(proyecto)
 
-    # Mismo criterio que actualizar_observacion(): no saltar al ítem más recientemente analizado.
-    extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
+    # Mismo criterio que actualizar_observacion(): `obs_ok`, sin ancla — ver el comentario ahí.
+    extra = f"?obs_ok={item_key}" if item_key else ""
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
 

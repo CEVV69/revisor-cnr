@@ -7566,3 +7566,39 @@ main.py, `grupo.obs` ya trae TODAS las observaciones del ítem (aprobada/descart
 **Validado con TestClient + Chromium:** grupo con una observación pendiente → sin círculo; grupo
 con aprobada+descartada (ninguna pendiente) → círculo, visible junto al nombre antes del contador
 "N observaciones". `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
+
+## Fix: parpadeo/salto al aprobar, descartar o dejar pendiente una observación (nov-2026)
+
+**Reporte del usuario:** "Cada vez que se aprueba, rechaza o se deja pendiente una observación,
+dándole clic a los respectivos botones, la app parpadea, se va al principio de la página y
+regresa a donde estaba y se abre el ítem desplegable 'Revisión por ítems del SEP'."
+
+**Causa (dos efectos combinados):**
+1. El redirect de `actualizar_observacion()`/`eliminar_observacion()` terminaba en
+   `?item_ok={item_key}#item-{item_key}`. El restaurador de scroll global de `base.html`
+   (`sessionStorage.setItem('cnr_scroll', ...)` en cada submit, `window.scrollTo(...)` en
+   `load`) YA corría en estos formularios — pero el navegador también salta solo al elemento del
+   `#ancla` de la URL, en un momento no sincronizado con ese JS. Las dos correcciones de scroll
+   compitiendo (uno al origen/ancla, el otro a la posición guardada) producían el parpadeo: salta
+   a la posición del ítem, el JS lo regresa a donde estaba, visualmente "va al principio y
+   regresa".
+2. `item_ok` alimenta `hay_item_activo` (`proyecto.html`), que controla si la grilla "Revisión por
+   ítems del SEP" se abre sola — pensado para cuando se ACABA DE ANALIZAR un ítem, no para
+   aprobar/descartar una observación que ya estaba a la vista. Por eso se abría de más.
+
+**Fix:** nuevo parámetro de redirect `obs_ok` (en vez de `item_ok`), SIN `#ancla`, para estas dos
+rutas. En `proyecto.html`, `obs_ok` solo controla qué `<details>` de Observaciones/Notas queda
+abierto (`bloque_observaciones(..., item_ok or obs_ok, ...)`) — NO participa de
+`hay_item_activo`, así que la grilla superior ya no se abre por esta acción. Sin ancla, el
+restaurador de scroll de `base.html` queda como única fuente de verdad para la posición. Mismo
+criterio que ya se usó esta sesión para el caso análogo de Modificaciones (el ancla `#obs-…`
+reabriendo el `<details>` equivocado).
+
+**Fuera de alcance (no pedido):** `agregar_observacion_manual()` y `derivar-item` conservan
+`item_ok` + ancla — ahí sí corresponde reabrir la grilla (se acaba de trabajar ese ítem a mano).
+
+**Validado:** TestClient confirma el redirect sin ancla, con `obs_ok`, la grilla superior sin
+`open` y el grupo de Observaciones correcto con `open`, para aprobar/descartar/eliminar. En
+Chromium real: `scrollY` medido en cada cuadro durante el clic — se mantuvo exactamente en 426px
+en todo momento (nunca bajó a 0), confirmando que no hay salto visible; la grilla quedó cerrada.
+`test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
