@@ -40,16 +40,18 @@ sin que él reporte primero. Detalle de todo lo cerrado o en prueba en `docs/his
 
 **Cerrado, no tocar sin que el usuario lo pida** (detalle de cada uno en `docs/historial_sesiones.md`):
 rediseño "Liquid Glass"/iOS · auditoría de seguridad + velocidad (**pendiente del usuario: hacer
-privado el repo en GitHub**) · Invernadero v31 (`NCh432:2025`) · estado "Retirado" · fix link roto en
-Respuestas · capacidad Railway Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de
-rendimiento (textareas en `<details>` cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión
-del usuario).
+privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas · capacidad Railway
+Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
+cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
 **Confirmado funcionando por el usuario (nov-2026):** Modificaciones con la misma mecánica que la
 Revisión (Respuestas, Ficha, aviso de presupuesto, botón Ficha en Variables); tarjeta "Pendientes" en
 Revisión Ítem SEP (3 tipos; en la ficha van entre las observaciones y la Evaluación del Consultor);
 Inicio Y Modificaciones agrupados por concurso en `<details>` (abierto el más reciente, recordado en
-`localStorage`), con línea de total arriba y modal "Resumen"/Excel (`/resumen-modificaciones.xlsx`).
+`localStorage`), con línea de total arriba y modal "Resumen"/Excel (`/resumen-modificaciones.xlsx`);
+Diseño de Invernadero v31→v44 con tipología Túnel (arcos de tubo, viento direccional, sismo NCh433,
+NCh427/1-2, cimentación ACI 318-05) + criterio de revisión actualizado (pendiente capilla corregida a
+30°-60° de ÁNGULO, controles de separación/ventilación agregados, límites de la app para túnel).
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión

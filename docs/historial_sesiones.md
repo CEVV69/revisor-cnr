@@ -7452,3 +7452,6 @@ sirve `/static/invernadero_diseno_v44.html` (200) y ya no existe `v31` (404); el
 `proyecto.html` apunta a la v44; `cargar_normativa()` carga el criterio completo, sin truncar, y
 menciona "TÚNEL". `test_menu_estado_glass.py` sigue OK. No se probó un análisis real con la API
 (clave de prueba) — falta que el usuario pruebe la revisión de un invernadero tipo Túnel real.
+
+**Confirmado por el usuario en producción (nov-2026):** "ok, probado y funcionando" — Diseño de
+Invernadero v44 con la tipología Túnel y el criterio de revisión actualizado, validados en la app real.
