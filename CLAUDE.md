@@ -38,31 +38,23 @@ Claude ejecuta git — el usuario NO corre comandos git nunca.
 **El usuario prueba en la app y comenta la próxima sesión.** Todo pusheado; nada de acá se toca
 sin que él reporte primero. Detalle de todo lo cerrado o en prueba en `docs/historial_sesiones.md`.
 
-**Cerrado, no tocar sin que el usuario lo pida:** rediseño "Liquid Glass"/iOS · auditoría de
-seguridad + velocidad (sin lock por proyecto NO pasar en masa la BD a hilos; **pendiente del
-usuario: hacer privado el repo en GitHub**) · Invernadero v31 (`NCh432:2025`) · estado "Retirado"
-(badge café `#6b4423`) · fix link roto en Respuestas (`_purgar_adjuntos_huerfanos()`, confirmado en
-producción) · capacidad Railway Postgres Hobby 5 GB (~20 MB/proyecto, ~200 proyectos de margen;
-borrar siempre con el botón de la app, nunca `DELETE` SQL manual) · 3ª medición de rendimiento
-(servidor 4-37 ms/página, nada que corregir; único cuello era medir textareas en `<details>`
-cerrados, corregido) · análisis de Modificaciones queda SÍNCRONO por decisión del usuario.
+**Cerrado, no tocar sin que el usuario lo pida** (detalle de cada uno en `docs/historial_sesiones.md`):
+rediseño "Liquid Glass"/iOS · auditoría de seguridad + velocidad (**pendiente del usuario: hacer
+privado el repo en GitHub**) · Invernadero v31 (`NCh432:2025`) · estado "Retirado" · fix link roto en
+Respuestas · capacidad Railway Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de
+rendimiento (textareas en `<details>` cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión
+del usuario).
 
 **Confirmado funcionando por el usuario (nov-2026):** Modificaciones con la misma mecánica que la
 Revisión (Respuestas, Ficha, aviso de presupuesto, botón Ficha en Variables); tarjeta "Pendientes" en
-Revisión Ítem SEP (`proyecto["pendientes"]`, 3 tipos; en la ficha van entre las observaciones y la
-Evaluación del Consultor).
+Revisión Ítem SEP (3 tipos; en la ficha van entre las observaciones y la Evaluación del Consultor);
+Inicio Y Modificaciones agrupados por concurso en `<details>` (abierto el más reciente, recordado en
+`localStorage`), con línea de total arriba y modal "Resumen"/Excel (`/resumen-modificaciones.xlsx`).
 
-**En prueba (nov-2026):** Inicio Y Modificaciones agrupados por concurso — un `<details>` por
-concurso (abierto el más reciente; se recuerda en `localStorage`, claves separadas), línea de total
-arriba, columna "N°" por concurso (sin columna "Total": el usuario la pidió quitar, apretaba
-demasiado las otras columnas). Modal "Resumen"/Excel ya existía en Inicio; se replicó en
-Modificaciones (`/resumen-modificaciones.xlsx`, mismo `_generar_excel_resumen_proyectos`).
-
-**Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones (al analizar el
-ítem y al responder con respaldo) no se ha probado con la API real; tope de bonificación en el diff
-de Presupuesto de Modificaciones. Secciones de Revisión Ítem SEP en `<details>` cerrados: pendiente
-de confirmar. Lección: estados de `<details>`/anclas (`#obs-…` abre solo el `<details>`) se prueban
-en Chromium real, no con TestClient.
+**Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
+API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
+Ítem SEP en `<details>` cerrados: pendiente de confirmar. Lección: estados de `<details>`/anclas se
+prueban en Chromium real, no con TestClient.
 
 **Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
