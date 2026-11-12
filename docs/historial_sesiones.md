@@ -7455,3 +7455,39 @@ menciona "TÚNEL". `test_menu_estado_glass.py` sigue OK. No se probó un anális
 
 **Confirmado por el usuario en producción (nov-2026):** "ok, probado y funcionando" — Diseño de
 Invernadero v44 con la tipología Túnel y el criterio de revisión actualizado, validados en la app real.
+
+## Fix: "Revisar todos" dejaba fuera ítems con un solo documento escaneado/plano (nov-2026)
+
+**Reporte del usuario:** usó el botón "Revisar todos" en un proyecto; quedaron 2 ítems sin revisar
+("Identificación del área de riego" y "Declaración No Contribuyente IVA", ambos con 1 documento).
+Al volver a apretar el mismo botón esperando que tomara esos 2, el desplegable de ítems se cerró y
+no revisó nada.
+
+**Causa:** `_doc_disponible_analisis()` decide si un documento está disponible así: si tiene texto
+extraído (`texto_len>0`) es `True` de inmediato; si no (escaneado, o un tipo de
+`TIPOS_SIEMPRE_VISION` como planos — que van a visión SIEMPRE aunque tengan texto), depende del
+campo `archivo_presente` que el propio documento debe traer ya calculado. Ese campo NO se guarda en
+la base — se calculaba solo dentro de `pagina_items()` (la pestaña Revisión Ítem SEP), mutando en
+memoria la lista de documentos antes de usarla. `revisar_todos_items()` (la ruta del botón) leía un
+`proyecto` recién salido de `db.get_proyecto()`, SIN pasar por ese cálculo — `archivo_presente`
+quedaba ausente, `bool(None)` es `False`, y `_items_con_documentos()` contaba 0 documentos
+disponibles para cualquier ítem cuyo único respaldo fuera un escaneado o un plano. El ítem quedaba
+totalmente fuera del lote desde el primer clic (nunca se intentó, no quedó en `items_error`), igual
+que mostró el reporte. En el segundo clic, el mismo cálculo seguía dando 0 pendientes →
+`revisar_todos_items()` redirige a `?lote_vacio=1` sin lanzar nada, y la página recarga con la
+grilla de ítems cerrada (sin `item_ok`/`lote` activo) — de ahí "se cerró el desplegable y no
+revisó".
+
+**Fix:** se extrajo el cálculo a `_marcar_archivo_presente(proyecto_id, documentos)` (función
+compartida, async, muta `necesita_archivo`/`archivo_presente` en cada doc) y se llama en los DOS
+lugares que antes podían quedar desincronizados: `pagina_items()` (ya lo hacía inline, ahora
+reusa la función) y, el fix real, al principio de `revisar_todos_items()`, antes de calcular
+`_items_con_documentos()`.
+
+**Validado con TestClient** (modo JSON local, sin API real): reproducido el bug exacto con un
+ítem cuyo único documento es un PDF escaneado (`texto_len=0`, `__PDF_ESCANEADO__`) — confirmado
+que sin el fix `archivo_presente` queda ausente y el ítem no entra al lote; con el fix, "Revisar
+todos" SÍ lo incluye y queda marcado como revisado en una sola pasada (análisis simulado). También
+confirmado que, una vez que de verdad no queda nada pendiente, el redirect a `lote_vacio=1` sigue
+siendo el comportamiento correcto (no es el bug). `test_menu_estado_glass.py` y
+`test_details_cerrados.py` siguen OK.

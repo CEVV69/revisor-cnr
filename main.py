@@ -316,6 +316,31 @@ def _texto_len(texto: str) -> int:
     return len(texto) if texto and texto != "__PDF_ESCANEADO__" else 0
 
 
+async def _marcar_archivo_presente(proyecto_id: str, documentos: list) -> None:
+    """Muta cada `doc` de `documentos` agregando `necesita_archivo`/`archivo_presente`, de los
+    que depende `_doc_disponible_analisis()` para un documento sin texto (escaneado, o un tipo de
+    `TIPOS_SIEMPRE_VISION` — planos + pruebas de bombeo, que van a visión SIEMPRE aunque tenga
+    texto). Antes este cálculo vivía inline solo en `pagina_items()`: `_items_con_documentos()`
+    (botón "Revisar todos") leía un `proyecto` recién salido de `db.get_proyecto()`, SIN este
+    campo — `_doc_disponible_analisis()` lo trataba como ausente (bool(None) = False) y un ítem
+    cuyo único documento es un escaneado/plano quedaba fuera del lote POR COMPLETO, aunque la
+    propia página mostrara "1 documento disponible" en su tarjeta (bug real, reportado nov-2026:
+    2 ítems de 1 documento cada uno — un plano y un escaneado — nunca entraban al lote, y
+    "Revisar todos" por segunda vez solo redirigía a `lote_vacio=1` sin analizar nada)."""
+    carpeta_proyecto = UPLOAD_DIR / proyecto_id
+    # En `to_thread` (consulta a Postgres + listado de disco). Se lista la carpeta UNA vez en vez
+    # de hacer un `stat()` por documento dentro del bucle: con expedientes de 30-40 archivos eran
+    # 40 llamadas al sistema de archivos en cada carga.
+    ids_guardados_db, archivos_en_disco = await asyncio.to_thread(
+        lambda: (db.ids_con_archivo(proyecto_id),
+                 {f.name for f in carpeta_proyecto.iterdir()} if carpeta_proyecto.is_dir() else set()))
+    for doc in documentos:
+        doc["necesita_archivo"] = (doc.get("texto_len", 0) < MIN_CHARS_TEXTO
+                                    or doc.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
+        doc["archivo_presente"] = (doc.get("filename", "") in archivos_en_disco
+                                    or doc["id"] in ids_guardados_db)
+
+
 def _doc_disponible_analisis(d: dict, permite_vision: bool = True) -> bool:
     """Un documento está disponible para el análisis si tiene texto usable, o si es un PDF
     escaneado/plano cuyo archivo físico existe (disco o base) y el grupo admite visión (todos
@@ -1099,23 +1124,9 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
                                                  **excepciones[k]})
             else:
                 faltan_obligatorios.append({"key": k, "label": TIPO_DOC_LABELS.get(k, k)})
-    # Estado del archivo físico (se pierde tras cada re-despliegue de Railway).
-    # Solo importa re-subir los que necesitan visión: escaneados/con poco texto, O un tipo de
-    # `TIPOS_SIEMPRE_VISION` (planos + pruebas de bombeo — van a visión SIEMPRE aunque tenga
-    # texto, ver _restaurar_archivos_necesarios); el resto ya tiene su texto extraído guardado y
-    # no requiere el archivo físico.
-    carpeta_proyecto = UPLOAD_DIR / proyecto_id
-    # También en `to_thread` (consulta a Postgres, ver la nota de arriba). De paso se lista la
-    # carpeta UNA vez en vez de hacer un `stat()` por documento dentro del bucle: con expedientes
-    # de 30-40 archivos eran 40 llamadas al sistema de archivos en cada carga de página.
-    ids_guardados_db, archivos_en_disco = await asyncio.to_thread(
-        lambda: (db.ids_con_archivo(proyecto_id),
-                 {f.name for f in carpeta_proyecto.iterdir()} if carpeta_proyecto.is_dir() else set()))
-    for doc in proyecto["documentos"]:
-        doc["necesita_archivo"] = (doc.get("texto_len", 0) < MIN_CHARS_TEXTO
-                                    or doc.get("tipo_doc") in TIPOS_SIEMPRE_VISION)
-        doc["archivo_presente"] = (doc.get("filename", "") in archivos_en_disco
-                                    or doc["id"] in ids_guardados_db)
+    # Estado del archivo físico (se pierde tras cada re-despliegue de Railway) — ver
+    # `_marcar_archivo_presente()`.
+    await _marcar_archivo_presente(proyecto_id, proyecto["documentos"])
     n_faltan_resubir = len([d for d in proyecto["documentos"]
                             if d["necesita_archivo"] and not d["archivo_presente"]])
     # Construir info de ítems SEP: cuántos documentos tiene disponible cada ítem y si ya se revisó
@@ -1757,6 +1768,11 @@ async def revisar_todos_items(request: Request, proyecto_id: str):
 
     if (proyecto.get("revision_lote") or {}).get("activo"):
         return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
+
+    # Sin esto, `_items_con_documentos()` (vía `_doc_disponible_analisis()`) trata como "sin
+    # documento disponible" cualquier ítem cuyo único documento sea un escaneado/plano — ver
+    # `_marcar_archivo_presente()`.
+    await _marcar_archivo_presente(proyecto_id, proyecto["documentos"])
 
     revisados = proyecto.get("items_revisados", {})
     en_progreso = proyecto.get("items_en_progreso", {})
