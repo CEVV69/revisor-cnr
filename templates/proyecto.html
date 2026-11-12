@@ -82,10 +82,19 @@
     <strong>{{ cont.desc }}</strong> descartadas
   </p>
   {% for grupo in grupos %}
+  {% set sin_pendientes = grupo.obs | selectattr('estado', 'equalto', 'pendiente') | list | length == 0 %}
   <details id="item-{{ grupo.key }}" {% if grupo.key == abrir_key %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
-              font-weight:700; color:var(--blue); font-size:0.95rem; user-select:none;">
+              font-weight:700; color:var(--blue); font-size:0.95rem; user-select:none; display:flex; align-items:center; gap:0.4rem;">
     {{ grupo.nombre }}
+    {% if sin_pendientes %}
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"
+         title="Realizado — sin observaciones pendientes de este ítem">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="8 12.5 11 15.5 16 9"></polyline>
+    </svg>
+    {% endif %}
     <span style="font-weight:400; color:var(--text-2); font-size:0.82rem;">· {{ grupo.obs|length }} observación{{ 'es' if grupo.obs|length != 1 else '' }}</span>
   </summary>
   <div style="padding-top:0.6rem;">
@@ -654,14 +663,6 @@ function actualizarEtiqueta(input) {
          style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <strong style="font-size:0.86rem; flex:1;">{{ item.nombre }}</strong>
-        {% if item.ok %}
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
-             stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"
-             title="Realizado — sin observaciones pendientes de este ítem">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="8 12.5 11 15.5 16 9"></polyline>
-        </svg>
-        {% endif %}
         {% if item.revisado %}
         <span class="badge badge-tecnica" title="Revisado" style="white-space:nowrap;">{{ item.revisado.n_obs }} obs{% if item.revisado.n_notas %} · {{ item.revisado.n_notas }} nota{{ 's' if item.revisado.n_notas != 1 else '' }}{% endif %}</span>
         {% endif %}

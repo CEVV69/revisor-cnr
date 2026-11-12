@@ -7544,3 +7544,25 @@ revisado con 1 observación pendiente → sin círculo; ítem revisado sin ningu
 ítem revisado con observaciones aprobada+descartada (ninguna pendiente) → círculo. Confirmado en
 Chromium (captura de pantalla) que se ve discreto junto al nombre, sin empujar el badge "N obs".
 `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
+
+## Corrección a lo anterior: el círculo verde va en "Observaciones", no en la grilla de ítems (nov-2026)
+
+El usuario aclaró: "no, pero yo hablaba de los ítems donde se despliegan las observaciones, no
+donde lo pusiste" — el círculo verde "Realizado" no iba en las tarjetas de la grilla superior
+("Revisión por ítems del SEP"), sino en el encabezado de cada ítem dentro de la sección
+"Observaciones" (el `<details id="item-{{ grupo.key }}">` de `bloque_observaciones()`, donde se
+despliegan las observaciones agrupadas por ítem).
+
+**Revertido:** el campo `item.ok`/`pendientes_por_item` que se había agregado a `items_info` en
+`pagina_items()` (main.py) y el SVG en la tarjeta de la grilla (`proyecto.html`) — quedaban sin uso.
+
+**Implementado en el lugar correcto:** dentro de `bloque_observaciones()` (macro de
+`proyecto.html`), por cada `grupo` se calcula inline `sin_pendientes = grupo.obs |
+selectattr('estado','equalto','pendiente') | list | length == 0` — no necesitó cambios en
+main.py, `grupo.obs` ya trae TODAS las observaciones del ítem (aprobada/descartada/pendiente,
+`prin_item` las incluye todas salvo severidad informativa). Mismo SVG (círculo+check verde,
+`title` como tooltip) junto al nombre del ítem en el `<summary>`.
+
+**Validado con TestClient + Chromium:** grupo con una observación pendiente → sin círculo; grupo
+con aprobada+descartada (ninguna pendiente) → círculo, visible junto al nombre antes del contador
+"N observaciones". `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
