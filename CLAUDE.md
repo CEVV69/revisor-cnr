@@ -47,12 +47,14 @@ borrar siempre con el botón de la app, nunca `DELETE` SQL manual) · 3ª medici
 (servidor 4-37 ms/página, nada que corregir; único cuello era medir textareas en `<details>`
 cerrados, corregido) · análisis de Modificaciones queda SÍNCRONO por decisión del usuario.
 
-**Confirmado funcionando por el usuario (nov-2026):** Modificaciones — Respuestas (respaldo adjunto,
-"Evaluar respuesta con IA", Deshacer última ronda, etiquetas por ítem, ítem terminado se cierra solo,
-"Benef.:"), Ficha con "R:"/Contra Observación/tachado, botón Ficha en Variables, aviso de diferencias
-de presupuesto; Revisión — tarjeta "Pendientes" en Ítem SEP (`proyecto["pendientes"]`: inicio de obra,
-recepción de obras, pago; NO son observaciones; van en la ficha entre las observaciones y la
+**Confirmado funcionando por el usuario (nov-2026):** Modificaciones con la misma mecánica que la
+Revisión (Respuestas, Ficha, aviso de presupuesto, botón Ficha en Variables); tarjeta "Pendientes" en
+Revisión Ítem SEP (`proyecto["pendientes"]`, 3 tipos; en la ficha van entre las observaciones y la
 Evaluación del Consultor).
+
+**En prueba (nov-2026):** Inicio agrupado por concurso — un `<details>` por concurso (abierto el más
+reciente; lo que el revisor abre/cierra se recuerda en `localStorage`), columna "N°" por concurso y
+"Total" correlativo general, línea de total arriba (`_agrupar_dashboard_por_concurso`).
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones (al analizar el
 ítem y al responder con respaldo) no se ha probado con la API real; tope de bonificación en el diff

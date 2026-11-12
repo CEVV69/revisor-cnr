@@ -7338,3 +7338,26 @@ plano (hoy es síncrono: la página queda esperando todo el análisis y depende 
 **Decisión del usuario (nov-2026):** NO pasar a segundo plano el análisis de ítems de Modificaciones —
 el modo síncrono no le ha dado problemas y no trabaja en la app mientras se analiza. No volver a
 proponerlo salvo que reporte un problema (ej. timeout del proxy).
+
+## Inicio agrupado por concurso (nov-2026)
+
+**Pedido:** al empezar a revisar un segundo concurso, que "Proyectos asignados" agrupe por concurso,
+con numeración por concurso, un resumen total con numeración correlativa (cuántos proyectos se han
+revisado en total), y todo desplegable para ahorrar espacio vertical.
+
+**Implementación:** `_agrupar_dashboard_por_concurso()` + `_conteo_estados()` en `main.py` (sin
+consultas nuevas ni campos fuera de `CAMPOS_LISTADO`); `dashboard.html`: línea "Total: N proyectos en
+K concursos" con el conteo por estado, y un `<details class="card concurso-grupo">` por concurso
+(resumen: "Concurso X · N proyectos" + conteo por estado, visible aun cerrado). Cada tabla lleva "N°"
+(antigüedad dentro del concurso) y "Total" (correlativo general, el `numero` de antes), ambos con
+`title`. Concursos ordenados del que tiene el proyecto más recién creado al más antiguo; abierto por
+defecto solo el primero; lo que el revisor abre o cierra se recuerda en `localStorage`
+(`cnr_concursos_abiertos`). El buscador por código abre el concurso de la fila si estaba cerrado.
+Celdas más angostas (`.concurso-grupo th/td`) para que la columna extra no saque el botón de eliminar
+fuera de la tarjeta. El modal "Resumen de proyectos"/Excel ya era por concurso y no se tocó.
+
+**Validado en Chromium:** numeración por concurso y total correcta (3-2-1 / 8-7-6 y 5..1), modificación
+excluida, primero abierto y segundo cerrado, recuerda el estado tras recargar, búsqueda parcial abre el
+concurso cerrado y la exacta entra al proyecto, sin desborde horizontal a 1280 px con nombres largos,
+0 errores JS. Interpretación a confirmar con el usuario: el "resumen total con numeración correlativa"
+se resolvió como línea de total + columna "Total", no como una lista aparte de todos los proyectos.

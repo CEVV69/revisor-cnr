@@ -193,6 +193,39 @@ def _extraer_concurso_id(codigo_sep: str) -> str:
     return codigo_sep
 
 
+def _conteo_estados(proyectos: list) -> list:
+    """[(estado, cantidad)] en el orden de ESTADOS_PROYECTO, solo los estados con proyectos."""
+    conteo = {}
+    for p in proyectos:
+        e = ESTADOS_LEGACY.get(p.get("estado"), p.get("estado")) or "Sin estado"
+        conteo[e] = conteo.get(e, 0) + 1
+    return ([(e, conteo[e]) for e in ESTADOS_PROYECTO if e in conteo]
+            + [(e, n) for e, n in conteo.items() if e not in ESTADOS_PROYECTO])
+
+
+def _agrupar_dashboard_por_concurso(proyectos: list) -> list:
+    """Grupos del Inicio (nov-2026): un desplegable por concurso, con numeración PROPIA por
+    antigüedad dentro del concurso (`numero_concurso`; el `numero` correlativo general lo pone el
+    llamador). Conserva dentro de cada grupo el orden en que viene `proyectos`. Los concursos van
+    del que tiene el proyecto creado más recientemente al más antiguo — el que se está revisando
+    ahora queda arriba. Sin consultas a la BD."""
+    grupos = {}
+    for p in proyectos:
+        cid = _extraer_concurso_id(p.get("codigo_sep") or "") or "Sin concurso"
+        grupos.setdefault(cid, []).append(p)
+    salida = []
+    for cid, items in grupos.items():
+        for i, p in enumerate(sorted(items, key=lambda p: p.get("fecha_creacion") or "")):
+            p["numero_concurso"] = i + 1
+        salida.append({
+            "concurso_id": cid, "proyectos": items, "total": len(items),
+            "conteo_estado": _conteo_estados(items),
+            "ultima_creacion": max((p.get("fecha_creacion") or "") for p in items),
+        })
+    salida.sort(key=lambda g: g["ultima_creacion"], reverse=True)
+    return salida
+
+
 def _agrupar_proyectos_por_concurso(proyectos: list) -> list:
     """Agrupa `proyectos` (con codigo_sep/estado/fecha_creacion/fecha_estado) por concurso —
     mismo criterio que `_extraer_concurso_id` — para el resumen imprimible/exportable del
@@ -937,6 +970,9 @@ async def dashboard(request: Request):
         "request": request,
         "user": user,
         "proyectos": proyectos,
+        # Un desplegable por concurso (numeración propia) + conteo total por estado.
+        "concursos": _agrupar_dashboard_por_concurso(proyectos),
+        "conteo_total": _conteo_estados(proyectos),
         # Agrupado por concurso/estado para el modal "Resumen de proyectos" — cálculo en
         # memoria sobre la misma lista de arriba, sin consultas extra a la BD.
         "resumen_por_concurso": _agrupar_proyectos_por_concurso(proyectos)

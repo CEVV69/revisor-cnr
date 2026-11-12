@@ -14,6 +14,17 @@
     }
     #modal-resumen-box .btn { display:none !important; }
   }
+  .concurso-grupo { margin-bottom:0.8rem; }
+  .concurso-grupo > summary { list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center;
+    gap:0.45rem; flex-wrap:wrap; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text); }
+  .concurso-grupo > summary::-webkit-details-marker { display:none; }
+  /* Celdas algo más angostas que el resto de la app: con la columna "Total" la tabla ya no cabía
+     en la tarjeta y el botón de eliminar quedaba fuera del borde. */
+  .concurso-grupo th, .concurso-grupo td { padding-left:0.55rem; padding-right:0.55rem; }
+  .concurso-chevron { display:inline-block; flex-shrink:0; width:0; height:0; border-style:solid;
+    border-width:4px 0 4px 7px; border-color:transparent transparent transparent var(--text-2);
+    transition:transform 0.15s; }
+  .concurso-grupo[open] > summary .concurso-chevron { transform:rotate(90deg); }
 </style>
 
 <div class="flex justify-between items-center mt-2" style="margin-bottom:1.5rem; gap:1rem; flex-wrap:wrap;">
@@ -38,11 +49,32 @@
 </div>
 
 {% if proyectos %}
-<div class="card" style="overflow-x:auto;">
-  <table style="min-width:930px; font-size:0.78rem;">
+<!-- Total general: cuántos proyectos hay entre todos los concursos, por estado. -->
+<div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.8rem; font-size:0.85rem;">
+  <strong>Total: {{ proyectos|length }} proyecto{{ "s" if proyectos|length != 1 else "" }}</strong>
+  <span class="text-muted">en {{ concursos|length }} concurso{{ "s" if concursos|length != 1 else "" }}</span>
+  {% for estado, cantidad in conteo_total %}
+  <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+  {% endfor %}
+</div>
+
+<!-- Un desplegable por concurso (nov-2026). Abierto por defecto solo el más reciente; lo que el
+     revisor abra o cierre se recuerda en su navegador (localStorage, ver script al final). -->
+{% for g in concursos %}
+<details class="card concurso-grupo" data-concurso="{{ g.concurso_id }}" {% if loop.first %}open{% endif %} style="overflow-x:auto;">
+  <summary>
+    <span class="concurso-chevron"></span>
+    Concurso {{ g.concurso_id }}
+    <span class="text-muted" style="font-weight:400; font-size:0.8rem;">· {{ g.total }} proyecto{{ "s" if g.total != 1 else "" }}</span>
+    {% for estado, cantidad in g.conteo_estado %}
+    <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+    {% endfor %}
+  </summary>
+  <table style="min-width:880px; font-size:0.78rem; margin-top:0.7rem;">
     <thead>
       <tr>
-        <th style="white-space:nowrap;">N°</th>
+        <th style="white-space:nowrap; padding-right:0.2rem;" title="Número dentro de este concurso (el más antiguo = 1)">N°</th>
+        <th style="white-space:nowrap; padding-left:0.2rem; padding-right:0.2rem;" title="Número correlativo entre todos los concursos (el más antiguo = 1)">Total</th>
         <th style="white-space:nowrap;">Código SEP</th>
         <th>Nombre del proyecto</th>
         <th>Postulante</th>
@@ -54,11 +86,12 @@
       </tr>
     </thead>
     <tbody>
-      {% for p in proyectos %}
+      {% for p in g.proyectos %}
       <tr id="fila-proy-{{ p.id }}" data-codigo="{{ p.codigo_sep }}" data-id="{{ p.id }}">
-        <td class="text-muted" style="white-space:nowrap;">{{ p.numero }}</td>
+        <td style="white-space:nowrap; padding-right:0.2rem;">{{ p.numero_concurso }}</td>
+        <td class="text-muted" style="white-space:nowrap; padding-left:0.2rem; padding-right:0.2rem;">{{ p.numero }}</td>
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ p.codigo_sep }}</strong></td>
-        <td style="max-width:220px; word-break:break-word;">{{ p.nombre }}</td>
+        <td style="max-width:200px; word-break:break-word;">{{ p.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ p.postulante }}</td>
         <td class="text-muted" style="max-width:150px; word-break:break-word;">{{ p.consultor or "—" }}</td>
         <td><span class="badge {{ p.estado | estado_badge }}" style="white-space:nowrap;">{{ p.estado | estado_label }}</span></td>
@@ -75,7 +108,8 @@
       {% endfor %}
     </tbody>
   </table>
-</div>
+</details>
+{% endfor %}
 {% else %}
 <div class="card" style="text-align:center; padding:3rem;">
   <p style="color:var(--text-2); font-size:1rem;">No tienes proyectos asignados aún.</p>
@@ -171,6 +205,8 @@ function buscarProyectoPorCodigo() {
   }
   input.style.borderColor = '';
   if (parcial) {
+    var grupo = parcial.closest('details');
+    if (grupo) grupo.open = true;   // la fila puede estar dentro de un concurso cerrado
     parcial.scrollIntoView({behavior: 'smooth', block: 'center'});
     parcial.style.transition = 'background-color 0.6s';
     parcial.style.backgroundColor = '#fff3cd';
@@ -180,6 +216,24 @@ function buscarProyectoPorCodigo() {
     setTimeout(function() { input.style.borderColor = ''; }, 1200);
   }
 }
+</script>
+
+<script>
+// Recuerda qué concursos dejó abiertos o cerrados el revisor (solo en este navegador). Sin nada
+// guardado manda el servidor: abierto el concurso más reciente, el resto cerrado.
+(function() {
+  var KEY = 'cnr_concursos_abiertos';
+  var guardado = {};
+  try { guardado = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+  document.querySelectorAll('details.concurso-grupo').forEach(function(d) {
+    var id = d.dataset.concurso;
+    if (Object.prototype.hasOwnProperty.call(guardado, id)) d.open = !!guardado[id];
+    d.addEventListener('toggle', function() {
+      guardado[id] = d.open;
+      try { localStorage.setItem(KEY, JSON.stringify(guardado)); } catch (e) {}
+    });
+  });
+})();
 </script>
 
 {% endblock %}
