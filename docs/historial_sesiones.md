@@ -7361,3 +7361,20 @@ excluida, primero abierto y segundo cerrado, recuerda el estado tras recargar, b
 concurso cerrado y la exacta entra al proyecto, sin desborde horizontal a 1280 px con nombres largos,
 0 errores JS. Interpretación a confirmar con el usuario: el "resumen total con numeración correlativa"
 se resolvió como línea de total + columna "Total", no como una lista aparte de todos los proyectos.
+
+## Ajuste a lo anterior: quitar la columna "Total" del Inicio agrupado (nov-2026)
+
+El usuario pidió sacar la columna "Total" (numeración correlativa general) de las tablas por
+concurso: no era necesaria y, al sumarse a "N°", dejaba muy angostas las demás columnas —
+"Nombre del proyecto" quedaba partido en 8-10 líneas. Se quitó la columna y el campo
+`numero`/`numero_por_id` que la alimentaba en `dashboard()` (main.py) — ya no se usa en ningún
+lado del template, se eliminó en vez de dejarlo muerto. Se restauró `min-width:930px` de la tabla
+(antes 880px, un ajuste de la tanda anterior que ya no corresponde con una columna menos — vuelve
+a ser exactamente el ancho que tenía la tabla única antes de agrupar por concurso) y se quitó la
+regla CSS que angostaba el padding de celdas (ya no hacía falta sin la columna extra). La línea de
+total general ("Total: N proyectos en K concursos...") arriba de los desplegables se mantiene — ahí
+sí es el resumen correlativo que pidió el usuario originalmente.
+
+Validado en Chromium: tabla sin desborde horizontal a 1280px, columna "Nombre del proyecto" con el
+mismo max-width:220px que tenía la versión original (antes de toda esta tanda), 0 errores JS.
+`test_menu_estado_glass.py` sigue OK.
