@@ -2,19 +2,66 @@
 {% block title %}Modificaciones de Proyecto — Revisor CNR{% endblock %}
 {% block content %}
 
+<style>
+  @media print {
+    body.modo-impresion-resumen > nav,
+    body.modo-impresion-resumen .container > *:not(#modal-resumen-overlay) { display:none !important; }
+    body.modo-impresion-resumen #modal-resumen-overlay {
+      display:block !important; position:static !important; background:none !important; padding:0 !important;
+    }
+    body.modo-impresion-resumen #modal-resumen-box {
+      box-shadow:none !important; max-width:none !important; padding:0 !important;
+    }
+    #modal-resumen-box .btn { display:none !important; }
+  }
+  .concurso-grupo { margin-bottom:0.8rem; }
+  .concurso-grupo > summary { list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center;
+    gap:0.45rem; flex-wrap:wrap; font-size:0.95rem; font-weight:600; letter-spacing:-0.01em; color:var(--text); }
+  .concurso-grupo > summary::-webkit-details-marker { display:none; }
+  .concurso-chevron { display:inline-block; flex-shrink:0; width:0; height:0; border-style:solid;
+    border-width:4px 0 4px 7px; border-color:transparent transparent transparent var(--text-2);
+    transition:transform 0.15s; }
+  .concurso-grupo[open] > summary .concurso-chevron { transform:rotate(90deg); }
+</style>
+
 <div class="flex justify-between items-center mt-2" style="margin-bottom:1.5rem; gap:1rem; flex-wrap:wrap;">
   <h1>Modificaciones de proyecto</h1>
-  <div style="display:flex; gap:0.5rem;">
+  <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+    <button type="button" onclick="abrirResumenProyectos()" class="btn btn-outline btn-sm" title="Resumen de modificaciones por concurso y estado (imprimir / Excel)"
+            style="padding:0.4rem 0.6rem; display:flex; align-items:center;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6h-3"/><path d="M13 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+    </button>
     <a href="/" class="btn btn-outline">← Proyectos</a>
     <a href="/modificacion/nueva" class="btn btn-primary">+ Nueva modificación</a>
   </div>
 </div>
 
 {% if modificaciones %}
-<div class="card" style="overflow-x:auto;">
-  <table style="min-width:900px; font-size:0.78rem;">
+<!-- Total general: cuántas modificaciones hay entre todos los concursos, por estado. -->
+<div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.8rem; font-size:0.85rem;">
+  <strong>Total: {{ modificaciones|length }} modificaci{{ "ones" if modificaciones|length != 1 else "ón" }}</strong>
+  <span class="text-muted">en {{ concursos|length }} concurso{{ "s" if concursos|length != 1 else "" }}</span>
+  {% for estado, cantidad in conteo_total %}
+  <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+  {% endfor %}
+</div>
+
+<!-- Un desplegable por concurso (nov-2026, mismo criterio que el Inicio de Revisión). Abierto por
+     defecto solo el más reciente; lo que el revisor abra o cierre se recuerda en su navegador. -->
+{% for g in concursos %}
+<details class="card concurso-grupo" data-concurso="{{ g.concurso_id }}" {% if loop.first %}open{% endif %} style="overflow-x:auto;">
+  <summary>
+    <span class="concurso-chevron"></span>
+    Concurso {{ g.concurso_id }}
+    <span class="text-muted" style="font-weight:400; font-size:0.8rem;">· {{ g.total }} modificaci{{ "ones" if g.total != 1 else "ón" }}</span>
+    {% for estado, cantidad in g.conteo_estado %}
+    <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+    {% endfor %}
+  </summary>
+  <table style="min-width:900px; font-size:0.78rem; margin-top:0.7rem;">
     <thead>
       <tr>
+        <th style="white-space:nowrap;" title="Número dentro de este concurso (el más antiguo = 1)">N°</th>
         <th style="white-space:nowrap;">Código SEP</th>
         <th>Nombre</th>
         <th>Postulante</th>
@@ -25,8 +72,9 @@
       </tr>
     </thead>
     <tbody>
-      {% for m in modificaciones %}
+      {% for m in g.proyectos %}
       <tr>
+        <td style="white-space:nowrap;">{{ m.numero_concurso }}</td>
         <td><strong style="white-space:nowrap; font-family:monospace;">{{ m.codigo_sep }}</strong></td>
         <td style="max-width:220px; word-break:break-word;">{{ m.nombre }}</td>
         <td style="max-width:150px; word-break:break-word;">{{ m.postulante }}</td>
@@ -44,12 +92,99 @@
       {% endfor %}
     </tbody>
   </table>
-</div>
+</details>
+{% endfor %}
 {% else %}
 <div class="card" style="text-align:center; padding:3rem;">
   <p style="color:var(--text-2); font-size:1rem;">No hay modificaciones de proyecto registradas aún.</p>
   <a href="/modificacion/nueva" class="btn btn-primary" style="margin-top:1rem;">Registrar la primera</a>
 </div>
 {% endif %}
+
+<div id="modal-resumen-overlay" onclick="if(event.target===this) cerrarResumenProyectos();"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500;
+            justify-content:center; padding:2.5rem 1rem; overflow-y:auto;">
+  <div id="modal-resumen-box" style="background:var(--surface); border-radius:var(--r-lg);
+       box-shadow:var(--shadow); max-width:760px; width:100%; padding:1.4rem 1.6rem; height:fit-content;">
+    <div class="flex justify-between items-center" style="margin-bottom:1rem; gap:0.6rem; flex-wrap:wrap;">
+      <h2 style="margin:0;">Resumen de modificaciones</h2>
+      <div style="display:flex; gap:0.4rem;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="window.print()">Imprimir</button>
+        <a href="/resumen-modificaciones.xlsx" class="btn btn-outline btn-sm">Descargar Excel</a>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="cerrarResumenProyectos()" title="Cerrar">×</button>
+      </div>
+    </div>
+
+    {% if resumen_por_concurso %}
+    {% for grupo in resumen_por_concurso %}
+    <div style="margin-bottom:1.3rem;">
+      <div class="flex justify-between items-center" style="margin-bottom:0.4rem;">
+        <strong style="font-size:0.92rem;">Concurso {{ grupo.concurso_id }}</strong>
+        <span class="text-muted" style="font-size:0.78rem;">{{ grupo.total }} modificaci{{ "ones" if grupo.total != 1 else "ón" }}</span>
+      </div>
+      <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+        {% for estado, cantidad in grupo.conteo_estado %}
+        <span class="badge {{ estado | estado_badge }}">{{ estado | estado_label }}: {{ cantidad }}</span>
+        {% endfor %}
+      </div>
+      <table style="font-size:0.8rem;">
+        <thead>
+          <tr>
+            <th>Código SEP</th>
+            <th>Fecha de creación</th>
+            <th>Estado</th>
+            <th>Última actualización</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in grupo.proyectos %}
+          <tr>
+            <td style="font-family:monospace; white-space:nowrap;">{{ m.codigo_sep }}</td>
+            <td class="text-muted" style="white-space:nowrap;">{{ m.fecha_creacion | fecha }}</td>
+            <td><span class="badge {{ m.estado | estado_badge }}" style="white-space:nowrap;">{{ m.estado | estado_label }}</span></td>
+            <td class="text-muted" style="white-space:nowrap;">{{ (m.fecha_estado | fecha) or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted" style="font-size:0.88rem;">No hay modificaciones para resumir.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function abrirResumenProyectos() {
+  document.getElementById('modal-resumen-overlay').style.display = 'flex';
+  document.body.classList.add('modo-impresion-resumen');
+}
+function cerrarResumenProyectos() {
+  document.getElementById('modal-resumen-overlay').style.display = 'none';
+  document.body.classList.remove('modo-impresion-resumen');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') cerrarResumenProyectos();
+});
+</script>
+
+<script>
+// Recuerda qué concursos dejó abiertos o cerrados el revisor (solo en este navegador, y aparte
+// de los del Inicio de Revisión — misma idea, clave distinta para no mezclar los dos estados).
+(function() {
+  var KEY = 'cnr_concursos_abiertos_mod';
+  var guardado = {};
+  try { guardado = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+  document.querySelectorAll('details.concurso-grupo').forEach(function(d) {
+    var id = d.dataset.concurso;
+    if (Object.prototype.hasOwnProperty.call(guardado, id)) d.open = !!guardado[id];
+    d.addEventListener('toggle', function() {
+      guardado[id] = d.open;
+      try { localStorage.setItem(KEY, JSON.stringify(guardado)); } catch (e) {}
+    });
+  });
+})();
+</script>
 
 {% endblock %}

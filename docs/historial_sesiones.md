@@ -7378,3 +7378,27 @@ sí es el resumen correlativo que pidió el usuario originalmente.
 Validado en Chromium: tabla sin desborde horizontal a 1280px, columna "Nombre del proyecto" con el
 mismo max-width:220px que tenía la versión original (antes de toda esta tanda), 0 errores JS.
 `test_menu_estado_glass.py` sigue OK.
+
+## Modificaciones: mismo agrupamiento por concurso + informe de totales (nov-2026)
+
+**Pedido:** "En Modificaciones aplica mismo criterio de agrupamiento y agrega el informe de totales
+como en revisión de proyectos."
+
+**Implementación:** `modificaciones_dashboard()` ahora pasa `concursos` (reusa
+`_agrupar_dashboard_por_concurso`, genérica — ya servía para proyectos), `conteo_total`
+(`_conteo_estados`) y `resumen_por_concurso` (`_agrupar_proyectos_por_concurso`, también genérica).
+`modificaciones_dashboard.html` reescrito con el mismo patrón que `dashboard.html` de esta misma
+tanda de sesiones: línea de total arriba, un `<details class="concurso-grupo">` por concurso (sin
+columna "Total" — se aplicó directo la corrección que el usuario pidió para Inicio, no hubo que
+repetir el ida y vuelta), y el modal "Resumen de modificaciones" con Imprimir/Descargar Excel.
+`localStorage` separado (`cnr_concursos_abiertos_mod`) para no mezclar el estado abierto/cerrado
+con el de Inicio, aunque un mismo concurso tenga proyectos y modificaciones a la vez.
+
+**Nuevo:** `_generar_excel_resumen_proyectos()` recibe un `titulo` opcional (antes fijo "Resumen de
+proyectos..."); ruta `GET /resumen-modificaciones.xlsx` (mismo generador, título "Resumen de
+modificaciones — Revisor CNR", agrupado solo sobre `tipo == "modificacion"`).
+
+**Validado:** TestClient (agrupamiento, conteo total, botón Excel, descarga 200) + Chromium real
+(concurso más reciente abierto, modal se abre con el resumen por concurso, 0 errores JS) + Excel
+descargado con openpyxl (título correcto, filas por concurso/estado). `test_menu_estado_glass.py`
+sigue OK.

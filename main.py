@@ -717,10 +717,11 @@ templates.env.filters["estado_badge"] = lambda e: ESTADOS_PROYECTO_BADGE.get(EST
 templates.env.filters["propuesta"] = _propuesta_de_texto
 
 
-def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
+def _generar_excel_resumen_proyectos(resumen: list, titulo: str = "Resumen de proyectos — Revisor CNR") -> bytes:
     """Genera el .xlsx del resumen de proyectos (agrupado por concurso, ordenado por estado
-    dentro de cada uno) para el botón "Descargar Excel" del modal del dashboard. Colores de
-    estado tomados de ESTADOS_PROYECTO_COLOR_SOLIDO — mismos que los badges de la app."""
+    dentro de cada uno) para el botón "Descargar Excel" del modal del dashboard — reusada también
+    por Modificaciones (nov-2026, mismo formato, `titulo` distinto). Colores de estado tomados de
+    ESTADOS_PROYECTO_COLOR_SOLIDO — mismos que los badges de la app."""
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -739,7 +740,7 @@ def _generar_excel_resumen_proyectos(resumen: list) -> bytes:
     borde = Border(left=lado, right=lado, top=lado, bottom=lado)
 
     fila = 1
-    ws.cell(row=fila, column=1, value="Resumen de proyectos — Revisor CNR").font = Font(bold=True, size=13)
+    ws.cell(row=fila, column=1, value=titulo).font = Font(bold=True, size=13)
     fila += 1
     ws.cell(row=fila, column=1,
             value=f"Generado el {_fmt_fecha(_ahora().isoformat(), con_hora=True)}").font = Font(size=9, color=argb("#808080"))
@@ -983,6 +984,26 @@ async def resumen_proyectos_excel(request: Request):
     proyectos = [p for p in proyectos if p.get("tipo") != "modificacion"]
     contenido = _generar_excel_resumen_proyectos(_agrupar_proyectos_por_concurso(proyectos))
     nombre_archivo = f"resumen_proyectos_{_ahora().strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=contenido,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": _content_disposition("attachment", nombre_archivo)})
+
+
+@app.get("/resumen-modificaciones.xlsx")
+async def resumen_modificaciones_excel(request: Request):
+    """Mismo resumen que /resumen-proyectos.xlsx pero para Modificaciones (nov-2026, mismo
+    criterio de agrupamiento por concurso que el Inicio de Revisión)."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    mods = db.get_proyectos_ligero(
+        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
+        username=user["username"])
+    mods = [m for m in mods if m.get("tipo") == "modificacion"]
+    contenido = _generar_excel_resumen_proyectos(
+        _agrupar_proyectos_por_concurso(mods), titulo="Resumen de modificaciones — Revisor CNR")
+    nombre_archivo = f"resumen_modificaciones_{_ahora().strftime('%Y%m%d')}.xlsx"
     return Response(
         content=contenido,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -4782,6 +4803,11 @@ async def modificaciones_dashboard(request: Request):
         m["tipo_modificacion_label"] = TIPOS_MODIFICACION.get(m.get("tipo_modificacion"), "—")
     return templates.TemplateResponse("modificaciones_dashboard.html", {
         "request": request, "user": user, "modificaciones": mods,
+        # Mismo criterio que el Inicio de Revisión (nov-2026): un desplegable por concurso +
+        # conteo total por estado, y el resumen imprimible/Excel agrupado por concurso.
+        "concursos": _agrupar_dashboard_por_concurso(mods),
+        "conteo_total": _conteo_estados(mods),
+        "resumen_por_concurso": _agrupar_proyectos_por_concurso(mods),
     })
 
 

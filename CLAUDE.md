@@ -52,9 +52,11 @@ Revisión (Respuestas, Ficha, aviso de presupuesto, botón Ficha en Variables); 
 Revisión Ítem SEP (`proyecto["pendientes"]`, 3 tipos; en la ficha van entre las observaciones y la
 Evaluación del Consultor).
 
-**En prueba (nov-2026):** Inicio agrupado por concurso — un `<details>` por concurso (abierto el más
-reciente; lo que el revisor abre/cierra se recuerda en `localStorage`), columna "N°" por concurso y
-"Total" correlativo general, línea de total arriba (`_agrupar_dashboard_por_concurso`).
+**En prueba (nov-2026):** Inicio Y Modificaciones agrupados por concurso — un `<details>` por
+concurso (abierto el más reciente; se recuerda en `localStorage`, claves separadas), línea de total
+arriba, columna "N°" por concurso (sin columna "Total": el usuario la pidió quitar, apretaba
+demasiado las otras columnas). Modal "Resumen"/Excel ya existía en Inicio; se replicó en
+Modificaciones (`/resumen-modificaciones.xlsx`, mismo `_generar_excel_resumen_proyectos`).
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones (al analizar el
 ítem y al responder con respaldo) no se ha probado con la API real; tope de bonificación en el diff
