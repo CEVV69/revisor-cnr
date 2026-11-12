@@ -7519,3 +7519,28 @@ respuesta del consultor resuelve el punto.
 **Validado con TestClient:** observación con dos párrafos → la ficha muestra solo el 2°, el 1°
 (análisis) no aparece; observación de un solo párrafo (agregada a mano) → se muestra completa, sin
 cambios. `test_ficha_no_partir.py` (regresión existente) sigue OK.
+
+## Círculo verde "Realizado" en las tarjetas de ítem (nov-2026)
+
+**Pedido:** "Podrías poner un discreto círculo en verde con un tiket de 'realizado' en los ítems,
+una vez que todas las observaciones de ese ítem estén resueltas (aprobadas o descartadas)... si no
+tiene eso, se entiende está con observaciones pendientes de revisarse."
+
+**Implementación:** en `pagina_items()` (main.py), nuevo cálculo `pendientes_por_item` (cuenta por
+`item` las observaciones con `estado=="pendiente"`, recorriendo `proyecto["observaciones"]` una sola
+vez) y campo `item.ok = bool(items_revisados.get(item_key)) and not pendientes_por_item.get(item_key)`
+agregado a cada entrada de `items_info`. `"ok"` es `True` tanto si el ítem no tuvo ninguna
+observación (revisión limpia) como si las tuvo y todas quedaron aprobadas/descartadas (incluye el
+auto-descarte por invalidación cruzada, que también usa `estado="descartada"`) — un ítem nunca
+revisado nunca es `"ok"`. En `proyecto.html`, un SVG pequeño (círculo + check, `stroke="var(--green)"`,
+15×15) junto al nombre del ítem, solo si `item.ok`; tooltip en `title` ("Realizado — sin
+observaciones pendientes de este ítem"), sin texto visible (minimalismo UI). Es ADICIONAL al badge
+"N obs" de siempre (ese sigue contando lo que encontró el último análisis, sin importar su estado
+actual). Solo en Revisión normal — Modificaciones usa una estructura de ítems distinta (no
+`item-card`/`items_revisados`), no se tocó.
+
+**Validado con TestClient** (4 casos en un mismo proyecto): ítem nunca revisado → sin círculo; ítem
+revisado con 1 observación pendiente → sin círculo; ítem revisado sin ninguna observación → círculo;
+ítem revisado con observaciones aprobada+descartada (ninguna pendiente) → círculo. Confirmado en
+Chromium (captura de pantalla) que se ve discreto junto al nombre, sin empujar el badge "N obs".
+`test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.

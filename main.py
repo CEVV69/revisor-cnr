@@ -1134,6 +1134,14 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
     items_en_progreso = proyecto.get("items_en_progreso", {})
     items_error = proyecto.get("items_error", {})
     item_chats = proyecto.get("item_chats", {})
+    # Cuántas observaciones de cada ítem siguen "pendiente" (ni aprobadas ni descartadas) — para
+    # el círculo verde "Realizado" de la tarjeta (nov-2026, pedido del usuario): un ítem ya
+    # revisado y sin ninguna pendiente queda cerrado de verdad, a diferencia del badge "N obs"
+    # de siempre, que solo cuenta cuántas encontró el último análisis sin importar su estado.
+    pendientes_por_item = {}
+    for o in proyecto.get("observaciones", []):
+        if o.get("estado") == "pendiente" and o.get("item"):
+            pendientes_por_item[o["item"]] = pendientes_por_item.get(o["item"], 0) + 1
     items_info = []
     for item_key in ITEMS_ORDEN:
         item = ITEMS_SEP[item_key]
@@ -1155,6 +1163,10 @@ async def _render_proyecto(request: Request, proyecto_id: str, pagina: str):
             # muestra "Analizando…" (con polling) o el error guardado en vez del botón normal.
             "en_progreso": item_key in items_en_progreso,
             "error_analisis": items_error.get(item_key),
+            # Círculo verde "Realizado": ya se revisó y ninguna de sus observaciones sigue
+            # pendiente (aprobadas o descartadas todas). Sin esto, el revisor no tenía forma de
+            # distinguir a simple vista un ítem cerrado de uno con observaciones sin resolver.
+            "ok": bool(items_revisados.get(item_key)) and not pendientes_por_item.get(item_key),
         })
 
     # Agrupar observaciones bajo un solo título por ítem, en su orden lógico.
