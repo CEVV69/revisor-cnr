@@ -73,22 +73,28 @@
   <div class="ppto-resumen-item">
     <div class="lbl">Presupuesto inicial{% if resumen.fecha_inicial %} · {{ resumen.fecha_inicial | fecha }}{% endif %}</div>
     <div class="val">${{ resumen.total_inicial | clp }}</div>
-    {% if uf_apertura.calculado %}
-    <div class="text-muted" style="font-size:0.8rem; margin-top:0.15rem; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;"
-         title="Calculado con la UF de apertura del concurso ({{ uf_apertura.fecha_apertura | fecha }}): {{ uf_apertura.valor_uf | uf }}">
-      ≈ {{ uf_apertura.calculado | uf }} UF
+  </div>
+  {% if uf_apertura.calculado %}
+  <div class="ppto-resumen-item">
+    <div class="lbl">Presupuesto inicial (UF)</div>
+    <div class="val" style="display:flex; align-items:center; gap:0.5rem;"
+         title="Con la UF de apertura del concurso ({{ uf_apertura.fecha_apertura | fecha }}): {{ uf_apertura.valor_uf | uf }}">
+      {{ uf_apertura.calculado | uf }} UF
       <form method="post" action="/proyecto/{{ proyecto.id }}/presupuesto/usar-uf-resumen" style="display:inline;">
-        <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.74rem; padding:0.1rem 0.5rem;"
+        <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.74rem; padding:0.1rem 0.5rem; font-weight:400;"
                 title="Guardar este valor como 'Costo total (UF)' en Resumen">Usar en Resumen</button>
       </form>
     </div>
-    {% elif not uf_apertura.valor_uf %}
-    <div class="text-muted" style="font-size:0.78rem; margin-top:0.15rem;">
-      Sin UF de apertura configurada para este concurso{% if user.rol == 'admin' %} —
-      <a href="/admin/concursos/{{ uf_apertura.concurso_id }}">configúrala acá</a> para ver el total en UF{% endif %}.
-    </div>
-    {% endif %}
   </div>
+  {% elif not uf_apertura.valor_uf %}
+  <div class="ppto-resumen-item">
+    <div class="lbl">Presupuesto inicial (UF)</div>
+    <div class="text-muted" style="font-size:0.82rem;">
+      Sin UF de apertura configurada{% if user.rol == 'admin' %} —
+      <a href="/admin/concursos/{{ uf_apertura.concurso_id }}">configúrala acá</a>{% endif %}.
+    </div>
+  </div>
+  {% endif %}
   {% if resumen.hay_comparacion %}
   <div class="ppto-resumen-item">
     <div class="lbl">Última versión{% if resumen.fecha_final %} · {{ resumen.fecha_final | fecha }}{% endif %}</div>

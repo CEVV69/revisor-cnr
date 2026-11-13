@@ -7647,3 +7647,22 @@ usuario con rol "revisor" no lo ve); con UF configurada ($38.456.780 ÷ UF 38.45
 guardado y la sección inferior de la misma página ya lo refleja; banner de confirmación tras el
 redirect. Capturas de pantalla del resultado y del formulario de Admin Concursos.
 `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
+
+## Ajuste a lo anterior: UF en la misma fila, sin símbolo de aproximación (nov-2026)
+
+El usuario corrigió dos cosas del total en UF de Presupuesto: (1) el valor y el botón quedaban
+apilados DEBAJO del monto en pesos, agregando altura a la tarjeta — contra la regla de
+minimalismo vertical de la app; (2) el símbolo "≈" no correspondía, porque no es una
+aproximación: es la conversión exacta con la UF declarada.
+
+**Fix:** "Presupuesto inicial (UF)" pasó a ser un `.ppto-resumen-item` MÁS, hermano del de pesos
+dentro del mismo `.ppto-resumen-card` (que ya es `display:flex`) — mismo patrón que "Última
+versión"/"Diferencia", en vez de anidado dentro del primer ítem. El botón "Usar en Resumen" queda
+en la misma línea que el valor UF (flex, `align-items:center`), sin salto de línea. Se quitó el
+"≈"; ahora dice solo "1.000,00 UF". El aviso de "sin UF configurada" sigue el mismo patrón (ítem
+hermano, sin texto extra que agregue alto).
+
+**Validado:** en Chromium, a 1000px y 700px de ancho, los dos ítems ("Presupuesto inicial" y
+"Presupuesto inicial (UF)") quedan al mismo `top` (misma fila) y la tarjeta mide 79px de alto,
+igual que antes de agregar el total en UF. Capturas con y sin UF configurada.
+`test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
