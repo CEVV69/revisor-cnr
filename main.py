@@ -577,6 +577,18 @@ def _fmt_clp(valor) -> str:
         return "—"
 
 
+def _fmt_uf(valor) -> str:
+    """Monto en UF, notación chilena (punto de miles, coma decimal, 2 decimales) — mismo formato
+    en que el revisor ya escribe `costo_total_uf` en Resumen, para que un valor calculado acá se
+    vea igual a uno tipeado a mano."""
+    if valor is None:
+        return "—"
+    try:
+        return f"{float(valor):,.2f}".replace(",", "§").replace(".", ",").replace("§", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+
 # Sistemas de riego de ALTA FRECUENCIA: se riegan a diario reponiendo la ETc del día, así que
 # Db = ETc/Ef directo — sin AD, sin Fr, sin criterio de riego y sin la textura del suelo
 # (CC/PMP/Da/Prof. radicular). Aspersión y Carrete sí usan la cadena con agotamiento.
@@ -587,6 +599,7 @@ templates.env.filters["fecha"] = _fmt_fecha
 templates.env.filters["fecha_hora"] = lambda s: _fmt_fecha(s, con_hora=True)
 templates.env.filters["usd"] = _fmt_usd
 templates.env.filters["clp"] = _fmt_clp
+templates.env.filters["uf"] = _fmt_uf
 # Expuesta como global de Jinja (no por contexto de cada ruta) para que las plantillas del
 # Chequeo y de las Memorias de cálculo decidan con la MISMA lista que el motor, sin repetir la
 # tupla ("Goteo", "Microaspersión") en cada `{% if %}`. Ver `_es_alta_frecuencia` más abajo:
@@ -4207,6 +4220,24 @@ def _estado_subsanacion(obs: dict) -> dict:
     return {"estado": "esperando", "ronda_actual": len(rondas) + 1, "puede_responder": True, "rondas": rondas}
 
 
+def _uf_apertura_concurso(proyecto: dict, total_inicial_clp) -> dict:
+    """Datos de conversión a UF del Presupuesto inicial (nov-2026, pedido del usuario): el
+    concurso guarda, una sola vez, la fecha de apertura y el valor de la UF al primer día de ese
+    mes (Admin Concursos) — de ahí se deriva el total inicial en UF de CUALQUIER proyecto de ese
+    concurso, sin que el revisor tenga que calcularlo proyecto por proyecto. Sin ninguno de los
+    dos datos configurados, o sin presupuesto inicial extraído todavía, `calculado` queda None y
+    la plantilla muestra un aviso en vez del valor."""
+    concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
+    concurso = db.get_concurso(concurso_id) if concurso_id else None
+    fecha_apertura = (concurso or {}).get("fecha_apertura") or ""
+    valor_uf = numero_desde_texto((concurso or {}).get("valor_uf_apertura")) if concurso else None
+    calculado = None
+    if valor_uf and valor_uf > 0 and total_inicial_clp:
+        calculado = total_inicial_clp / valor_uf
+    return {"concurso_id": concurso_id, "fecha_apertura": fecha_apertura,
+            "valor_uf": valor_uf, "calculado": calculado}
+
+
 def _resumen_presupuesto_general(proyecto: dict) -> dict:
     """Compara la versión INICIAL (extraída al revisar el ítem Presupuesto) contra la ÚLTIMA
     versión guardada del cuadro resumen del presupuesto (la más reciente entregada en una
@@ -4325,11 +4356,34 @@ async def pagina_presupuesto(request: Request, proyecto_id: str):
     proyecto = db.get_proyecto(proyecto_id)
     if not proyecto:
         raise HTTPException(status_code=404)
+    resumen = _resumen_presupuesto_general(proyecto)
     return templates.TemplateResponse("presupuesto.html", {
         "request": request, "user": user, "proyecto": proyecto,
         "costo_api": _costo_para_vista(proyecto),
-        "resumen": _resumen_presupuesto_general(proyecto),
+        "resumen": resumen,
+        "uf_apertura": _uf_apertura_concurso(proyecto, resumen.get("total_inicial")),
     })
+
+
+@app.post("/proyecto/{proyecto_id}/presupuesto/usar-uf-resumen")
+async def usar_uf_calculada_en_resumen(request: Request, proyecto_id: str):
+    """Guarda en Resumen (`costo_total_uf`) el total del Presupuesto inicial ya convertido a UF
+    con el valor de apertura del concurso (botón "Usar en Resumen" de la pestaña Presupuesto) —
+    así ese campo no depende de que la IA lo haya adivinado bien del texto del presupuesto, ni de
+    que el revisor lo tipee a mano. Si el revisor después edita el campo directo en Resumen, ese
+    valor manda ahí — este botón solo ESCRIBE una vez, no mantiene un vínculo permanente."""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = db.get_proyecto(proyecto_id)
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    resumen_pres = _resumen_presupuesto_general(proyecto)
+    uf = _uf_apertura_concurso(proyecto, resumen_pres.get("total_inicial"))
+    if uf.get("calculado"):
+        proyecto.setdefault("resumen", {})["costo_total_uf"] = _fmt_uf(uf["calculado"])
+        db.save_proyecto(proyecto)
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto?uf_ok=1", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/presupuesto/extraer")
@@ -6059,7 +6113,9 @@ async def admin_guardar_bases(
     request: Request,
     concurso_id: str,
     bases_texto: str = Form(""),
-    nombre: str = Form("")
+    nombre: str = Form(""),
+    fecha_apertura: str = Form(""),
+    valor_uf_apertura: str = Form("")
 ):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
@@ -6070,6 +6126,14 @@ async def admin_guardar_bases(
     if nombre.strip():
         concurso["nombre"] = nombre.strip()
     concurso["bases_texto"] = bases_texto.strip()
+    # Fecha de apertura del concurso (según las bases) y el valor de la UF para el primer día de
+    # ese mes (nov-2026, pedido del usuario) — de acá sale el total del Presupuesto inicial
+    # convertido a UF en /proyecto/{id}/presupuesto, sin que el revisor tenga que calcularlo a
+    # mano en cada proyecto del concurso. El valor de la UF se guarda tal cual lo escribe el
+    # revisor (notación chilena, como el resto de los montos de la app) — no se consulta ninguna
+    # API externa (sin acceso a internet verificado desde este entorno de desarrollo).
+    concurso["fecha_apertura"] = fecha_apertura.strip()
+    concurso["valor_uf_apertura"] = valor_uf_apertura.strip()
     concurso["fecha_actualizacion"] = _ahora().isoformat()
     db.save_concurso(concurso)
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=guardado", status_code=302)

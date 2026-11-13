@@ -7602,3 +7602,48 @@ reabriendo el `<details>` equivocado).
 Chromium real: `scrollY` medido en cada cuadro durante el clic — se mantuvo exactamente en 426px
 en todo momento (nunca bajó a 0), confirmando que no hay salto visible; la grilla quedó cerrada.
 `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
+
+## Presupuesto en UF (Revisión normal) — conversión automática con la UF de apertura del concurso (nov-2026)
+
+**Pedido:** "necesito que el presupuesto muestre el total en UF, en el presupuesto inicial debe ir
+transformado de manera automática con la UF según el día que señalan las bases, el primer día del
+mes de apertura del concurso. Así en pestaña [Presupuesto], agregar al lado del total, el total en
+UF y que ese mismo valor se pueda usar en el resumen o vice versa."
+
+**Decisiones acordadas con el usuario (3 preguntas antes de implementar):**
+1. **Alcance:** solo Revisión normal (NO Modificaciones — ahí el concepto de costo en UF ya existe
+   por separado, en Variables de Concurso/Resumen, con su propia mecánica, y no se tocó).
+2. **Fecha de apertura:** campo nuevo en Admin Concursos (una vez por concurso, no por proyecto).
+3. **Valor de la UF:** NO se consulta ninguna API externa — en este entorno de desarrollo el proxy
+   de salida rechaza hosts no autorizados (probado con mindicador.cl, `connect_rejected`), y para
+   un dato financiero que alimenta la bonificación es mejor que el revisor lo escriba a mano
+   (lo consulta en sii.cl u otra fuente oficial) que depender de un tercero no verificado.
+
+**Implementación:**
+- `Concurso`: dos campos nuevos, editables en `/admin/concursos/{id}` junto al nombre/bases —
+  `fecha_apertura` (`<input type="date">`) y `valor_uf_apertura` (texto, notación chilena, igual
+  que el resto de los montos de la app). Se guardan una sola vez por concurso.
+- `_uf_apertura_concurso(proyecto, total_inicial_clp)` (main.py): ubica el concurso del proyecto
+  (`_extraer_concurso_id`), lee esos dos campos y calcula `total_inicial_clp / valor_uf` — `None`
+  si falta cualquiera de los dos datos o el presupuesto inicial. Nuevo filtro Jinja `|uf` (`_fmt_uf`,
+  notación chilena con 2 decimales, mismo formato en que ya se escribe `costo_total_uf` en Resumen).
+- `templates/presupuesto.html`: junto al monto del "Presupuesto inicial" ($), una línea
+  "≈ N UF" (con `title` mostrando la UF y fecha usadas) + botón "Usar en Resumen"; sin UF
+  configurada, un aviso con link a Admin Concursos (solo visible para admin, mismo patrón que el
+  aviso de "sin bases cargadas" en `proyecto.html`).
+- `POST /proyecto/{id}/presupuesto/usar-uf-resumen` (nuevo): escribe el valor calculado en
+  `proyecto["resumen"]["costo_total_uf"]` (el campo "Costo total (UF)" que YA EXISTÍA en Resumen,
+  usado más abajo en la misma página de Presupuesto para armar la nota de modificación del SEP) —
+  es una escritura puntual, no un vínculo permanente: si el revisor edita el campo después a mano
+  en Resumen, ese valor manda ahí. Esto cierra el "se pueda usar en el resumen o vice versa": la
+  sección inferior de la página (preexistente) ya leía `resumen.costo_total_uf`/`costo_total_final_uf`
+  para la nota del SEP — ahora ese campo puede poblarse con un clic en vez de a mano o por estimación
+  de la IA.
+
+**Validado con TestClient + Chromium:** `_fmt_uf`/`numero_desde_texto` dan ida y vuelta correcta;
+sin UF configurada en el concurso aparece el aviso (con link solo para admin, confirmado que un
+usuario con rol "revisor" no lo ve); con UF configurada ($38.456.780 ÷ UF 38.456,78 = exactamente
+1.000,00 UF) se muestra el valor y el botón; al presionarlo, `resumen.costo_total_uf` queda
+guardado y la sección inferior de la misma página ya lo refleja; banner de confirmación tras el
+redirect. Capturas de pantalla del resultado y del formulario de Admin Concursos.
+`test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.

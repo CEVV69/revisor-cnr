@@ -95,6 +95,19 @@
       <label>Nombre del concurso</label>
       <input type="text" name="nombre" value="{{ concurso.nombre }}" required>
     </div>
+    <div class="form-group">
+      <label>Fecha de apertura del concurso (según las bases)</label>
+      <input type="date" name="fecha_apertura" value="{{ concurso.fecha_apertura or '' }}" style="max-width:220px;">
+    </div>
+    <div class="form-group">
+      <label>Valor UF al primer día del mes de apertura</label>
+      <input type="text" name="valor_uf_apertura" value="{{ concurso.valor_uf_apertura or '' }}"
+             placeholder="Ej: 38.456,78" style="max-width:220px;">
+      <p class="text-muted" style="font-size:0.78rem; margin:0.3rem 0 0;">
+        Con estos dos datos, el Presupuesto inicial de cada proyecto de este concurso se convierte
+        solo a UF (pestaña Presupuesto) — sin tener que calcularlo proyecto por proyecto.
+      </p>
+    </div>
   </div>
 
   <div class="card" style="margin-bottom:1.5rem;">
