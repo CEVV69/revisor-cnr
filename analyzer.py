@@ -1350,10 +1350,15 @@ RESUMEN_SECCIONES = [
     ]},
     {"titulo": "Características de obras", "campos": [
         {"key": "caracteristicas_obras_resumen", "label": "Características obras", "tipo": "textarea",
-         "maxlen": 300, "resumen_ia": "resumen breve, en prosa, explicando de qué se trata el "
-         "proyecto — qué construye/instala y para qué (no una lista de datos sueltos). "
-         "APUNTA A 250 caracteres para no pasarte del tope: 2 o 3 frases cortas, sin repetir "
-         "datos que ya van en otros campos (volumen, KWp, N° de placas, caudal)"},
+         "maxlen": 300, "resumen_ia": "resumen breve, en prosa, con las características técnicas "
+         "del proyecto — este texto se transcribe al SEP. Menciona lo que corresponda según las "
+         "obras del proyecto: tipo de sistema de riego (goteo/aspersión/carrete) y superficie en "
+         "ha; bomba — marca, modelo y potencia; generación fotovoltaica — potencia en KW y N° de "
+         "paneles; invernadero — tipo y dimensión en m²; acumulador — marca y capacidad en m³; y "
+         "cualquier otra obra con sus datos técnicos propios. Ejemplo: \"Sistema de riego por "
+         "goteo para 0.25 ha, con electrobomba Pedrollo PKm 75 1HP, generación fotovoltaica de "
+         "1.5 KW con 4 paneles, Invernadero tipo túnel de 60 m² y acumulador Scall de 100 m³\". "
+         "APUNTA A 250 caracteres para no pasarte del tope"},
         {"key": "volumen_embalsado",   "label": "Volumen embalsado (m³)", "tipo": "text"},
         {"key": "fv_kwp",              "label": "FV (KWp)",               "tipo": "text"},
         {"key": "n_placas",            "label": "N° placas",              "tipo": "text"},
