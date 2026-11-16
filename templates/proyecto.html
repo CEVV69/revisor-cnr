@@ -18,9 +18,11 @@
 
 {# Formulario compacto para agregar una observación a mano a un ítem — reutilizado al final de
    cada grupo de observaciones y en el banner "Cumple con la normativa". #}
-{% macro _form_obs_manual(proyecto_id, item_key) %}
+{% macro _form_obs_manual(proyecto_id, item_key, default_severidad='mayor') %}
 <details style="font-size:0.78rem; margin-top:0.5rem;">
-  <summary style="cursor:pointer; color:var(--text-2); user-select:none;">+ Agregar observación manual</summary>
+  <summary style="cursor:pointer; color:var(--text-2); user-select:none;">
+    + Agregar {{ 'nota' if default_severidad == 'informativa' else 'observación' }} manual
+  </summary>
   <!-- width:auto inline anula la regla global `input,select,textarea{width:100%}` que, si no,
        apila los controles de la fila en vez de compartir el ancho (mismo fix que en Respuestas). -->
   <form method="post" action="/proyecto/{{ proyecto_id }}/item/{{ item_key }}/observacion/agregar-manual"
@@ -35,9 +37,9 @@
         <option value="administrativa">Administrativa</option>
       </select>
       <select name="severidad" style="width:auto; flex:1 1 0; min-width:0; font-size:0.76rem; padding:0.3rem;">
-        <option value="mayor">Mayor</option>
-        <option value="menor">Menor</option>
-        <option value="informativa">Informativa</option>
+        <option value="mayor" {% if default_severidad == 'mayor' %}selected{% endif %}>Mayor</option>
+        <option value="menor" {% if default_severidad == 'menor' %}selected{% endif %}>Menor</option>
+        <option value="informativa" {% if default_severidad == 'informativa' %}selected{% endif %}>Informativa (nota)</option>
       </select>
       <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
              style="width:auto; flex:2 1 0; min-width:0; font-size:0.76rem; padding:0.3rem;">
@@ -197,6 +199,7 @@
           style="display:none;"></form>
   </div>
   {% endfor %}
+  {{ _form_obs_manual(proyecto_id, grupo.key, 'informativa') }}
   </div>
   </details>
   {% endfor %}
