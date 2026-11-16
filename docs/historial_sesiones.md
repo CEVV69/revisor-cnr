@@ -7753,6 +7753,15 @@ de 19 páginas). Dos causas, ambas corregidas:
    a qué sistema corresponde cada dato antes de citarlo, y nunca usar el valor de un sistema para
    otro aunque el dato buscado no aparezca para el sistema correcto.
 
+**Segundo bug del mismo botón, mismo día:** tras el fix de `fetchConTope` (ver abajo), el usuario
+reportó el botón pegado de nuevo — pero esta vez la respuesta SÍ había llegado rápido. Causa
+distinta: cuando la IA acepta corregir la observación (`data.modificado`), el código deshabilita
+el formulario A PROPÓSITO y espera una recarga automática de página (`window.location.href`) para
+reflejar el cambio — ese camino no pasaba por `fetchConTope` (no es un `fetch`, es una navegación)
+y no tenía ningún resguardo si la recarga se colgaba (misma falla de Railway). Fix: a los 8s, si
+seguimos en la misma página (la recarga real la habría reemplazado, cancelando el timer), se
+reactiva el formulario y aparece un enlace para recargar a mano.
+
 **Bug relacionado, mismo día:** el usuario reportó el botón de "Debate con la IA" pegado en
 "Enviando…" 41 minutos después de la última interacción. Causa: `fetch()` no tiene timeout
 propio — si la conexión se cuelga (la misma falla intermitente de Railway), el `fetch` nunca
