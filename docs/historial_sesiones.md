@@ -7666,3 +7666,82 @@ hermano, sin texto extra que agregue alto).
 "Presupuesto inicial (UF)") quedan al mismo `top` (misma fila) y la tarjeta mide 79px de alto,
 igual que antes de agregar el total en UF. Capturas con y sin UF configurada.
 `test_menu_estado_glass.py` y `test_details_cerrados.py` siguen OK.
+
+## Confirmado funcionando por el usuario, cerrado hasta nov-2026
+
+Movido acá desde CLAUDE.md por el límite de tamaño — queda cerrado, no tocar sin que el usuario
+lo pida de nuevo: Modificaciones con la misma mecánica que la Revisión (Respuestas, Ficha, aviso
+de presupuesto, botón Ficha en Variables); tarjeta "Pendientes" en Revisión Ítem SEP; Inicio Y
+Modificaciones agrupados por concurso en `<details>` + modal "Resumen"/Excel; Diseño de
+Invernadero v31→v44 con tipología Túnel + criterio de revisión actualizado; círculo verde
+"Realizado" en el `<details>` de cada ítem dentro de Observaciones (cuando ninguna de sus
+observaciones queda "pendiente").
+
+## Campo "Características obras": datos técnicos en prosa, no descripción genérica (nov-2026)
+
+El usuario reportó que este campo (sección "Características de obras" del Resumen, se transcribe
+al SEP) debía contener las características técnicas del proyecto en una frase — tipo de riego y
+superficie, bomba (marca/modelo/potencia), FV (kW/N° paneles), invernadero (tipo/m²), acumulador
+(marca/m³), etc. — y la instrucción de `resumen_ia` en `analyzer.py` (RESUMEN_SECCIONES, campo
+`caracteristicas_obras_resumen`) pedía justo lo contrario: una prosa general del proyecto SIN esos
+datos (asumía que iban en los campos separados de al lado — Volumen embalsado, FV KWp, etc.). Se
+reescribió la instrucción para pedir esos datos en prosa, con el ejemplo exacto del usuario como
+modelo ("Sistema de riego por goteo para 0.25 ha, con electrobomba Pedrollo PKm 75 1HP,
+generación fotovoltaica de 1.5 KW con 4 paneles, Invernadero tipo túnel de 60 m² y acumulador
+Scall de 100 m³").
+
+**Ajuste de tope (misma sesión):** el usuario reportó que el texto se cortaba a mitad de palabra
+("texto y mas tex..."). El tope de 300 caracteres (`RESUMEN_MAXLEN`, fijado jul-2026 para que la
+sección no se corriera a una 3ª hoja del informe) no alcanzaba con el nuevo contenido más denso.
+El usuario confirmó que 300 era un límite propio de la app (el SEP acepta más) puesto por espacio
+en la hoja 2 del informe — y propuso compensar restando líneas a "Notas" (misma hoja). Se subió
+el tope a 400 y se bajaron las líneas de Notas en `informe_resumen.html` de 26 a 24 (el campo ya
+fuerza salto de página propio con `.salto-pagina`, así que comparte hoja solo con Notas, no con
+el resto del informe). El corte real (`_limitar_texto`, cuando igual se excede el tope) ya cortaba
+en límite de palabra/oración, nunca a mitad de palabra — con más margen debería darse mucho menos.
+
+## Anti-doble-cobro: llamadas a la IA repetidas por una reconexión con Railway (nov-2026)
+
+El usuario reportó un gasto de >US$1 en Claude Console por "un solo mensaje" en Debate con la IA.
+Investigando con los números reales de Console (desglose de tokens de dos solicitudes 3 minutos
+aparte, ambas `claude-sonnet-4-6`), se confirmó que eran la MISMA pregunta — la segunda llamada
+leía de caché casi todo lo que la primera acababa de escribir. Causa: la app había tenido una
+falla de carga al abrirse ese día (ver sección Railway más abajo) — el navegador o el proxy de
+Railway reintentó la petición del chat tras una desconexión breve que el usuario no llegó a ver;
+la primera copia terminó y se cobró en la API aunque el usuario nunca vio esa respuesta, y al
+reenviar el mismo mensaje se pagó una segunda vez por lo mismo.
+
+**Fix en el chat** (`_manejar_chat`, main.py): si el último turno de `historial` para ese ítem es
+exactamente el mismo texto de `mensaje`, con respuesta de la IA ya guardada hace menos de 3
+minutos, se reusa esa respuesta — no se vuelve a llamar a `chatear_item`.
+
+**Replicado a las otras 3 llamadas síncronas a la IA** (a pedido explícito del usuario, mismo
+riesgo con la conexión de Railway fallando intermitente): "Evaluar respuesta" de subsanación
+(individual), "Evaluar respuestas" por ítem completo (evaluación conjunta), y "Consulta al
+expediente". Las dos de Subsanación no guardan nada hasta que el revisor decide algo después, así
+que se agregó una caché efímera NUEVA en memoria del proceso, `_CACHE_ANTIDUP` (TTL 180s, clave =
+tupla con los identificadores + el texto de entrada) — vive solo en memoria, un reinicio la vacía,
+aceptable porque el peor caso es volver a pagar una llamada vieja, no el problema que previene
+(duplicados segundos/minutos después). "Consulta al expediente" sí persiste cada consulta en
+`proyecto["consultas"]`, así que reusa ese historial igual que el chat, sin caché nueva.
+
+**"Revisar ítem" ya estaba protegido**, sin tocarlo hoy: corre en segundo plano
+(`_analizar_item_fondo`) y antes de lanzar la tarea revisa si el ítem ya figura en
+`items_en_progreso` — un doble clic o un reintento de red no relanza nada, la tarea original sigue
+sola. Este diseño es de una sesión anterior (para evitar pantallas en blanco con Presupuesto/
+Planos), y de paso ya prevenía el doble cobro ahí.
+
+**Replicado también a Modificaciones** (a pedido del usuario, misma sesión): "Evaluar respuesta"
+de subsanación (`evaluar_respuesta_ia_modificacion`) y "Generar Justificación" del Resumen
+(`generar_justificacion_modificacion_ruta`), ambas con el mismo `_CACHE_ANTIDUP`. Modificaciones
+no tiene "Debate con la IA" ni "Consulta al expediente", así que no hay más rutas equivalentes
+que cubrir ahí.
+
+**Pendiente de diagnóstico, no resuelto:** la causa RAÍZ de por qué Railway falla al cargar la app
+de forma intermitente (reportado por el usuario esta misma sesión) sigue sin confirmarse — se
+descartó código, memoria (lejos del límite de 8GB del plan), caídas del contenedor (logs limpios)
+y la red del usuario (funciona todo lo demás). Apunta a algo transitorio en la capa de borde
+compartida de Railway (`*.up.railway.app`), que no se puede confirmar ni arreglar desde el código.
+El usuario no tiene dominio propio (se evaluó como alternativa y se descartó). Revisar
+`https://status.railway.app` la próxima vez que pase, con la hora exacta, y escribir a soporte de
+Railway si se repite seguido.

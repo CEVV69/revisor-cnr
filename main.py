@@ -5630,6 +5630,14 @@ async def evaluar_respuesta_ia_modificacion(request: Request, mod_id: str, obs_i
                 observacion_texto += (f"\n\nContra Observación del revisor (ronda {ult.get('ronda')}, "
                                       f"tras la respuesta anterior): {contra_obs}")
 
+        # Anti-doble-cobro — mismo mecanismo que `evaluar_respuesta_ia` en la Revisión normal.
+        clave_antidup = ("evaluar-respuesta-mod", obs_id, respuesta)
+        resultado = _resultado_antidup(clave_antidup)
+        if resultado is not None:
+            return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
+                                 "fundamento": resultado.get("fundamento", ""),
+                                 "costo_api": _costo_para_vista(mod)})
+
         acc_costo = iniciar_costo()
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=observacion_texto,
@@ -5640,6 +5648,7 @@ async def evaluar_respuesta_ia_modificacion(request: Request, mod_id: str, obs_i
             ruta_uploads=str(UPLOAD_DIR / mod_id),
             item_override=ITEMS_MODIFICACION[item_key],
         )
+        _guardar_antidup(clave_antidup, resultado)
 
         # Copia FRESCA antes de guardar el costo: la evaluación tarda decenas de segundos.
         mod_fresco = db.get_proyecto(mod_id)
@@ -5818,13 +5827,20 @@ async def generar_justificacion_modificacion_ruta(
         if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")
     )
 
-    acc_costo = iniciar_costo()
-    try:
-        justificacion = await generar_justificacion_modificacion(descripcion_consultor, texto_docs)
-    except Exception as e:
-        print(f"❌ ERROR en generar_justificacion_modificacion_ruta: {e}")
-        return RedirectResponse(url=f"/modificacion/{mod_id}/resumen?error=justificacion",
-                                status_code=302)
+    # Anti-doble-cobro — mismo mecanismo que `evaluar_respuesta_ia` (ver nota en `_CACHE_ANTIDUP`).
+    clave_antidup = ("generar-justificacion-mod", mod_id, descripcion_consultor.strip())
+    justificacion = _resultado_antidup(clave_antidup)
+    if justificacion is None:
+        acc_costo = iniciar_costo()
+        try:
+            justificacion = await generar_justificacion_modificacion(descripcion_consultor, texto_docs)
+        except Exception as e:
+            print(f"❌ ERROR en generar_justificacion_modificacion_ruta: {e}")
+            return RedirectResponse(url=f"/modificacion/{mod_id}/resumen?error=justificacion",
+                                    status_code=302)
+        _guardar_antidup(clave_antidup, justificacion)
+    else:
+        acc_costo = iniciar_costo()   # sin llamada nueva — queda en 0, no infla el contador
 
     mod = db.get_proyecto(mod_id)  # fresco antes de guardar — mismo criterio que el resto de la app
     if not mod:
