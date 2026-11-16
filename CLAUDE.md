@@ -46,7 +46,8 @@ cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario)
 
 **Confirmado funcionando por el usuario (nov-2026):** botón de "Debate con la IA" ya no queda
 pegado en "Enviando…" (fix de timeout + red de seguridad en recarga); anti-doble-cobro
-confirmado sin duplicados en Console tras una reconexión intermitente con Railway.
+confirmado sin duplicados en Console tras una reconexión intermitente con Railway; notas manuales
+en Revisión Ítem SEP, con selector de ítem y sin categoría (`_form_nota_manual`, proyecto.html).
 
 **En prueba, sin confirmar aún (nov-2026):** fix "Revisar todos" omitía ítems con un solo documento
 escaneado/plano; Ficha de Revisión muestra solo el párrafo de propuesta de cada observación; fix
