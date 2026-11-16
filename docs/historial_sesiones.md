@@ -7779,6 +7779,17 @@ formularios "+" por ítem en uno solo con selector de ítem (como el global que 
 la página) y el usuario prefirió mantenerlos — el pedido era solo que el de Notas no "suba" a
 Observaciones.
 
+**Segundo ajuste, mismo tema:** el usuario pidió además poder elegir A QUÉ ÍTEM corresponde la
+nota (no solo al del grupo donde está el "+") y sacar el selector de categoría (sin uso real para
+una nota). Se reemplazó por un macro nuevo y dedicado, `_form_nota_manual(proyecto_id, items_info,
+item_key_defecto='')` — sin categoría (fija en "administrativa" vía `<input type="hidden">`), CON
+`<select name="item_key">` preseleccionado al ítem del grupo pero editable, mismo patrón de
+`action` dinámico por JS que el formulario global de observaciones. Reemplaza por completo al uso
+de `_form_obs_manual(..., severidad_fija=true)` dentro de `bloque_notas` (ese parámetro sigue
+existiendo en `_form_obs_manual` pero ya no lo usa nadie — se dejó por si hiciera falta de nuevo).
+También se usa cuando el proyecto no tiene ninguna nota todavía (sin preselección), caso que antes
+no tenía forma de agregar la primera nota del proyecto.
+
 **Segundo bug del mismo botón, mismo día:** tras el fix de `fetchConTope` (ver abajo), el usuario
 reportó el botón pegado de nuevo — pero esta vez la respuesta SÍ había llegado rápido. Causa
 distinta: cuando la IA acepta corregir la observación (`data.modificado`), el código deshabilita
