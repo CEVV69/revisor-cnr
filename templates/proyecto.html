@@ -1184,10 +1184,23 @@ function enviarChat(event, tipo, key) {
         nota.textContent = 'Se actualizó la observación. Recargando para reflejar el cambio…';
         cont.appendChild(nota);
         const param = tipo + '_ok=' + encodeURIComponent(key);
+        const urlDestino = window.location.pathname + '?' + param + '#chat-' + tipo + '-' + key;
+        setTimeout(function() { window.location.href = urlDestino; }, 1100);
+        // Red de seguridad (nov-2026): si la recarga automática no llega a completarse (misma
+        // falla intermitente de Railway que deja el botón pegado en "Enviando…" en el otro
+        // camino de este chat), no dejar el formulario deshabilitado para siempre — si a los 8s
+        // seguimos en esta misma página (la recarga real la habría reemplazado, cancelando este
+        // timer), se reactiva el campo y se ofrece un enlace para recargar a mano.
         setTimeout(function() {
-          window.location.href = window.location.pathname + '?' + param + '#chat-' + tipo + '-' + key;
-        }, 1100);
-        return;   // no reactivar el formulario, la página va a recargar
+          textarea.disabled = false;
+          boton.disabled = false;
+          boton.textContent = 'Enviar';
+          const enlace = document.createElement('div');
+          enlace.className = 'chat-bubble ia';
+          enlace.innerHTML = 'Si la página no se actualizó sola, <a href="' + urlDestino + '">haz clic acá para recargar</a>.';
+          cont.appendChild(enlace);
+        }, 8000);
+        return;   // no reactivar el formulario de inmediato, la página va a recargar sola
       }
       textarea.disabled = false;
       boton.disabled = false;
