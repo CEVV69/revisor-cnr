@@ -7768,6 +7768,17 @@ severidad=informativa ya la hace aparecer agrupada como nota en el siguiente ren
 no tenía este problema: ahí observaciones y notas van juntas en una sola sección con un único
 formulario, no separadas como en la Revisión normal.
 
+**Ajuste inmediato, mismo tema:** el usuario probó y seguía pudiendo elegir Mayor/Menor en el
+selector de severidad del formulario agregado dentro de la tarjeta de Notas — si elegía otra cosa
+que Informativa ahí, la entrada subía a Observaciones en vez de quedarse en Notas, justo lo que
+pidió evitar ("si agrego una NOTA en la tarjeta de Notas, no debe subir a observaciones"). Fix:
+nuevo parámetro `severidad_fija` en `_form_obs_manual` — cuando es `true` (pasado solo desde
+`bloque_notas`), el selector de severidad se reemplaza por un `<input type="hidden">` fijo en
+"informativa", sin posibilidad de elegir otra cosa. Se le preguntó si prefería consolidar los 3
+formularios "+" por ítem en uno solo con selector de ítem (como el global que ya existe al pie de
+la página) y el usuario prefirió mantenerlos — el pedido era solo que el de Notas no "suba" a
+Observaciones.
+
 **Segundo bug del mismo botón, mismo día:** tras el fix de `fetchConTope` (ver abajo), el usuario
 reportó el botón pegado de nuevo — pero esta vez la respuesta SÍ había llegado rápido. Causa
 distinta: cuando la IA acepta corregir la observación (`data.modificado`), el código deshabilita
