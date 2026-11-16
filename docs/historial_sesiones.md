@@ -7753,6 +7753,21 @@ de 19 páginas). Dos causas, ambas corregidas:
    a qué sistema corresponde cada dato antes de citarlo, y nunca usar el valor de un sistema para
    otro aunque el dato buscado no aparezca para el sistema correcto.
 
+**Notas manuales en Revisión Ítem SEP (nov-2026):** el usuario pidió poder agregar notas a mano
+en la revisión por ítem — hoy solo las generaba la IA. El formulario "+ Agregar observación
+manual" (`_form_obs_manual`, proyecto.html) ya soportaba severidad "Informativa", pero solo se
+renderizaba en las secciones "Observaciones" (`bloque_observaciones`) y "Cumple con la normativa"
+(`bloque_cumplimiento`) — nunca en "Notas para el revisor" (`bloque_notas`), que agrupa por
+severidad (no por ítem) las observaciones informativas aparte. Un ítem con solo notas y ninguna
+observación mayor/menor no aparecía en las otras dos secciones, así que no tenía dónde agregar
+una nota más. Fix: se agregó el mismo formulario dentro de `bloque_notas`, con un nuevo parámetro
+`default_severidad` (default `'mayor'`, se le pasa `'informativa'` desde ahí) que preselecciona
+la severidad y cambia la etiqueta del `<summary>` a "+ Agregar nota manual" para que quede claro.
+Nada nuevo en el backend — `agregar_observacion_manual` ya soportaba este caso, el campo
+severidad=informativa ya la hace aparecer agrupada como nota en el siguiente render. Modificaciones
+no tenía este problema: ahí observaciones y notas van juntas en una sola sección con un único
+formulario, no separadas como en la Revisión normal.
+
 **Segundo bug del mismo botón, mismo día:** tras el fix de `fetchConTope` (ver abajo), el usuario
 reportó el botón pegado de nuevo — pero esta vez la respuesta SÍ había llegado rápido. Causa
 distinta: cuando la IA acepta corregir la observación (`data.modificado`), el código deshabilita
