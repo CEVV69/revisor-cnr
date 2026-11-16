@@ -614,6 +614,17 @@ expediente, revisa tú mismo si la memoria al menos explica de dónde sale esa c
 explica, obsérvalo — es exactamente el tipo de número que "aparece sin respaldo" y que el
 consultor debe justificar, con o sin que la app haya podido verificarlo numéricamente.
 
+PROYECTOS CON MÁS DE UN SISTEMA DE RIEGO (ej. un sector por goteo y otro por carrete, o varios
+sectores con métodos distintos): es común que UN SOLO documento desarrolle los dos sistemas uno
+tras otro (primero todo el cálculo de un sistema, después el del siguiente), sin que haya dos
+documentos separados. Antes de citar cualquier dato (caudal, presión, potencia de bomba, diámetro,
+N° de sectores, marca/modelo de equipo, etc.) en una observación, identifica EXPLÍCITAMENTE en qué
+sección del documento estás parado y a qué sistema corresponde — NUNCA atribuyas un valor de un
+sistema a otro distinto, aunque el dato que buscas no aparezca para el sistema que estás evaluando
+en ese momento o los números se vean parecidos entre ambos. Si no encuentras el dato para el
+sistema correcto, dilo así ("no se encontró el dato de [X] para el sistema [Y]") en vez de usar el
+valor del otro sistema — un dato real pero del sistema equivocado es tan grave como uno inventado.
+
 ───────────────────────────────────────────────────────
 CRITERIOS DE VERIFICACIÓN POR MÉTODO DE RIEGO
 ───────────────────────────────────────────────────────
@@ -4191,19 +4202,27 @@ def _extraer_accion(texto: str) -> tuple:
 
 async def _chatear_grupo(nombre: str, checklist: str, docs_grupo: list, observaciones_grupo: list,
                          historial: list, mensaje: str, bases_texto: str = "",
-                         concurso_id: str = "") -> dict:
+                         concurso_id: str = "", max_chars_total: int = 25000) -> dict:
     """
     Chat de refinamiento sobre un eje/ítem ya revisado. El revisor debate una observación y la
     IA responde con el contexto completo del grupo (documentos + observaciones + bases).
     Si el revisor pide un cambio concreto y la IA está de acuerdo, puede APLICARLO: devuelve
     {"texto": str, "accion": {"id","accion","texto_nuevo"} | None}. `accion` en
     descartar|reclasificar_nota|editar|mantener; el llamador aplica el cambio a la observación.
+
+    `max_chars_total`: presupuesto de texto de los documentos — por defecto 25.000, pero
+    `chatear_item` pasa el mismo tope que usa el análisis completo (`MAX_CHARS_POR_ITEM`) para
+    los ítems densos en datos (Diseño hidráulico, Presupuesto, Planos, etc.). Sin esto, el chat
+    truncaba esos documentos MUCHO más que el análisis original que generó la observación —
+    bug real reportado nov-2026: en un proyecto con dos sistemas de riego (Goteo y Carrete)
+    descritos uno tras otro en el MISMO documento, el chat truncaba justo la sección del segundo
+    sistema y la IA terminaba citando un dato del sistema equivocado al debatir sobre él.
     """
     client = _get_client()
 
     docs_con_texto = [d for d in docs_grupo
                       if d.get("texto_extraido", "").strip() not in ("", "__PDF_ESCANEADO__")]
-    budget = max(2500, 25000 // max(1, len(docs_con_texto)))
+    budget = max(2500, max_chars_total // max(1, len(docs_con_texto)))
     bloque_docs = ""
     for d in docs_con_texto:
         label = d.get("tipo_doc_label") or TIPOS_DOC.get(d.get("tipo_doc"), d.get("tipo_doc", ""))
@@ -4306,8 +4325,10 @@ async def chatear_item(item_key: str, documentos: list, observaciones_item: list
         return {"texto": "Ítem no válido.", "accion": None}
     tipos = set(item["tipo_docs"])
     docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+    max_chars_total = MAX_CHARS_POR_ITEM.get(item_key, 25000)
     return await _chatear_grupo(item["nombre"], item["checklist"], docs_grupo, observaciones_item,
-                                historial, mensaje, bases_texto=bases_texto, concurso_id=concurso_id)
+                                historial, mensaje, bases_texto=bases_texto, concurso_id=concurso_id,
+                                max_chars_total=max_chars_total)
 
 
 async def resumir_proyecto(documentos: list, bases_texto: str = "", concurso_id: str = "") -> dict:
