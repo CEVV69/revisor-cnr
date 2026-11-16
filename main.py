@@ -2004,6 +2004,29 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get("item") == key]
         proyecto.setdefault("item_chats", {})
         historial = proyecto["item_chats"].get(key, [])
+
+        # Anti-doble-cobro (nov-2026): si el mismo mensaje, para este mismo ítem, ya se respondió
+        # hace menos de 3 minutos, no se vuelve a llamar a la IA — se reusa la respuesta guardada.
+        # Pasa cuando el navegador o el proxy de Railway reintentan la misma petición sin que el
+        # revisor lo note (desconexión breve, ver CLAUDE.md): la primera copia ya terminó y se
+        # cobró en la API de Anthropic, aunque el revisor nunca vio esa respuesta y volvió a
+        # escribir/enviar el mismo mensaje creyendo que no se había mandado.
+        if (len(historial) >= 2 and historial[-2].get("rol") == "revisor"
+                and historial[-2].get("texto", "").strip() == mensaje
+                and historial[-1].get("rol") == "ia"):
+            try:
+                fecha_previa = datetime.fromisoformat(historial[-2].get("fecha", ""))
+                reciente = (_ahora() - fecha_previa).total_seconds() < 180
+            except (ValueError, TypeError):
+                reciente = False
+            if reciente:
+                respuesta_previa = historial[-1].get("texto", "")
+                if es_ajax:
+                    return JSONResponse({"ok": True, "mensaje": mensaje,
+                                         "respuesta": respuesta_previa, "modificado": False})
+                return RedirectResponse(url=f"/proyecto/{proyecto_id}/{pagina}#chat-{tipo}-{key}",
+                                        status_code=302)
+
         documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
 
         acc_costo = iniciar_costo()
