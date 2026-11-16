@@ -7737,6 +7737,22 @@ de subsanación (`evaluar_respuesta_ia_modificacion`) y "Generar Justificación"
 no tiene "Debate con la IA" ni "Consulta al expediente", así que no hay más rutas equivalentes
 que cubrir ahí.
 
+**Falla de rigurosidad detectada en el mismo chat, mismo día:** el usuario debatió una
+observación de "Diseño y cálculos hidráulicos" porque un dato le pareció raro — tenía razón, era
+inventado; la IA dio otro dato en el chat, y ese TAMBIÉN estaba mal: correspondía al OTRO sistema
+de riego del proyecto (el proyecto tiene Goteo y Carrete, descritos uno tras otro en el MISMO PDF
+de 19 páginas). Dos causas, ambas corregidas:
+1. **`_chatear_grupo` truncaba a un tope fijo de 25.000 caracteres para TODOS los ítems**, muy por
+   debajo del tope de 120.000 que usa el análisis completo para ítems densos en datos
+   (`MAX_CHARS_POR_ITEM`: Diseño hidráulico, Presupuesto, Planos, etc.) — el chat podía truncar
+   justo la sección del segundo sistema que el análisis original sí alcanzaba a ver completa.
+   Fix: `chatear_item` ahora pasa `MAX_CHARS_POR_ITEM.get(item_key, 25000)` a `_chatear_grupo`
+   (nuevo parámetro `max_chars_total`, antes hardcodeado).
+2. **El checklist de "Diseño y cálculos hidráulicos" no advertía sobre proyectos con más de un
+   sistema de riego** en un mismo documento — se agregó un párrafo explícito exigiendo identificar
+   a qué sistema corresponde cada dato antes de citarlo, y nunca usar el valor de un sistema para
+   otro aunque el dato buscado no aparezca para el sistema correcto.
+
 **Bug relacionado, mismo día:** el usuario reportó el botón de "Debate con la IA" pegado en
 "Enviando…" 41 minutos después de la última interacción. Causa: `fetch()` no tiene timeout
 propio — si la conexión se cuelga (la misma falla intermitente de Railway), el `fetch` nunca
