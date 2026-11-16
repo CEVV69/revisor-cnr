@@ -44,14 +44,18 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
+**Confirmado funcionando por el usuario (nov-2026):** botón de "Debate con la IA" ya no queda
+pegado en "Enviando…" (fix de timeout + red de seguridad en recarga); anti-doble-cobro
+confirmado sin duplicados en Console tras una reconexión intermitente con Railway.
+
 **En prueba, sin confirmar aún (nov-2026):** fix "Revisar todos" omitía ítems con un solo documento
 escaneado/plano; Ficha de Revisión muestra solo el párrafo de propuesta de cada observación; fix
 parpadeo/salto de scroll al aprobar/descartar/dejar pendiente una observación; total en UF del
 Presupuesto inicial; campo "Características obras" con datos técnicos en prosa (tope 400 car.);
-anti-doble-cobro en las 6 llamadas síncronas a la IA (Debate, Evaluar respuesta ×2, Consulta al
-expediente, Generar Justificación) — surgió de un gasto real reportado por el usuario en Claude
-Console por una reconexión intermitente con Railway (**sin resolver la causa raíz de esa falla**,
-ver `docs/historial_sesiones.md`).
+regla de "no mezclar sistemas de riego" + presupuesto de texto del chat igualado al del análisis
+completo (Diseño hidráulico) — pendiente confirmar si el dato del sistema Carrete ya sale
+correcto. **Sin resolver:** la causa raíz de la reconexión intermitente con Railway (ver
+`docs/historial_sesiones.md`).
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
