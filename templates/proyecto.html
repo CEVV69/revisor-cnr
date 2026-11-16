@@ -18,7 +18,7 @@
 
 {# Formulario compacto para agregar una observación a mano a un ítem — reutilizado al final de
    cada grupo de observaciones y en el banner "Cumple con la normativa". #}
-{% macro _form_obs_manual(proyecto_id, item_key, default_severidad='mayor') %}
+{% macro _form_obs_manual(proyecto_id, item_key, default_severidad='mayor', severidad_fija=false) %}
 <details style="font-size:0.78rem; margin-top:0.5rem;">
   <summary style="cursor:pointer; color:var(--text-2); user-select:none;">
     + Agregar {{ 'nota' if default_severidad == 'informativa' else 'observación' }} manual
@@ -27,7 +27,7 @@
        apila los controles de la fila en vez de compartir el ancho (mismo fix que en Respuestas). -->
   <form method="post" action="/proyecto/{{ proyecto_id }}/item/{{ item_key }}/observacion/agregar-manual"
         style="margin-top:0.4rem; display:flex; flex-direction:column; gap:0.35rem;">
-    <textarea name="texto" rows="3" required placeholder="Texto de la observación..."
+    <textarea name="texto" rows="3" required placeholder="Texto de la {{ 'nota' if default_severidad == 'informativa' else 'observación' }}..."
               style="font-size:0.8rem; padding:0.4rem; resize:vertical; width:100%; box-sizing:border-box;"></textarea>
     <div style="display:flex; gap:0.35rem; flex-wrap:nowrap;">
       <select name="categoria" style="width:auto; flex:1 1 0; min-width:0; font-size:0.76rem; padding:0.3rem;">
@@ -36,11 +36,19 @@
         <option value="presupuesto">Presupuesto</option>
         <option value="administrativa">Administrativa</option>
       </select>
+      {% if severidad_fija %}
+      {# Fija, sin selector: agregada desde la tarjeta de Notas, siempre queda como nota —
+         nunca "sube" a Observaciones aunque el revisor hubiera podido elegir Mayor/Menor
+         acá (bug reportado nov-2026: lo que se agregaba desde Notas con otra severidad se
+         iba a Observaciones en vez de quedarse en Notas). #}
+      <input type="hidden" name="severidad" value="{{ default_severidad }}">
+      {% else %}
       <select name="severidad" style="width:auto; flex:1 1 0; min-width:0; font-size:0.76rem; padding:0.3rem;">
         <option value="mayor" {% if default_severidad == 'mayor' %}selected{% endif %}>Mayor</option>
         <option value="menor" {% if default_severidad == 'menor' %}selected{% endif %}>Menor</option>
         <option value="informativa" {% if default_severidad == 'informativa' %}selected{% endif %}>Informativa (nota)</option>
       </select>
+      {% endif %}
       <input type="text" name="referencia_normativa" placeholder="Referencia normativa (opcional)"
              style="width:auto; flex:2 1 0; min-width:0; font-size:0.76rem; padding:0.3rem;">
     </div>
@@ -199,7 +207,7 @@
           style="display:none;"></form>
   </div>
   {% endfor %}
-  {{ _form_obs_manual(proyecto_id, grupo.key, 'informativa') }}
+  {{ _form_obs_manual(proyecto_id, grupo.key, 'informativa', true) }}
   </div>
   </details>
   {% endfor %}
