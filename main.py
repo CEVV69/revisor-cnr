@@ -545,6 +545,34 @@ def _ahora() -> datetime:
 # al terminar via el callback en `_lanzar_analisis_fondo`.
 _tareas_fondo: set = set()
 
+# Anti-doble-cobro para llamadas SÍNCRONAS a la IA que no quedan registradas en el proyecto hasta
+# que el revisor decide algo después (evaluar respuesta de subsanación, evaluar varias de un
+# ítem) — mismo problema que resuelve el chequeo de `historial` en el chat de "Debate con la IA",
+# pero esas rutas no tienen un historial propio donde comparar, así que se usa esta caché efímera
+# en memoria del proceso. Si el navegador o el proxy de Railway reintentan la misma petición tras
+# una desconexión breve que el revisor no llega a ver (ver CLAUDE.md), la copia repetida reusa el
+# resultado en vez de volver a pagarle a la API. Vive solo en memoria — un reinicio del proceso la
+# vacía, lo cual es aceptable: el peor caso es volver a pagar una llamada vieja, no el problema
+# que esto previene (duplicados dentro de la misma conexión, segundos/minutos después).
+_CACHE_ANTIDUP: dict = {}
+_CACHE_ANTIDUP_TTL = 180   # segundos
+
+
+def _resultado_antidup(clave) -> "dict | None":
+    """Si `clave` tiene un resultado guardado hace menos de `_CACHE_ANTIDUP_TTL` segundos, lo
+    devuelve; si no, None. De paso purga entradas vencidas para que la caché no crezca sin
+    límite (el tráfico de estas rutas es bajo, no hace falta nada más elaborado)."""
+    ahora = time.monotonic()
+    vencidas = [k for k, (t, _) in _CACHE_ANTIDUP.items() if ahora - t > _CACHE_ANTIDUP_TTL]
+    for k in vencidas:
+        _CACHE_ANTIDUP.pop(k, None)
+    entrada = _CACHE_ANTIDUP.get(clave)
+    return entrada[1] if entrada else None
+
+
+def _guardar_antidup(clave, resultado) -> None:
+    _CACHE_ANTIDUP[clave] = (time.monotonic(), resultado)
+
 
 def _fmt_fecha(iso_str: str, con_hora: bool = False) -> str:
     """Formatea un datetime ISO a notación chilena dd/mm/aaaa (o dd/mm/aaaa HH:MM si
@@ -4035,6 +4063,26 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
     if not proyecto:
         raise HTTPException(status_code=404)
 
+    pregunta = pregunta.strip()
+
+    # Anti-doble-cobro (nov-2026, mismo caso que el chat de "Debate con la IA"): si la misma
+    # pregunta ya se respondió hace menos de 3 minutos (el navegador o el proxy de Railway
+    # reintentaron la petición tras una desconexión breve que el revisor no llegó a ver), se
+    # reusa esa respuesta en vez de volver a llamar a la IA.
+    consultas_previas = proyecto.get("consultas", [])
+    ultima = consultas_previas[0] if consultas_previas else None
+    if ultima and ultima.get("pregunta", "").strip() == pregunta:
+        try:
+            fecha_previa = datetime.fromisoformat(ultima.get("fecha", ""))
+            reciente = (_ahora() - fecha_previa).total_seconds() < 180
+        except (ValueError, TypeError):
+            reciente = False
+        if reciente:
+            return templates.TemplateResponse("consultar.html", {
+                "request": request, "user": user, "proyecto": proyecto,
+                "ultima_consulta": ultima
+            })
+
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
     acc_costo = iniciar_costo()
     respuesta = await consultar_expediente(pregunta, documentos_con_texto)
@@ -4625,6 +4673,13 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
             if ultima_ronda.get("evaluacion") == "reiterada" and contra_obs:
                 observacion_texto += f"\n\nContra Observación del revisor (ronda {ultima_ronda.get('ronda')}, tras la respuesta anterior): {contra_obs}"
 
+        clave_antidup = ("evaluar-respuesta", obs_id, respuesta)
+        resultado = _resultado_antidup(clave_antidup)
+        if resultado is not None:
+            return JSONResponse({"ok": True, "recomendacion": resultado.get("recomendacion", ""),
+                                 "fundamento": resultado.get("fundamento", ""),
+                                 "costo_api": _costo_para_vista(proyecto)})
+
         acc_costo = iniciar_costo()
         resultado = await evaluar_respuesta_subsanacion(
             observacion_texto=observacion_texto,
@@ -4634,6 +4689,7 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
             bases_texto=bases_texto, concurso_id=concurso_id, doc_ids_extra=doc_ids_extra,
             n_obs_item=n_obs_item, ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
+        _guardar_antidup(clave_antidup, resultado)
 
         # Esta ruta no modifica el proyecto (solo devuelve la recomendación por AJAX), pero el
         # costo sí hay que persistirlo. Se relee FRESCO antes de guardar porque la evaluación
@@ -4732,6 +4788,13 @@ async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_ke
             return JSONResponse({"ok": False, "error": "sin observaciones válidas para evaluar"},
                                 status_code=400)
 
+        clave_antidup = ("evaluar-respuestas-item", proyecto_id, item_key,
+                         tuple(sorted(respuestas_por_obs.items())))
+        resultados = _resultado_antidup(clave_antidup)
+        if resultados is not None:
+            return JSONResponse({"ok": True, "resultados": resultados,
+                                 "costo_api": _costo_para_vista(proyecto)})
+
         acc_costo = iniciar_costo()
         resultados = await evaluar_respuestas_item(
             observaciones=observaciones_lote, item_key=item_key,
@@ -4739,6 +4802,7 @@ async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_ke
             bases_texto=bases_texto, concurso_id=concurso_id,
             ruta_uploads=str(UPLOAD_DIR / proyecto_id),
         )
+        _guardar_antidup(clave_antidup, resultados)
 
         proyecto_fresco = db.get_proyecto(proyecto_id)
         costo_api = None
