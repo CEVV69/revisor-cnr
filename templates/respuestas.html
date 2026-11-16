@@ -455,7 +455,7 @@ async function evaluarIA(obsId) {
   try {
     var fd = new FormData();
     fd.append('respuesta', resp);
-    var r = await fetch('/proyecto/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
+    var r = await fetchConTope('/proyecto/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
       { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
     var data = await r.json();
     if (!data.ok) {
@@ -509,7 +509,7 @@ async function evaluarGrupoIA(itemKey, grupoIndex) {
   try {
     var fd = new FormData();
     fd.append('datos', JSON.stringify(datos));
-    var r = await fetch('/proyecto/{{ proyecto.id }}/item/' + itemKey + '/evaluar-respuestas-item',
+    var r = await fetchConTope('/proyecto/{{ proyecto.id }}/item/' + itemKey + '/evaluar-respuestas-item',
       { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
     var data = await r.json();
     if (!data.ok) {

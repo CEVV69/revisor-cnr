@@ -1160,7 +1160,9 @@ function enviarChat(event, tipo, key) {
   boton.disabled = true;
   boton.textContent = 'Enviando…';
 
-  fetch(form.action, {
+  // fetchConTope (base.html): evita que el botón quede pegado en "Enviando…" para siempre si la
+  // conexión se cuelga (ver nota ahí) — cancela sola a los 90s y dispara el .catch() de abajo.
+  fetchConTope(form.action, {
     method: 'POST',
     headers: { 'X-Requested-With': 'fetch' },
     body: datos

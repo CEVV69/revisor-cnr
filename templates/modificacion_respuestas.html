@@ -305,7 +305,7 @@ async function evaluarIA(obsId) {
   try {
     var fd = new FormData();
     fd.append('respuesta', resp);
-    var r = await fetch('/modificacion/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
+    var r = await fetchConTope('/modificacion/{{ proyecto.id }}/observacion/' + obsId + '/evaluar-respuesta',
       { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: fd });
     var data = await r.json();
     if (!data.ok) {

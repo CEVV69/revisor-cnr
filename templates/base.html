@@ -460,6 +460,19 @@
     };
   })();
 
+  // fetch() no tiene timeout propio: si la conexión se cuelga (falla intermitente de Railway,
+  // ver CLAUDE.md), un await fetch(...) nunca resuelve NI rechaza, y el botón que lo disparó
+  // queda pegado en "Enviando…"/"Evaluando…" para siempre (bug reportado nov-2026 en "Debate con
+  // la IA"). Helper global para que toda llamada a una ruta que llama a la IA se cancele sola
+  // tras `ms` (default 90s — bastante más que lo que tarda cualquier respuesta normal, 5-17s
+  // medido) en vez de colgarse sin error ni éxito.
+  window.fetchConTope = function(url, opciones, ms) {
+    var controlador = new AbortController();
+    var tope = setTimeout(function() { controlador.abort(); }, ms || 90000);
+    opciones = Object.assign({}, opciones, { signal: controlador.signal });
+    return fetch(url, opciones).finally(function() { clearTimeout(tope); });
+  };
+
   document.addEventListener('submit', function(e) {
     if (!e.target.querySelector('input[type="file"]')) {
       sessionStorage.setItem('cnr_scroll', window.scrollY);
