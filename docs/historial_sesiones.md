@@ -7737,6 +7737,18 @@ de subsanación (`evaluar_respuesta_ia_modificacion`) y "Generar Justificación"
 no tiene "Debate con la IA" ni "Consulta al expediente", así que no hay más rutas equivalentes
 que cubrir ahí.
 
+**Bug relacionado, mismo día:** el usuario reportó el botón de "Debate con la IA" pegado en
+"Enviando…" 41 minutos después de la última interacción. Causa: `fetch()` no tiene timeout
+propio — si la conexión se cuelga (la misma falla intermitente de Railway), el `fetch` nunca
+resuelve NI rechaza, así que ni `.then` ni `.catch` se disparan y el botón queda deshabilitado
+para siempre. Se agregó `window.fetchConTope(url, opciones, ms)` en `base.html` (disponible en
+toda la app vía `AbortController`, cancela a los 90s — bien por sobre los 5-17s que tarda una
+respuesta normal — y dispara el `.catch()` existente) y se aplicó en las 4 llamadas AJAX que
+sostienen la conexión abierta esperando a la IA: chat de Debate (`proyecto.html`), Evaluar
+respuesta individual y por ítem en Revisión (`respuestas.html`), Evaluar respuesta en
+Modificaciones (`modificacion_respuestas.html`). "Consulta al expediente" no corre este riesgo —
+es un `<form>` normal con recarga de página, no AJAX.
+
 **Pendiente de diagnóstico, no resuelto:** la causa RAÍZ de por qué Railway falla al cargar la app
 de forma intermitente (reportado por el usuario esta misma sesión) sigue sin confirmarse — se
 descartó código, memoria (lejos del límite de 8GB del plan), caídas del contenedor (logs limpios)
