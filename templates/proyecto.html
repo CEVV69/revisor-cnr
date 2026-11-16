@@ -223,6 +223,10 @@
       {% endif %}
       <button type="submit" name="estado" value="descartada" class="btn btn-sm"
               style="background:#e2e8f0; color:var(--text-2); font-size:0.78rem;">Descartar nota</button>
+      {% if obs.estado == 'descartada' %}
+      <button type="submit" name="estado" value="pendiente" class="btn btn-outline btn-sm"
+              style="font-size:0.78rem;">↺ Deshacer</button>
+      {% endif %}
       <button type="submit" form="elim-{{ obs.id }}" class="btn btn-sm"
               style="background:transparent; color:var(--red); font-size:0.78rem;">Eliminar</button>
     </form>
