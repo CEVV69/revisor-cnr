@@ -57,7 +57,8 @@ técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igua
 todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloqueaba su único
 hilo; si sigue lenta, revisar logs de Railway); lectura con IA real del reporte del Explorador
 (capacidad instalada y total anual) y de energía requerida/cobertura declaradas, sin probar con API
-real. Detalle de todo en `docs/historial_sesiones.md`.
+real; ítem Presupuesto recibe los antecedentes del ítem Declaración IVA (`_bloque_antecedentes_iva`).
+Detalle de todo en `docs/historial_sesiones.md`.
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión

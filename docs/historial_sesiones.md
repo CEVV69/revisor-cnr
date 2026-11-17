@@ -7920,3 +7920,20 @@ equivale a la cobertura con la generación declarada. Verificado en Chromium (Pl
 son más claros"). Queda sin probar con la API real solo la extracción con IA de los datos nuevos
 (reporte del Explorador, energía requerida y cobertura declaradas). Pendiente conocido: el modo aislado
 hora a hora sigue en la app Revisor FV (necesita el perfil solar horario).
+
+
+## Presupuesto observaba IVA incluido aunque el postulante lo tiene acreditado (nov-2026)
+
+El usuario reportó que, en Revisión ítem SEP, el ítem "Presupuesto detallado de obras" observaba el
+IVA incluido en muchos proyectos de pequeños agricultores que SÍ acreditaron poder incluirlo: cada
+ítem se revisa solo con SUS documentos y el de Presupuesto no veía los del ítem "Declaración No
+Contribuyente IVA" (reporte SII, carta de renuncia al crédito fiscal, antecedentes contables). Su
+regla i. decía "IVA excluido, salvo excepción INDAP justificada" sin acceso a esa justificación.
+Fix (`analyzer.py`): `_bloque_antecedentes_iva(documentos, resumen)` arma un bloque con el texto de
+los documentos `declaracion_iva` (6.000 car. c/u; si son escaneados lo declara no verificable en
+vez de concluir que falta), lo marcado en Resumen (INDAP) y la regla "observa el IVA incluido SOLO
+si no está acreditado"; `analizar_item` lo antepone a `contexto_extra` para `presupuesto` y
+`presupuesto_electrico` (no toca Modificaciones). Regla i. del checklist actualizada. Verificado con
+un test que captura `contexto_extra`; sin probar con la API real. Idea abierta (no hecha): el
+camino inverso — el ítem Declaración IVA tampoco ve el presupuesto, aunque su checklist pide
+coherencia con el tratamiento del IVA ahí.

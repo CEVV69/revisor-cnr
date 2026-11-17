@@ -838,7 +838,10 @@ g. La inspección técnica de obras debe ser un profesional externo, inscrito en
    Consultores CNR.
 h. Límite del 15%: (Gastos Generales + Imprevistos + Estudio + ITO) / Costo Total del proyecto ≤
    15%.
-i. El IVA va excluido del presupuesto, salvo excepción INDAP justificada.
+i. El IVA va excluido del presupuesto, salvo excepción acreditada (usuario INDAP, sin inicio de
+   actividades ante el SII o carta de renuncia al crédito fiscal). Esa acreditación vive en el ítem
+   "Declaración No Contribuyente IVA": usa el bloque ANTECEDENTES DE IVA que se te entrega y observa
+   el IVA incluido SOLO si ahí no está acreditada.
 j. No debe incluir costos prohibidos: pólizas, cercos, caminos interiores, obras a nivel de
    potrero, camellones, instalación de faenas, estudios ya bonificados en otra postulación.
 k. Invernaderos: costo máximo por m² de $70.000 si la estructura es de metalcón con cubierta de
@@ -4076,6 +4079,8 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     item = item_override if item_override is not None else ITEMS_SEP.get(item_key)
     if not item:
         return {"observaciones": [], "docs_incluidos": [], "sin_documentos": True}
+    if item_override is None and item_key in ("presupuesto", "presupuesto_electrico"):
+        contexto_extra = _bloque_antecedentes_iva(documentos, resumen) + (contexto_extra or "")
     if item_key == "coherencia":
         # Usa TODOS los documentos con texto, sin filtrar por tipo (salvo
         # TIPOS_EXCLUIDOS_COHERENCIA — administrativos/financieros, sin señal de coherencia
@@ -4603,6 +4608,45 @@ la normativa general. Verifica su cumplimiento en el documento analizado:
                    f"{MAX_CHARS_BASES:,} caracteres]\n".replace(",", "."))
     bloque += "\n"
     return bloque
+
+
+MAX_CHARS_IVA_DOC = 6000   # tope por documento de Declaración IVA inyectado al ítem Presupuesto
+
+
+def _bloque_antecedentes_iva(documentos: list, resumen: dict = None) -> str:
+    """Antecedentes de IVA para los ítems de presupuesto (nov-2026, caso real reportado: pequeños
+    agricultores que SÍ acreditaron poder incluir IVA aparecían observados porque el ítem
+    Presupuesto no veía los documentos del ítem "Declaración No Contribuyente IVA", que es donde
+    se suben el reporte SII / la carta de renuncia al crédito fiscal y demás antecedentes
+    contables). Cada ítem se revisa con SUS documentos, así que sin este bloque la IA solo podía
+    suponer que faltaba la acreditación. También lleva lo que el revisor ya marcó en Resumen (INDAP)."""
+    docs_iva = [d for d in (documentos or []) if d.get("tipo_doc") == "declaracion_iva"]
+    indap = (resumen or {}).get("indap")
+    lineas = []
+    if indap:
+        lineas.append(f"- Resumen del revisor — usuario INDAP: {indap}.")
+    if not docs_iva:
+        lineas.append("- No hay documentos de Declaración No Contribuyente IVA cargados en el expediente.")
+    for d in docs_iva:
+        nombre = d.get("nombre_original", "") or d.get("filename", "")
+        texto = (d.get("texto_extraido") or "").strip()
+        if texto in ("", "__PDF_ESCANEADO__") or len(texto) < MIN_CHARS_TEXTO:
+            lineas.append(f'- Documento "{nombre}": escaneado o sin texto legible — su contenido NO se pudo '
+                          "leer; NO concluyas que falta la acreditación, indica que no es verificable desde acá.")
+        else:
+            lineas.append(f'- Documento "{nombre}":\n{_truncar_inteligente(texto, MAX_CHARS_IVA_DOC)}')
+    return f"""
+{'═'*60}
+ANTECEDENTES DE IVA DEL EXPEDIENTE — vienen del ítem "Declaración No Contribuyente IVA"
+{'═'*60}
+Ese ítem se revisa aparte, pero lo necesitas acá: que el presupuesto incluya IVA NO es observable
+cuando el postulante acredita poder hacerlo (usuario INDAP, sin inicio de actividades ante el SII
+—reporte SII— o carta firmada renunciando al crédito fiscal). Observa el IVA incluido SOLO si
+estos antecedentes no acreditan esa excepción, o si no hay ninguno. Si la acreditación existe pero
+parece inconsistente (otro RUT o nombre), eso corresponde al ítem de IVA, no a este.
+{chr(10).join(lineas)}
+
+"""
 
 
 MAX_CHARS_CAMPO_RESUMEN = 500   # tope por campo del Resumen (textareas pueden ser largos)
