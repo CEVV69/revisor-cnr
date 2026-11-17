@@ -865,29 +865,29 @@ async def startup_event():
             from database import _get_pg
             _get_pg()
             print("✅ Conexión PostgreSQL OK")
-            db.migrar_proyectos()
+            (await asyncio.to_thread(db.migrar_proyectos))
             # Antes que `migrar_criterios_enfasis()`, que recorre todos los concursos y los
             # vuelve a guardar: si corriera con el blob legacy todavía sin migrar, escribiría
             # las claves nuevas y la migración posterior las pisaría con la versión vieja.
-            db.migrar_concursos()
-            db.sincronizar_listado_proyectos()
+            (await asyncio.to_thread(db.migrar_concursos))
+            (await asyncio.to_thread(db.sincronizar_listado_proyectos))
         except Exception as e:
             print(f"❌ Error PostgreSQL: {e}")
     else:
         print(f"📁 Modo: JSON local (DATA_DIR = {os.getenv('DATA_DIR', 'data')})")
 
     try:
-        db.migrar_textos_documentos()
+        (await asyncio.to_thread(db.migrar_textos_documentos))
     except Exception as e:
         print(f"❌ Error migrando textos de documentos: {e}")
 
     try:
-        db.migrar_criterios_enfasis()
+        (await asyncio.to_thread(db.migrar_criterios_enfasis))
     except Exception as e:
         print(f"❌ Error migrando criterios de énfasis: {e}")
 
-    if not db.get_user("admin"):
-        db.create_user("admin", "admin123", "Administrador CNR", "admin")
+    if not (await asyncio.to_thread(db.get_user, "admin")):
+        (await asyncio.to_thread(db.create_user, "admin", "admin123", "Administrador CNR", "admin"))
         print("✅ Usuario admin creado: admin / admin123")
     else:
         print("✅ Usuario admin existe — datos persistidos correctamente")
@@ -979,7 +979,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
             "error": "Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo."
         }, status_code=429)
 
-    user = db.get_user(username)
+    user = (await asyncio.to_thread(db.get_user, username))
     # bcrypt es deliberadamente lento (~100-300ms) — sin to_thread bloquea el event loop
     # entero (toda la app) durante ese rato en cada login.
     if not user or not await asyncio.to_thread(verify_password, password, user["password_hash"]):
@@ -1016,10 +1016,8 @@ async def dashboard(request: Request):
     # Listado liviano: dashboard.html solo necesita estos campos — evita traer el texto
     # extraído de todos los documentos de todos los proyectos en cada carga del dashboard.
     # "resumen" se pide completo (es chico, ~25 campos cortos) solo para sacar el consultor.
-    proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "fecha_estado",
-         "revisor", "resumen", "costo_api", "tipo"],
-        username=user["username"])
+    proyectos = (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep", "nombre", "postulante", "estado", "fecha_creacion", "fecha_estado",
+         "revisor", "resumen", "costo_api", "tipo"], username=user["username"]))
     # Las Modificaciones de Proyecto (oct-2026) viven en la misma colección pero con su propio
     # listado — ver /modificaciones. Nunca deben aparecer mezcladas acá.
     proyectos = [p for p in proyectos if p.get("tipo") != "modificacion"]
@@ -1044,9 +1042,7 @@ async def resumen_proyectos_excel(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyectos = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
-        username=user["username"])
+    proyectos = (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"], username=user["username"]))
     proyectos = [p for p in proyectos if p.get("tipo") != "modificacion"]
     contenido = _generar_excel_resumen_proyectos(_agrupar_proyectos_por_concurso(proyectos))
     nombre_archivo = f"resumen_proyectos_{_ahora().strftime('%Y%m%d')}.xlsx"
@@ -1063,9 +1059,7 @@ async def resumen_modificaciones_excel(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mods = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
-        username=user["username"])
+    mods = (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep", "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"], username=user["username"]))
     mods = [m for m in mods if m.get("tipo") == "modificacion"]
     contenido = _generar_excel_resumen_proyectos(
         _agrupar_proyectos_por_concurso(mods), titulo="Resumen de modificaciones — Revisor CNR")
@@ -1111,7 +1105,7 @@ async def crear_proyecto(
         "documentos": [],
         "observaciones": []
     }
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     # Crear carpeta para documentos del proyecto
     (UPLOAD_DIR / proyecto_id).mkdir(exist_ok=True)
@@ -1325,14 +1319,14 @@ async def cambiar_estado_proyecto(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     if estado in ESTADOS_PROYECTO:
         proyecto["estado"] = estado
         proyecto["fecha_estado"] = _ahora().isoformat()
         proyecto["estado_por"] = user["nombre"]
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
 
 
@@ -1352,7 +1346,7 @@ async def marcar_obligatorio_no_aplica(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     motivo = motivo.strip()
@@ -1361,7 +1355,7 @@ async def marcar_obligatorio_no_aplica(
     proyecto.setdefault("obligatorios_excepciones", {})[tipo_doc] = {
         "motivo": motivo, "por": user["nombre"], "fecha": _ahora().isoformat(),
     }
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
 
 
@@ -1372,11 +1366,11 @@ async def quitar_obligatorio_no_aplica(request: Request, proyecto_id: str, tipo_
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     proyecto.setdefault("obligatorios_excepciones", {}).pop(tipo_doc, None)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=_volver_a(request, proyecto_id), status_code=302)
 
 
@@ -1393,7 +1387,7 @@ async def subir_documento(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -1426,7 +1420,7 @@ async def subir_documento(
     }
 
     proyecto["documentos"].append(doc)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     await asyncio.to_thread(db.set_texto_documento, proyecto_id, doc_id, texto_guardado)
 
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
@@ -1447,7 +1441,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
     if item_key not in ITEMS_SEP:
         raise HTTPException(status_code=404, detail="Ítem no válido")
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -1458,7 +1452,7 @@ async def revisar_item(request: Request, proyecto_id: str, item_key: str):
 
     proyecto.setdefault("items_en_progreso", {})[item_key] = {"inicio": _ahora().isoformat()}
     proyecto.setdefault("items_error", {}).pop(item_key, None)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     tarea = asyncio.create_task(_analizar_item_fondo(proyecto_id, item_key))
     _tareas_fondo.add(tarea)
@@ -1491,19 +1485,19 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
     análisis, solo cuándo/cómo le llega el resultado al navegador."""
     acc_costo = iniciar_costo()
     try:
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if not proyecto:
             return
 
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        concurso = db.get_concurso(concurso_id)
+        concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
         bases_texto       = concurso.get("bases_texto", "") if concurso else ""
         feedback_concurso = concurso.get("feedback", [])   if concurso else []
         criterios = (concurso.get("criterios_aprendidos", {}).get("item_" + item_key, "")
                      if concurso else "")
-        enfasis = _criterios_enfasis_combinados(item_key, concurso)
+        enfasis = await asyncio.to_thread(_criterios_enfasis_combinados, item_key, concurso)
         ckey, _ = _consultor_de_proyecto(proyecto)
-        consultor = db.get_consultor(ckey) if ckey else None
+        consultor = (await asyncio.to_thread(db.get_consultor, ckey)) if ckey else None
 
         verif_calc = proyecto.get("verificacion_calculos", {})
 
@@ -1533,7 +1527,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
 
         tabla_precios = None
         if item_key in ("presupuesto", "presupuesto_electrico"):
-            precios_data = db.get_precios()
+            precios_data = (await asyncio.to_thread(db.get_precios))
             tabla_precios = precios_data.get("items") if precios_data else None
 
         # Versión inicial del cuadro resumen del presupuesto general (para comparar más adelante
@@ -1600,7 +1594,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
         import traceback
         print(f"❌ ERROR en _analizar_item_fondo {item_key}: {e}")
         print(traceback.format_exc())
-        _finalizar_analisis_fondo(proyecto_id, item_key, f"Error al revisar ítem: {str(e)}")
+        await asyncio.to_thread(_finalizar_analisis_fondo, proyecto_id, item_key, f"Error al revisar ítem: {str(e)}")
         return
 
     # Se relee el proyecto FRESCO justo antes de guardar — el análisis puede tardar minutos, y en
@@ -1608,13 +1602,13 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
     # Resumen, etc.) desde otra pestaña. Aplicar el resultado sobre la copia más reciente posible
     # acota esa ventana — mismo riesgo que ya existía en el flujo síncrono de siempre mientras
     # esperaba a la IA (la app no usa transacciones, ver database.py), no uno nuevo de este cambio.
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         return
 
     if resultado.get("sin_documentos"):
-        _finalizar_analisis_fondo(
-            proyecto_id, item_key,
+        await asyncio.to_thread(
+            _finalizar_analisis_fondo, proyecto_id, item_key,
             "Ese ítem no tiene documentos con texto disponibles en este expediente. Sube o clasifica los documentos correspondientes.",
             sin_docs=True, proyecto_ya_cargado=proyecto)
         return
@@ -1686,7 +1680,7 @@ async def _analizar_item_fondo(proyecto_id: str, item_key: str):
     proyecto.setdefault("items_en_progreso", {}).pop(item_key, None)
     proyecto.setdefault("items_error", {}).pop(item_key, None)
     _registrar_costo(proyecto, "revision", acc_costo, detalle=item_key)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
 
 @app.get("/proyecto/{proyecto_id}/item/{item_key}/estado")
@@ -1700,8 +1694,7 @@ async def estado_item(request: Request, proyecto_id: str, item_key: str):
     # Proyección liviana: solo los 3 campos de estado. Este endpoint se consulta cada 4 segundos
     # mientras dura un análisis, y con el proyecto completo traía y deserializaba TODAS las
     # observaciones en cada vuelta solo para leer si el ítem ya terminó.
-    proyecto = db.get_proyecto_campos(
-        proyecto_id, ["items_en_progreso", "items_error", "items_revisados"])
+    proyecto = (await asyncio.to_thread(db.get_proyecto_campos, proyecto_id, ["items_en_progreso", "items_error", "items_revisados"]))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -1752,7 +1745,7 @@ async def _revisar_lote_fondo(proyecto_id: str):
     y así el revisor puede cerrar la pestaña o irse sin cortarlo."""
     try:
         while True:
-            proyecto = db.get_proyecto(proyecto_id)
+            proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
             lote = (proyecto or {}).get("revision_lote") or {}
             pendientes = lote.get("pendientes") or []
             if not proyecto or not lote.get("activo") or not pendientes:
@@ -1764,32 +1757,32 @@ async def _revisar_lote_fondo(proyecto_id: str):
             proyecto["revision_lote"] = lote
             proyecto.setdefault("items_en_progreso", {})[item_key] = {"inicio": _ahora().isoformat()}
             proyecto.setdefault("items_error", {}).pop(item_key, None)
-            db.save_proyecto(proyecto)
+            (await asyncio.to_thread(db.save_proyecto, proyecto))
 
             # `_analizar_item_fondo` ya trae su propio try/except y cierra el ítem con su error
             # en `items_error`; un ítem que falle no debe cortar el resto del lote.
             await _analizar_item_fondo(proyecto_id, item_key)
 
-            proyecto = db.get_proyecto(proyecto_id)
+            proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
             if not proyecto:
                 break
             lote = proyecto.get("revision_lote") or {}
             lote.setdefault("completados", []).append(item_key)
             lote["actual"] = None
             proyecto["revision_lote"] = lote
-            db.save_proyecto(proyecto)
+            (await asyncio.to_thread(db.save_proyecto, proyecto))
     except Exception as e:
         import traceback
         print(f"❌ ERROR en _revisar_lote_fondo {proyecto_id}: {e}")
         print(traceback.format_exc())
     finally:
         # Cierre del lote pase lo que pase — si no, el botón quedaría deshabilitado para siempre.
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if proyecto and proyecto.get("revision_lote"):
             proyecto["revision_lote"]["activo"] = False
             proyecto["revision_lote"]["actual"] = None
             proyecto["revision_lote"]["fin"] = _ahora().isoformat()
-            db.save_proyecto(proyecto)
+            (await asyncio.to_thread(db.save_proyecto, proyecto))
 
 
 @app.post("/proyecto/{proyecto_id}/revisar-todos")
@@ -1803,7 +1796,7 @@ async def revisar_todos_items(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -1826,7 +1819,7 @@ async def revisar_todos_items(request: Request, proyecto_id: str):
         "activo": True, "pendientes": pendientes, "actual": None, "completados": [],
         "total": len(pendientes), "inicio": _ahora().isoformat(), "por": user["nombre"],
     }
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     tarea = asyncio.create_task(_revisar_lote_fondo(proyecto_id))
     _tareas_fondo.add(tarea)
@@ -1841,13 +1834,13 @@ async def detener_lote(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     if proyecto.get("revision_lote"):
         proyecto["revision_lote"]["pendientes"] = []
         proyecto["revision_lote"]["detenido_por"] = user["nombre"]
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
 
@@ -1859,7 +1852,7 @@ async def estado_lote(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    proyecto = db.get_proyecto_campos(proyecto_id, ["revision_lote"])
+    proyecto = (await asyncio.to_thread(db.get_proyecto_campos, proyecto_id, ["revision_lote"]))
     if not proyecto:
         raise HTTPException(status_code=404)
     lote = proyecto.get("revision_lote") or {}
@@ -1900,14 +1893,14 @@ async def agregar_pendiente(request: Request, proyecto_id: str,
     texto = texto.strip()
     if not texto:
         raise HTTPException(status_code=400, detail="El texto no puede estar vacío")
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     proyecto.setdefault("pendientes", []).append({
         "id": str(uuid.uuid4())[:8], "tipo": tipo, "texto": texto,
         "fecha": _ahora().isoformat(), "por": user["nombre"],
     })
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
 
 
@@ -1916,11 +1909,11 @@ async def eliminar_pendiente(request: Request, proyecto_id: str, pend_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     proyecto["pendientes"] = [p for p in proyecto.get("pendientes", []) if p.get("id") != pend_id]
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
 
 
@@ -1955,7 +1948,7 @@ async def agregar_observacion_manual(
     if not texto:
         raise HTTPException(status_code=400, detail="El texto no puede estar vacío")
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -1990,7 +1983,7 @@ async def agregar_observacion_manual(
     else:
         rev["n_obs"] = rev.get("n_obs", 0) + 1
 
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
 
@@ -2014,7 +2007,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
     try:
         if key not in ITEMS_SEP:
             raise ValueError(f"'{key}' no es un {tipo} válido")
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if not proyecto:
             raise ValueError("proyecto no encontrado")
 
@@ -2026,7 +2019,7 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
                                     status_code=302)
 
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        concurso = db.get_concurso(concurso_id)
+        concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
         bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
         observaciones_grupo = [o for o in proyecto.get("observaciones", []) if o.get("item") == key]
@@ -2073,13 +2066,13 @@ async def _manejar_chat(request: Request, proyecto_id: str, tipo: str, key: str,
         modificado = False
         accion = resultado.get("accion")
         if accion:
-            modificado = _aplicar_accion_chat(proyecto, accion, user)
+            modificado = await asyncio.to_thread(_aplicar_accion_chat, proyecto, accion, user)
 
         historial.append({"rol": "revisor", "texto": mensaje, "fecha": _ahora().isoformat()})
         historial.append({"rol": "ia", "texto": respuesta, "fecha": _ahora().isoformat()})
         proyecto["item_chats"][key] = historial[-40:]   # conservar últimos 40 turnos
         _registrar_costo(proyecto, "chat", acc_costo)
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     except Exception as e:
         import traceback
         print(f"❌ ERROR en chat {tipo} {key}: {type(e).__name__}: {e}")
@@ -2510,7 +2503,7 @@ async def pagina_calculos(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -2570,14 +2563,14 @@ async def calculos_guardar_n_sistemas(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     form = await request.form()
     n_sistemas = 2 if form.get("n_sistemas") == "2" else 1
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["n_sistemas"] = n_sistemas
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -2586,7 +2579,7 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
@@ -2597,7 +2590,7 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
     # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
     # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
     # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
@@ -2606,7 +2599,7 @@ async def calculos_extraer_hidraulico(request: Request, proyecto_id: str):
         "sistemas": sistemas, "validado": False, "fuente_docs": _fuente_docs_para_vista(docs_grupo),
     }
     _registrar_costo(proyecto, "chequeo", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -2615,7 +2608,7 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -2660,7 +2653,7 @@ async def calculos_guardar_hidraulico(request: Request, proyecto_id: str):
         "validado_por": user["nombre"] if validado else None,
         "fuente_docs": fuente_docs_previo,
     }
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -2799,7 +2792,7 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -2891,7 +2884,7 @@ async def informe_calculo(request: Request, proyecto_id: str, idx: int):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -2956,7 +2949,7 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -2981,7 +2974,7 @@ async def extraer_metodologia_consultor_route(request: Request, proyecto_id: str
     sistemas_mc[idx] = {"conceptos": conceptos, "fecha": _ahora().isoformat()}
     mc_bloque["sistemas"] = sistemas_mc
     _registrar_costo(proyecto, "chequeo", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe/{idx}", status_code=302)
 
 
@@ -2992,7 +2985,7 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3026,7 +3019,7 @@ async def extraer_metodologia_completa_route(request: Request, proyecto_id: str)
     mc = proyecto["verificacion_calculos"].setdefault("metodologia_consultor", {})
     mc["completo"] = {"sistemas": sistemas_mc, "fv": fv_mc, "fecha": _ahora().isoformat()}
     _registrar_costo(proyecto, "chequeo", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos/informe", status_code=302)
 
 
@@ -3038,7 +3031,7 @@ async def exportar_para_disenador_todo(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3086,7 +3079,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3137,7 +3130,7 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3215,7 +3208,7 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
@@ -3226,7 +3219,7 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
     # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
     # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
     # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     sistemas = datos.get("sistemas") or [{} for _ in range(n_sistemas)]
@@ -3235,7 +3228,7 @@ async def calculos_extraer_agronomico(request: Request, proyecto_id: str):
         "sistemas": sistemas, "validado": False, "fuente_docs": _fuente_docs_para_vista(docs_grupo),
     }
     _registrar_costo(proyecto, "chequeo", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -3244,7 +3237,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3305,7 +3298,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
         "validado_por": user["nombre"] if validado else None,
         "fuente_docs": fuente_docs_previo,
     }
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -3314,7 +3307,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     documentos_con_texto = await _con_texto(proyecto_id, proyecto.get("documentos", []))
@@ -3324,7 +3317,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     # Copia FRESCA antes de aplicar: la extracción tarda decenas de segundos y en ese lapso pudo
     # terminar un análisis de ítem en segundo plano o el revisor guardar otra cosa — guardar la
     # copia cargada al inicio las pisaría (p. ej. observaciones recién generadas).
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     datos["validado"] = False
@@ -3332,7 +3325,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     proyecto["verificacion_calculos"]["energetico"] = datos
     _registrar_costo(proyecto, "chequeo", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -3341,7 +3334,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3365,7 +3358,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     datos["fuente_docs"] = (proyecto["verificacion_calculos"].get("energetico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["energetico"] = datos
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
 
@@ -3381,7 +3374,7 @@ async def subir_zip(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3422,7 +3415,7 @@ async def subir_zip(
     # Eliminar ZIP temporal
     zip_path.unlink(missing_ok=True)
 
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     if textos_nuevos:
         await asyncio.to_thread(db.set_textos_documentos, proyecto_id, textos_nuevos)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?zip_ok={len(archivos)}", status_code=302)
@@ -3440,7 +3433,7 @@ async def subir_multiple(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3483,7 +3476,7 @@ async def subir_multiple(
         textos_nuevos[doc_id] = texto_guardado
         registrados += 1
 
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     if textos_nuevos:
         await asyncio.to_thread(db.set_textos_documentos, proyecto_id, textos_nuevos)
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos?multi_ok={registrados}", status_code=302)
@@ -3525,7 +3518,7 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     # Eliminar archivo físico y sus observaciones
@@ -3534,12 +3527,12 @@ async def eliminar_documento(request: Request, proyecto_id: str, doc_id: str):
         filepath = UPLOAD_DIR / proyecto_id / doc["filename"]
         if filepath.exists():
             filepath.unlink()
-        db.eliminar_archivo(proyecto_id, doc_id)
-        db.eliminar_texto_documento(proyecto_id, doc_id)
+        (await asyncio.to_thread(db.eliminar_archivo, proyecto_id, doc_id))
+        (await asyncio.to_thread(db.eliminar_texto_documento, proyecto_id, doc_id))
         proyecto["documentos"] = [d for d in proyecto["documentos"] if d["id"] != doc_id]
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") != doc_id]
         _purgar_adjuntos_huerfanos(proyecto)
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
 
@@ -3557,7 +3550,7 @@ async def eliminar_todos_documentos(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3566,12 +3559,12 @@ async def eliminar_todos_documentos(request: Request, proyecto_id: str):
         carpeta = UPLOAD_DIR / proyecto_id
         if carpeta.exists():
             shutil.rmtree(carpeta)
-        db.eliminar_archivos_proyectos([proyecto_id])
-        db.eliminar_textos_proyecto(proyecto_id)
+        (await asyncio.to_thread(db.eliminar_archivos_proyectos, [proyecto_id]))
+        (await asyncio.to_thread(db.eliminar_textos_proyecto, proyecto_id))
         proyecto["documentos"] = []
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o.get("doc_id") not in doc_ids]
         _purgar_adjuntos_huerfanos(proyecto)
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/documentos", status_code=302)
 
 
@@ -3651,7 +3644,7 @@ async def actualizar_tipo_documento(
     user = get_current_user(request)
     if not user:
         return {"error": "no autorizado"}
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         return {"error": "proyecto no encontrado"}
     doc = next((d for d in proyecto["documentos"] if d["id"] == doc_id), None)
@@ -3660,7 +3653,7 @@ async def actualizar_tipo_documento(
     label = TIPO_DOC_LABELS.get(tipo_doc, tipo_doc.replace("_", " ").title())
     doc["tipo_doc"] = tipo_doc
     doc["tipo_doc_label"] = label
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return {"ok": True, "label": label}
 
 
@@ -3671,7 +3664,7 @@ async def ver_documento(request: Request, proyecto_id: str, doc_id: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     doc = next((d for d in proyecto["documentos"] if d["id"] == doc_id), None)
@@ -3736,7 +3729,7 @@ async def ficha_revision(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     try:
@@ -3796,7 +3789,7 @@ async def informe_resumen(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3824,11 +3817,11 @@ async def guardar_programa(request: Request, proyecto_id: str, programa: str = F
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     proyecto["programa"] = programa if programa in ("pequena_agricultura", "estandar") else "pequena_agricultura"
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen", status_code=302)
 
 
@@ -3840,7 +3833,7 @@ async def guardar_resumen(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     form = await request.form()
@@ -3856,7 +3849,7 @@ async def guardar_resumen(request: Request, proyecto_id: str):
     # listado).
     if resumen.get("nombre_proyecto"):
         proyecto["nombre"] = resumen["nombre_proyecto"]
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/resumen?resumen_ok=1",
                             status_code=302)
 
@@ -3867,12 +3860,12 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
     concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
     acc_costo = iniciar_costo()
@@ -3891,7 +3884,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
 
     # Copia FRESCA: la IA tardó decenas de segundos; si el revisor guardó el Resumen mientras
     # tanto, hay que rellenar sobre SU versión (no pisarla con la copia del inicio).
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -3904,7 +3897,7 @@ async def autocompletar_resumen(request: Request, proyecto_id: str):
             completados += 1
     proyecto["resumen"] = resumen
     _registrar_costo(proyecto, "resumen", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/resumen?auto_ok={completados}",
         status_code=302)
@@ -3968,7 +3961,7 @@ async def guardar_evaluacion_consultor(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     form = await request.form()
@@ -3977,7 +3970,7 @@ async def guardar_evaluacion_consultor(request: Request, proyecto_id: str):
         valor = (form.get(k) or "").strip()
         evaluacion[k] = valor[:250] if k.endswith("_obs") else valor
     proyecto["evaluacion_consultor"] = evaluacion
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?eval_ok=1#evaluacion-consultor",
                             status_code=302)
 
@@ -3990,7 +3983,7 @@ async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4014,7 +4007,7 @@ async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
     # Consultor mientras tanto — se aplica sobre SU versión, y cada campo (incluidos
     # completa_revision/visita_terreno) solo si SIGUE vacío, mismo criterio que ya declara el
     # docstring: nunca pisar lo que el revisor ya escribió o eligió.
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     evaluacion = dict(proyecto.get("evaluacion_consultor") or {})
@@ -4033,7 +4026,7 @@ async def sugerir_evaluacion_consultor(request: Request, proyecto_id: str):
 
     proyecto["evaluacion_consultor"] = evaluacion
     _registrar_costo(proyecto, "evaluacion_consultor", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/items?eval_auto_ok={completados}#evaluacion-consultor",
         status_code=302)
@@ -4046,7 +4039,7 @@ async def consultar_page(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse("consultar.html", {
@@ -4059,7 +4052,7 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4098,7 +4091,7 @@ async def consultar_post(request: Request, proyecto_id: str, pregunta: str = For
         proyecto["consultas"] = []
     proyecto["consultas"].insert(0, consulta)   # más reciente primero
     _registrar_costo(proyecto, "consulta", acc_costo)
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     return templates.TemplateResponse("consultar.html", {
         "request": request, "user": user, "proyecto": proyecto,
@@ -4114,7 +4107,7 @@ async def limpiar_items(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if proyecto:
         # Conservar las observaciones de ejes; borrar solo las de ítems
         proyecto["observaciones"] = [o for o in proyecto.get("observaciones", []) if not o.get("item")]
@@ -4126,7 +4119,7 @@ async def limpiar_items(request: Request, proyecto_id: str):
         # después de esta limpieza). Sí se limpian los errores viejos, para no dejar un banner de
         # error de un análisis anterior después de que el revisor pidió partir de cero.
         proyecto["items_error"] = {}
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items", status_code=302)
 
 
@@ -4135,14 +4128,14 @@ async def eliminar_proyecto(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if proyecto:
         import shutil
         carpeta = UPLOAD_DIR / proyecto_id
         if carpeta.exists():
             shutil.rmtree(carpeta)
-        db.eliminar_archivos_proyectos([proyecto_id])
-        db.delete_proyecto(proyecto_id)
+        (await asyncio.to_thread(db.eliminar_archivos_proyectos, [proyecto_id]))
+        (await asyncio.to_thread(db.delete_proyecto, proyecto_id))
     return RedirectResponse(url="/", status_code=302)
 
 
@@ -4160,7 +4153,7 @@ async def actualizar_observacion(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     obs_actualizada = None
@@ -4173,11 +4166,11 @@ async def actualizar_observacion(
             obs_actualizada = obs
             break
 
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     # ── Guardar feedback en el concurso/consultor para aprendizaje futuro ────
     if obs_actualizada and estado in ("aprobada", "descartada"):
-        _registrar_feedback_obs(proyecto, obs_actualizada, estado, user)
+        await asyncio.to_thread(_registrar_feedback_obs, proyecto, obs_actualizada, estado, user)
 
     # Volver al MISMO grupo de Observaciones que ya estaba abierto, SIN reabrir la grilla
     # "Revisión por ítems del SEP" (no se re-revisó nada) ni usar #ancla: el navegador salta solo
@@ -4197,7 +4190,7 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4206,9 +4199,9 @@ async def eliminar_observacion(request: Request, proyecto_id: str, obs_id: str):
     if obs:
         item_key = obs.get("item")
         # Misma señal de aprendizaje que descartar (no era válida) antes de borrarla.
-        _registrar_feedback_obs(proyecto, obs, "descartada", user)
+        await asyncio.to_thread(_registrar_feedback_obs, proyecto, obs, "descartada", user)
         proyecto["observaciones"] = [o for o in proyecto["observaciones"] if o["id"] != obs_id]
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     # Mismo criterio que actualizar_observacion(): `obs_ok`, sin ancla — ver el comentario ahí.
     extra = f"?obs_ok={item_key}" if item_key else ""
@@ -4231,7 +4224,7 @@ async def derivar_observacion_item(
     if item_key not in ITEMS_SEP or item_key == "coherencia":
         raise HTTPException(status_code=400, detail="Ítem destino no válido")
 
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4252,7 +4245,7 @@ async def derivar_observacion_item(
     obs["numero"] = max([o.get("numero", 0) for o in obs_destino], default=0) + 1
     obs["revisado_por"] = user["nombre"]
 
-    db.save_proyecto(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(
         url=f"/proyecto/{proyecto_id}/items?item_ok={item_key}#item-{item_key}", status_code=302)
 
@@ -4350,7 +4343,7 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4358,7 +4351,7 @@ async def pagina_respuestas(request: Request, proyecto_id: str):
     # adjuntos_pendientes/rondas[].adjuntos ANTES de este fix (nov-2026) — así el link roto
     # desaparece solo, al abrir la página, sin esperar a que se borre otro documento más.
     if _purgar_adjuntos_huerfanos(proyecto):
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
 
     # Solo entran al flujo las observaciones APROBADAS (las que se enviaron al consultor).
     aprobadas = [o for o in proyecto.get("observaciones", []) if o.get("estado") == "aprobada"]
@@ -4424,7 +4417,7 @@ async def pagina_presupuesto(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     resumen = _resumen_presupuesto_general(proyecto)
@@ -4432,7 +4425,7 @@ async def pagina_presupuesto(request: Request, proyecto_id: str):
         "request": request, "user": user, "proyecto": proyecto,
         "costo_api": _costo_para_vista(proyecto),
         "resumen": resumen,
-        "uf_apertura": _uf_apertura_concurso(proyecto, resumen.get("total_inicial")),
+        "uf_apertura": await asyncio.to_thread(_uf_apertura_concurso, proyecto, resumen.get("total_inicial")),
     })
 
 
@@ -4446,14 +4439,14 @@ async def usar_uf_calculada_en_resumen(request: Request, proyecto_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     resumen_pres = _resumen_presupuesto_general(proyecto)
-    uf = _uf_apertura_concurso(proyecto, resumen_pres.get("total_inicial"))
+    uf = await asyncio.to_thread(_uf_apertura_concurso, proyecto, resumen_pres.get("total_inicial"))
     if uf.get("calculado"):
         proyecto.setdefault("resumen", {})["costo_total_uf"] = _fmt_uf(uf["calculado"])
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/presupuesto?uf_ok=1", status_code=302)
 
 
@@ -4474,7 +4467,7 @@ async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str)
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
 
@@ -4520,10 +4513,10 @@ async def extraer_presupuesto_general_manual(request: Request, proyecto_id: str)
 
     n_esperadas = 2 if dos_presentaciones else 1
     if len(versiones_nuevas) == n_esperadas:
-        proyecto_fresco = db.get_proyecto(proyecto_id)
+        proyecto_fresco = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if proyecto_fresco:
             proyecto_fresco["presupuesto_general"] = {"versiones": versiones_nuevas}
-            db.save_proyecto(proyecto_fresco)
+            (await asyncio.to_thread(db.save_proyecto, proyecto_fresco))
         estado = "ok"
     elif versiones_nuevas:
         estado = "parcial"   # se esperaban 2 presentaciones, solo se pudo extraer 1 — no se guarda
@@ -4543,7 +4536,7 @@ async def registrar_respuesta_subsanacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
@@ -4589,7 +4582,7 @@ async def registrar_respuesta_subsanacion(
         # La decisión del revisor (resuelta/reiterada) se GUARDA PRIMERO y no depende de nada más:
         # antes se guardaba después de la extracción con IA, así que una falla ahí (BD, archivo,
         # timeout) la perdía. Además evita que la copia del proyecto quede esperando a la IA.
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
 
         if ids_presupuesto:
             # Tarea secundaria y aislada: si falla, la ronda ya quedó registrada; el revisor puede
@@ -4602,14 +4595,14 @@ async def registrar_respuesta_subsanacion(
                 datos_pg = await extraer_presupuesto_general(docs_nuevo)
                 if datos_pg.get("items"):
                     # Copia FRESCA: la extracción tarda segundos y el proyecto pudo cambiar.
-                    proyecto_fresco = db.get_proyecto(proyecto_id)
+                    proyecto_fresco = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
                     if proyecto_fresco:
                         proyecto_fresco.setdefault("presupuesto_general", {}).setdefault(
                             "versiones", []).append({
                                 "fecha": _ahora().isoformat(), "origen": f"subsanacion:{obs_id}",
                                 "items": datos_pg["items"], "total": datos_pg.get("total"),
                             })
-                        db.save_proyecto(proyecto_fresco)
+                        (await asyncio.to_thread(db.save_proyecto, proyecto_fresco))
             except Exception as e:
                 print(f"⚠️ versión de presupuesto tras subsanación {obs_id} no se pudo extraer: "
                       f"{type(e).__name__}: {e}")
@@ -4625,7 +4618,7 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
     if not user:
         return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
     try:
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if not proyecto:
             return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
         obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
@@ -4637,7 +4630,7 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
             return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
 
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        concurso = db.get_concurso(concurso_id)
+        concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
         bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
         # Incluir siempre los adjuntos que el consultor entregó con esta respuesta, aunque su
@@ -4695,11 +4688,11 @@ async def evaluar_respuesta_ia(request: Request, proyecto_id: str, obs_id: str):
         # costo sí hay que persistirlo. Se relee FRESCO antes de guardar porque la evaluación
         # tarda decenas de segundos y en ese lapso un análisis en segundo plano pudo haber
         # escrito sus observaciones — guardar la copia vieja las borraría.
-        proyecto_fresco = db.get_proyecto(proyecto_id)
+        proyecto_fresco = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         costo_api = None
         if proyecto_fresco:
             _registrar_costo(proyecto_fresco, "subsanacion", acc_costo)
-            db.save_proyecto(proyecto_fresco)
+            (await asyncio.to_thread(db.save_proyecto, proyecto_fresco))
             # Esta ruta es AJAX puro (no recarga la página) — sin esto el contador de costo del
             # encabezado quedaba "congelado" en el valor con el que se cargó la página, aunque el
             # costo sí se hubiera sumado y guardado bien en el servidor (bug reportado sep-2026:
@@ -4738,7 +4731,7 @@ async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_ke
         return JSONResponse({"ok": False, "error": "ítem no habilitado para evaluación conjunta"},
                             status_code=400)
     try:
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if not proyecto:
             return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
         form = await request.form()
@@ -4750,7 +4743,7 @@ async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_ke
             return JSONResponse({"ok": False, "error": "vacio"}, status_code=400)
 
         concurso_id = _extraer_concurso_id(proyecto.get("codigo_sep", ""))
-        concurso = db.get_concurso(concurso_id)
+        concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
         bases_texto = concurso.get("bases_texto", "") if concurso else ""
 
         await asyncio.to_thread(_restaurar_archivos_necesarios, proyecto_id,
@@ -4804,11 +4797,11 @@ async def evaluar_respuestas_item_ia(request: Request, proyecto_id: str, item_ke
         )
         _guardar_antidup(clave_antidup, resultados)
 
-        proyecto_fresco = db.get_proyecto(proyecto_id)
+        proyecto_fresco = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         costo_api = None
         if proyecto_fresco:
             _registrar_costo(proyecto_fresco, "subsanacion", acc_costo)
-            db.save_proyecto(proyecto_fresco)
+            (await asyncio.to_thread(db.save_proyecto, proyecto_fresco))
             costo_api = _costo_para_vista(proyecto_fresco)
             if costo_api:
                 costo_api["actualizado"] = _fmt_fecha(costo_api["actualizado"], con_hora=True)
@@ -4834,7 +4827,7 @@ async def adjuntar_respaldo_subsanacion(
     if not user:
         return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
     try:
-        proyecto = db.get_proyecto(proyecto_id)
+        proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
         if not proyecto:
             return JSONResponse({"ok": False, "error": "proyecto no encontrado"}, status_code=404)
         obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
@@ -4865,7 +4858,7 @@ async def adjuntar_respaldo_subsanacion(
         proyecto.setdefault("documentos", []).append(doc)
         obs.setdefault("subsanacion", {}).setdefault("adjuntos_pendientes", []).append(
             {"id": doc_id, "nombre": archivo.filename, "tipo_label": label})
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
         await asyncio.to_thread(db.set_texto_documento, proyecto_id, doc_id, texto_guardado)
         return JSONResponse({"ok": True, "doc": {"id": doc_id, "nombre": archivo.filename,
                                                  "tipo_label": label}})
@@ -4886,7 +4879,7 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    proyecto = db.get_proyecto(proyecto_id)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
     obs = next((o for o in proyecto.get("observaciones", []) if o["id"] == obs_id), None)
@@ -4895,7 +4888,7 @@ async def deshacer_respuesta_subsanacion(request: Request, proyecto_id: str, obs
         adjuntos = ronda.get("adjuntos", [])
         if adjuntos:
             obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
-        db.save_proyecto(proyecto)
+        (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/respuestas#obs-{obs_id}", status_code=302)
 
 
@@ -4954,10 +4947,8 @@ async def modificaciones_dashboard(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mods = db.get_proyectos_ligero(
-        ["id", "codigo_sep", "nombre", "postulante", "tipo_modificacion",
-         "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"],
-        username=user["username"])
+    mods = (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep", "nombre", "postulante", "tipo_modificacion",
+         "estado", "fecha_creacion", "fecha_estado", "revisor", "tipo"], username=user["username"]))
     mods = [m for m in mods if m.get("tipo") == "modificacion"]
     mods.sort(key=lambda m: m.get("fecha_creacion") or "", reverse=True)
     for m in mods:
@@ -5008,7 +4999,7 @@ async def crear_modificacion(
         "documentos": [],
         "observaciones": [],
     }
-    db.save_proyecto(modificacion)
+    (await asyncio.to_thread(db.save_proyecto, modificacion))
     (UPLOAD_DIR / mod_id).mkdir(exist_ok=True)
     return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
 
@@ -5018,7 +5009,7 @@ async def ver_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     docs_por_tipo = {}
@@ -5058,7 +5049,7 @@ async def ficha_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     try:
@@ -5091,14 +5082,14 @@ async def cambiar_estado_modificacion(request: Request, mod_id: str, estado: str
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     if estado in ESTADOS_PROYECTO:
         mod["estado"] = estado
         mod["fecha_estado"] = _ahora().isoformat()
         mod["estado_por"] = user["nombre"]
-        db.save_proyecto(mod)
+        (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=_volver_a_modificacion(request, mod_id), status_code=302)
 
 
@@ -5107,14 +5098,14 @@ async def eliminar_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if mod and mod.get("tipo") == "modificacion":
         import shutil
         carpeta = UPLOAD_DIR / mod_id
         if carpeta.exists():
             shutil.rmtree(carpeta)
-        db.eliminar_archivos_proyectos([mod_id])
-        db.delete_proyecto(mod_id)
+        (await asyncio.to_thread(db.eliminar_archivos_proyectos, [mod_id]))
+        (await asyncio.to_thread(db.delete_proyecto, mod_id))
     return RedirectResponse(url="/modificaciones", status_code=302)
 
 
@@ -5126,7 +5117,7 @@ async def subir_documento_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
 
@@ -5150,7 +5141,7 @@ async def subir_documento_modificacion(
         "analizado": False,
     }
     mod["documentos"].append(doc)
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     await asyncio.to_thread(db.set_texto_documento, mod_id, doc_id, texto_guardado)
     return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
 
@@ -5160,12 +5151,12 @@ async def eliminar_documento_modificacion(request: Request, mod_id: str, doc_id:
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     mod["documentos"] = [d for d in mod.get("documentos", []) if d["id"] != doc_id]
     _purgar_adjuntos_huerfanos(mod)
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
 
 
@@ -5176,7 +5167,7 @@ async def actualizar_tipo_documento_modificacion(
     user = get_current_user(request)
     if not user:
         return {"error": "no autorizado"}
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         return {"error": "modificación no encontrada"}
     doc = next((d for d in mod["documentos"] if d["id"] == doc_id), None)
@@ -5185,7 +5176,7 @@ async def actualizar_tipo_documento_modificacion(
     label = TIPO_DOC_LABELS_MODIFICACION.get(tipo_doc, tipo_doc.replace("_", " ").title())
     doc["tipo_doc"] = tipo_doc
     doc["tipo_doc_label"] = label
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return {"ok": True, "label": label}
 
 
@@ -5199,7 +5190,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         return RedirectResponse(url="/login", status_code=302)
     if item_key not in ITEMS_MODIFICACION:
         raise HTTPException(status_code=404, detail="Ítem no válido")
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
 
@@ -5245,7 +5236,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         return RedirectResponse(url=f"/modificacion/{mod_id}?error=sindocs#item-{item_key}",
                                 status_code=302)
 
-    mod = db.get_proyecto(mod_id)  # fresco antes de guardar — mismo criterio que el resto de la app
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))  # fresco antes de guardar — mismo criterio que el resto de la app
     if not mod:
         return RedirectResponse(url=f"/modificacion/{mod_id}", status_code=302)
 
@@ -5270,7 +5261,7 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         "fecha": _ahora().isoformat(), "docs": docs_incluidos,
     }
     _registrar_costo(mod, "revision", acc_costo, detalle=item_key)
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     # Presupuesto: extrae solo el cuadro resumen (nov-2026) — EN SEGUNDO PLANO para no alargar esta
     # petición (el análisis ya es síncrono y largo); aparece en Presupuesto/Respuestas/Variables
     # en cuanto termina.
@@ -5301,7 +5292,7 @@ async def agregar_observacion_manual_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     if item_key not in ITEMS_MODIFICACION:
@@ -5329,7 +5320,7 @@ async def agregar_observacion_manual_modificacion(
         "manual": True,
         "agregada_por": user["nombre"],
     })
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(
         url=f"/modificacion/{mod_id}?item_ok={item_key}", status_code=302)
 
@@ -5347,7 +5338,7 @@ async def derivar_observacion_item_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     if item_key not in ITEMS_MODIFICACION or item_key == "mod_coherencia":
@@ -5367,7 +5358,7 @@ async def derivar_observacion_item_modificacion(
     obs["item_nombre"] = ITEMS_MODIFICACION[item_key]["nombre"]
     obs["revisado_por"] = user["nombre"]
 
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(
         url=f"/modificacion/{mod_id}?item_ok={item_key}", status_code=302)
 
@@ -5380,7 +5371,7 @@ async def actualizar_observacion_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     item_key = None
@@ -5392,7 +5383,7 @@ async def actualizar_observacion_modificacion(
             obs["revisado_por"] = user["nombre"]
             item_key = obs.get("item")
             break
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
     return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
 
@@ -5402,12 +5393,12 @@ async def eliminar_observacion_modificacion(request: Request, mod_id: str, obs_i
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     item_key = next((o.get("item") for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
     mod["observaciones"] = [o for o in mod.get("observaciones", []) if o["id"] != obs_id]
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
     return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
 
@@ -5417,11 +5408,11 @@ async def pagina_respuestas_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     if _purgar_adjuntos_huerfanos(mod):
-        db.save_proyecto(mod)
+        (await asyncio.to_thread(db.save_proyecto, mod))
     aprobadas = [o for o in mod.get("observaciones", []) if o.get("estado") == "aprobada"]
     # Opciones de tipo_doc para clasificar el respaldo del consultor (catálogo completo de
     # Modificaciones, preseleccionando el tipo del ítem observado) — mismo criterio que la
@@ -5467,7 +5458,7 @@ async def registrar_respuesta_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
@@ -5491,7 +5482,7 @@ async def registrar_respuesta_modificacion(
             ronda["adjuntos"] = pendientes
             obs["subsanacion"]["adjuntos_pendientes"] = []
         obs["subsanacion"]["rondas"].append(ronda)
-        db.save_proyecto(mod)
+        (await asyncio.to_thread(db.save_proyecto, mod))
         # Un respaldo de tipo presupuesto cambia el cuadro: se re-extrae solo (como en la Revisión
         # normal) y se ESPERA, para que el aviso de diferencias ya aparezca al volver a Respuestas.
         if any(d.get("tipo_doc") in _TIPO_DOC_PRESUPUESTO_MOD.values()
@@ -5519,7 +5510,7 @@ async def deshacer_respuesta_modificacion(request: Request, mod_id: str, obs_id:
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
@@ -5528,7 +5519,7 @@ async def deshacer_respuesta_modificacion(request: Request, mod_id: str, obs_id:
         adjuntos = ronda.get("adjuntos", [])
         if adjuntos:
             obs["subsanacion"]["adjuntos_pendientes"] = adjuntos + obs["subsanacion"].get("adjuntos_pendientes", [])
-        db.save_proyecto(mod)
+        (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(
         url=f"/modificacion/{mod_id}/respuestas?item_ok={(obs or {}).get('item', '')}#obs-{obs_id}",
         status_code=302)
@@ -5546,7 +5537,7 @@ async def adjuntar_respaldo_modificacion(
     if not user:
         return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
     try:
-        mod = db.get_proyecto(mod_id)
+        mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
         if not mod or mod.get("tipo") != "modificacion":
             return JSONResponse({"ok": False, "error": "modificación no encontrada"}, status_code=404)
         obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
@@ -5577,7 +5568,7 @@ async def adjuntar_respaldo_modificacion(
         })
         obs.setdefault("subsanacion", {}).setdefault("adjuntos_pendientes", []).append(
             {"id": doc_id, "nombre": archivo.filename, "tipo_label": label})
-        db.save_proyecto(mod)
+        (await asyncio.to_thread(db.save_proyecto, mod))
         await asyncio.to_thread(db.set_texto_documento, mod_id, doc_id, texto_guardado)
         return JSONResponse({"ok": True, "doc": {"id": doc_id, "nombre": archivo.filename,
                                                  "tipo_label": label}})
@@ -5599,7 +5590,7 @@ async def evaluar_respuesta_ia_modificacion(request: Request, mod_id: str, obs_i
     if not user:
         return JSONResponse({"ok": False, "error": "sesion"}, status_code=401)
     try:
-        mod = db.get_proyecto(mod_id)
+        mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
         if not mod or mod.get("tipo") != "modificacion":
             return JSONResponse({"ok": False, "error": "modificación no encontrada"}, status_code=404)
         obs = next((o for o in mod.get("observaciones", []) if o["id"] == obs_id), None)
@@ -5651,11 +5642,11 @@ async def evaluar_respuesta_ia_modificacion(request: Request, mod_id: str, obs_i
         _guardar_antidup(clave_antidup, resultado)
 
         # Copia FRESCA antes de guardar el costo: la evaluación tarda decenas de segundos.
-        mod_fresco = db.get_proyecto(mod_id)
+        mod_fresco = (await asyncio.to_thread(db.get_proyecto, mod_id))
         costo_api = None
         if mod_fresco:
             _registrar_costo(mod_fresco, "subsanacion", acc_costo)
-            db.save_proyecto(mod_fresco)
+            (await asyncio.to_thread(db.save_proyecto, mod_fresco))
             costo_api = _costo_para_vista(mod_fresco)
             if costo_api:
                 costo_api["actualizado"] = _fmt_fecha(costo_api["actualizado"], con_hora=True)
@@ -5680,7 +5671,7 @@ async def pagina_variables_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     datos = mod.get("variables_concurso_datos")
@@ -5722,7 +5713,7 @@ async def guardar_variables_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
 
@@ -5746,7 +5737,7 @@ async def guardar_variables_modificacion(
         },
     }
     mod["variables_concurso_datos"] = datos
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=f"/modificacion/{mod_id}/variables", status_code=302)
 
 
@@ -5759,7 +5750,7 @@ async def pagina_resumen_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     error = request.query_params.get("error")
@@ -5786,7 +5777,7 @@ async def guardar_resumen_modificacion(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     resumen = mod.setdefault("resumen", {})
@@ -5799,7 +5790,7 @@ async def guardar_resumen_modificacion(
     resumen["fecha_limite_respuestas"] = fecha_limite_respuestas.strip()
     if tipo_modificacion in TIPOS_MODIFICACION:
         mod["tipo_modificacion"] = tipo_modificacion
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
 
 
@@ -5815,7 +5806,7 @@ async def generar_justificacion_modificacion_ruta(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
 
@@ -5842,14 +5833,14 @@ async def generar_justificacion_modificacion_ruta(
     else:
         acc_costo = iniciar_costo()   # sin llamada nueva — queda en 0, no infla el contador
 
-    mod = db.get_proyecto(mod_id)  # fresco antes de guardar — mismo criterio que el resto de la app
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))  # fresco antes de guardar — mismo criterio que el resto de la app
     if not mod:
         return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
     resumen = mod.setdefault("resumen", {})
     resumen["justificacion"] = justificacion
     resumen["descripcion_consultor"] = descripcion_consultor.strip()
     _registrar_costo(mod, "resumen", acc_costo)
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
 
 
@@ -5899,7 +5890,7 @@ async def pagina_presupuesto_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     n_pendientes_respuesta = sum(
@@ -5938,7 +5929,7 @@ async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
     """Extrae el cuadro resumen de los `lados` pedidos y lo guarda en
     `mod["presupuesto_modificacion"]` (copia FRESCA al guardar, el costo va al paso "presupuesto").
     Devuelve "ok", "vacio" (la IA no sacó nada: se conserva lo anterior) o "sindocs"."""
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod:
         return "sindocs"
     lados = [l for l in lados
@@ -5952,7 +5943,7 @@ async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
         extraer_presupuesto_general(
             [d for d in documentos_con_texto if d.get("tipo_doc") == _TIPO_DOC_PRESUPUESTO_MOD[l]])
         for l in lados])))
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod:
         return "vacio"
     datos = mod.setdefault("presupuesto_modificacion", {})
@@ -5963,7 +5954,7 @@ async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
                            "total": datos_lado.get("total")}
             estado = "ok"
     _registrar_costo(mod, "presupuesto", acc_costo)
-    db.save_proyecto(mod)
+    (await asyncio.to_thread(db.save_proyecto, mod))
     return estado
 
 
@@ -5971,7 +5962,7 @@ async def _autoextraer_presupuesto_modificacion(mod_id: str) -> None:
     """Extracción AUTOMÁTICA (nov-2026): solo de los lados desactualizados, y sin romper al llamador
     si falla — el botón "Extraer datos" de la pestaña Presupuesto sigue como respaldo manual."""
     try:
-        mod = db.get_proyecto(mod_id)
+        mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
         lados = _lados_presupuesto_desactualizados(mod) if mod else []
         if lados:
             await _extraer_presupuesto_modificacion(mod_id, lados)
@@ -5989,7 +5980,7 @@ async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    mod = db.get_proyecto(mod_id)
+    mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod or mod.get("tipo") != "modificacion":
         raise HTTPException(status_code=404)
     estado = await _extraer_presupuesto_modificacion(mod_id, list(_TIPO_DOC_PRESUPUESTO_MOD))
@@ -6004,7 +5995,7 @@ async def admin_concursos(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concursos = db.get_all_concursos()
+    concursos = (await asyncio.to_thread(db.get_all_concursos))
     msg_ok  = request.query_params.get("ok")
     msg_err = request.query_params.get("error")
     return templates.TemplateResponse("admin_concursos.html", {
@@ -6023,15 +6014,15 @@ async def admin_crear_concurso(
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
     concurso_id = concurso_id.strip()
-    if db.get_concurso(concurso_id):
+    if (await asyncio.to_thread(db.get_concurso, concurso_id)):
         return RedirectResponse(url="/admin/concursos?error=existe", status_code=302)
-    db.save_concurso({
+    (await asyncio.to_thread(db.save_concurso, {
         "id": concurso_id,
         "nombre": nombre.strip(),
         "bases_texto": "",
         "fecha_creacion": _ahora().isoformat(),
         "feedback": []
-    })
+    }))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=creado", status_code=302)
 
 
@@ -6040,7 +6031,7 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     # Si llega desde el banner con ?crear=1 y el concurso no existe, lo creamos
     if not concurso and request.query_params.get("crear") == "1":
         concurso = {
@@ -6050,7 +6041,7 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
             "fecha_creacion": _ahora().isoformat(),
             "feedback": []
         }
-        db.save_concurso(concurso)
+        (await asyncio.to_thread(db.save_concurso, concurso))
         msg_ok = "creado"
     elif not concurso:
         raise HTTPException(status_code=404, detail="Concurso no encontrado")
@@ -6065,9 +6056,9 @@ async def admin_concurso_detalle(request: Request, concurso_id: str):
                                     "texto": criterios["item_" + item_key]})
     # Archivos guardados en la base para los proyectos de este concurso (para poder
     # "dar por terminado" el concurso y liberar ese espacio sin perder el análisis ya hecho).
-    proyectos_concurso = [p for p in db.get_proyectos_ligero(["id", "codigo_sep"])
+    proyectos_concurso = [p for p in (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep"]))
                           if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
-    resumen_archivos = db.resumen_archivos([p["id"] for p in proyectos_concurso])
+    resumen_archivos = (await asyncio.to_thread(db.resumen_archivos, [p["id"] for p in proyectos_concurso]))
     # Criterios PUNTUALES de este concurso (jul-2026): a diferencia de los criterios de énfasis
     # GENERALES (ahora permanentes, cruzan todos los concursos — se editan en /admin/aprendizaje),
     # este campo quedó para excepciones específicas de las bases de ESTE concurso en particular
@@ -6110,7 +6101,7 @@ async def guardar_criterios_enfasis(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
 
@@ -6126,7 +6117,7 @@ async def guardar_criterios_enfasis(request: Request, concurso_id: str):
         else:
             criterios_enfasis.pop(grupo_key, None)
     concurso["criterios_enfasis"] = criterios_enfasis
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=enfasis_guardado", status_code=302)
 
 
@@ -6141,7 +6132,7 @@ async def extraer_doc_obligatorios(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
     if not concurso.get("bases_texto", "").strip():
@@ -6151,7 +6142,7 @@ async def extraer_doc_obligatorios(request: Request, concurso_id: str):
     concurso["documentos_obligatorios"] = resultado["obligatorios"]
     concurso["documentos_obligatorios_referencia"] = resultado["referencia"]
     concurso["documentos_obligatorios_revisado"] = False   # requiere VB explícito antes de advertir
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(
         url=f"/admin/concursos/{concurso_id}?ok=doc_obl_extraidos_{len(resultado['obligatorios'])}#doc-obligatorios",
         status_code=302)
@@ -6162,7 +6153,7 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
 
@@ -6173,7 +6164,7 @@ async def guardar_doc_obligatorios(request: Request, concurso_id: str):
     concurso["documentos_obligatorios_revisado"] = True
     concurso["documentos_obligatorios_fecha"] = _ahora().isoformat()
     concurso["documentos_obligatorios_por"] = user["nombre"]
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(
         url=f"/admin/concursos/{concurso_id}?ok=doc_obl_guardado#doc-obligatorios", status_code=302)
 
@@ -6186,7 +6177,7 @@ async def consolidar_concurso(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
 
@@ -6207,7 +6198,7 @@ async def consolidar_concurso(request: Request, concurso_id: str):
 
     concurso["criterios_aprendidos"] = criterios
     concurso["criterios_fecha"] = _ahora().isoformat()
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=consolidado_{n}", status_code=302)
 
 
@@ -6223,7 +6214,7 @@ async def admin_guardar_bases(
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
     if nombre.strip():
@@ -6238,7 +6229,7 @@ async def admin_guardar_bases(
     concurso["fecha_apertura"] = fecha_apertura.strip()
     concurso["valor_uf_apertura"] = valor_uf_apertura.strip()
     concurso["fecha_actualizacion"] = _ahora().isoformat()
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=guardado", status_code=302)
 
 
@@ -6252,7 +6243,7 @@ async def admin_subir_bases_pdf(
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
 
@@ -6278,7 +6269,7 @@ async def admin_subir_bases_pdf(
         concurso["nombre"] = nombre.strip()
     concurso["bases_texto"] = texto.strip()
     concurso["fecha_actualizacion"] = _ahora().isoformat()
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=pdf_cargado", status_code=302)
 
 
@@ -6292,13 +6283,13 @@ async def liberar_archivos_concurso(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    concurso = db.get_concurso(concurso_id)
+    concurso = (await asyncio.to_thread(db.get_concurso, concurso_id))
     if not concurso:
         raise HTTPException(status_code=404)
 
-    proyecto_ids = [p["id"] for p in db.get_proyectos_ligero(["id", "codigo_sep"])
+    proyecto_ids = [p["id"] for p in (await asyncio.to_thread(db.get_proyectos_ligero, ["id", "codigo_sep"]))
                     if _extraer_concurso_id(p.get("codigo_sep", "")) == concurso_id]
-    db.eliminar_archivos_proyectos(proyecto_ids)
+    (await asyncio.to_thread(db.eliminar_archivos_proyectos, proyecto_ids))
     import shutil
     for pid in proyecto_ids:
         carpeta = UPLOAD_DIR / pid
@@ -6307,7 +6298,7 @@ async def liberar_archivos_concurso(request: Request, concurso_id: str):
 
     concurso["archivos_liberados"] = True
     concurso["fecha_archivos_liberados"] = _ahora().isoformat()
-    db.save_concurso(concurso)
+    (await asyncio.to_thread(db.save_concurso, concurso))
     return RedirectResponse(url=f"/admin/concursos/{concurso_id}?ok=archivos_liberados", status_code=302)
 
 
@@ -6316,7 +6307,7 @@ async def admin_eliminar_concurso(request: Request, concurso_id: str):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    db.delete_concurso(concurso_id)
+    (await asyncio.to_thread(db.delete_concurso, concurso_id))
     return RedirectResponse(url="/admin/concursos?ok=eliminado", status_code=302)
 
 
@@ -6334,7 +6325,7 @@ async def admin_precios(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    precios = db.get_precios()
+    precios = (await asyncio.to_thread(db.get_precios))
     items = precios.get("items", []) if precios else []
     categorias = {}
     for it in items:
@@ -6377,12 +6368,12 @@ async def admin_subir_precios(request: Request, archivo: UploadFile = File(...))
     if not items:
         return RedirectResponse(url="/admin/precios?error=vacio", status_code=302)
 
-    db.save_precios({
+    (await asyncio.to_thread(db.save_precios, {
         "items": items,
         "fecha_actualizado": _ahora().isoformat(),
         "actualizado_por": user["nombre"],
         "nombre_archivo": archivo.filename,
-    })
+    }))
     return RedirectResponse(url=f"/admin/precios?ok=cargado_{len(items)}", status_code=302)
 
 
@@ -6391,7 +6382,7 @@ async def admin_eliminar_precios(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    db.save_precios({})
+    (await asyncio.to_thread(db.save_precios, {}))
     return RedirectResponse(url="/admin/precios?ok=eliminado", status_code=302)
 
 
@@ -6411,14 +6402,14 @@ async def admin_aprendizaje(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    criterios_guardados = db.get_criterios_item().get("criterios", {})
+    criterios_guardados = (await asyncio.to_thread(db.get_criterios_item)).get("criterios", {})
     grupos_enfasis = [
         {"key": "item_" + item_key, "nombre": ITEMS_SEP[item_key]["nombre"],
          "texto": criterios_guardados.get("item_" + item_key, "")}
         for item_key in ITEMS_ORDEN
     ]
     consultores_info = []
-    for c in db.get_all_consultores():
+    for c in (await asyncio.to_thread(db.get_all_consultores)):
         n_fb = len(c.get("feedback", []))
         if n_fb > 0:
             consultores_info.append({
@@ -6429,7 +6420,7 @@ async def admin_aprendizaje(request: Request):
     msg_ok = request.query_params.get("ok")
     return templates.TemplateResponse("admin_aprendizaje.html", {
         "request": request, "user": user, "grupos_enfasis": grupos_enfasis,
-        "criterios_fecha": db.get_criterios_item().get("fecha_actualizado", ""),
+        "criterios_fecha": (await asyncio.to_thread(db.get_criterios_item)).get("fecha_actualizado", ""),
         "consultores_info": consultores_info, "msg_ok": msg_ok,
     })
 
@@ -6443,7 +6434,7 @@ async def guardar_criterios_item(request: Request):
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
     form = await request.form()
-    guardado = db.get_criterios_item()
+    guardado = (await asyncio.to_thread(db.get_criterios_item))
     criterios = dict(guardado.get("criterios", {}))
     for campo, valor in form.items():
         if not campo.startswith("enfasis__"):
@@ -6454,11 +6445,11 @@ async def guardar_criterios_item(request: Request):
             criterios[grupo_key] = texto
         else:
             criterios.pop(grupo_key, None)
-    db.save_criterios_item({
+    (await asyncio.to_thread(db.save_criterios_item, {
         "criterios": criterios,
         "fecha_actualizado": _ahora().isoformat(),
         "actualizado_por": user["nombre"],
-    })
+    }))
     return RedirectResponse(url="/admin/aprendizaje?ok=enfasis_guardado", status_code=302)
 
 
@@ -6472,12 +6463,12 @@ async def consolidar_consultores(request: Request):
         return RedirectResponse(url="/")
     n = 0
     try:
-        for c in db.get_all_consultores():
+        for c in (await asyncio.to_thread(db.get_all_consultores)):
             perfil = await consolidar_perfil_consultor(c.get("feedback", []), c.get("nombre", ""))
             if perfil:
                 c["perfil"] = perfil
                 c["perfil_fecha"] = _ahora().isoformat()
-                db.save_consultor(c)
+                (await asyncio.to_thread(db.save_consultor, c))
                 n += 1
     except Exception as e:
         import traceback
@@ -6494,7 +6485,7 @@ async def admin_usuarios(request: Request):
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    usuarios = db.get_all_users()
+    usuarios = (await asyncio.to_thread(db.get_all_users))
     msg_ok  = request.query_params.get("ok")
     msg_err = request.query_params.get("error")
     return templates.TemplateResponse("admin_usuarios.html", {
@@ -6514,9 +6505,9 @@ async def admin_crear_usuario(
     user = get_current_user(request)
     if not user or user.get("rol") != "admin":
         return RedirectResponse(url="/")
-    if db.get_user(username):
+    if (await asyncio.to_thread(db.get_user, username)):
         return RedirectResponse(url="/admin/usuarios?error=existe", status_code=302)
-    db.create_user(username, password, nombre, rol)
+    (await asyncio.to_thread(db.create_user, username, password, nombre, rol))
     return RedirectResponse(url="/admin/usuarios?ok=creado", status_code=302)
 
 
@@ -6527,7 +6518,7 @@ async def admin_eliminar_usuario(request: Request, username: str):
         return RedirectResponse(url="/")
     if username == user["username"]:
         return RedirectResponse(url="/admin/usuarios?error=self", status_code=302)
-    db.delete_user(username)
+    (await asyncio.to_thread(db.delete_user, username))
     return RedirectResponse(url="/admin/usuarios?ok=eliminado", status_code=302)
 
 
@@ -6553,7 +6544,7 @@ async def cambiar_password(
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    db_user = db.get_user(user["username"])
+    db_user = (await asyncio.to_thread(db.get_user, user["username"]))
 
     def _render(error=None, ok=False):
         return templates.TemplateResponse("mi_cuenta.html", {
@@ -6568,7 +6559,7 @@ async def cambiar_password(
         return _render("La contraseña debe tener al menos 6 caracteres.")
     if password_nuevo == "admin123":
         return _render("Esa es la contraseña inicial pública — elige otra.")
-    db.update_password(user["username"], password_nuevo)
+    (await asyncio.to_thread(db.update_password, user["username"], password_nuevo))
     return _render(ok=True)
 
 
@@ -6586,7 +6577,7 @@ async def cambiar_nombre(request: Request, nombre_nuevo: str = Form(...)):
 
     if not nombre_nuevo:
         return _render("El nombre no puede quedar vacío.")
-    db.update_nombre(user["username"], nombre_nuevo)
+    (await asyncio.to_thread(db.update_nombre, user["username"], nombre_nuevo))
     # El nombre viaja en el JWT de la sesión (fijado al hacer login) — sin reemitir la cookie,
     # el cambio no se vería reflejado en la app (nav, "Mi cuenta", registros nuevos como
     # "validado_por"/"agregada_por") hasta el próximo login. Se reemite con el mismo patrón que
