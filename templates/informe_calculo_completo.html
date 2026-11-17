@@ -548,157 +548,93 @@
 {% endfor %}{# fin loop sistemas #}
 
 {# ═══════════════════════ FOTOVOLTAICO ═══════════════════════ #}
-{% if fv and (fv.pkw is not none or fv.hbom is not none) %}
+{% if fv and (fv.pkw is not none or fv.horas_mensuales or fv.gu_anual is not none) %}
 <div class="salto"></div>
-<div class="titulo-fv">Sistema de Energización Fotovoltaica</div>
-<div class="nota-alcance">Sistema único para el proyecto completo — alimenta el equipo de bombeo.</div>
+<div class="titulo-fv">Sistema de Energización Fotovoltaico</div>
+<div class="nota-alcance">Sistema único para el proyecto completo — alimenta el equipo de bombeo. Metodología del Revisor Fotovoltaico: demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar (criterio oficial: ITT-02 §4.5.1, %P = generación anual / energía requerida en la temporada de riego, aplicable hasta 100 %).</div>
 
 <div class="titulo-seccion">FV.1. Datos base ingresados</div>
 <div class="paso">
 <table class="tabla-datos">
   <tr><td class="label">Potencia bomba (kW)</td><td class="valor">{{ val(fv.pkw, ' kW') }}</td></tr>
-  <tr><td class="label">Horas de bombeo / día</td><td class="valor">{{ val(fv.hbom, ' hr/día') }}</td></tr>
-  <tr><td class="label">HSP del sitio</td><td class="valor">{{ val(fv.hsp, ' hr') }}</td></tr>
-  <tr><td class="label">Factor de pérdidas (PR)</td><td class="valor">{{ val(fv.fp) }}</td></tr>
-  <tr><td class="label">Temperatura máxima sitio</td><td class="valor">{{ val(fv.temp, ' °C') }}</td></tr>
-  <tr><td class="label">Panel: Wp / Vmp / Imp / Coef. temp.</td>
-      <td class="valor">{{ val(fv.wp, ' W') }} / {{ val(fv.vmp, ' V') }} / {{ val(fv.imp, ' A') }} / {{ val(fv.ct, ' %/°C') }}</td></tr>
-  <tr><td class="label">Eficiencia inversor / Voltaje sistema</td>
-      <td class="valor">{{ val(fv.einv) }} / {{ val(fv.vsis, ' V') }}</td></tr>
-  <tr><td class="label">Días de riego / Tipo conexión</td>
-      <td class="valor">{{ val(fv.dias_riego, ' días/año') }} / {{ {'aislado': 'Aislado (sin red)', 'aislado_bat': 'Aislado con baterías', 'ongrid': 'On-grid'}.get(fv.conexion, 'Aislado (sin red)') }}</td></tr>
   <tr><td class="label">Consumos adicionales</td><td class="valor">{{ val(fv.adic, ' %') }}</td></tr>
+  <tr><td class="label">Generación específica anual del predio (Explorador Solar)</td><td class="valor">{{ val(fv.gu_anual, ' kWh/kWp·año') }}</td></tr>
+  <tr><td class="label">Panel Wp / Tipo conexión</td>
+      <td class="valor">{{ val(fv.wp, ' W') }} / {{ {'aislado': 'Aislado (sin red)', 'aislado_bat': 'Aislado con baterías', 'ongrid': 'On-grid'}.get(fv.conexion, 'Aislado (sin red)') }}</td></tr>
 </table>
 </div>
 
 {% if fv_calc %}
-<div class="titulo-seccion">FV.2. Dimensionamiento calculado — paso a paso</div>
-
-{% call paso_mc('fv_energia_dia', mc_fv) %}
-<div class="formula">E_día = P_bomba × horas_bombeo = {{ val(fv.pkw) }} kW × {{ val(fv.hbom) }} hr = <strong>{{ val(fv_calc.e_dia_kwh, ' kWh/día') }}</strong></div>
-<div class="explica">Energía que debe generar el sistema FV cada día de operación.</div>
-{% endcall %}
-
-{% call paso_mc('fv_hsp', mc_fv) %}
-<div class="formula">HSP ingresado: <strong>{{ val(fv.hsp, ' hr') }}</strong> — Factor de pérdidas (PR): <strong>{{ val(fv.fp) }}</strong></div>
-<div class="explica">El HSP debe provenir del Explorador Solar CNR para el sitio del proyecto.</div>
-{% endcall %}
-
-{% call paso_mc('fv_wp_efectivo', mc_fv) %}
-<div class="formula">Wp_efectivo = Wp_panel × Derating_térmico = <strong>{{ val(fv_calc.wp_efectivo, ' W') }}</strong></div>
-<div class="explica">Potencia real del panel corregida por temperatura máxima del sitio ({{ val(fv.temp, ' °C') }}).</div>
-{% endcall %}
-
-{% call paso_mc('fv_e_panel', mc_fv) %}
-<div class="formula">E_panel = (Wp_ef/1000) × HSP × PR = ({{ val(fv_calc.wp_efectivo) }}/1000) × {{ val(fv.hsp) }} × {{ val(fv.fp) }} = <strong>{{ val(fv_calc.e_panel_kwh, ' kWh/panel/día') }}</strong></div>
-{% endcall %}
-
-{% call paso_mc('fv_n_paneles', mc_fv) %}
-<div class="formula">N_paneles_mínimo = E_día / E_panel = {{ val(fv_calc.e_dia_kwh) }} / {{ val(fv_calc.e_panel_kwh) }} = <strong>{{ fv_calc.n_paneles_minimo }} paneles</strong></div>
-{% endcall %}
-
-{% call paso_mc('fv_configuracion', mc_fv) %}
-<div class="formula">Serie = ⌊V_sis / Vmp⌋ = {{ fv_calc.paneles_serie }} &nbsp;·&nbsp; Paralelo = ⌈N_min / Serie⌉ = {{ fv_calc.strings_paralelo }}</div>
-<div class="formula">Total real: {{ fv_calc.paneles_serie }} × {{ fv_calc.strings_paralelo }} = <strong>{{ fv_calc.n_paneles_real }} paneles</strong></div>
-{% endcall %}
-
-{% call paso_mc('fv_kwp', mc_fv) %}
-<div class="formula">kWp = N_real × Wp / 1000 = {{ fv_calc.n_paneles_real }} × {{ val(fv.wp) }} / 1000 = <strong>{{ val(fv_calc.kwp_total, ' kWp') }}</strong></div>
-{% endcall %}
-
-{% call paso_mc('fv_cable_dc', mc_fv) %}
-<div class="formula">Sección cable DC calculada: <strong>{{ val(fv_calc.seccion_cable_mm2, ' mm²') }}</strong></div>
-{% endcall %}
-
-{% if fv_calc.gen_anual_kwh is not none %}
-{% call paso_mc('fv_balance_anual', mc_fv) %}
-<div class="formula">Gen_día_real = E_panel × N_real = {{ val(fv_calc.e_panel_kwh) }} × {{ fv_calc.n_paneles_real }} = <strong>{{ val(fv_calc.gen_dia_real_kwh, ' kWh/día') }}</strong></div>
-<div class="formula">Gen_anual = Gen_día_real × 365 = <strong>{{ val(fv_calc.gen_anual_kwh, ' kWh/año') }}</strong></div>
-<div class="formula">Consumo_anual = P_bomba × H_bombeo × Días_riego = {{ val(fv.pkw) }} × {{ val(fv.hbom) }} × {{ fv.dias_riego }} = <strong>{{ val(fv_calc.consumo_anual_kwh, ' kWh/año') }}</strong></div>
-<div class="formula">Balance Anual = Gen_anual / Consumo_anual × 100 % = <strong>{{ val(fv_calc.balance_anual_pct, ' %') }}</strong></div>
-<div class="explica">
-  {% if fv.conexion == 'ongrid' %}
-    Sistema <strong>on-grid</strong> (conectado a la red) — el balance no debe superar el 100 % (Ley de Generación Distribuida).
-    {% if fv_calc.balance_ok %}<span class="ok">Balance ≤ 100 %: cumple.</span>{% else %}<span class="alerta">Balance > 100 %: parque sobredimensionado respecto al consumo de la bomba.</span>{% endif %}
-  {% else %}
-    Sistema <strong>aislado</strong> — el criterio de 100 % no aplica. Se recomienda verificar que la potencia instantánea del campo FV cubra la P1 de la bomba en las horas de riego.
-  {% endif %}
-</div>
-<div class="explica" style="margin-top:0.2rem;font-size:10.5px;color:#666;">Fuente: Manual de Inspección y Revisión de Sistemas Fotovoltaicos, CNR-Ministerio de Energía §5.1.</div>
-{% endcall %}
-{% endif %}
-{% endif %}{# fin fv_calc — FV.3 sigue independiente: no requiere el recálculo completo #}
-
-{# Comparación con lo declarado por el consultor — solo necesita fv.declarado. Las 3 filas que
-   comparan contra fv_calc (App) se muestran solo si el recálculo se pudo hacer; la consistencia
-   interna y el banco de baterías son datos declarados por sí solos y no dependen de fv_calc. #}
-{% if fv.declarado %}
-{% set decl = fv.declarado %}
-<div class="titulo-seccion">FV.3. Verificación — declarado vs. calculado</div>
-<div class="paso">
-<table class="tabla-datos">
-  {% if fv_calc %}
-  {% if decl.n_paneles is not none %}
-  <tr><td class="label">N° paneles</td>
-      <td class="valor">Declarado: {{ decl.n_paneles }} / Calculado mínimo: {{ fv_calc.n_paneles_minimo }} / Real: {{ fv_calc.n_paneles_real }} —
-        {% if decl.n_paneles < fv_calc.n_paneles_minimo %}<span class="alerta">insuficiente.</span>
-        {% elif (decl.n_paneles - fv_calc.n_paneles_real)|abs / fv_calc.n_paneles_real * 100 > 20 %}<span class="alerta">difiere más de un 20%.</span>
-        {% else %}<span class="ok">coherente.</span>{% endif %}
-      </td></tr>
-  {% endif %}
-  {% if decl.kwp_total is not none %}
-  <tr><td class="label">kWp total</td>
-      <td class="valor">Declarado: {{ decl.kwp_total }} kWp / Calculado: {{ val(fv_calc.kwp_total) }} kWp —
-        {% if (decl.kwp_total - fv_calc.kwp_total)|abs / fv_calc.kwp_total * 100 > 15 %}<span class="alerta">difiere más de un 15%.</span>
-        {% else %}<span class="ok">coherente.</span>{% endif %}
-      </td></tr>
-  {% endif %}
-  {% if decl.seccion_cable_mm2 is not none %}
-  <tr><td class="label">Sección cable DC</td>
-      <td class="valor">Declarada: {{ decl.seccion_cable_mm2 }} mm² / Calculada: {{ val(fv_calc.seccion_cable_mm2) }} mm² —
-        {% if decl.seccion_cable_mm2 < fv_calc.seccion_cable_mm2 %}<span class="alerta">insuficiente.</span>
-        {% else %}<span class="ok">coherente.</span>{% endif %}
-      </td></tr>
-  {% endif %}
-  {% else %}
-  <tr><td colspan="2" class="valor" style="color:#999;font-style:italic;">Faltan datos base (potencia bomba, horas bombeo, HSP, Wp, Vmp o Imp) para el recálculo completo — solo se muestra lo declarado.</td></tr>
-  {% endif %}
-  {% if fv_consistencia_paneles %}
-  <tr><td class="label">Consistencia interna: paneles × Wp</td>
-      <td class="valor">{{ decl.n_paneles }} × {{ val(fv.wp, ' W') }} = {{ fv_consistencia_paneles.kwp_por_paneles }} kWp / kWp declarado: {{ decl.kwp_total }} kWp —
-        {% if fv_consistencia_paneles.coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">los paneles declarados no suman el kWp declarado.</span>{% endif %}
-      </td></tr>
-  {% endif %}
-  {% if decl.banco_baterias_kwh is not none %}
-  <tr><td class="label">Banco de baterías declarado</td><td class="valor">{{ decl.banco_baterias_kwh }} kWh</td></tr>
-  {% endif %}
-</table>
-</div>
-{% endif %}
-
-{% if fv_demanda %}
-<div class="titulo-seccion">FV.4. Demanda energética mensual — Revisor Fotovoltaico</div>
-<div class="nota-alcance">
-  Misma fórmula que usa el Revisor Fotovoltaico para la demanda de la bomba:
-  Dem_día = Horas_riego × P_bomba × (1 + Adicionales%). La generación, cobertura anual y
-  potencia FV requerida dependen del perfil solar horario del predio (Explorador Solar), que
-  se importa dentro del propio Revisor Fotovoltaico — no se replica en este informe. Use el
-  botón "Revisor Fotovoltaico" del Chequeo de Cálculos para completar esa verificación.
-</div>
-<div class="paso">
+<div class="titulo-seccion">FV.2. Demanda energética mensual de la bomba</div>
+{% call paso_mc('fv_demanda_energia', mc_fv) %}
+<div class="formula">Dem_día = Horas_riego × P_bomba × (1 + Adicionales%/100) &nbsp;·&nbsp; Dem_mes = Dem_día × Días del mes</div>
 <table class="tabla-tramos">
   <tr><th>Mes</th><th>Horas riego/día</th><th>Dem. día (kWh)</th><th>Dem. mes (kWh)</th></tr>
-  {% for m in fv_demanda.meses %}
+  {% for m in fv_calc.demanda.meses %}
   <tr><td>{{ m.mes }}</td><td>{{ m.horas }}</td><td>{{ m.dem_dia_kwh }}</td><td>{{ m.dem_mes_kwh }}</td></tr>
   {% endfor %}
 </table>
-<div class="formula" style="margin-top:0.3rem;">Demanda anual = Σ Dem_mes = <strong>{{ fv_demanda.dem_anual_kwh }} kWh/año</strong></div>
-{% if fv_demanda.horas_excedidas %}
-<div class="explica" style="margin-top:0.2rem;"><span class="alerta">Horas de riego imposibles (&gt;24 h/día) en: {{ fv_demanda.horas_excedidas | join(', ') }}.</span></div>
+<div class="formula" style="margin-top:0.3rem;">Demanda anual = Σ Dem_mes = <strong>{{ fv_calc.dem_anual_kwh }} kWh/año</strong></div>
+{% if fv_calc.demanda.horas_excedidas %}
+<div class="explica" style="margin-top:0.2rem;"><span class="alerta">Horas de riego imposibles (&gt;24 h/día) en: {{ fv_calc.demanda.horas_excedidas | join(', ') }}.</span></div>
 {% endif %}
+{% endcall %}
+
+{% if fv_calc.gu_anual is defined %}
+<div class="titulo-seccion">FV.3. Generación, kWp requeridos y cobertura</div>
+{% call paso_mc('fv_recurso_solar', mc_fv) %}
+<div class="formula">Generación específica = <strong>{{ val(fv_calc.gu_anual, ' kWh/kWp·año') }}</strong> ({{ val(fv_calc.gu_dia_prom, ' kWh/kWp·día') }} promedio anual)</div>
+<div class="explica">Debe provenir del Explorador Solar para el punto GPS del predio; ya incluye pérdidas, inclinación y temperatura.
+  {% if not fv_calc.recurso_en_rango %}<span class="alerta">Fuera de lo esperable en Chile (3 a 7 kWh/kWp·día): revisar el dato.</span>{% endif %}</div>
+{% endcall %}
+
+{% call paso_mc('fv_kwp', mc_fv) %}
+<div class="formula">kWp requeridos = Demanda anual / Generación específica = {{ val(fv_calc.dem_anual_kwh) }} / {{ val(fv_calc.gu_anual) }} = <strong>{{ val(fv_calc.kwp_requerido, ' kWp') }}</strong></div>
+{% if fv_calc.kwp_por_paneles is defined %}
+<div class="formula">Paneles × Wp = {{ fv.declarado.n_paneles }} × {{ val(fv.wp) }} / 1000 = <strong>{{ val(fv_calc.kwp_por_paneles, ' kWp') }}</strong>
+  {% if fv_calc.paneles_coinciden %}<span class="ok">coincide con el kWp declarado.</span>{% else %}<span class="alerta">no suma el kWp declarado ({{ fv.declarado.kwp_total }} kWp).</span>{% endif %}</div>
+{% endif %}
+{% endcall %}
+
+{% if fv_calc.cobertura_pct is defined %}
+{% call paso_mc('fv_generacion_anual', mc_fv) %}
+<div class="formula">Gen_anual = kWp declarado × Generación específica = {{ fv.declarado.kwp_total }} × {{ val(fv_calc.gu_anual) }} = <strong>{{ val(fv_calc.gen_anual_kwh, ' kWh/año') }}</strong></div>
+{% if fv_calc.gen_declarada_coincide is defined %}
+<div class="explica">Generación declarada por el consultor: {{ fv.declarado.gen_anual_kwh }} kWh/año —
+  {% if fv_calc.gen_declarada_coincide %}<span class="ok">coherente (diferencia {{ val(fv_calc.gen_declarada_dif_pct, ' %') }}).</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.gen_declarada_dif_pct, ' %') }}.</span>{% endif %}</div>
+{% endif %}
+{% endcall %}
+
+{% call paso_mc('fv_balance_anual', mc_fv) %}
+<div class="formula">Cobertura anual = Gen_anual / Demanda anual × 100 = <strong>{{ val(fv_calc.cobertura_pct, ' %') }}</strong> &nbsp;·&nbsp; Holgura = kWp declarado / kWp requeridos − 1 = <strong>{{ val(fv_calc.holgura_pct, ' %') }}</strong></div>
+<div class="explica">
+  {% if not fv_calc.cubre %}<span class="alerta">El kWp declarado no cubre la demanda anual (el instructivo exige generar el 100 % anual o la fracción complementaria declarada).</span>
+  {% elif fv_calc.holgura_alta %}<span class="alerta">Potencia {{ val(fv_calc.holgura_pct, ' %') }} sobre lo requerido: justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos, ITT-02 4.5.1.2).</span>
+  {% else %}<span class="ok">Cubre la demanda anual con holgura razonable.</span>{% endif %}
+</div>
+{% endcall %}
+{% endif %}
+{% endif %}
+
+{% if fv_calc.pct_p is defined %}
+<div class="titulo-seccion">FV.4. %P del instructivo CNR (ITT-02 §4.5.1.2)</div>
+<div class="paso">
+<div class="formula">%P = ERNC generada anualmente / Energía requerida en la temporada = {{ fv.declarado.gen_anual_kwh }} / {{ val(fv_calc.dem_anual_kwh) }} = <strong>{{ val(fv_calc.pct_p * 100, ' %') }}</strong>{% if fv_calc.pct_p > 1 %} — aplicable: <strong>100 %</strong> (tope del instructivo){% endif %}</div>
+{% if fv_calc.pct_p < 0.999 %}<div class="explica"><span class="alerta">La generación declarada es menor a la energía requerida: el instructivo pide generar el 100 % anual o la fracción complementaria declarada.</span></div>{% endif %}
 </div>
 {% endif %}
 {% endif %}
+
+{% if fv and fv.declarado and fv.declarado.banco_baterias_kwh is not none %}
+<div class="paso"><table class="tabla-datos">
+  <tr><td class="label">Banco de baterías declarado</td><td class="valor">{{ fv.declarado.banco_baterias_kwh }} kWh</td></tr>
+</table></div>
+{% endif %}
+{% if fv_calc %}
+<div class="nota-alcance">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Revisor Fotovoltaico.</div>
+{% endif %}
+
+{% endif %}{# fin fv #}
 
 </body>
 </html>

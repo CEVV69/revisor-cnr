@@ -1215,92 +1215,13 @@ def verificar_superficie_cubrible_carrete(n_posturas: int, superficie_postura_ha
     return r
 
 
-# ── Fotovoltaico: energía requerida → N° paneles → configuración → cable DC ─
-
-# Secciones normalizadas de cable de cobre (mm²), mismo criterio del Diseñador de Riego
-SECCIONES_CABLE_MM2 = [4, 6, 10, 16, 25, 35, 50, 70]
-RHO_CU = 1 / 58   # Ω·mm²/m — resistividad del cobre
-
-
-def seccion_cable_normalizada(seccion_calculada_mm2: float) -> float:
-    """Redondea hacia arriba a la sección comercial normalizada más cercana."""
-    for s in SECCIONES_CABLE_MM2:
-        if seccion_calculada_mm2 <= s:
-            return s
-    return SECCIONES_CABLE_MM2[-1]
-
-
-def dimensionamiento_fv(pkw: float, hbom: float, hsp: float, fp: float, wp: float,
-                        vmp: float, imp: float, ct: float, temp: float, einv: float,
-                        vsis: float, l_cable_m: float = 50,
-                        dias_riego: int = None, conexion: str = None) -> dict:
-    """Recalcula el dimensionamiento fotovoltaico con la misma cadena que usa el Diseñador
-    de Riego (v114):
-
-    E_día      = P_bomba[kW] × H_bombeo[hr]                       [kWh/día requeridos]
-    PR         = Fp × η_inv                                        [performance ratio]
-    Derating   = 1 + (Ct/100) × (T_max − 25)                       [corrección por temperatura]
-    Wp_efectivo= Wp_panel × Derating
-    E_panel    = (Wp_ef/1000) × HSP × PR                           [kWh/panel/día]
-    N_paneles  = ⌈E_día / E_panel⌉                                  [mínimo necesario]
-    Serie      = ⌊V_sistema / Vmp⌋ · Paralelo = ⌈N_paneles/Serie⌉   [configuración real]
-    kWp_total  = N_real × Wp / 1000
-    Cable DC   = ρ_Cu × L × I_campo / (2% × V_campo)               [sección mm², normalizada]
-
-    Balance Anual Energético (Manual CNR-Ministerio de Energía §5.1):
-    Gen_día_real  = E_panel × N_real                               [kWh/día del campo completo]
-    Gen_anual     = Gen_día_real × 365                             [el parque genera 365 días/año]
-    Consumo_anual = P_bomba × H_bombeo × días_riego                [bomba solo consume días riego]
-    Balance       = Gen_anual / Consumo_anual × 100 %
-    balance_ok    = True si aislado (criterio no aplica); si on-grid, balance ≤ 100 %
-
-    `pkw`: potencia de la bomba en kW. `hbom`: horas de bombeo/día. `hsp`: horas sol pico
-    del sitio. `fp`: factor de pérdidas del sistema (0-1, típico 0,80). `wp`: potencia
-    nominal del panel (Wp). `vmp`/`imp`: voltaje/corriente en el punto de máxima potencia
-    del panel. `ct`: coeficiente de temperatura del panel (%/°C, típico negativo, ej. -0,35).
-    `temp`: temperatura máxima del sitio (°C). `einv`: eficiencia del inversor (0-1, típico
-    0,95). `vsis`: voltaje nominal del sistema/inversor (V).
-    `dias_riego`: días efectivos de operación del sistema de riego al año (para balance anual).
-    `conexion`: 'aislado' (default) o 'ongrid' — determina si aplica el criterio de 100%.
-    """
-    if not pkw or not hbom or not hsp or not wp or not vmp or not imp:
-        return {}
-    e_dia = pkw * hbom
-    pr = (fp or 0.80) * (einv or 0.95)
-    derating = 1 + ((ct or 0) / 100) * (temp - 25) if temp else 1.0
-    wp_efectivo = wp * derating
-    e_panel = (wp_efectivo / 1000) * hsp * pr
-    n_paneles = math.ceil(e_dia / e_panel) if e_panel else 0
-    pan_serie = max(1, math.floor((vsis or 0) / vmp)) if vsis else 1
-    pan_paralelo = math.ceil(n_paneles / pan_serie) if pan_serie else n_paneles
-    n_real = pan_serie * pan_paralelo
-    kwp_total = n_real * wp / 1000
-    i_campo = pan_paralelo * imp
-    v_campo = pan_serie * vmp
-    dv_max = v_campo * 0.02
-    seccion_calc = (RHO_CU * l_cable_m * i_campo) / dv_max if dv_max else 0
-    r = {
-        "e_dia_kwh": round(e_dia, 3), "pr": round(pr, 3), "derating": round(derating, 4),
-        "wp_efectivo": round(wp_efectivo, 1), "e_panel_kwh": round(e_panel, 4),
-        "n_paneles_minimo": n_paneles, "paneles_serie": pan_serie,
-        "strings_paralelo": pan_paralelo, "n_paneles_real": n_real,
-        "kwp_total": round(kwp_total, 2), "i_campo_a": round(i_campo, 2),
-        "v_campo_v": round(v_campo, 0),
-        "seccion_cable_mm2": seccion_cable_normalizada(seccion_calc) if seccion_calc else None,
-    }
-    # Balance Anual Energético — solo si se ingresa días de riego
-    if dias_riego:
-        gen_dia_real = e_panel * n_real
-        gen_anual = gen_dia_real * 365
-        consumo_anual = pkw * hbom * dias_riego
-        balance_anual = (gen_anual / consumo_anual * 100) if consumo_anual else 0
-        es_ongrid = (conexion or "aislado") == "ongrid"
-        r["gen_dia_real_kwh"] = round(gen_dia_real, 3)
-        r["gen_anual_kwh"] = round(gen_anual, 1)
-        r["consumo_anual_kwh"] = round(consumo_anual, 1)
-        r["balance_anual_pct"] = round(balance_anual, 1)
-        r["balance_ok"] = (balance_anual <= 100) if es_ongrid else None
-    return r
+# ── Fotovoltaico: misma metodología del Revisor Fotovoltaico (app hermana) ─────
+# nov-2026: se reemplazó la cadena del Diseñador de Riego (día de diseño con hbom + HSP, N° de
+# paneles, serie/paralelo, cable DC) por la del Revisor Fotovoltaico, construido sobre el Excel de
+# la CNR: demanda de la bomba por MES (horas/día × días del mes) contra la generación anual por
+# kWp del Explorador Solar. Motivo: el instructivo oficial (ITT-02 §4.5.1) solo exige comparar la
+# energía generada anualmente (Explorador Solar) con la requerida en la temporada de riego —
+# no define HSP, rendimiento, temperatura ni cable, y los consultores no declaran esos datos.
 
 
 MESES_3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -1343,3 +1264,74 @@ def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
                       "dem_dia_kwh": round(dem_dia, 3), "dem_mes_kwh": round(dem_mes, 1)})
     return {"meses": meses, "dem_anual_kwh": round(dem_anual, 1),
             "horas_excedidas": horas_excedidas}
+
+
+# Rango esperable del recurso solar (kWh/kWp/día, promedio anual) — mismo umbral que el Revisor
+# Fotovoltaico (verificar(): "Recurso solar fuera de rango esperable"; en Chile se espera 3-7).
+GU_DIA_RANGO = (2.0, 9.0)
+# Holgura sobre la que el Revisor Fotovoltaico pide justificar el sobredimensionamiento.
+HOLGURA_ALTA_PCT = 60
+
+
+def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anual: float,
+                          kwp_declarado: float = None, n_paneles: float = None,
+                          wp: float = None, gen_anual_declarada: float = None) -> dict:
+    """Verificación fotovoltaica con la metodología del Revisor Fotovoltaico (app hermana,
+    fotovoltaico_riego_v19.html, `calc()` modo on-grid + `verificar()`):
+
+    Dem_anual    = Σ_mes  Horas[mes] × P_bomba × (1 + Adic%/100) × Días[mes]      [kWh/año]
+    kWp_requerido= Dem_anual / GU_anual                                           [kWp]
+    Gen_anual    = kWp_declarado × GU_anual                                       [kWh/año]
+    Cobertura    = Gen_anual / Dem_anual × 100                                    [%]
+    Holgura      = (kWp_declarado / kWp_requerido − 1) × 100                      [%]
+
+    `gu_anual`: generación específica anual del predio, kWh por kWp instalado y por año (la que
+    entrega el Explorador Solar del Ministerio de Energía, ya con pérdidas, inclinación y
+    temperatura — por eso no hacen falta HSP, rendimiento ni derating acá).
+
+    También entrega el %P del instructivo CNR (ITT-02 §4.5.1.2): ERNC generada anualmente
+    (la declarada por el consultor, kWh/año) / energía requerida en la temporada (aquí, la
+    demanda anual calculada). Según el instructivo, el %P aplicable queda tope en 1 (100 %) —
+    el sobredimensionamiento por equipos comerciales es aceptable.
+
+    Limitación (igual que el chequeo anual del Revisor FV): no verifica el modo aislado, que exige
+    el perfil solar HORARIO (¿alcanza la potencia instantánea para mover la bomba en las horas de
+    riego?, banco de baterías) — ese análisis se hace en el Revisor Fotovoltaico con el .json
+    exportado desde el Chequeo.
+
+    Devuelve {} si falta la potencia de la bomba o no hay ningún mes con horas declaradas."""
+    dem = demanda_fv_mensual(pkw, adic, horas_mensuales)
+    if not dem:
+        return {}
+    dem_anual = dem["dem_anual_kwh"]
+    r = {"demanda": dem, "dem_anual_kwh": dem_anual}
+
+    if gu_anual and gu_anual > 0 and dem_anual > 0:
+        gu_dia = gu_anual / sum(DIAS_MES_FV)
+        r["gu_anual"] = round(gu_anual, 1)
+        r["gu_dia_prom"] = round(gu_dia, 2)
+        r["recurso_en_rango"] = GU_DIA_RANGO[0] <= gu_dia <= GU_DIA_RANGO[1]
+        kwp_req = dem_anual / gu_anual
+        r["kwp_requerido"] = round(kwp_req, 2)
+        if kwp_declarado and kwp_declarado > 0:
+            gen = kwp_declarado * gu_anual
+            r["gen_anual_kwh"] = round(gen, 1)
+            r["cobertura_pct"] = round(gen / dem_anual * 100, 1)
+            r["holgura_pct"] = round((kwp_declarado / kwp_req - 1) * 100, 1)
+            r["cubre"] = kwp_declarado >= kwp_req * 0.999
+            r["holgura_alta"] = r["holgura_pct"] > HOLGURA_ALTA_PCT
+
+    if n_paneles and wp and kwp_declarado and kwp_declarado > 0:
+        kwp_paneles = n_paneles * wp / 1000
+        r["kwp_por_paneles"] = round(kwp_paneles, 2)
+        r["paneles_coinciden"] = abs(kwp_paneles - kwp_declarado) / kwp_declarado * 100 <= 5
+
+    if gen_anual_declarada and gen_anual_declarada > 0 and dem_anual > 0:
+        pct_p = gen_anual_declarada / dem_anual
+        r["pct_p"] = round(pct_p, 3)
+        r["pct_p_aplicable"] = round(min(pct_p, 1.0), 3)
+        if r.get("gen_anual_kwh"):
+            dif = abs(gen_anual_declarada - r["gen_anual_kwh"]) / r["gen_anual_kwh"] * 100
+            r["gen_declarada_dif_pct"] = round(dif, 1)
+            r["gen_declarada_coincide"] = dif <= 10
+    return r

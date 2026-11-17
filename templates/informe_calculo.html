@@ -550,69 +550,63 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
 {% endif %}
 
 <!-- ══════════ 7. SISTEMA FOTOVOLTAICO ══════════ -->
-{% if fv and (fv.pkw is not none or fv.hbom is not none or fv.hsp is not none) %}
-<div class="titulo-seccion">7. Sistema fotovoltaico — dimensionamiento</div>
+{% if fv and (fv.pkw is not none or fv.horas_mensuales or fv.gu_anual is not none) %}
+<div class="titulo-seccion">7. Sistema fotovoltaico — verificación (metodología del Revisor Fotovoltaico)</div>
 
 {% call paso('fv_inputs') %}
-<div class="nota-alcance">El sistema FV es único para el proyecto (aunque haya 2 sistemas de riego) — alimenta la bomba declarada en Potencia bomba (kW).</div>
+<div class="nota-alcance">El sistema FV es único para el proyecto (aunque haya 2 sistemas de riego) — alimenta la bomba declarada en Potencia bomba (kW). Demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar.</div>
 <table class="tabla-datos">
-  <tr><td class="label">Potencia bomba (kW)</td><td class="valor">{{ val(fv.pkw, ' kW') }}</td></tr>
-  <tr><td class="label">Horas de bombeo / día</td><td class="valor">{{ val(fv.hbom, ' hr/día') }}</td></tr>
-  <tr><td class="label">HSP del sitio</td><td class="valor">{{ val(fv.hsp, ' hr') }}</td></tr>
-  <tr><td class="label">Factor de pérdidas</td><td class="valor">{{ val(fv.fp) }}</td></tr>
-  <tr><td class="label">Temperatura máxima sitio</td><td class="valor">{{ val(fv.temp, ' °C') }}</td></tr>
-  <tr><td class="label">Panel — Wp / Vmp / Imp / Coef. temp.</td>
-      <td class="valor">{{ val(fv.wp, ' W') }} / {{ val(fv.vmp, ' V') }} / {{ val(fv.imp, ' A') }} / {{ val(fv.ct, ' %/°C') }}</td></tr>
-  <tr><td class="label">Eficiencia inversor / Voltaje sistema</td>
-      <td class="valor">{{ val(fv.einv) }} / {{ val(fv.vsis, ' V') }}</td></tr>
+  <tr><td class="label">Potencia bomba / consumos adicionales</td><td class="valor">{{ val(fv.pkw, ' kW') }} / {{ val(fv.adic, ' %') }}</td></tr>
+  <tr><td class="label">Generación específica anual (Explorador Solar)</td><td class="valor">{{ val(fv.gu_anual, ' kWh/kWp·año') }}</td></tr>
+  <tr><td class="label">Panel Wp / Tipo de conexión</td>
+      <td class="valor">{{ val(fv.wp, ' W') }} / {{ {'aislado': 'Aislado (sin red)', 'aislado_bat': 'Aislado con baterías', 'ongrid': 'On-grid'}.get(fv.conexion, 'Aislado (sin red)') }}</td></tr>
 </table>
 {% endcall %}
 
 {% if fv_calc %}
-{% call paso('fv_cadena') %}
+{% call paso('fv_verificacion') %}
 <table class="tabla-datos">
-  <tr><td class="label">Energía diaria requerida</td>
-      <td class="valor">{{ val(fv_calc.e_dia_kwh, ' kWh/día') }}</td></tr>
-  <tr><td class="label">Wp efectivo por panel (con derating térmico)</td>
-      <td class="valor">{{ val(fv_calc.wp_efectivo, ' W') }}</td></tr>
-  <tr><td class="label">Energía por panel / día</td>
-      <td class="valor">{{ val(fv_calc.e_panel_kwh, ' kWh') }}</td></tr>
-  <tr><td class="label">N° paneles mínimo calculado</td>
-      <td class="valor"><strong>{{ fv_calc.n_paneles_minimo }}</strong></td></tr>
-  <tr><td class="label">Configuración (serie × paralelo)</td>
-      <td class="valor">{{ fv_calc.paneles_serie }} serie × {{ fv_calc.strings_paralelo }} strings = <strong>{{ fv_calc.n_paneles_real }} paneles</strong></td></tr>
-  <tr><td class="label">kWp total instalado</td>
-      <td class="valor"><strong>{{ val(fv_calc.kwp_total, ' kWp') }}</strong></td></tr>
-  <tr><td class="label">Sección cable DC calculada</td>
-      <td class="valor"><strong>{{ val(fv_calc.seccion_cable_mm2, ' mm²') }}</strong></td></tr>
+  <tr><td class="label">Demanda anual de la bomba</td>
+      <td class="valor"><strong>{{ val(fv_calc.dem_anual_kwh, ' kWh/año') }}</strong>
+        {% if fv_calc.demanda.horas_excedidas %}<br><span class="alerta">Horas de riego imposibles (&gt;24 h/día) en: {{ fv_calc.demanda.horas_excedidas | join(', ') }}.</span>{% endif %}</td></tr>
+  {% if fv_calc.gu_anual is defined %}
+  <tr><td class="label">Recurso solar (promedio anual)</td>
+      <td class="valor">{{ val(fv_calc.gu_dia_prom, ' kWh/kWp·día') }}
+        {% if not fv_calc.recurso_en_rango %}<span class="alerta">fuera de lo esperable en Chile (3 a 7); revisar el dato.</span>{% endif %}</td></tr>
+  <tr><td class="label">kWp requeridos (balance anual)</td>
+      <td class="valor"><strong>{{ val(fv_calc.kwp_requerido, ' kWp') }}</strong></td></tr>
+  {% endif %}
+  {% if fv_calc.cobertura_pct is defined %}
+  <tr><td class="label">Cobertura anual con el kWp declarado</td>
+      <td class="valor"><strong>{{ val(fv_calc.cobertura_pct, ' %') }}</strong> (generación {{ val(fv_calc.gen_anual_kwh, ' kWh/año') }}; holgura {{ val(fv_calc.holgura_pct, ' %') }})</td></tr>
+  {% endif %}
+  {% if fv_calc.pct_p is defined %}
+  <tr><td class="label">%P (instructivo CNR, ITT-02 4.5.1.2)</td>
+      <td class="valor"><strong>{{ val(fv_calc.pct_p * 100, ' %') }}</strong>{% if fv_calc.pct_p > 1 %} (aplicable: 100 %){% endif %}</td></tr>
+  {% endif %}
 </table>
 
-{% if fv.declarado %}
-{% set decl = fv.declarado %}
 <div class="compara" style="margin-top:0.5rem;">
   <strong>Comparación con lo declarado por el consultor:</strong><br>
-  {% if decl.n_paneles is not none %}
-    N° paneles: declarado {{ decl.n_paneles }}, calculado {{ fv_calc.n_paneles_real }} —
-    {% if decl.n_paneles < fv_calc.n_paneles_minimo %}<span class="alerta">insuficiente (no cubre la demanda).</span>
-    {% elif (decl.n_paneles - fv_calc.n_paneles_real) | abs / fv_calc.n_paneles_real * 100 > 20 %}<span class="alerta">difiere más de un 20%; verificar supuestos (HSP, PR, Wp).</span>
+  {% if fv_calc.cubre is defined %}
+    kWp total: declarado {{ fv.declarado.kwp_total }}, requerido {{ val(fv_calc.kwp_requerido) }} —
+    {% if not fv_calc.cubre %}<span class="alerta">no cubre la demanda anual.</span>
+    {% elif fv_calc.holgura_alta %}<span class="alerta">{{ val(fv_calc.holgura_pct, ' %') }} sobre lo requerido; justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos).</span>
     {% else %}<span class="ok">coherente.</span>{% endif %}<br>
   {% endif %}
-  {% if decl.kwp_total is not none %}
-    kWp total: declarado {{ decl.kwp_total }}, calculado {{ val(fv_calc.kwp_total) }} —
-    {% if (decl.kwp_total - fv_calc.kwp_total) | abs / fv_calc.kwp_total * 100 > 15 %}<span class="alerta">difiere más de un 15%.</span>
-    {% else %}<span class="ok">coherente.</span>{% endif %}<br>
+  {% if fv_calc.paneles_coinciden is defined %}
+    Paneles × Wp: {{ fv.declarado.n_paneles }} × {{ val(fv.wp, ' W') }} = {{ val(fv_calc.kwp_por_paneles, ' kWp') }} —
+    {% if fv_calc.paneles_coinciden %}<span class="ok">coincide con el kWp declarado.</span>{% else %}<span class="alerta">no suma el kWp declarado.</span>{% endif %}<br>
   {% endif %}
-  {% if decl.seccion_cable_mm2 is not none %}
-    Sección cable DC: declarada {{ decl.seccion_cable_mm2 }} mm², calculada {{ val(fv_calc.seccion_cable_mm2) }} mm² —
-    {% if decl.seccion_cable_mm2 < fv_calc.seccion_cable_mm2 %}<span class="alerta">sección declarada menor a la calculada; riesgo de caída de tensión.</span>
-    {% else %}<span class="ok">coherente.</span>{% endif %}
+  {% if fv_calc.gen_declarada_coincide is defined %}
+    Generación anual: declarada {{ fv.declarado.gen_anual_kwh }} kWh, calculada {{ val(fv_calc.gen_anual_kwh, ' kWh') }} —
+    {% if fv_calc.gen_declarada_coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.gen_declarada_dif_pct, ' %') }}.</span>{% endif %}
   {% endif %}
 </div>
-{% endif %}
+<div class="nota-alcance" style="margin-top:0.4rem;">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Revisor Fotovoltaico.</div>
 {% endcall %}
-
 {% else %}
-<p class="nota-alcance">Completa al menos Potencia bomba, Horas bombeo, HSP, Wp, Vmp e Imp en el Chequeo de Cálculos para ver el recálculo.</p>
+<p class="nota-alcance">Completa potencia de la bomba y horas de riego por mes (y la generación específica anual del Explorador Solar) en el Chequeo de Cálculos para ver la verificación.</p>
 {% endif %}
 {% endif %}
 

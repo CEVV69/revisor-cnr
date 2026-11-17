@@ -324,6 +324,12 @@ def construir(sistema_agro: dict, tramos_hid: list, fv: dict, resumen: dict,
                 put(suf_c, c_val)
 
     # ── Dimensionamiento fotovoltaico (mismos sufijos en ambas apps) ──
+    # nov-2026: el Chequeo ya NO pide hbom/hsp/fp/vmp/imp/ct/temp/einv/vsis/días de riego (usa la
+    # metodología del Revisor Fotovoltaico: demanda mensual vs generación anual del Explorador Solar,
+    # ver `calculos_riego.verificacion_fv_anual`), pero los proyectos guardados antes los traen y
+    # `main._fv_preservar_legado` los conserva — siguen exportándose al Diseñador para no perderlos.
+    # Los datos nuevos (generación específica anual, generación declarada) no tienen campo en el
+    # Diseñador v135 (confirmado: no hay `fv-gu`/`fv-gen`); van en el .json del Revisor FV.
     for suf in ("pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis",
                 "diasriego", "conexion"):
         # dias_riego en Revisor → diasriego en el Diseñador (sin guión bajo)

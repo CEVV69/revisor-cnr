@@ -7858,3 +7858,31 @@ lo aplica a todos; el checklist de Diseño Fotovoltaico (analyzer.py) cita "ITT-
 de GD, cuando es ITT-02 4.5.1/4.5.1.2. `demanda_fv_mensual` sí calza con la norma. Propuesta
 (pendiente de decisión del usuario): chequeo principal %P con la generación anual declarada del
 Explorador Solar; hbom/hsp/paneles/cable opcionales; corregir la cita del checklist.
+
+
+## Chequeo Fotovoltaico reescrito con la metodología del Revisor FV (nov-2026)
+
+A pedido del usuario ("usa la metodología de la app fotovoltaica, y siempre ten a la vista que se
+descargan los datos .json"). Antes el Chequeo replicaba la cadena del Diseñador de Riego (día de
+diseño `hbom`+HSP, N° paneles, serie/paralelo, cable DC, balance con "días de riego al año"): sin
+respaldo en el ITT-02 §4.5.1 y con datos que los consultores no declaran. Ahora
+(`calculos_riego.verificacion_fv_anual`, mismas fórmulas de `calc()`/`verificar()` de
+`static/fotovoltaico_riego_v19.html`): Dem_anual = Σ mes horas/día × kW × (1+adic%) × días del mes
+(feb=29); kWp requeridos = Dem_anual / generación específica anual (kWh/kWp·año del Explorador
+Solar); cobertura = kWp declarado × GU / Dem; holgura >60% = justificar; paneles×Wp vs kWp (±5%);
+recurso 2–9 kWh/kWp·día; más el %P del ITT-02 4.5.1.2 con la generación anual declarada (tope 100%
+aplicable; el sobredimensionamiento por equipos comerciales es aceptable, no una falla). No
+verifica el modo aislado hora a hora (necesita el perfil horario del Revisor FV).
+**Llegó a todos los lugares (regla 10):** (1) `calculos.html` (form + recálculo JS nuevos), (2) los
+dos informes de Memoria de Cálculo (`informe_calculo.html`, `informe_calculo_completo.html`),
+(3) el análisis IA (`_bloque_verificacion_fv`, prompt de extracción `_extraer_datos_fv`, conceptos
+`CONCEPTOS_METODOLOGIA_FV`, checklist del ítem Diseño Fotovoltaico, ahora citando ITT-02), (4) los
+.json: `exportar-revisor-fv` (formato de la app FV; los datos nuevos sin campo allí —generación
+específica y generación declarada— van bajo la clave propia `revisorCNR`, que el importador de la app
+FV ignora) y `exportar_disenador` (conserva `fv-hbom`, `fv-hsp`, etc.). Campos nuevos del Chequeo:
+`gu_anual`, `declarado.gen_anual_kwh`; quitados de la pantalla: hbom, hsp, fp, temp, vmp, imp, ct,
+einv, vsis, días de riego, sección de cable. **Sin pérdida de datos:** `_fv_preservar_legado`
+conserva esos valores en proyectos ya guardados al guardar o re-extraer (siguen yendo al .json del
+Diseñador). Verificado con smoke test (PostgreSQL local y JSON local): pantalla, 2 informes,
+guardado con preservación, exportaciones, extracción con IA caída. El Excel oficial CNR en que se
+basó la app FV no está en el Drive. Pendiente: el modo aislado hora a hora sigue en la app FV.

@@ -597,41 +597,25 @@
   </div>
 
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y sitio</div>
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y recurso solar</div>
     <div class="agro-grid">
       <div><label>Potencia bomba (kW)</label><input type="number" step="0.01" id="pkw" name="pkw" value="{{ fv.pkw if fv.pkw is not none else '' }}"></div>
-      <div><label>Horas de bombeo/día</label><input type="number" step="0.1" id="hbom" name="hbom" value="{{ fv.hbom if fv.hbom is not none else '' }}"></div>
-      <div><label>HSP del sitio (hr)</label><input type="number" step="0.01" id="hsp" name="hsp" value="{{ fv.hsp if fv.hsp is not none else '' }}"></div>
-      <div><label>Factor pérdidas (0-1)</label><input type="number" step="0.01" id="fp" name="fp" value="{{ fv.fp if fv.fp is not none else '' }}" placeholder="0,80"></div>
-      <div><label>Temp. máxima sitio (°C)</label><input type="number" step="0.1" id="temp" name="temp" value="{{ fv.temp if fv.temp is not none else '' }}"></div>
       <div><label title="Fertirriego, controlador y pérdidas menores — 5% es un valor típico">Consumos adicionales (%)</label><input type="number" step="0.1" id="adic" name="adic" value="{{ fv.adic if fv.adic is not none else '' }}" placeholder="5"></div>
+      <div><label title="Generación anual por cada kWp instalado en el predio, del reporte del Explorador Solar (kWh/kWp·año). Ya incluye pérdidas, inclinación y temperatura.">Generación específica anual (kWh/kWp·año)</label><input type="number" step="1" id="gu_anual" name="gu_anual" value="{{ fv.gu_anual if fv.gu_anual is not none else '' }}"></div>
     </div>
 
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— para el Revisor Fotovoltaico</span></div>
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— demanda de la bomba; también se exporta al Revisor Fotovoltaico</span></div>
     <div class="agro-grid" style="grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); margin-bottom:0.9rem;">
       {% for mes in ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'] %}
       <div><label>{{ mes }}</label><input type="number" step="0.1" id="hmes{{ loop.index0 }}" name="hmes{{ loop.index0 }}" value="{{ fv.horas_mensuales[loop.index0] if fv.horas_mensuales and fv.horas_mensuales[loop.index0] is not none else '' }}"></div>
       {% endfor %}
     </div>
 
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Panel, inversor y sistema</div>
-    <div class="agro-grid">
-      <div><label>Panel Wp</label><input type="number" step="1" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
-      <div><label>Vmp panel (V)</label><input type="number" step="0.01" id="vmp" name="vmp" value="{{ fv.vmp if fv.vmp is not none else '' }}"></div>
-      <div><label>Imp panel (A)</label><input type="number" step="0.01" id="imp" name="imp" value="{{ fv.imp if fv.imp is not none else '' }}"></div>
-      <div><label>Coef. temp. panel (%/°C)</label><input type="number" step="0.01" id="ct" name="ct" value="{{ fv.ct if fv.ct is not none else '' }}" placeholder="-0,35"></div>
-      <div><label>Eficiencia inversor (0-1)</label><input type="number" step="0.01" id="einv" name="einv" value="{{ fv.einv if fv.einv is not none else '' }}" placeholder="0,95"></div>
-      <div><label>Voltaje sistema (V)</label><input type="number" step="1" id="vsis" name="vsis" value="{{ fv.vsis if fv.vsis is not none else '' }}"></div>
-    </div>
-
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Balance anual energético</div>
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Sistema</div>
     <div class="agro-grid" style="margin-bottom:0.9rem;">
+      <div><label>Panel Wp</label><input type="number" step="1" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
       <div>
-        <label title="Días efectivos que opera la bomba al año (para balance anual CNR §5.1)">Días de riego al año</label>
-        <input type="number" step="1" id="dias_riego" name="dias_riego" value="{{ fv.dias_riego if fv.dias_riego is not none else '' }}" placeholder="150">
-      </div>
-      <div>
-        <label title="Aislado: sin red eléctrica. On-grid: conectado a la red (aplica criterio balance ≤ 100 %)">Tipo de conexión</label>
+        <label title="Aislado: sin red eléctrica. La verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Revisor Fotovoltaico con el .json exportado">Tipo de conexión</label>
         <select id="conexion" name="conexion">
           <option value="aislado" {% if not fv.conexion or fv.conexion == 'aislado' %}selected{% endif %}>Aislado (sin red)</option>
           <option value="aislado_bat" {% if fv.conexion == 'aislado_bat' %}selected{% endif %}>Aislado con baterías (sin red)</option>
@@ -644,33 +628,32 @@
     <div class="agro-grid" style="margin-bottom:0.9rem;">
       <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
       <div><label>kWp total declarado</label><input type="number" step="0.01" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
-      <div><label>Sección cable DC declarada (mm²)</label><input type="number" step="0.5" id="decl_seccion" name="decl_seccion" value="{{ fv.declarado.seccion_cable_mm2 if fv.declarado and fv.declarado.seccion_cable_mm2 is not none else '' }}"></div>
+      <div><label title="Energía que el consultor declara que generará el sistema en un año (reporte del Explorador Solar o memoria)">Generación anual declarada (kWh/año)</label><input type="number" step="1" id="decl_gen_anual" name="decl_gen_anual" value="{{ fv.declarado.gen_anual_kwh if fv.declarado and fv.declarado.gen_anual_kwh is not none else '' }}"></div>
       <div><label title="Solo aplica si el sistema es aislado con baterías">Banco de baterías declarado (kWh)</label><input type="number" step="0.01" id="decl_banco" name="decl_banco" value="{{ fv.declarado.banco_baterias_kwh if fv.declarado and fv.declarado.banco_baterias_kwh is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
-    <p id="fv-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.</p>
+    <p id="fv-hint" class="text-muted" style="font-size:0.8rem; margin-bottom:0.5rem;">Completa potencia de la bomba y horas de riego por mes (y la generación específica anual del Explorador Solar) para ver la verificación.</p>
     <div style="overflow-x:auto;">
       <table class="calc-resultados-tbl">
-        <colgroup><col><col style="width:210px;"><col style="width:230px;"></colgroup>
+        <colgroup><col><col style="width:210px;"><col style="width:260px;"></colgroup>
         <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
         <tr>
-          <td class="col-concepto">E_día requerida (kWh/día)</td><td class="text-muted">—</td>
-          <td class="col-calc" id="fv-edia">—</td>
-        </tr>
-        <tr>
-          <td class="col-concepto">Configuración (serie × paralelo)</td><td class="text-muted">—</td>
-          <td class="col-calc" id="fv-config">—</td>
-        </tr>
-        <tr>
-          <td class="col-concepto">N° de paneles</td><td id="fv-npaneles-decl">—</td>
+          <td class="col-concepto" title="Σ mes: horas/día × potencia bomba × (1 + adicionales) × días del mes — misma fórmula del Revisor Fotovoltaico">Demanda anual de la bomba</td><td class="text-muted">—</td>
           <td class="col-calc">
-            <span id="fv-npaneles-calc">—</span>
-            <span id="fv-npaneles-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            <span id="fv-dem-calc">—</span>
+            <span id="fv-dem-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">kWp total</td>
+          <td class="col-concepto">Recurso solar (kWh/kWp·día prom.)</td><td id="fv-recurso-decl">—</td>
+          <td class="col-calc">
+            <span id="fv-recurso-calc">—</span>
+            <span id="fv-recurso-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto" title="Demanda anual ÷ generación específica anual">kWp requeridos (balance anual)</td>
           <td>
             <span id="fv-kwp-decl">—</span>
             <span id="fv-kwp-decl-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -681,18 +664,31 @@
           </td>
         </tr>
         <tr>
-          <td class="col-concepto">Sección cable DC (mm²)</td><td id="fv-seccion-decl">—</td>
+          <td class="col-concepto" title="kWp declarado × generación específica anual ÷ demanda anual">Cobertura anual</td><td class="text-muted">—</td>
           <td class="col-calc">
-            <span id="fv-seccion-calc">—</span>
-            <span id="fv-seccion-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            <span id="fv-cob-calc">—</span>
+            <span id="fv-cob-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
-        <tr id="fv-balance-row" style="display:none;">
-          <td class="col-concepto" title="Manual CNR-Ministerio de Energía §5.1">Balance anual energético</td>
-          <td class="text-muted">—</td>
+        <tr>
+          <td class="col-concepto">Generación anual (kWh/año)</td><td id="fv-gen-decl">—</td>
           <td class="col-calc">
-            <span id="fv-balance-calc">—</span>
-            <span id="fv-balance-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            <span id="fv-gen-calc">—</span>
+            <span id="fv-gen-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto" title="ITT-02 §4.5.1.2: %P = ERNC generada anualmente / energía requerida en la temporada de riego; el %P aplicable queda tope en 100 %">%P (instructivo CNR)</td><td class="text-muted">—</td>
+          <td class="col-calc">
+            <span id="fv-pp-calc">—</span>
+            <span id="fv-pp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-concepto">N° paneles × Wp</td><td id="fv-npaneles-decl">—</td>
+          <td class="col-calc">
+            <span id="fv-paneles-calc">—</span>
+            <span id="fv-paneles-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
       </table>
@@ -708,9 +704,10 @@
 
 <div class="card" style="background:rgba(128,128,128,0.05); border:none;">
   <p class="text-muted" style="font-size:0.8rem; margin:0;">
-    Fotovoltaico no cubre cableado AC, protecciones (DPS/fusibles), estructura de montaje ni
-    contraste con el Explorador Solar; asume 50 m de campo a inversor. Carrete de avance frontal
-    y microaspersión todavía no tienen verificación numérica.
+    Fotovoltaico usa la metodología del Revisor Fotovoltaico (demanda mensual de la bomba contra la
+    generación anual del Explorador Solar); no verifica el modo aislado hora a hora (potencia
+    instantánea, baterías), cableado, protecciones ni estructura de montaje — para lo primero use el .json.
+    Carrete de avance frontal y microaspersión todavía no tienen verificación numérica.
   </p>
 </div>
 
@@ -746,8 +743,6 @@
     }
     return false;
   }
-  var SECCIONES_CABLE = [4, 6, 10, 16, 25, 35, 50, 70];
-  var RHO_CU = 1/58;
 
   // DT-05: rango de valores de Kc aceptados por CNR — misma tabla que KC_RANGOS_DT05 en
   // analyzer.py, duplicada acá a propósito para el feedback visual instantáneo (ver nota al
@@ -2031,88 +2026,83 @@
   };
 
   // ── Fotovoltaico ────────────────────────────────────────────
-  function seccionNormalizada(calc) {
-    for (var i = 0; i < SECCIONES_CABLE.length; i++) {
-      if (calc <= SECCIONES_CABLE[i]) return SECCIONES_CABLE[i];
-    }
-    return SECCIONES_CABLE[SECCIONES_CABLE.length - 1];
-  }
+  // Misma metodología que el Revisor Fotovoltaico (app hermana) y que
+  // calculos_riego.verificacion_fv_anual — si se toca una, tocar la otra (y los 2 informes).
+  var DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  var MES3_FV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  var FV_CALC_IDS = ["fv-dem-calc", "fv-recurso-calc", "fv-kwp-calc", "fv-cob-calc", "fv-gen-calc", "fv-pp-calc", "fv-paneles-calc"];
+  var FV_NOTA_IDS = ["fv-dem-nota", "fv-recurso-nota", "fv-kwp-nota", "fv-cob-nota", "fv-gen-nota", "fv-pp-nota", "fv-paneles-nota"];
   function recalcFV() {
-    var pkw = numVal("pkw"), hbom = numVal("hbom"), hsp = numVal("hsp"), fp = numVal("fp"),
-        wp = numVal("wp"), vmp = numVal("vmp"), imp = numVal("imp"), ct = numVal("ct"),
-        temp = numVal("temp"), einv = numVal("einv"), vsis = numVal("vsis");
-    var diasRiego = numVal("dias_riego");
+    var pkw = numVal("pkw"), adic = numVal("adic"), gu = numVal("gu_anual"), wp = numVal("wp");
+    var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declGen = numVal("decl_gen_anual");
     var conexion = (document.getElementById("conexion") || {}).value || "aislado";
-    var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declSeccion = numVal("decl_seccion");
-
-    setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0));
-    setText("fv-kwp-decl", declKwp === null ? "—" : fmt(declKwp, 2) + " kWp");
-    setText("fv-seccion-decl", declSeccion === null ? "—" : fmt(declSeccion, 1) + " mm²");
-
-    // Consistencia interna de lo declarado: N° paneles × Wp panel debería sumar el kWp declarado
-    // (misma verificación que hace el Revisor Fotovoltaico con sus propios datos declarados).
-    if (declN !== null && wp && declKwp !== null) {
-      var kwpDeclCalc = declN * wp / 1000;
-      nota("fv-kwp-decl-nota", diferenciaRelevante(kwpDeclCalc, declKwp, 5)
-        ? (declN + " paneles × " + fmt(wp, 0) + " Wp = " + fmt(kwpDeclCalc, 2) + " kWp — no coincide con el kWp declarado.")
-        : "");
-    } else {
-      nota("fv-kwp-decl-nota", "");
+    var horas = [], hayHoras = false, excedidas = [];
+    for (var i = 0; i < 12; i++) {
+      var h = numVal("hmes" + i);
+      horas.push(h === null ? 0 : h);
+      if (h) hayHoras = true;
+      if (h !== null && h > 24) excedidas.push(MES3_FV[i]);
     }
 
-    if (!pkw || !hbom || !hsp || !wp || !vmp || !imp) {
-      ["fv-edia", "fv-config", "fv-npaneles-calc", "fv-kwp-calc", "fv-seccion-calc", "fv-balance-calc"].forEach(function(id) { setText(id, "—"); });
-      ["fv-npaneles-nota", "fv-kwp-nota", "fv-seccion-nota", "fv-balance-nota"].forEach(function(id) { nota(id, ""); });
-      document.getElementById("fv-balance-row").style.display = "none";
-      setText("fv-hint", "Completa al menos potencia bomba, horas de bombeo, HSP, Wp, Vmp e Imp para ver el recálculo.");
+    setText("fv-recurso-decl", gu === null ? "—" : fmt(gu, 0) + " kWh/kWp·año");
+    setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0) + " paneles");
+    setText("fv-kwp-decl", declKwp === null ? "—" : fmt(declKwp, 2) + " kWp");
+    setText("fv-gen-decl", declGen === null ? "—" : fmt(declGen, 0) + " kWh/año");
+
+    FV_CALC_IDS.forEach(function(id) { setText(id, "—"); });
+    FV_NOTA_IDS.forEach(function(id) { nota(id, ""); });
+    nota("fv-kwp-decl-nota", "");
+
+    if (!pkw || !hayHoras) {
+      setText("fv-hint", "Completa potencia de la bomba y horas de riego por mes (y la generación específica anual del Explorador Solar) para ver la verificación.");
       return;
     }
-    setText("fv-hint", "");
+    var adicPct = adic === null ? 0 : adic;
+    var dem = 0;
+    for (var m = 0; m < 12; m++) { dem += horas[m] * pkw * (1 + adicPct / 100) * DIAS_MES_FV[m]; }
+    setText("fv-dem-calc", fmt(dem, 0) + " kWh/año");
+    nota("fv-dem-nota", excedidas.length ? "Horas de riego imposibles (>24 h/día) en: " + excedidas.join(", ") + "." : "");
 
-    var eDia = pkw * hbom;
-    var pr = (fp || 0.80) * (einv || 0.95);
-    var derating = temp ? 1 + ((ct || 0) / 100) * (temp - 25) : 1.0;
-    var wpEfectivo = wp * derating;
-    var ePanel = (wpEfectivo / 1000) * hsp * pr;
-    var nPaneles = ePanel ? Math.ceil(eDia / ePanel) : 0;
-    var panSerie = vsis ? Math.max(1, Math.floor(vsis / vmp)) : 1;
-    var panParalelo = panSerie ? Math.ceil(nPaneles / panSerie) : nPaneles;
-    var nReal = panSerie * panParalelo;
-    var kwpTotal = nReal * wp / 1000;
-    var iCampo = panParalelo * imp;
-    var vCampo = panSerie * vmp;
-    var dvMax = vCampo * 0.02;
-    var seccionCalc = dvMax ? (RHO_CU * 50 * iCampo) / dvMax : 0;
-    var seccionNorm = seccionCalc ? seccionNormalizada(seccionCalc) : null;
-
-    setText("fv-edia", fmt(eDia, 3) + " kWh/día");
-    setText("fv-config", panSerie + "S × " + panParalelo + "P");
-    setText("fv-npaneles-calc", nReal + " (mínimo " + nPaneles + ")");
-    setText("fv-kwp-calc", fmt(kwpTotal, 2) + " kWp");
-    setText("fv-seccion-calc", seccionNorm === null ? "—" : fmt(seccionNorm, 1) + " mm²");
-
-    nota("fv-npaneles-nota", (declN !== null && declN < nReal) ? "El recálculo indica que se necesitan al menos " + nReal + " paneles." : "");
-    nota("fv-kwp-nota", diferenciaRelevante(kwpTotal, declKwp, 15) ? "No coincide con lo declarado (" + fmt(declKwp, 2) + " kWp)." : "");
-    nota("fv-seccion-nota", (declSeccion !== null && seccionNorm !== null && declSeccion < seccionNorm) ? "El recálculo sugiere al menos " + fmt(seccionNorm, 1) + " mm² para no exceder la caída de tensión del 2%." : "");
-
-    // Balance Anual Energético (Manual CNR-Ministerio de Energía §5.1)
-    var balanceRow = document.getElementById("fv-balance-row");
-    if (diasRiego && diasRiego > 0) {
-      var genDia = ePanel * nReal;
-      var genAnual = genDia * 365;
-      var consumoAnual = pkw * hbom * diasRiego;
-      var balance = consumoAnual ? genAnual / consumoAnual * 100 : 0;
-      balanceRow.style.display = "";
-      var balanceTxt = fmt(balance, 1) + "% (gen. " + fmt(genAnual, 0) + " / cons. " + fmt(consumoAnual, 0) + " kWh/año)";
-      setText("fv-balance-calc", balanceTxt);
-      var notaBalance = "";
-      if (conexion === "ongrid" && balance > 100) {
-        notaBalance = "Sistema on-grid: balance > 100 %. El Manual CNR indica que no debe superar el 100 % — el parque está sobredimensionado.";
-      }
-      nota("fv-balance-nota", notaBalance);
+    var hint = "";
+    if (!gu) {
+      hint = "Falta: generación específica anual del Explorador Solar (kWh/kWp·año) para calcular kWp requeridos y cobertura.";
     } else {
-      balanceRow.style.display = "none";
+      var guDia = gu / 366;
+      setText("fv-recurso-calc", fmt(guDia, 2) + " kWh/kWp·día");
+      nota("fv-recurso-nota", (guDia < 2 || guDia > 9) ? "Fuera de lo esperable (en Chile 3 a 7 kWh/kWp·día) — revisar el dato." : "");
+      var kwpReq = dem / gu;
+      setText("fv-kwp-calc", fmt(kwpReq, 2) + " kWp");
+      if (declKwp) {
+        var gen = declKwp * gu;
+        var cob = gen / dem * 100;
+        var holg = (declKwp / kwpReq - 1) * 100;
+        setText("fv-cob-calc", fmt(cob, 1) + " % (gen. " + fmt(gen, 0) + " / dem. " + fmt(dem, 0) + " kWh/año)");
+        setText("fv-gen-calc", fmt(gen, 0) + " kWh/año");
+        if (declKwp < kwpReq * 0.999) {
+          nota("fv-kwp-nota", "El kWp declarado no cubre la demanda anual: faltan " + fmt(kwpReq - declKwp, 2) + " kWp.");
+          nota("fv-cob-nota", "La generación anual no alcanza la demanda anual.");
+        } else if (holg > 60) {
+          nota("fv-kwp-nota", "Potencia " + fmt(holg, 0) + " % sobre lo requerido — pedir justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos).");
+        }
+        if (declGen !== null && Math.abs(declGen - gen) / gen * 100 > 10) {
+          nota("fv-gen-nota", "La generación declarada difiere más de 10 % de kWp declarado × generación específica (" + fmt(gen, 0) + " kWh/año).");
+        }
+      }
     }
+    if (declGen !== null) {
+      var pctP = declGen / dem;
+      setText("fv-pp-calc", fmt(pctP * 100, 1) + " %" + (pctP > 1 ? " (aplicable: 100 %)" : ""));
+      nota("fv-pp-nota", pctP < 0.999 ? "Generación declarada menor a la energía requerida: el instructivo pide generar el 100 % anual o la fracción complementaria declarada." : "");
+    }
+    if (declN !== null && wp && declKwp) {
+      var kwpP = declN * wp / 1000;
+      setText("fv-paneles-calc", declN + " × " + fmt(wp, 0) + " Wp = " + fmt(kwpP, 2) + " kWp");
+      nota("fv-paneles-nota", diferenciaRelevante(kwpP, declKwp, 5) ? "Los paneles declarados no suman el kWp declarado (" + fmt(declKwp, 2) + " kWp)." : "");
+    }
+    if (conexion !== "ongrid" && !hint) {
+      hint = "Sistema aislado: la verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Revisor Fotovoltaico — exporta el .json.";
+    }
+    setText("fv-hint", hint);
   }
 
   var formAgro = document.getElementById("form-agro");

@@ -731,17 +731,21 @@ CARRETE (metodología INIA-Carillanca) — puntos que se omiten con frecuencia:
     "diseno_fotovoltaico": {
         "nombre": "Diseño Fotovoltaico",
         "tipo_docs": ["diseno_fotovoltaico", "reporte_explorador_solar"],
-        "checklist": """Verifica que el proyecto ERNC incluya, como mínimo (ITT-03 4.5.1.1): diseño del sistema y su
+        "checklist": """Verifica que el proyecto ERNC incluya, como mínimo (ITT-02 4.5.1.1): diseño del sistema y su
 memoria de cálculo, plano de la estructura de soporte, plano del proyecto eléctrico, elementos de
-protección, e inversor (salvo bomba de corriente continua). El diseño debe demostrar que la
-generación cubre el 100% de la energía requerida en la temporada de riego, o la fracción
-complementaria declarada — coherente con el consumo de la bomba del diseño hidráulico
-(dimensionamiento básico ya verificado por la app: N° de paneles, kWp, sección de cable DC). La
-capacidad de generación debe basarse en el Explorador Solar del Ministerio de Energía — exige el
-reporte y que los kWh/año declarados sean consistentes con él; la HSP debe corresponder al punto
-GPS del predio, no a un valor genérico por defecto. En sistemas ON-GRID la generación anual no debe
-SUPERAR el consumo del proyecto (tope de la Ley de Generación Distribuida): un sistema
-sobredimensionado por sobre su propio consumo también es observable, no solo uno que queda corto.
+protección, e inversor (salvo bomba de corriente continua), y un análisis de generación en relación
+a la energía total requerida para la operación del sistema de riego. El diseño debe generar el 100%
+de la energía requerida anualmente, o la complementaria a la fuente existente (no se aceptan
+reemplazos de fuentes existentes: no generan superficie de nuevo riego). La capacidad de generación
+debe calcularse con el Explorador Solar del Ministerio de Energía — exige el reporte y que los
+kWh/año declarados sean consistentes con él y con el punto GPS del predio, no un valor genérico.
+Criterio oficial (ITT-02 4.5.1.2): %P = ERNC generada anualmente (kWh/año) / energía requerida en la
+temporada de riego (kWh/temporada); en ningún caso el %P aplicable supera 100% — el
+sobredimensionamiento solo es aceptable por tamaños comerciales de equipos, por lo que uno
+desproporcionado (muy por sobre lo requerido) también es observable y debe justificarse. La app
+verifica con la metodología del Revisor Fotovoltaico: demanda mensual de la bomba (horas de riego
+por mes × potencia) contra la generación anual por kWp del Explorador Solar (kWp requeridos,
+cobertura anual, %P); el modo aislado hora a hora no lo recalcula la app.
 El proyecto eléctrico debe estar firmado por profesional acreditado SEC y detallar
 cubicación/precios de sus componentes (postes, cable de conducción, subestación, elementos de
 protección y medida, costos de tramitación SEC). Verifica certificación/tramitación SEC según
@@ -2962,50 +2966,40 @@ async def _extraer_datos_fv(docs_grupo: list) -> dict:
     Usa el mismo presupuesto de caracteres (120.000) que la revisión del ítem Diseño
     Fotovoltaico (ver MAX_CHARS_POR_ITEM) — antes usaba el default de 60.000 de
     `_texto_grupo_para_extraccion`, la mitad, y con un Excel + memoria de cálculo típicos
-    del ítem, datos de la mitad/final del expediente (HSP, voltaje de sistema, sección de
-    cable, horas de bombeo) quedaban truncados fuera del texto que ve la IA."""
+    del ítem, datos de la mitad/final del expediente (horas de riego por mes, generación
+    específica del Explorador Solar) quedaban truncados fuera del texto que ve la IA."""
     texto = _texto_grupo_para_extraccion(
         docs_grupo, max_chars=MAX_CHARS_POR_ITEM.get("diseno_fotovoltaico", 80000))
     if not texto.strip():
         return {}
-    prompt = f"""Extrae del siguiente expediente los datos del dimensionamiento del sistema
-fotovoltaico (bomba a alimentar, panel solar, sitio, inversor) y los resultados que declara
-el consultor. NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
+    prompt = f"""Extrae del siguiente expediente los datos del sistema fotovoltaico de bombeo para
+riego (bomba a alimentar, consumo por mes, generación del predio) y lo que declara el
+consultor. NO inventes ni calcules nada — si un dato no aparece explícitamente, usa null.
 Responde SOLO este JSON, sin texto adicional:
-{{"pkw": number|null, "hbom": number|null, "hsp": number|null, "fp": number|null,
-"wp": number|null, "vmp": number|null, "imp": number|null, "ct": number|null,
-"temp": number|null, "einv": number|null, "vsis": number|null, "adic": number|null,
+{{"pkw": number|null, "adic": number|null, "gu_anual": number|null, "wp": number|null,
 "horas_mensuales": [number|null, number|null, number|null, number|null, number|null,
 number|null, number|null, number|null, number|null, number|null, number|null, number|null],
-"declarado": {{"n_paneles": number|null, "kwp_total": number|null, "seccion_cable_mm2": number|null,
+"declarado": {{"n_paneles": number|null, "kwp_total": number|null, "gen_anual_kwh": number|null,
 "banco_baterias_kwh": number|null}}}}
 
 Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
-hbom = horas de bombeo al día PROMEDIO (usa este solo si no hay desglose mensual; puede llamarse
-"régimen horario de bombeo" u "horas de operación de la bomba"). hsp = horas sol pico del sitio;
-también puede venir como "recurso solar promedio (kWh/m²/día)" — es el mismo valor numérico
-(1 kWh/m²/día = 1 HSP), suele salir del Explorador Solar CNR o de un informe de radiación. fp =
-factor de pérdidas del sistema (decimal 0-1, ej 0,80). wp/vmp/imp = ficha técnica del panel
-(potencia nominal, voltaje y corriente en punto de máxima potencia). ct = coeficiente de
-temperatura del panel (%/°C). temp = temperatura máxima del sitio. einv = eficiencia del
-inversor (decimal 0-1). vsis = voltaje nominal del sistema/inversor — puede aparecer como
-"voltaje del bus DC", "voltaje del arreglo/string fotovoltaico" o "voltaje de entrada del
-inversor" (busca el valor nominal, no el rango mín-máx). adic = consumos adicionales declarados
-(%, fertirriego/controlador/pérdidas menores).
-
-declarado.seccion_cable_mm2 = sección del cable/conductor DC que declara el proyecto (mm²) —
-puede estar en la memoria de cálculo o en la lista de materiales del presupuesto eléctrico,
-como "calibre de cable", "sección del conductor" o "cable DC". Si viene en AWG, no la
-conviertas: repórtala como null (evita un dato con la unidad equivocada).
+adic = consumos adicionales declarados (%, fertirriego/controlador/pérdidas menores).
+gu_anual = generación específica anual del predio en kWh por cada kWp instalado y por año
+(kWh/kWp·año) — suele salir del reporte del Explorador Solar del Ministerio de Energía, donde
+puede llamarse "producción específica", "rendimiento anual" o "energía anual por kWp". Si el
+documento solo da la generación total anual (kWh/año) y NO el dato por kWp, déjalo null (no lo
+calcules). wp = potencia nominal del panel (Wp).
 
 horas_mensuales: BUSCA CON CUIDADO en tablas de cronograma de riego, calendario de riego,
 demanda mensual, balance hídrico o consumo energético mensual — es MUY COMÚN que estas tablas
 estén en un archivo Excel adjunto, con un mes por fila o columna y las horas de riego/bombeo
-promedio de ese mes. Es un array de 12 valores en orden Enero→Diciembre; usa null en los meses
-sin ese dato o sin riego. NO confundas esto con hbom (que es un solo promedio anual).
+promedio por DÍA de ese mes. Es un array de 12 valores en orden Enero→Diciembre; usa null en los
+meses sin ese dato o sin riego.
 
-declarado.banco_baterias_kwh = capacidad del banco de baterías que declara el proyecto, solo si
-el sistema es aislado con respaldo de baterías.
+declarado.kwp_total = potencia fotovoltaica total instalada que declara el proyecto (kWp).
+declarado.gen_anual_kwh = energía que el consultor declara que generará el sistema en un año
+(kWh/año), del Explorador Solar o de la memoria. declarado.banco_baterias_kwh = capacidad del
+banco de baterías, solo si el sistema es aislado con respaldo de baterías.
 
 EXPEDIENTE:
 {texto}"""
@@ -3024,43 +3018,59 @@ EXPEDIENTE:
 
 
 def _bloque_verificacion_fv(datos: dict) -> str:
-    """Recalcula el dimensionamiento fotovoltaico y arma el bloque para inyectar en el
-    prompt. Solo calcula si los datos base imprescindibles están presentes."""
+    """Recalcula la verificación fotovoltaica con la metodología del Revisor Fotovoltaico (demanda
+    mensual de la bomba vs. generación anual del Explorador Solar) y arma el bloque para inyectar
+    en el prompt. Solo calcula si están los datos base imprescindibles (bomba y horas por mes)."""
     if not datos:
         return ""
-    base = ["pkw", "hbom", "hsp", "wp", "vmp", "imp"]
-    if any(datos.get(k) is None for k in base):
-        return ""
-    r = calculos_riego.dimensionamiento_fv(
-        pkw=datos["pkw"], hbom=datos["hbom"], hsp=datos["hsp"], fp=datos.get("fp"),
-        wp=datos["wp"], vmp=datos["vmp"], imp=datos["imp"], ct=datos.get("ct"),
-        temp=datos.get("temp"), einv=datos.get("einv"), vsis=datos.get("vsis"),
+    declarado = datos.get("declarado") or {}
+    r = calculos_riego.verificacion_fv_anual(
+        pkw=datos.get("pkw"), adic=datos.get("adic"),
+        horas_mensuales=datos.get("horas_mensuales"), gu_anual=datos.get("gu_anual"),
+        kwp_declarado=declarado.get("kwp_total"), n_paneles=declarado.get("n_paneles"),
+        wp=datos.get("wp"), gen_anual_declarada=declarado.get("gen_anual_kwh"),
     )
     if not r:
         return ""
-    declarado = datos.get("declarado") or {}
-    lineas = [
-        f"E_día requerida = P_bomba × H_bombeo = {datos['pkw']} kW × {datos['hbom']} hr = {r['e_dia_kwh']} kWh/día",
-        f"N° paneles mínimo recalculado = {r['n_paneles_minimo']} (config. real: "
-        f"{r['paneles_serie']} serie × {r['strings_paralelo']} paralelo = {r['n_paneles_real']} paneles)",
-        f"kWp total recalculado = {r['kwp_total']} kWp",
-        f"Cable DC recalculado = {r['seccion_cable_mm2']} mm² "
-        f"(V campo={r['v_campo_v']} V, I campo={r['i_campo_a']} A, caída máx. 2%)",
-    ]
+    lineas = [f"Demanda anual de la bomba = Σ mes (horas/día × {datos['pkw']} kW × "
+              f"(1 + {datos.get('adic') or 0} % adicionales) × días del mes) = {r['dem_anual_kwh']} kWh/año"]
+    if r.get("gu_anual"):
+        lineas.append(f"Generación específica del predio = {r['gu_anual']} kWh/kWp·año "
+                      f"({r['gu_dia_prom']} kWh/kWp·día promedio)")
+        lineas.append(f"kWp requeridos por balance anual = demanda ÷ generación específica = {r['kwp_requerido']} kWp")
+        if r.get("cobertura_pct") is not None:
+            lineas.append(f"Con {declarado['kwp_total']} kWp declarados: generación {r['gen_anual_kwh']} kWh/año, "
+                          f"cobertura anual {r['cobertura_pct']} % (holgura {r['holgura_pct']} %)")
+    if r.get("pct_p") is not None:
+        lineas.append(f"%P del instructivo CNR (ITT-02 §4.5.1.2) = generación anual declarada "
+                      f"{declarado['gen_anual_kwh']} kWh ÷ demanda {r['dem_anual_kwh']} kWh = "
+                      f"{round(r['pct_p'] * 100, 1)} % (el %P aplicable queda tope en 100 %)")
     comparaciones = []
-    if declarado.get("n_paneles") is not None and declarado["n_paneles"] < r["n_paneles_real"]:
-        comparaciones.append(
-            f"El expediente declara {declarado['n_paneles']} paneles — el recálculo indica "
-            f"que se necesitan al menos {r['n_paneles_real']} para cubrir la energía requerida.")
-    if declarado.get("kwp_total") is not None and _diferencia_relevante(r["kwp_total"], declarado["kwp_total"], 15):
-        comparaciones.append(f"kWp declarado = {declarado['kwp_total']} — no coincide con el recálculo ({r['kwp_total']} kWp).")
-    if declarado.get("seccion_cable_mm2") is not None and declarado["seccion_cable_mm2"] < r["seccion_cable_mm2"]:
-        comparaciones.append(
-            f"Sección de cable DC declarada = {declarado['seccion_cable_mm2']} mm² — el "
-            f"recálculo sugiere al menos {r['seccion_cable_mm2']} mm² para no exceder la caída de tensión del 2%.")
-    texto = ("\n\nVERIFICACIÓN FOTOVOLTAICA (cálculo determinístico con la cadena de "
-            "dimensionamiento del Diseñador de Riego — no es una estimación de la IA, es un "
-            "recálculo exacto a partir de los datos base que declara el expediente):\n"
+    if r["demanda"].get("horas_excedidas"):
+        comparaciones.append("Horas de riego imposibles (>24 h/día) declaradas en: "
+                             + ", ".join(r["demanda"]["horas_excedidas"]) + ".")
+    if r.get("recurso_en_rango") is False:
+        comparaciones.append(f"La generación específica ({r['gu_dia_prom']} kWh/kWp·día) está fuera de lo "
+                             "esperable en Chile (3 a 7) — verificar que corresponda al punto GPS del predio.")
+    if r.get("cubre") is False:
+        comparaciones.append(f"El kWp declarado ({declarado['kwp_total']}) NO cubre la demanda anual: "
+                             f"se requieren al menos {r['kwp_requerido']} kWp (cobertura {r['cobertura_pct']} %).")
+    if r.get("holgura_alta"):
+        comparaciones.append(f"El kWp declarado supera en {r['holgura_pct']} % lo requerido — pedir "
+                             "justificar el sobredimensionamiento (es aceptable solo por tamaños comerciales de equipos).")
+    if r.get("paneles_coinciden") is False:
+        comparaciones.append(f"{declarado['n_paneles']} paneles × {datos['wp']} Wp = {r['kwp_por_paneles']} kWp, "
+                             f"no coincide con los {declarado['kwp_total']} kWp declarados.")
+    if r.get("gen_declarada_coincide") is False:
+        comparaciones.append(f"La generación anual declarada ({declarado['gen_anual_kwh']} kWh) difiere "
+                             f"{r['gen_declarada_dif_pct']} % de kWp declarado × generación específica ({r['gen_anual_kwh']} kWh).")
+    if r.get("pct_p") is not None and r["pct_p"] < 0.999:
+        comparaciones.append("La generación anual declarada es menor a la energía requerida: el instructivo pide "
+                             "generar el 100 % anual o la fracción complementaria declarada.")
+    texto = ("\n\nVERIFICACIÓN FOTOVOLTAICA (cálculo determinístico con la metodología del Revisor "
+            "Fotovoltaico — demanda mensual de la bomba vs. generación anual del Explorador Solar; no es una "
+            "estimación de la IA, es un recálculo exacto a partir de los datos que declara el expediente. "
+            "NO verifica el modo aislado hora a hora):\n"
             + "\n".join(f"- {l}" for l in lineas))
     if comparaciones:
         texto += ("\n\nDISCREPANCIAS con lo declarado en el expediente:\n"
@@ -4892,15 +4902,11 @@ CONCEPTOS_METODOLOGIA = [
 ]
 
 CONCEPTOS_METODOLOGIA_FV = [
-    ("fv_energia_dia",    "Energía diaria requerida (E_día = P_bomba × horas de bombeo)"),
-    ("fv_hsp",            "HSP del sitio (Horas de Sol Pico, tomado del Explorador Solar CNR)"),
-    ("fv_wp_efectivo",    "Potencia efectiva del panel con corrección térmica (derating por temperatura)"),
-    ("fv_e_panel",        "Energía generada por panel al día (Wp_ef/1000 × HSP × PR)"),
-    ("fv_n_paneles",      "N° de paneles calculado (fórmula y resultado)"),
-    ("fv_configuracion",  "Configuración serie/paralelo de los paneles (Vmp, Vsis, Imp)"),
-    ("fv_kwp",            "kWp total instalado (potencia pico del sistema)"),
-    ("fv_cable_dc",       "Sección del cable DC calculada o justificada"),
-    ("fv_balance_anual",  "Balance anual energético (generación FV vs. consumo de la bomba, §5.1 Manual CNR)"),
+    ("fv_demanda_energia", "Energía que requiere la bomba en la temporada de riego (potencia × horas de riego por mes, kWh/año)"),
+    ("fv_recurso_solar",   "Recurso/generación solar del predio (Explorador Solar: kWh/kWp·año o irradiación, con inclinación y orientación)"),
+    ("fv_kwp",             "Potencia fotovoltaica instalada (kWp) y su justificación (paneles × Wp)"),
+    ("fv_generacion_anual","Generación anual estimada del sistema (kWh/año)"),
+    ("fv_balance_anual",   "Balance anual: generación FV vs. energía requerida (%P, ITT-02 4.5.1.2)"),
 ]
 
 

@@ -2486,16 +2486,39 @@ def _agronomico_calculo(datos: dict):
     return r
 
 
+# Datos del chequeo FV anterior (cadena del Diseñador de Riego: día de diseño + HSP + cable) — ya no
+# se piden en el Chequeo (ver `calculos_riego.verificacion_fv_anual`), pero los proyectos
+# guardados antes los traen y siguen alimentando el .json del Diseñador de Riego
+# (`exportar_disenador`), así que se CONSERVAN al guardar o re-extraer en vez de borrarlos.
+_FV_CAMPOS_LEGADO = ("hbom", "hsp", "fp", "vmp", "imp", "ct", "temp", "einv", "vsis",
+                     "dias_riego")
+
+
+def _fv_preservar_legado(previo: dict, nuevo: dict) -> dict:
+    previo = previo or {}
+    for k in _FV_CAMPOS_LEGADO:
+        if nuevo.get(k) is None and previo.get(k) is not None:
+            nuevo[k] = previo[k]
+    cable = (previo.get("declarado") or {}).get("seccion_cable_mm2")
+    if cable is not None:
+        nuevo.setdefault("declarado", {})
+        if nuevo["declarado"].get("seccion_cable_mm2") is None:
+            nuevo["declarado"]["seccion_cable_mm2"] = cable
+    return nuevo
+
+
 def _fv_calculo(datos: dict):
-    campos = ["pkw", "hbom", "hsp", "wp", "vmp", "imp"]
-    if datos and all(datos.get(k) not in (None, "") for k in campos):
-        return calculos_riego.dimensionamiento_fv(
-            pkw=datos["pkw"], hbom=datos["hbom"], hsp=datos["hsp"], fp=datos.get("fp"),
-            wp=datos["wp"], vmp=datos["vmp"], imp=datos["imp"], ct=datos.get("ct"),
-            temp=datos.get("temp"), einv=datos.get("einv"), vsis=datos.get("vsis"),
-            dias_riego=datos.get("dias_riego"), conexion=datos.get("conexion"),
-        ) or None
-    return None
+    """Verificación fotovoltaica con la metodología del Revisor Fotovoltaico (app hermana):
+    demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar."""
+    if not datos:
+        return None
+    decl = datos.get("declarado") or {}
+    return calculos_riego.verificacion_fv_anual(
+        pkw=datos.get("pkw"), adic=datos.get("adic"),
+        horas_mensuales=datos.get("horas_mensuales"), gu_anual=datos.get("gu_anual"),
+        kwp_declarado=decl.get("kwp_total"), n_paneles=decl.get("n_paneles"),
+        wp=datos.get("wp"), gen_anual_declarada=decl.get("gen_anual_kwh"),
+    ) or None
 
 
 @app.get("/proyecto/{proyecto_id}/calculos", response_class=HTMLResponse)
@@ -2823,19 +2846,6 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
 
     fv = verif.get("energetico") or {}
     fv_calc = _fv_calculo(fv) or {}
-    fv_demanda = calculos_riego.demanda_fv_mensual(
-        fv.get("pkw"), fv.get("adic"), fv.get("horas_mensuales")) or {}
-
-    # Consistencia interna de lo declarado (N° paneles × Wp panel vs. kWp declarado) — mismo
-    # criterio que usa el propio Revisor Fotovoltaico con sus datos declarados.
-    fv_decl = fv.get("declarado") or {}
-    fv_consistencia_paneles = None
-    if fv_decl.get("n_paneles") is not None and fv.get("wp") and fv_decl.get("kwp_total"):
-        kwp_por_paneles = fv_decl["n_paneles"] * fv["wp"] / 1000
-        diff_pct = abs(kwp_por_paneles - fv_decl["kwp_total"]) / fv_decl["kwp_total"] * 100
-        fv_consistencia_paneles = {
-            "kwp_por_paneles": round(kwp_por_paneles, 2), "coincide": diff_pct <= 5,
-        }
 
     # Metodología del consultor para el informe completo
     mc_completo = (verif.get("metodologia_consultor") or {}).get("completo") or {}
@@ -2860,8 +2870,7 @@ async def informe_calculo_completo(request: Request, proyecto_id: str):
     return templates.TemplateResponse("informe_calculo_completo.html", {
         "request": request, "proyecto": proyecto,
         "n_sistemas": n_sistemas, "sistemas": sistemas,
-        "fv": fv, "fv_calc": fv_calc, "fv_demanda": fv_demanda,
-        "fv_consistencia_paneles": fv_consistencia_paneles,
+        "fv": fv, "fv_calc": fv_calc,
         "mc_por_sistema": mc_por_sistema,
         "mc_fv": mc_fv,
         "mc_fecha": mc_completo.get("fecha", "")[:10] if mc_completo else None,
@@ -3191,6 +3200,18 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     if banco_kwh is not None:
         doc["fotovoltaico"]["bancoBateriasKWh"] = banco_kwh
 
+    # Datos del Chequeo que el Revisor FV (v19) todavía no tiene como campo propio — el perfil solar
+    # horario del predio se importa DENTRO de esa app desde el Explorador Solar, y su importador
+    # ignora las claves que no conoce. Van bajo una clave propia para no perderlos al compartir el
+    # archivo y para contrastarlos con el resultado de esa app (cobertura anual, %P del ITT-02).
+    extra_cnr = {}
+    if fv.get("gu_anual") is not None:
+        extra_cnr["generacionEspecificaAnualKWhKWp"] = fv["gu_anual"]
+    if declarado.get("gen_anual_kwh") is not None:
+        extra_cnr["generacionAnualDeclaradaKWh"] = declarado["gen_anual_kwh"]
+    if extra_cnr:
+        doc["revisorCNR"] = extra_cnr
+
     # Validación mínima: debe haber al menos potencia de bomba o kWp propuesto declarado.
     if not doc["bombeo"].get("potenciaKW") and not doc["fotovoltaico"].get("potenciaPropuestaKWp"):
         return RedirectResponse(
@@ -3323,6 +3344,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     datos["validado"] = False
     datos["fuente_docs"] = _fuente_docs_para_vista(docs_grupo)
     proyecto.setdefault("verificacion_calculos", {})
+    _fv_preservar_legado(proyecto["verificacion_calculos"].get("energetico"), datos)
     proyecto["verificacion_calculos"]["energetico"] = datos
     _registrar_costo(proyecto, "chequeo", acc_costo)
     (await asyncio.to_thread(db.save_proyecto, proyecto))
@@ -3339,8 +3361,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
 
     form = await request.form()
-    campos = ["pkw", "hbom", "hsp", "fp", "wp", "vmp", "imp", "ct", "temp", "einv", "vsis",
-              "dias_riego", "adic"]
+    campos = ["pkw", "adic", "gu_anual", "wp"]
     datos = {c: _num_form(form, c) for c in campos}
     datos["conexion"] = form.get("conexion") or "aislado"
     horas_mensuales = [_num_form(form, f"hmes{i}") for i in range(12)]
@@ -3348,9 +3369,11 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     datos["declarado"] = {
         "n_paneles": _num_form(form, "decl_npaneles"),
         "kwp_total": _num_form(form, "decl_kwp"),
-        "seccion_cable_mm2": _num_form(form, "decl_seccion"),
+        "gen_anual_kwh": _num_form(form, "decl_gen_anual"),
         "banco_baterias_kwh": _num_form(form, "decl_banco"),
     }
+    # Los datos del chequeo anterior (hbom, hsp, cable, etc.) no se piden más pero se conservan.
+    _fv_preservar_legado((proyecto.get("verificacion_calculos") or {}).get("energetico"), datos)
     validado = form.get("validar") == "on"
     datos["validado"] = validado
     datos["fecha_validado"] = _ahora().isoformat() if validado else None

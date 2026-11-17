@@ -44,25 +44,19 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
-**Confirmado funcionando por el usuario (nov-2026):** botón de "Debate con la IA" ya no queda
-pegado en "Enviando…" (fix de timeout + red de seguridad en recarga); anti-doble-cobro
-confirmado sin duplicados en Console tras una reconexión intermitente con Railway; notas manuales
-en Revisión Ítem SEP, con selector de ítem y sin categoría (`_form_nota_manual`, proyecto.html).
+**Confirmado por el usuario (nov-2026):** botón "Debate con la IA" sin pegarse; anti-doble-cobro;
+notas manuales en Revisión Ítem SEP (`_form_nota_manual`).
 
-**En prueba, sin confirmar aún (nov-2026):** fix "Revisar todos" omitía ítems con un solo documento
-escaneado/plano; Ficha de Revisión muestra solo el párrafo de propuesta de cada observación; fix
-parpadeo/salto de scroll al aprobar/descartar/dejar pendiente una observación; total en UF del
-Presupuesto inicial; campo "Características obras" con datos técnicos en prosa (tope 400 car.);
-regla de "no mezclar sistemas de riego" + presupuesto de texto del chat igualado al del análisis
-completo (Diseño hidráulico) — pendiente confirmar si el dato del sistema Carrete ya sale
-correcto; **todas** las llamadas a Postgres (`db.*`) en rutas async ahora van en
-`asyncio.to_thread` (antes bloqueaban el único hilo de la app — probable causa de las caídas/lentitud
-intermitentes, no Railway). Si la app sigue lenta/caída, revisar logs de Railway; ver
-`docs/historial_sesiones.md`.
+**En prueba, sin confirmar (nov-2026):** fix "Revisar todos"; Ficha solo con párrafo de propuesta;
+fix scroll al aprobar/descartar; total en UF del Presupuesto; "Características obras" con datos
+técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igual al del análisis;
+todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloqueaba su único
+hilo; si sigue lenta, revisar logs de Railway); **Chequeo Fotovoltaico reescrito** con la
+metodología de la app Revisor FV (demanda mensual vs generación anual por kWp del Explorador Solar,
+%P del ITT-02 4.5.1.2): `calculos_riego.verificacion_fv_anual`, llega a Chequeo, 2 informes,
+análisis IA y .json (regla 10). Detalle de todo en `docs/historial_sesiones.md`.
 
-**Pendiente / sin probar:** REVISAR la metodología del cálculo fotovoltaico del Chequeo
-(`dimensionamiento_fv` día de diseño `hbom`+`hsp` NO tiene respaldo en el ITT-02 4.5.1: la norma
-pide %P = generación anual Explorador / energía de la temporada ≤ 100%, ver `docs/historial_sesiones.md`); extracción automática de presupuesto en Modificaciones, sin probar con la
+**Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
 Ítem SEP en `<details>` cerrados: pendiente de confirmar. Lección: estados de `<details>`/anclas se
 prueban en Chromium real, no con TestClient.
