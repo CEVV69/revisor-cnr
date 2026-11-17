@@ -61,8 +61,8 @@ intermitentes, no Railway). Si la app sigue lenta/caída, revisar logs de Railwa
 `docs/historial_sesiones.md`.
 
 **Pendiente / sin probar:** REVISAR la metodología del cálculo fotovoltaico del Chequeo
-(`dimensionamiento_fv`: un solo día de diseño `hbom`+`hsp`, no cuadra con consultores que usan
-los reportes del Explorador Solar — pedido del usuario); extracción automática de presupuesto en Modificaciones, sin probar con la
+(`dimensionamiento_fv` día de diseño `hbom`+`hsp` NO tiene respaldo en el ITT-02 4.5.1: la norma
+pide %P = generación anual Explorador / energía de la temporada ≤ 100%, ver `docs/historial_sesiones.md`); extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
 Ítem SEP en `<details>` cerrados: pendiente de confirmar. Lección: estados de `<details>`/anclas se
 prueban en Chromium real, no con TestClient.

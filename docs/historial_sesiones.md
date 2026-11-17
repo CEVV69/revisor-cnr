@@ -7839,3 +7839,22 @@ Riesgo conocido: entre un get y un save ahora hay un `await`, así que dos petic
 sobre el MISMO proyecto pueden pisarse (ya ocurría con el análisis en segundo plano; con un solo
 usuario es improbable). No se agregaron `--workers` (estado en memoria por proceso).
 **Pendiente pedido por el usuario:** revisar la metodología de cálculo fotovoltaico del Chequeo.
+
+
+## Revisión de la metodología fotovoltaica contra la normativa del Drive (nov-2026)
+
+Fuente oficial (Drive CNR, "Instructivos de Tecnificación 2017", ITT-02 §4.5.1, pp. 14-15; Manual
+de Tecnificación 2017 §6.2): el proyecto ERNC incluye diseño y memoria, plano de estructura, plano
+eléctrico, protecciones e inversor (salvo bomba DC) y un "análisis de generación ... en relación a
+la energía total requerida"; se debe usar el Explorador Solar; el diseño genera el 100% de la
+energía requerida anualmente o la complementaria; no se aceptan reemplazos de fuente existente.
+**%P = ERNC generada anualmente (kWh/año) / energía requerida en la temporada de riego
+(kWh/temporada); en ningún caso %P > 1** (numerador anual y denominador de temporada: ambiguo).
+NO existen en la norma: HSP, PR, pérdidas por temperatura, cable, día de diseño/mes crítico,
+distinción aislado/on-grid ni Ley de Generación Distribuida; tampoco está en el Drive el manual
+CNR–Ministerio de Energía. Hallazgos sobre la app: `dimensionamiento_fv` (hbom+hsp) no tiene
+respaldo normativo (replica el Diseñador); el tope 100% se evalúa solo en on-grid pero la norma
+lo aplica a todos; el checklist de Diseño Fotovoltaico (analyzer.py) cita "ITT-03 4.5.1.1" y la Ley
+de GD, cuando es ITT-02 4.5.1/4.5.1.2. `demanda_fv_mensual` sí calza con la norma. Propuesta
+(pendiente de decisión del usuario): chequeo principal %P con la generación anual declarada del
+Explorador Solar; hbom/hsp/paneles/cable opcionales; corregir la cita del checklist.
