@@ -7819,3 +7819,23 @@ compartida de Railway (`*.up.railway.app`), que no se puede confirmar ni arregla
 El usuario no tiene dominio propio (se evaluó como alternativa y se descartó). Revisar
 `https://status.railway.app` la próxima vez que pase, con la hora exacta, y escribir a soporte de
 Railway si se repite seguido.
+
+
+## db.* sin bloquear el event loop + pendiente FV (nov-2026)
+
+El usuario reportó que la app sigue cayéndose/lenta mientras otras apps suyas en Railway no. Causa
+hallada: 174 llamadas `db.get_proyecto`/`save_proyecto` (más ~70 de otros `db.*`: concursos,
+listados, criterios, etc.) corrían directo dentro de rutas `async def`; psycopg2 es bloqueante y
+uvicorn corre un solo proceso/hilo (`railway.toml`, sin `--workers`), así que cada consulta lenta
+congelaba toda la app. Fix: transformación por AST (no regex, para no tocar comentarios) a
+`(await asyncio.to_thread(db.metodo, args))` en todas las rutas async; helpers síncronos que tocan
+la base se llaman por to_thread (`_finalizar_analisis_fondo`, `_registrar_feedback_obs`,
+`_aplicar_accion_chat`, `_criterios_enfasis_combinados`, `_uf_apertura_concurso`). El lambda de
+`_con_texto`... (ids_con_archivo) ya corría en hilo y se dejó igual. `_pg_lock` (database.py)
+serializa el acceso a la conexión. Verificado con smoke test contra PostgreSQL 16 local: login,
+crear/eliminar proyectos y modificaciones, subir PDF, todas las pestañas, observaciones/notas,
+estados, concursos, UF, 24 peticiones concurrentes, errores de IA (clave falsa) manejados.
+Riesgo conocido: entre un get y un save ahora hay un `await`, así que dos peticiones simultáneas
+sobre el MISMO proyecto pueden pisarse (ya ocurría con el análisis en segundo plano; con un solo
+usuario es improbable). No se agregaron `--workers` (estado en memoria por proceso).
+**Pendiente pedido por el usuario:** revisar la metodología de cálculo fotovoltaico del Chequeo.

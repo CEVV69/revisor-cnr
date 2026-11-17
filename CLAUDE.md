@@ -55,10 +55,14 @@ parpadeo/salto de scroll al aprobar/descartar/dejar pendiente una observación; 
 Presupuesto inicial; campo "Características obras" con datos técnicos en prosa (tope 400 car.);
 regla de "no mezclar sistemas de riego" + presupuesto de texto del chat igualado al del análisis
 completo (Diseño hidráulico) — pendiente confirmar si el dato del sistema Carrete ya sale
-correcto. **Sin resolver:** la causa raíz de la reconexión intermitente con Railway (ver
-`docs/historial_sesiones.md`).
+correcto; **todas** las llamadas a Postgres (`db.*`) en rutas async ahora van en
+`asyncio.to_thread` (antes bloqueaban el único hilo de la app — probable causa de las caídas/lentitud
+intermitentes, no Railway). Si la app sigue lenta/caída, revisar logs de Railway; ver
+`docs/historial_sesiones.md`.
 
-**Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
+**Pendiente / sin probar:** REVISAR la metodología del cálculo fotovoltaico del Chequeo
+(`dimensionamiento_fv`: un solo día de diseño `hbom`+`hsp`, no cuadra con consultores que usan
+los reportes del Explorador Solar — pedido del usuario); extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión
 Ítem SEP en `<details>` cerrados: pendiente de confirmar. Lección: estados de `<details>`/anclas se
 prueban en Chromium real, no con TestClient.
