@@ -45,16 +45,19 @@ Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
 **Confirmado por el usuario (nov-2026):** botón "Debate con la IA" sin pegarse; anti-doble-cobro;
-notas manuales en Revisión Ítem SEP (`_form_nota_manual`).
+notas manuales en Revisión Ítem SEP (`_form_nota_manual`); **Chequeo Fotovoltaico** con la
+metodología de la app Revisor FV (`calculos_riego.verificacion_fv_anual`: demanda mensual vs
+generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.2; GU derivada del
+reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
+Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
 
 **En prueba, sin confirmar (nov-2026):** fix "Revisar todos"; Ficha solo con párrafo de propuesta;
 fix scroll al aprobar/descartar; total en UF del Presupuesto; "Características obras" con datos
 técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igual al del análisis;
 todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloqueaba su único
-hilo; si sigue lenta, revisar logs de Railway); **Chequeo Fotovoltaico reescrito** con la
-metodología de la app Revisor FV (demanda mensual vs generación anual por kWp del Explorador Solar,
-%P del ITT-02 4.5.1.2): `calculos_riego.verificacion_fv_anual`, llega a Chequeo, 2 informes,
-análisis IA y .json (regla 10). Detalle de todo en `docs/historial_sesiones.md`.
+hilo; si sigue lenta, revisar logs de Railway); lectura con IA real del reporte del Explorador
+(capacidad instalada y total anual) y de energía requerida/cobertura declaradas, sin probar con API
+real. Detalle de todo en `docs/historial_sesiones.md`.
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
 API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Secciones de Revisión

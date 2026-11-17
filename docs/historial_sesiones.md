@@ -7915,3 +7915,8 @@ Chequeo era redundante (su columna declarada quedaba vacía porque ese dato ya s
 declarada del consultor, calculada = kWp × GU ÷ demanda, con "%P aplicable: 100 %" cuando pasa de
 100 % y la nota de generación declarada menor a la requerida. En los informes se aclara que el %P
 equivale a la cobertura con la generación declarada. Verificado en Chromium (Playwright) sin errores JS.
+
+**Confirmado por el usuario (nov-2026):** el Chequeo Fotovoltaico reescrito ("los cálculos cuadran y
+son más claros"). Queda sin probar con la API real solo la extracción con IA de los datos nuevos
+(reporte del Explorador, energía requerida y cobertura declaradas). Pendiente conocido: el modo aislado
+hora a hora sigue en la app Revisor FV (necesita el perfil solar horario).
