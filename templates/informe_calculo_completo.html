@@ -626,7 +626,7 @@
 {% endif %}
 
 {% if fv_calc.pct_p is defined %}
-<div class="titulo-seccion">FV.4. %P del instructivo CNR (ITT-02 §4.5.1.2)</div>
+<div class="titulo-seccion">FV.4. %P del instructivo CNR (ITT-02 §4.5.1.2) — equivale a la cobertura anual con la generación declarada</div>
 <div class="paso">
 <div class="formula">%P = ERNC generada anualmente / Energía requerida en la temporada = {{ fv.declarado.gen_anual_kwh }} / {{ val(fv_calc.dem_anual_kwh) }} = <strong>{{ val(fv_calc.pct_p * 100, ' %') }}</strong>{% if fv_calc.pct_p > 1 %} — aplicable: <strong>100 %</strong> (tope del instructivo){% endif %}</div>
 {% if fv_calc.pct_p < 0.999 %}<div class="explica"><span class="alerta">La generación declarada es menor a la energía requerida: el instructivo pide generar el 100 % anual o la fracción complementaria declarada.</span></div>{% endif %}

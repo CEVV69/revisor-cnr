@@ -582,7 +582,7 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
       <td class="valor"><strong>{{ val(fv_calc.cobertura_pct, ' %') }}</strong> (generación {{ val(fv_calc.gen_anual_kwh, ' kWh/año') }}; holgura {{ val(fv_calc.holgura_pct, ' %') }})</td></tr>
   {% endif %}
   {% if fv_calc.pct_p is defined %}
-  <tr><td class="label">%P (instructivo CNR, ITT-02 4.5.1.2)</td>
+  <tr><td class="label">%P (instructivo CNR, ITT-02 4.5.1.2) — cobertura con la generación declarada</td>
       <td class="valor"><strong>{{ val(fv_calc.pct_p * 100, ' %') }}</strong>{% if fv_calc.pct_p > 1 %} (aplicable: 100 %){% endif %}</td></tr>
   {% endif %}
 </table>

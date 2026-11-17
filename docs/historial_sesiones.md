@@ -7907,3 +7907,11 @@ agregaron al formulario `declarado.dem_anual_kwh` (energía requerida anual decl
 cobertura: `dem_declarada_coincide`, `cob_declarada_coincide`). Llegan al Chequeo (columna
 declarada + notas JS), a las 2 Memorias de Cálculo, al análisis IA (`_bloque_verificacion_fv`) y al
 .json (`revisorCNR.demandaAnualDeclaradaKWh`, `coberturaDeclaradaPct`).
+
+**Ajuste (mismo día): fila %P unificada con Cobertura.** El %P del ITT-02 4.5.1.2 (generación anual /
+energía requerida) es la misma medida que la "cobertura anual" de la app Revisor FV; la fila %P del
+Chequeo era redundante (su columna declarada quedaba vacía porque ese dato ya se ingresa en
+"Cobertura declarada"). Ahora hay una sola fila "Cobertura anual (%P)": declarada = cobertura
+declarada del consultor, calculada = kWp × GU ÷ demanda, con "%P aplicable: 100 %" cuando pasa de
+100 % y la nota de generación declarada menor a la requerida. En los informes se aclara que el %P
+equivale a la cobertura con la generación declarada. Verificado en Chromium (Playwright) sin errores JS.

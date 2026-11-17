@@ -666,7 +666,7 @@
           </td>
         </tr>
         <tr>
-          <td class="col-concepto" title="kWp declarado × generación específica anual ÷ demanda anual">Cobertura anual</td><td id="fv-cob-decl">—</td>
+          <td class="col-concepto" title="Generación anual ÷ demanda anual (kWp declarado × generación específica ÷ demanda). Es el %P del instructivo CNR (ITT-02 4.5.1.2): el %P aplicable queda tope en 100 %">Cobertura anual (%P)</td><td id="fv-cob-decl">—</td>
           <td class="col-calc">
             <span id="fv-cob-calc">—</span>
             <span id="fv-cob-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -677,13 +677,6 @@
           <td class="col-calc">
             <span id="fv-gen-calc">—</span>
             <span id="fv-gen-nota" class="calc-nota calc-alerta" style="display:none;"></span>
-          </td>
-        </tr>
-        <tr>
-          <td class="col-concepto" title="ITT-02 §4.5.1.2: %P = ERNC generada anualmente / energía requerida en la temporada de riego; el %P aplicable queda tope en 100 %">%P (instructivo CNR)</td><td class="text-muted">—</td>
-          <td class="col-calc">
-            <span id="fv-pp-calc">—</span>
-            <span id="fv-pp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
           </td>
         </tr>
         <tr>
@@ -2032,8 +2025,8 @@
   // calculos_riego.verificacion_fv_anual — si se toca una, tocar la otra (y los 2 informes).
   var DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   var MES3_FV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  var FV_CALC_IDS = ["fv-dem-calc", "fv-recurso-calc", "fv-kwp-calc", "fv-cob-calc", "fv-gen-calc", "fv-pp-calc", "fv-paneles-calc"];
-  var FV_NOTA_IDS = ["fv-dem-nota", "fv-recurso-nota", "fv-kwp-nota", "fv-cob-nota", "fv-gen-nota", "fv-pp-nota", "fv-paneles-nota"];
+  var FV_CALC_IDS = ["fv-dem-calc", "fv-recurso-calc", "fv-kwp-calc", "fv-cob-calc", "fv-gen-calc", "fv-paneles-calc"];
+  var FV_NOTA_IDS = ["fv-dem-nota", "fv-recurso-nota", "fv-kwp-nota", "fv-cob-nota", "fv-gen-nota", "fv-paneles-nota"];
   function recalcFV() {
     var pkw = numVal("pkw"), adic = numVal("adic"), gu = numVal("gu_anual"), wp = numVal("wp");
     var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declGen = numVal("decl_gen_anual");
@@ -2090,7 +2083,7 @@
         var gen = declKwp * gu;
         var cob = gen / dem * 100;
         var holg = (declKwp / kwpReq - 1) * 100;
-        setText("fv-cob-calc", fmt(cob, 1) + " % (gen. " + fmt(gen, 0) + " / dem. " + fmt(dem, 0) + " kWh/año)");
+        setText("fv-cob-calc", fmt(cob, 1) + " % (gen. " + fmt(gen, 0) + " / dem. " + fmt(dem, 0) + " kWh/año)" + (cob > 100 ? " — %P aplicable: 100 %" : ""));
         if (declCob !== null && Math.abs(declCob - cob) > 10) {
           nota("fv-cob-nota", "La cobertura declarada (" + fmt(declCob, 1) + " %) difiere " + fmt(Math.abs(declCob - cob), 1) + " puntos de la recalculada.");
         }
@@ -2106,10 +2099,12 @@
         }
       }
     }
-    if (declGen !== null) {
-      var pctP = declGen / dem;
-      setText("fv-pp-calc", fmt(pctP * 100, 1) + " %" + (pctP > 1 ? " (aplicable: 100 %)" : ""));
-      nota("fv-pp-nota", pctP < 0.999 ? "Generación declarada menor a la energía requerida: el instructivo pide generar el 100 % anual o la fracción complementaria declarada." : "");
+    // Con la generación DECLARADA (no la calculada): si no alcanza la energía requerida, el %P del
+    // instructivo queda bajo 100 % — se agrega a la nota de cobertura sin pisar las anteriores.
+    if (declGen !== null && declGen / dem < 0.999) {
+      var elCob = document.getElementById("fv-cob-nota");
+      var previa = (elCob && elCob.style.display !== "none") ? elCob.textContent + " " : "";
+      nota("fv-cob-nota", previa + "La generación declarada (" + fmt(declGen, 0) + " kWh/año) es menor a la energía requerida: el instructivo pide generar el 100 % anual o la fracción complementaria declarada.");
     }
     if (declN !== null && wp && declKwp) {
       var kwpP = declN * wp / 1000;
