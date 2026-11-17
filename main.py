@@ -2499,6 +2499,8 @@ def _fv_preservar_legado(previo: dict, nuevo: dict) -> dict:
     for k in _FV_CAMPOS_LEGADO:
         if nuevo.get(k) is None and previo.get(k) is not None:
             nuevo[k] = previo[k]
+    if previo.get("reporte_explorador") and not nuevo.get("reporte_explorador"):
+        nuevo["reporte_explorador"] = previo["reporte_explorador"]
     cable = (previo.get("declarado") or {}).get("seccion_cable_mm2")
     if cable is not None:
         nuevo.setdefault("declarado", {})
@@ -3205,8 +3207,13 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     # ignora las claves que no conoce. Van bajo una clave propia para no perderlos al compartir el
     # archivo y para contrastarlos con el resultado de esa app (cobertura anual, %P del ITT-02).
     extra_cnr = {}
-    if fv.get("gu_anual") is not None:
-        extra_cnr["generacionEspecificaAnualKWhKWp"] = fv["gu_anual"]
+    gu_export = fv.get("gu_anual")
+    if gu_export is None and declarado.get("gen_anual_kwh") and declarado.get("kwp_total"):
+        # Misma derivación por defecto que el Chequeo (`verificacion_fv_anual`): generación anual
+        # declarada / kWp declarado.
+        gu_export = round(declarado["gen_anual_kwh"] / declarado["kwp_total"], 1)
+    if gu_export is not None:
+        extra_cnr["generacionEspecificaAnualKWhKWp"] = gu_export
     if declarado.get("gen_anual_kwh") is not None:
         extra_cnr["generacionAnualDeclaradaKWh"] = declarado["gen_anual_kwh"]
     if extra_cnr:

@@ -2959,6 +2959,31 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
     return texto
 
 
+def _completar_datos_fv_desde_reporte(datos: dict) -> dict:
+    """Completa, con aritmética del código (nunca de la IA), lo que el reporte del Explorador Solar
+    permite derivar: generación específica = Total anual / Capacidad instalada (kWh/kWp·año), y,
+    si la memoria del consultor no los trae, kWp total y generación anual declarados. Los valores
+    del reporte quedan en `reporte_explorador` para poder rastrear de dónde salió el cálculo."""
+    if not isinstance(datos, dict):
+        return datos
+    rep = datos.get("reporte_explorador") or {}
+    cap, total = rep.get("capacidad_kw"), rep.get("total_anual_kwh")
+    if not (isinstance(cap, (int, float)) and isinstance(total, (int, float)) and cap > 0 and total > 0):
+        return datos
+    # El reporte da MWh; si la IA no lo convirtió, la específica saldría ~1,4 en vez de ~1.400.
+    if total / cap < 20:
+        total = total * 1000
+        rep["total_anual_kwh"] = total
+    datos.setdefault("declarado", {})
+    if datos["declarado"].get("kwp_total") is None:
+        datos["declarado"]["kwp_total"] = cap
+    if datos["declarado"].get("gen_anual_kwh") is None:
+        datos["declarado"]["gen_anual_kwh"] = total
+    if datos.get("gu_anual") is None:
+        datos["gu_anual"] = round(total / cap, 1)
+    return datos
+
+
 async def _extraer_datos_fv(docs_grupo: list) -> dict:
     """Extrae los datos de dimensionamiento fotovoltaico declarados (diseño FV, reporte
     Explorador Solar, presupuesto eléctrico). Nunca inventa: usa null si no aparece.
@@ -2980,7 +3005,8 @@ Responde SOLO este JSON, sin texto adicional:
 "horas_mensuales": [number|null, number|null, number|null, number|null, number|null,
 number|null, number|null, number|null, number|null, number|null, number|null, number|null],
 "declarado": {{"n_paneles": number|null, "kwp_total": number|null, "gen_anual_kwh": number|null,
-"banco_baterias_kwh": number|null}}}}
+"banco_baterias_kwh": number|null}},
+"reporte_explorador": {{"capacidad_kw": number|null, "total_anual_kwh": number|null}}}}
 
 Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
 adic = consumos adicionales declarados (%, fertirriego/controlador/pérdidas menores).
@@ -2995,6 +3021,11 @@ demanda mensual, balance hídrico o consumo energético mensual — es MUY COMÚ
 estén en un archivo Excel adjunto, con un mes por fila o columna y las horas de riego/bombeo
 promedio por DÍA de ese mes. Es un array de 12 valores en orden Enero→Diciembre; usa null en los
 meses sin ese dato o sin riego.
+
+reporte_explorador = tabla "Resultados de la generación fotovoltaica" del reporte del Explorador
+Solar (Ministerio de Energía): capacidad_kw = "Capacidad Instalada" en kW y total_anual_kwh =
+"Total Anual" CONVERTIDO A kWh (el reporte lo da en MWh: 10,74 MWh = 10740 kWh). Cópialos tal
+cual aparecen; NO calcules la generación específica (el sistema la calcula después).
 
 declarado.kwp_total = potencia fotovoltaica total instalada que declara el proyecto (kWp).
 declarado.gen_anual_kwh = energía que el consultor declara que generará el sistema en un año
@@ -3011,7 +3042,7 @@ EXPEDIENTE:
             messages=[{"role": "user", "content": prompt}],
         )
         _log_uso("2 · Chequeo · extracción fotovoltaica", response, MODELO_HAIKU)
-        return _extraer_json_simple(_texto_respuesta(response))
+        return _completar_datos_fv_desde_reporte(_extraer_json_simple(_texto_respuesta(response)))
     except Exception as e:
         print(f"⚠️ _extraer_datos_fv: {e}")
         return {}
@@ -3035,8 +3066,10 @@ def _bloque_verificacion_fv(datos: dict) -> str:
     lineas = [f"Demanda anual de la bomba = Σ mes (horas/día × {datos['pkw']} kW × "
               f"(1 + {datos.get('adic') or 0} % adicionales) × días del mes) = {r['dem_anual_kwh']} kWh/año"]
     if r.get("gu_anual"):
+        derivada = (" — DERIVADA de la generación anual declarada ÷ kWp declarado: dato del propio "
+                    "consultor, no un cálculo independiente con el Explorador Solar") if r.get("gu_derivada") else ""
         lineas.append(f"Generación específica del predio = {r['gu_anual']} kWh/kWp·año "
-                      f"({r['gu_dia_prom']} kWh/kWp·día promedio)")
+                      f"({r['gu_dia_prom']} kWh/kWp·día promedio){derivada}")
         lineas.append(f"kWp requeridos por balance anual = demanda ÷ generación específica = {r['kwp_requerido']} kWp")
         if r.get("cobertura_pct") is not None:
             lineas.append(f"Con {declarado['kwp_total']} kWp declarados: generación {r['gen_anual_kwh']} kWh/año, "

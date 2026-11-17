@@ -585,6 +585,7 @@
 {% call paso_mc('fv_recurso_solar', mc_fv) %}
 <div class="formula">Generación específica = <strong>{{ val(fv_calc.gu_anual, ' kWh/kWp·año') }}</strong> ({{ val(fv_calc.gu_dia_prom, ' kWh/kWp·día') }} promedio anual)</div>
 <div class="explica">Debe provenir del Explorador Solar para el punto GPS del predio; ya incluye pérdidas, inclinación y temperatura.
+  {% if fv_calc.gu_derivada %}Derivada de la generación anual declarada ÷ kWp declarado ({{ fv.declarado.gen_anual_kwh }} / {{ fv.declarado.kwp_total }}): no es un dato independiente del consultor.{% endif %}
   {% if not fv_calc.recurso_en_rango %}<span class="alerta">Fuera de lo esperable en Chile (3 a 7 kWh/kWp·día): revisar el dato.</span>{% endif %}</div>
 {% endcall %}
 

@@ -7886,3 +7886,15 @@ conserva esos valores en proyectos ya guardados al guardar o re-extraer (siguen 
 Diseñador). Verificado con smoke test (PostgreSQL local y JSON local): pantalla, 2 informes,
 guardado con preservación, exportaciones, extracción con IA caída. El Excel oficial CNR en que se
 basó la app FV no está en el Drive. Pendiente: el modo aislado hora a hora sigue en la app FV.
+
+**Ajuste (mismo día): generación específica derivada.** A pedido del usuario (el consultor siempre
+declara capacidad instalada, N° de paneles y Wp): (1) la extracción con IA (`_extraer_datos_fv`) lee
+del reporte del Explorador Solar (tabla "Resultados de la generación fotovoltaica") la "Capacidad
+instalada" y el "Total anual" en `reporte_explorador`, y `_completar_datos_fv_desde_reporte` hace la
+división EN CÓDIGO (no la IA): `gu_anual = total_anual_kwh / capacidad_kw` (con guarda MWh→kWh), y
+completa kWp y generación anual declarados si faltan; (2) si `gu_anual` queda vacío pero hay
+generación anual y kWp declarados, `verificacion_fv_anual` la deriva (`gu_derivada`) — el Chequeo (JS),
+los 2 informes, el análisis IA y el .json (`revisorCNR`) la marcan como "derivada: no es independiente
+del consultor" y se omite la comparación trivial generación declarada vs kWp×GU. `guardar`
+conserva `reporte_explorador`. Ejemplo real (reporte del usuario, anexo 08): 7,44 kW y 10,74 MWh →
+1.443,5 kWh/kWp·año.

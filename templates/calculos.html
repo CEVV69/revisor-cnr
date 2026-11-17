@@ -2063,13 +2063,18 @@
     setText("fv-dem-calc", fmt(dem, 0) + " kWh/año");
     nota("fv-dem-nota", excedidas.length ? "Horas de riego imposibles (>24 h/día) en: " + excedidas.join(", ") + "." : "");
 
+    // Sin generación específica: se deriva de generación anual declarada / kWp declarado (igual que
+    // calculos_riego.verificacion_fv_anual) — el dato sale del propio consultor, no es independiente.
+    var guDerivada = false;
+    if (!gu && declGen && declKwp) { gu = declGen / declKwp; guDerivada = true; }
     var hint = "";
     if (!gu) {
       hint = "Falta: generación específica anual del Explorador Solar (kWh/kWp·año) para calcular kWp requeridos y cobertura.";
     } else {
       var guDia = gu / 366;
       setText("fv-recurso-calc", fmt(guDia, 2) + " kWh/kWp·día");
-      nota("fv-recurso-nota", (guDia < 2 || guDia > 9) ? "Fuera de lo esperable (en Chile 3 a 7 kWh/kWp·día) — revisar el dato." : "");
+      nota("fv-recurso-nota", (guDia < 2 || guDia > 9) ? "Fuera de lo esperable (en Chile 3 a 7 kWh/kWp·día) — revisar el dato."
+        : (guDerivada ? "Derivada: " + fmt(gu, 0) + " kWh/kWp·año = generación declarada ÷ kWp declarado (no es independiente del consultor)." : ""));
       var kwpReq = dem / gu;
       setText("fv-kwp-calc", fmt(kwpReq, 2) + " kWp");
       if (declKwp) {
@@ -2084,7 +2089,7 @@
         } else if (holg > 60) {
           nota("fv-kwp-nota", "Potencia " + fmt(holg, 0) + " % sobre lo requerido — pedir justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos).");
         }
-        if (declGen !== null && Math.abs(declGen - gen) / gen * 100 > 10) {
+        if (!guDerivada && declGen !== null && Math.abs(declGen - gen) / gen * 100 > 10) {
           nota("fv-gen-nota", "La generación declarada difiere más de 10 % de kWp declarado × generación específica (" + fmt(gen, 0) + " kWh/año).");
         }
       }

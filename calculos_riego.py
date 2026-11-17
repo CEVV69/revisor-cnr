@@ -1306,6 +1306,14 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
     dem_anual = dem["dem_anual_kwh"]
     r = {"demanda": dem, "dem_anual_kwh": dem_anual}
 
+    # Sin generación específica ingresada pero con generación anual y kWp declarados (el consultor
+    # siempre declara la capacidad instalada), se deriva: GU = generación anual / kWp. OJO: así el
+    # dato sale del propio consultor, no es independiente — la comparación "generación declarada vs
+    # kWp × GU" pasa a ser trivial y se omite (ver `gu_derivada`).
+    if not (gu_anual and gu_anual > 0) and gen_anual_declarada and kwp_declarado:
+        gu_anual = gen_anual_declarada / kwp_declarado
+        r["gu_derivada"] = True
+
     if gu_anual and gu_anual > 0 and dem_anual > 0:
         gu_dia = gu_anual / sum(DIAS_MES_FV)
         r["gu_anual"] = round(gu_anual, 1)
@@ -1330,7 +1338,7 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
         pct_p = gen_anual_declarada / dem_anual
         r["pct_p"] = round(pct_p, 3)
         r["pct_p_aplicable"] = round(min(pct_p, 1.0), 3)
-        if r.get("gen_anual_kwh"):
+        if r.get("gen_anual_kwh") and not r.get("gu_derivada"):
             dif = abs(gen_anual_declarada - r["gen_anual_kwh"]) / r["gen_anual_kwh"] * 100
             r["gen_declarada_dif_pct"] = round(dif, 1)
             r["gen_declarada_coincide"] = dif <= 10

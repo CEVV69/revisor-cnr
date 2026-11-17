@@ -572,7 +572,8 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
   {% if fv_calc.gu_anual is defined %}
   <tr><td class="label">Recurso solar (promedio anual)</td>
       <td class="valor">{{ val(fv_calc.gu_dia_prom, ' kWh/kWp·día') }}
-        {% if not fv_calc.recurso_en_rango %}<span class="alerta">fuera de lo esperable en Chile (3 a 7); revisar el dato.</span>{% endif %}</td></tr>
+        {% if not fv_calc.recurso_en_rango %}<span class="alerta">fuera de lo esperable en Chile (3 a 7); revisar el dato.</span>{% endif %}
+        {% if fv_calc.gu_derivada %}<br><span class="explica">Derivada: {{ val(fv_calc.gu_anual, ' kWh/kWp·año') }} = generación anual declarada ÷ kWp declarado (no es independiente del consultor).</span>{% endif %}</td></tr>
   <tr><td class="label">kWp requeridos (balance anual)</td>
       <td class="valor"><strong>{{ val(fv_calc.kwp_requerido, ' kWp') }}</strong></td></tr>
   {% endif %}
