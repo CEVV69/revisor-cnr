@@ -1275,7 +1275,9 @@ HOLGURA_ALTA_PCT = 60
 
 def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anual: float,
                           kwp_declarado: float = None, n_paneles: float = None,
-                          wp: float = None, gen_anual_declarada: float = None) -> dict:
+                          wp: float = None, gen_anual_declarada: float = None,
+                          dem_anual_declarada: float = None,
+                          cobertura_declarada_pct: float = None) -> dict:
     """Verificación fotovoltaica con la metodología del Revisor Fotovoltaico (app hermana,
     fotovoltaico_riego_v19.html, `calc()` modo on-grid + `verificar()`):
 
@@ -1293,6 +1295,10 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
     (la declarada por el consultor, kWh/año) / energía requerida en la temporada (aquí, la
     demanda anual calculada). Según el instructivo, el %P aplicable queda tope en 1 (100 %) —
     el sobredimensionamiento por equipos comerciales es aceptable.
+
+    `dem_anual_declarada` (kWh/año) y `cobertura_declarada_pct` (%): lo que el consultor declara en
+    su análisis de generación vs energía requerida (ITT-02 §4.5.1.1) — se comparan contra la demanda
+    y la cobertura que calcula la app (tolerancia 15 % y 10 puntos).
 
     Limitación (igual que el chequeo anual del Revisor FV): no verifica el modo aislado, que exige
     el perfil solar HORARIO (¿alcanza la potencia instantánea para mover la bomba en las horas de
@@ -1342,4 +1348,13 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
             dif = abs(gen_anual_declarada - r["gen_anual_kwh"]) / r["gen_anual_kwh"] * 100
             r["gen_declarada_dif_pct"] = round(dif, 1)
             r["gen_declarada_coincide"] = dif <= 10
+
+    if dem_anual_declarada and dem_anual_declarada > 0 and dem_anual > 0:
+        dif = abs(dem_anual_declarada - dem_anual) / dem_anual * 100
+        r["dem_declarada_dif_pct"] = round(dif, 1)
+        r["dem_declarada_coincide"] = dif <= 15
+    if cobertura_declarada_pct is not None and r.get("cobertura_pct") is not None:
+        dif = abs(cobertura_declarada_pct - r["cobertura_pct"])
+        r["cob_declarada_dif_pts"] = round(dif, 1)
+        r["cob_declarada_coincide"] = dif <= 10
     return r

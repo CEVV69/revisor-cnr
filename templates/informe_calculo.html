@@ -599,6 +599,14 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
     Paneles × Wp: {{ fv.declarado.n_paneles }} × {{ val(fv.wp, ' W') }} = {{ val(fv_calc.kwp_por_paneles, ' kWp') }} —
     {% if fv_calc.paneles_coinciden %}<span class="ok">coincide con el kWp declarado.</span>{% else %}<span class="alerta">no suma el kWp declarado.</span>{% endif %}<br>
   {% endif %}
+  {% if fv_calc.dem_declarada_coincide is defined %}
+    Energía requerida anual: declarada {{ fv.declarado.dem_anual_kwh }} kWh, calculada {{ val(fv_calc.dem_anual_kwh, ' kWh') }} —
+    {% if fv_calc.dem_declarada_coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.dem_declarada_dif_pct, ' %') }}; revisar horas de riego, potencia de la bomba y consumos adicionales.</span>{% endif %}<br>
+  {% endif %}
+  {% if fv_calc.cob_declarada_coincide is defined %}
+    Cobertura anual: declarada {{ fv.declarado.cobertura_pct }} %, calculada {{ val(fv_calc.cobertura_pct, ' %') }} —
+    {% if fv_calc.cob_declarada_coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.cob_declarada_dif_pts) }} puntos.</span>{% endif %}<br>
+  {% endif %}
   {% if fv_calc.gen_declarada_coincide is defined %}
     Generación anual: declarada {{ fv.declarado.gen_anual_kwh }} kWh, calculada {{ val(fv_calc.gen_anual_kwh, ' kWh') }} —
     {% if fv_calc.gen_declarada_coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.gen_declarada_dif_pct, ' %') }}.</span>{% endif %}

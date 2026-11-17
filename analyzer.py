@@ -3005,7 +3005,7 @@ Responde SOLO este JSON, sin texto adicional:
 "horas_mensuales": [number|null, number|null, number|null, number|null, number|null,
 number|null, number|null, number|null, number|null, number|null, number|null, number|null],
 "declarado": {{"n_paneles": number|null, "kwp_total": number|null, "gen_anual_kwh": number|null,
-"banco_baterias_kwh": number|null}},
+"dem_anual_kwh": number|null, "cobertura_pct": number|null, "banco_baterias_kwh": number|null}},
 "reporte_explorador": {{"capacidad_kw": number|null, "total_anual_kwh": number|null}}}}
 
 Notas: pkw = potencia de la bomba en kW (si el documento da HP, conviértelo: kW = HP × 0,7457).
@@ -3029,7 +3029,11 @@ cual aparecen; NO calcules la generación específica (el sistema la calcula des
 
 declarado.kwp_total = potencia fotovoltaica total instalada que declara el proyecto (kWp).
 declarado.gen_anual_kwh = energía que el consultor declara que generará el sistema en un año
-(kWh/año), del Explorador Solar o de la memoria. declarado.banco_baterias_kwh = capacidad del
+(kWh/año), del Explorador Solar o de la memoria. declarado.dem_anual_kwh = energía total que el
+consultor declara que requiere la bomba/el sistema de riego al año o en la temporada de riego
+(kWh/año; "energía requerida", "consumo energético anual", "demanda anual"). declarado.cobertura_pct =
+porcentaje de la energía requerida que declara cubrir el sistema fotovoltaico (cobertura, %P,
+"balance anual", en % — si viene como fracción 0-1, multiplícalo por 100). declarado.banco_baterias_kwh = capacidad del
 banco de baterías, solo si el sistema es aislado con respaldo de baterías.
 
 EXPEDIENTE:
@@ -3060,6 +3064,8 @@ def _bloque_verificacion_fv(datos: dict) -> str:
         horas_mensuales=datos.get("horas_mensuales"), gu_anual=datos.get("gu_anual"),
         kwp_declarado=declarado.get("kwp_total"), n_paneles=declarado.get("n_paneles"),
         wp=datos.get("wp"), gen_anual_declarada=declarado.get("gen_anual_kwh"),
+        dem_anual_declarada=declarado.get("dem_anual_kwh"),
+        cobertura_declarada_pct=declarado.get("cobertura_pct"),
     )
     if not r:
         return ""
@@ -3097,6 +3103,13 @@ def _bloque_verificacion_fv(datos: dict) -> str:
     if r.get("gen_declarada_coincide") is False:
         comparaciones.append(f"La generación anual declarada ({declarado['gen_anual_kwh']} kWh) difiere "
                              f"{r['gen_declarada_dif_pct']} % de kWp declarado × generación específica ({r['gen_anual_kwh']} kWh).")
+    if r.get("dem_declarada_coincide") is False:
+        comparaciones.append(f"La energía requerida que declara el consultor ({declarado['dem_anual_kwh']} kWh/año) "
+                             f"difiere {r['dem_declarada_dif_pct']} % de la demanda recalculada ({r['dem_anual_kwh']} kWh/año): "
+                             "revisar horas de riego, potencia de la bomba y consumos adicionales que usó.")
+    if r.get("cob_declarada_coincide") is False:
+        comparaciones.append(f"La cobertura que declara el consultor ({declarado['cobertura_pct']} %) difiere "
+                             f"{r['cob_declarada_dif_pts']} puntos de la recalculada ({r['cobertura_pct']} %).")
     if r.get("pct_p") is not None and r["pct_p"] < 0.999:
         comparaciones.append("La generación anual declarada es menor a la energía requerida: el instructivo pide "
                              "generar el 100 % anual o la fracción complementaria declarada.")

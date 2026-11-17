@@ -629,6 +629,8 @@
       <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
       <div><label>kWp total declarado</label><input type="number" step="0.01" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
       <div><label title="Energía que el consultor declara que generará el sistema en un año (reporte del Explorador Solar o memoria)">Generación anual declarada (kWh/año)</label><input type="number" step="1" id="decl_gen_anual" name="decl_gen_anual" value="{{ fv.declarado.gen_anual_kwh if fv.declarado and fv.declarado.gen_anual_kwh is not none else '' }}"></div>
+      <div><label title="Energía que el consultor declara que requiere la bomba al año o en la temporada de riego (su análisis de generación vs energía requerida, ITT-02 4.5.1.1)">Energía requerida anual declarada (kWh/año)</label><input type="number" step="1" id="decl_dem_anual" name="decl_dem_anual" value="{{ fv.declarado.dem_anual_kwh if fv.declarado and fv.declarado.dem_anual_kwh is not none else '' }}"></div>
+      <div><label title="Porcentaje de la energía requerida que el consultor declara cubrir con el sistema fotovoltaico (cobertura o %P)">Cobertura declarada (%)</label><input type="number" step="0.1" id="decl_cobertura" name="decl_cobertura" value="{{ fv.declarado.cobertura_pct if fv.declarado and fv.declarado.cobertura_pct is not none else '' }}"></div>
       <div><label title="Solo aplica si el sistema es aislado con baterías">Banco de baterías declarado (kWh)</label><input type="number" step="0.01" id="decl_banco" name="decl_banco" value="{{ fv.declarado.banco_baterias_kwh if fv.declarado and fv.declarado.banco_baterias_kwh is not none else '' }}"></div>
     </div>
 
@@ -639,7 +641,7 @@
         <colgroup><col><col style="width:210px;"><col style="width:260px;"></colgroup>
         <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
         <tr>
-          <td class="col-concepto" title="Σ mes: horas/día × potencia bomba × (1 + adicionales) × días del mes — misma fórmula del Revisor Fotovoltaico">Demanda anual de la bomba</td><td class="text-muted">—</td>
+          <td class="col-concepto" title="Σ mes: horas/día × potencia bomba × (1 + adicionales) × días del mes — misma fórmula del Revisor Fotovoltaico">Demanda anual de la bomba</td><td id="fv-dem-decl">—</td>
           <td class="col-calc">
             <span id="fv-dem-calc">—</span>
             <span id="fv-dem-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -664,7 +666,7 @@
           </td>
         </tr>
         <tr>
-          <td class="col-concepto" title="kWp declarado × generación específica anual ÷ demanda anual">Cobertura anual</td><td class="text-muted">—</td>
+          <td class="col-concepto" title="kWp declarado × generación específica anual ÷ demanda anual">Cobertura anual</td><td id="fv-cob-decl">—</td>
           <td class="col-calc">
             <span id="fv-cob-calc">—</span>
             <span id="fv-cob-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -2035,6 +2037,7 @@
   function recalcFV() {
     var pkw = numVal("pkw"), adic = numVal("adic"), gu = numVal("gu_anual"), wp = numVal("wp");
     var declN = numVal("decl_npaneles"), declKwp = numVal("decl_kwp"), declGen = numVal("decl_gen_anual");
+    var declDem = numVal("decl_dem_anual"), declCob = numVal("decl_cobertura");
     var conexion = (document.getElementById("conexion") || {}).value || "aislado";
     var horas = [], hayHoras = false, excedidas = [];
     for (var i = 0; i < 12; i++) {
@@ -2048,6 +2051,8 @@
     setText("fv-npaneles-decl", declN === null ? "—" : fmt(declN, 0) + " paneles");
     setText("fv-kwp-decl", declKwp === null ? "—" : fmt(declKwp, 2) + " kWp");
     setText("fv-gen-decl", declGen === null ? "—" : fmt(declGen, 0) + " kWh/año");
+    setText("fv-dem-decl", declDem === null ? "—" : fmt(declDem, 0) + " kWh/año");
+    setText("fv-cob-decl", declCob === null ? "—" : fmt(declCob, 1) + " %");
 
     FV_CALC_IDS.forEach(function(id) { setText(id, "—"); });
     FV_NOTA_IDS.forEach(function(id) { nota(id, ""); });
@@ -2061,7 +2066,11 @@
     var dem = 0;
     for (var m = 0; m < 12; m++) { dem += horas[m] * pkw * (1 + adicPct / 100) * DIAS_MES_FV[m]; }
     setText("fv-dem-calc", fmt(dem, 0) + " kWh/año");
-    nota("fv-dem-nota", excedidas.length ? "Horas de riego imposibles (>24 h/día) en: " + excedidas.join(", ") + "." : "");
+    var notaDem = excedidas.length ? "Horas de riego imposibles (>24 h/día) en: " + excedidas.join(", ") + "." : "";
+    if (!notaDem && declDem && Math.abs(declDem - dem) / dem * 100 > 15) {
+      notaDem = "La energía requerida declarada difiere " + fmt(Math.abs(declDem - dem) / dem * 100, 0) + " % de la recalculada — revisar horas de riego, potencia de la bomba y consumos adicionales.";
+    }
+    nota("fv-dem-nota", notaDem);
 
     // Sin generación específica: se deriva de generación anual declarada / kWp declarado (igual que
     // calculos_riego.verificacion_fv_anual) — el dato sale del propio consultor, no es independiente.
@@ -2082,10 +2091,13 @@
         var cob = gen / dem * 100;
         var holg = (declKwp / kwpReq - 1) * 100;
         setText("fv-cob-calc", fmt(cob, 1) + " % (gen. " + fmt(gen, 0) + " / dem. " + fmt(dem, 0) + " kWh/año)");
+        if (declCob !== null && Math.abs(declCob - cob) > 10) {
+          nota("fv-cob-nota", "La cobertura declarada (" + fmt(declCob, 1) + " %) difiere " + fmt(Math.abs(declCob - cob), 1) + " puntos de la recalculada.");
+        }
         setText("fv-gen-calc", fmt(gen, 0) + " kWh/año");
         if (declKwp < kwpReq * 0.999) {
           nota("fv-kwp-nota", "El kWp declarado no cubre la demanda anual: faltan " + fmt(kwpReq - declKwp, 2) + " kWp.");
-          nota("fv-cob-nota", "La generación anual no alcanza la demanda anual.");
+          nota("fv-cob-nota", "La generación anual no alcanza la demanda anual." + (declCob !== null && Math.abs(declCob - cob) > 10 ? " La cobertura declarada (" + fmt(declCob, 1) + " %) difiere " + fmt(Math.abs(declCob - cob), 1) + " puntos de la recalculada." : ""));
         } else if (holg > 60) {
           nota("fv-kwp-nota", "Potencia " + fmt(holg, 0) + " % sobre lo requerido — pedir justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos).");
         }

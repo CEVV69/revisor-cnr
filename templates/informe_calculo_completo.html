@@ -575,6 +575,10 @@
   {% endfor %}
 </table>
 <div class="formula" style="margin-top:0.3rem;">Demanda anual = Σ Dem_mes = <strong>{{ fv_calc.dem_anual_kwh }} kWh/año</strong></div>
+{% if fv_calc.dem_declarada_coincide is defined %}
+<div class="explica" style="margin-top:0.2rem;">Energía requerida declarada por el consultor: {{ fv.declarado.dem_anual_kwh }} kWh/año —
+  {% if fv_calc.dem_declarada_coincide %}<span class="ok">coherente (diferencia {{ val(fv_calc.dem_declarada_dif_pct, ' %') }}).</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.dem_declarada_dif_pct, ' %') }}; revisar horas de riego, potencia de la bomba y consumos adicionales que usó.</span>{% endif %}</div>
+{% endif %}
 {% if fv_calc.demanda.horas_excedidas %}
 <div class="explica" style="margin-top:0.2rem;"><span class="alerta">Horas de riego imposibles (&gt;24 h/día) en: {{ fv_calc.demanda.horas_excedidas | join(', ') }}.</span></div>
 {% endif %}
@@ -608,6 +612,10 @@
 
 {% call paso_mc('fv_balance_anual', mc_fv) %}
 <div class="formula">Cobertura anual = Gen_anual / Demanda anual × 100 = <strong>{{ val(fv_calc.cobertura_pct, ' %') }}</strong> &nbsp;·&nbsp; Holgura = kWp declarado / kWp requeridos − 1 = <strong>{{ val(fv_calc.holgura_pct, ' %') }}</strong></div>
+{% if fv_calc.cob_declarada_coincide is defined %}
+<div class="explica">Cobertura declarada por el consultor: {{ fv.declarado.cobertura_pct }} % —
+  {% if fv_calc.cob_declarada_coincide %}<span class="ok">coherente (diferencia {{ val(fv_calc.cob_declarada_dif_pts) }} puntos).</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.cob_declarada_dif_pts) }} puntos de la recalculada.</span>{% endif %}</div>
+{% endif %}
 <div class="explica">
   {% if not fv_calc.cubre %}<span class="alerta">El kWp declarado no cubre la demanda anual (el instructivo exige generar el 100 % anual o la fracción complementaria declarada).</span>
   {% elif fv_calc.holgura_alta %}<span class="alerta">Potencia {{ val(fv_calc.holgura_pct, ' %') }} sobre lo requerido: justificar el sobredimensionamiento (aceptable por tamaños comerciales de equipos, ITT-02 4.5.1.2).</span>

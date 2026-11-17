@@ -7898,3 +7898,12 @@ los 2 informes, el análisis IA y el .json (`revisorCNR`) la marcan como "deriva
 del consultor" y se omite la comparación trivial generación declarada vs kWp×GU. `guardar`
 conserva `reporte_explorador`. Ejemplo real (reporte del usuario, anexo 08): 7,44 kW y 10,74 MWh →
 1.443,5 kWh/kWp·año.
+
+**Ajuste (mismo día): la tabla comparativa ya compara demanda y cobertura.** Las filas "Demanda anual
+de la bomba" y "Cobertura anual" del Chequeo FV solo se calculaban (columna "declarado" en "—"). Se
+agregaron al formulario `declarado.dem_anual_kwh` (energía requerida anual declarada, ITT-02
+4.5.1.1) y `declarado.cobertura_pct`; la IA los extrae (`_extraer_datos_fv`), y
+`verificacion_fv_anual` los compara contra lo calculado (tolerancia 15 % en demanda y 10 puntos en
+cobertura: `dem_declarada_coincide`, `cob_declarada_coincide`). Llegan al Chequeo (columna
+declarada + notas JS), a las 2 Memorias de Cálculo, al análisis IA (`_bloque_verificacion_fv`) y al
+.json (`revisorCNR.demandaAnualDeclaradaKWh`, `coberturaDeclaradaPct`).

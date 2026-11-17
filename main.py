@@ -2520,6 +2520,8 @@ def _fv_calculo(datos: dict):
         horas_mensuales=datos.get("horas_mensuales"), gu_anual=datos.get("gu_anual"),
         kwp_declarado=decl.get("kwp_total"), n_paneles=decl.get("n_paneles"),
         wp=datos.get("wp"), gen_anual_declarada=decl.get("gen_anual_kwh"),
+        dem_anual_declarada=decl.get("dem_anual_kwh"),
+        cobertura_declarada_pct=decl.get("cobertura_pct"),
     ) or None
 
 
@@ -3216,6 +3218,10 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
         extra_cnr["generacionEspecificaAnualKWhKWp"] = gu_export
     if declarado.get("gen_anual_kwh") is not None:
         extra_cnr["generacionAnualDeclaradaKWh"] = declarado["gen_anual_kwh"]
+    if declarado.get("dem_anual_kwh") is not None:
+        extra_cnr["demandaAnualDeclaradaKWh"] = declarado["dem_anual_kwh"]
+    if declarado.get("cobertura_pct") is not None:
+        extra_cnr["coberturaDeclaradaPct"] = declarado["cobertura_pct"]
     if extra_cnr:
         doc["revisorCNR"] = extra_cnr
 
@@ -3377,6 +3383,8 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
         "n_paneles": _num_form(form, "decl_npaneles"),
         "kwp_total": _num_form(form, "decl_kwp"),
         "gen_anual_kwh": _num_form(form, "decl_gen_anual"),
+        "dem_anual_kwh": _num_form(form, "decl_dem_anual"),
+        "cobertura_pct": _num_form(form, "decl_cobertura"),
         "banco_baterias_kwh": _num_form(form, "decl_banco"),
     }
     # Los datos del chequeo anterior (hbom, hsp, cable, etc.) no se piden más pero se conservan.
