@@ -1881,43 +1881,112 @@ TIPOS_PENDIENTE = {
 }
 templates.env.globals["TIPOS_PENDIENTE"] = TIPOS_PENDIENTE
 
-# Pendientes automáticos por generación fotovoltaica (nov-2026): suben al SEP vía la ficha, a
-# diferencia de las notas. Se sincronizan al guardar el Chequeo FV según el tipo de conexión.
-# Si el revisor elimina uno, queda en `pendientes_auto_descartados` y no se vuelve a agregar.
-_PEND_FV = {
-    "fv_te4":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE4 del proyecto"),
-    "fv_prot": ("pago", "El beneficiario deberá presentar el Protocolo de Conexión a la Red "
-                                "emitido por la empresa distribuidora de electricidad"),
-    "fv_te1":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE1 del proyecto"),
+# Pendientes automáticos (nov-2026): suben al SEP vía la ficha, a diferencia de las notas. Se
+# sincronizan (`_sincronizar_pendientes_auto`) al guardar el Chequeo FV, al cambiar los antecedentes
+# de la tarjeta Pendientes y al abrir la ficha. Si el revisor elimina uno, queda en
+# `pendientes_auto_descartados` y no se vuelve a agregar (salvo que cambie su antecedente).
+_PEND_AUTO = {
+    "mee":    ("recepcion_obra", "Presentar acreditación de transmisión efectiva de datos de acuerdo "
+                                 "con el estándar de monitoreo de extracciones efectivas DGA que "
+                                 "corresponda."),
+    "fv_f4":  ("inicio_obra", "El beneficiario deberá presentar el Formulario de Respuesta a la "
+                              "Solicitud de Conexión (F4)"),
+    "fv_te4": ("recepcion_obra", "El beneficiario deberá presentar el documento TE4 y Protocolo de "
+                                 "Conexión a la Red emitido por la empresa distribuidora de "
+                                 "electricidad"),
+    "fv_te1": ("recepcion_obra", "El beneficiario deberá presentar el documento TE1 del proyecto "
+                                 "inscrito en la SEC"),
+    "suelo_reclas": ("pago", "El beneficiario deberá presentar nuevo certificado de avalúo detallado "
+                             "con la reclasificación aceptada"),
 }
+# Antecedentes que el revisor marca en la tarjeta Pendientes (clave -> pendiente que activan).
+_PEND_CONFIG = {"mee": "mee", "reclasif_suelo": "suelo_reclas"}
 
 
-def _sincronizar_pendientes_fv(proyecto: dict) -> None:
+def _f4_presente(proyecto: dict, textos: dict = None) -> bool:
+    """Heurística: hay un F4 (Formulario de Respuesta a la Solicitud de Conexión) en el expediente,
+    por nombre del archivo o por el título (primeros 1.500 car.) del texto extraído."""
+    for d in proyecto.get("documentos", []):
+        nombre = f"{d.get('nombre_original') or ''} {d.get('filename') or ''}".lower()
+        if re.search(r"(?<![a-z0-9])f[-_ ]?4(?![a-z0-9])", nombre) or "solicitud de conexi" in nombre:
+            return True
+        t = ((textos or {}).get(d.get("id")) or "")[:1500].lower()
+        if "respuesta a la solicitud de conexi" in t:
+            return True
+    return False
+
+
+def _mee_por_texto(proyecto: dict) -> bool:
+    """Pozo o puntera mencionados en el Resumen (obras / derechos de agua / características)."""
+    res = proyecto.get("resumen") or {}
+    txt = " ".join(str(res.get(k) or "") for k in ("obras", "daa", "caracteristicas_obras_resumen")).lower()
+    return bool(re.search(r"\bpozos?\b|\bpunteras?\b", txt))
+
+
+def _sincronizar_pendientes_auto(proyecto: dict, textos: dict = None) -> None:
     fv = (proyecto.get("verificacion_calculos") or {}).get("energetico") or {}
     decl = fv.get("declarado") or {}
     hay_fv = any(fv.get(c) is not None for c in ("pkw", "horas_mensuales", "gu_anual")) or \
         any(decl.get(c) is not None for c in ("n_paneles", "kwp_total", "gen_anual_kwh"))
-    if not hay_fv:
-        deseados = []
-    elif (fv.get("conexion") or "aislado").lower() == "ongrid":
-        deseados = ["fv_te4", "fv_prot"]
-    else:
-        deseados = ["fv_te1"]
+    deseados = []
+    if hay_fv:
+        if (fv.get("conexion") or "aislado").lower() == "ongrid":  # on-grid y on-grid sin inyección
+            deseados.append("fv_te4")
+            if not _f4_presente(proyecto, textos):
+                deseados.append("fv_f4")
+        else:
+            deseados.append("fv_te1")
+    cfg = proyecto.get("pend_auto_cfg") or {}
+    if cfg.get("mee") or _mee_por_texto(proyecto):
+        deseados.append("mee")
+    if cfg.get("reclasif_suelo"):
+        deseados.append("suelo_reclas")
     for p in proyecto.get("pendientes", []):
         if p.get("tipo") == "acreditacion":  # tipo efímero previo: "acreditación" es el tipo "pago"
             p["tipo"] = "pago"
     descartados = set(proyecto.get("pendientes_auto_descartados") or [])
     lista = [p for p in proyecto.get("pendientes", [])
              if not p.get("auto") or p.get("auto") in deseados]
-    existentes = {p.get("auto") for p in lista}
+    por_clave = {p.get("auto"): p for p in lista if p.get("auto")}
     for clave in deseados:
-        if clave in existentes or clave in descartados:
-            continue
-        tipo, texto = _PEND_FV[clave]
-        lista.append({"id": str(uuid.uuid4())[:8], "tipo": tipo, "texto": texto, "auto": clave,
-                      "fecha": _ahora().isoformat(), "por": "Automático (Chequeo FV)"})
+        tipo, texto = _PEND_AUTO[clave]
+        if clave in por_clave:  # texto/tipo vigentes (los pendientes automáticos no se editan)
+            por_clave[clave]["texto"], por_clave[clave]["tipo"] = texto, tipo
+        elif clave not in descartados:
+            lista.append({"id": str(uuid.uuid4())[:8], "tipo": tipo, "texto": texto, "auto": clave,
+                          "fecha": _ahora().isoformat(), "por": "Automático"})
     if lista or proyecto.get("pendientes") is not None:
         proyecto["pendientes"] = lista
+
+
+async def _sync_pendientes(proyecto: dict) -> None:
+    """Sincroniza los automáticos; carga los textos solo si hay que buscar un F4."""
+    textos = None
+    fv = (proyecto.get("verificacion_calculos") or {}).get("energetico") or {}
+    if (fv.get("conexion") or "").lower() == "ongrid":
+        textos = await asyncio.to_thread(db.get_textos_proyecto, proyecto["id"])
+    _sincronizar_pendientes_auto(proyecto, textos)
+
+
+@app.post("/proyecto/{proyecto_id}/pendientes/config")
+async def config_pendientes(request: Request, proyecto_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
+    if not proyecto:
+        raise HTTPException(status_code=404)
+    form = await request.form()
+    cfg = {k: form.get(k) == "on" for k in _PEND_CONFIG}
+    desc = set(proyecto.get("pendientes_auto_descartados") or [])
+    for k, clave in _PEND_CONFIG.items():  # al cambiar un antecedente, vuelve a regir su pendiente
+        if cfg[k] != bool((proyecto.get("pend_auto_cfg") or {}).get(k)):
+            desc.discard(clave)
+    proyecto["pend_auto_cfg"] = cfg
+    proyecto["pendientes_auto_descartados"] = sorted(desc)
+    await _sync_pendientes(proyecto)
+    (await asyncio.to_thread(db.save_proyecto, proyecto))
+    return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
 
 
 @app.post("/proyecto/{proyecto_id}/pendientes/agregar")
@@ -3400,7 +3469,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     _fv_preservar_legado(proyecto["verificacion_calculos"].get("energetico"), datos)
     proyecto["verificacion_calculos"]["energetico"] = datos
-    _sincronizar_pendientes_fv(proyecto)
+    await _sync_pendientes(proyecto)
     _registrar_costo(proyecto, "chequeo", acc_costo)
     (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -3438,7 +3507,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     datos["fuente_docs"] = (proyecto["verificacion_calculos"].get("energetico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["energetico"] = datos
-    _sincronizar_pendientes_fv(proyecto)
+    await _sync_pendientes(proyecto)
     (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -3815,7 +3884,7 @@ async def ficha_revision(request: Request, proyecto_id: str):
         raise HTTPException(status_code=404)
     # Proyectos con FV anteriores a los pendientes automáticos: se completan al abrir la ficha.
     _antes = json.dumps(proyecto.get("pendientes"), sort_keys=True)
-    _sincronizar_pendientes_fv(proyecto)
+    await _sync_pendientes(proyecto)
     if json.dumps(proyecto.get("pendientes"), sort_keys=True) != _antes:
         await asyncio.to_thread(db.save_proyecto, proyecto)
     try:

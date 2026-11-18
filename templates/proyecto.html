@@ -945,6 +945,17 @@ function actualizarEtiqueta(input) {
     {% for tk, tl in TIPOS_PENDIENTE.items() %}{% set n = pendientes | selectattr('tipo', 'equalto', tk) | list | length %}{% if n %}<span class="badge badge-pendiente" title="{{ tl }}">{{ tl }}: {{ n }}</span>{% endif %}{% endfor %}
   </summary>
 
+  {% set pcfg = proyecto.pend_auto_cfg or {} %}
+  <form method="post" action="/proyecto/{{ proyecto.id }}/pendientes/config"
+        style="display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; margin-top:0.6rem; font-size:0.86rem;">
+    <label title="Pozo, puntera o canal que sale de un cauce natural: agrega el pendiente de monitoreo de extracciones efectivas (MEE). Pozo y puntera se detectan también por el Resumen." style="display:flex; gap:0.35rem; align-items:center;">
+      <input type="checkbox" name="mee" {% if pcfg.mee %}checked{% endif %} onchange="this.form.submit()"> Captación con MEE
+    </label>
+    <label title="Si el consultor presentó reclasificación de uso de suelos: agrega el pendiente de nuevo certificado de avalúo detallado." style="display:flex; gap:0.35rem; align-items:center;">
+      <input type="checkbox" name="reclasif_suelo" {% if pcfg.reclasif_suelo %}checked{% endif %} onchange="this.form.submit()"> Reclasificación de suelos
+    </label>
+  </form>
+
   <form method="post" action="/proyecto/{{ proyecto.id }}/pendientes/agregar"
         style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.6rem;">
     <select name="tipo" required

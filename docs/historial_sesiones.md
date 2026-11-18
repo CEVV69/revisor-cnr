@@ -7954,3 +7954,16 @@ proyectos anteriores). Si cambia la conexión se reemplazan; si el revisor elimi
 datos declarados. Suben al SEP por la ficha (las notas no).
 
 Pendientes automáticos por FV: confirmado por el usuario (nov-2026) en un proyecto on-grid ya revisado; aparecen en la ficha y en la tarjeta Pendientes tras recargar.
+
+## Pendientes automáticos ampliados (nov-2026)
+
+`_sincronizar_pendientes_auto` (main.py, antes `_..._fv`) con `_PEND_AUTO`: MEE (recepción: pozo/puntera
+detectados por palabra en Resumen obras/DAA/características, o canal desde cauce natural marcado a
+mano en la tarjeta Pendientes); FV on-grid (incluye sin inyección, misma conexión "ongrid"): F4 al
+inicio de obra solo si no hay F4 en el expediente (`_f4_presente`: nombre del archivo o título del
+texto) + TE4 y Protocolo en recepción (un solo pendiente; se eliminó el Protocolo en acreditación);
+off-grid: TE1 inscrito en la SEC (recepción); reclasificación de suelos (marcada a mano, tipo
+"A la acreditación"). Antecedentes manuales en `proyecto["pend_auto_cfg"]` (ruta
+`/pendientes/config`); al cambiarlos vuelve a regir su pendiente aunque se hubiera eliminado.
+Los automáticos se re-sincronizan (texto/tipo vigentes) al guardar el Chequeo FV, al cambiar los
+antecedentes y al abrir la ficha.
