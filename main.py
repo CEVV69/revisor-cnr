@@ -5081,20 +5081,34 @@ TIPOS_MODIFICACION = {
     "fuerza_mayor":         "Cambio o eliminación por fuerza mayor",
 }
 
-# Correo oficial al que se envía la Ficha una vez sancionada la modificación (pedido del usuario,
-# oct-2026). `mailto:` NO puede adjuntar archivos (ninguna convención de email lo permite desde una
-# página web) — el botón solo precarga destinatario/asunto/cuerpo; el revisor arrastra la Ficha
-# descargada del SEP a mano antes de enviar.
-EMAIL_FOMENTO_CNR = "secretarias.fomento@cnr.gob.cl"
+# Correo al que se envía la Ficha una vez sancionada la modificación (pedido del usuario, nov-2026:
+# antes secretarias.fomento@). `mailto:` NO puede adjuntar archivos (ninguna convención de email lo
+# permite desde una página web) — el botón solo precarga destinatario/asunto/cuerpo; el revisor
+# arrastra la Ficha descargada del SEP a mano antes de enviar. Además del `mailto` (respaldo) se arma
+# la URL de redacción de Gmail, que se abre directo en una pestaña; la cuenta (`authuser`) la pone el
+# navegador del revisor (localStorage, ver `abrirGmailFicha` en base.html) — NO va en el repo, que
+# es público.
+EMAIL_FOMENTO_CNR = "sebastian.silva@cnr.gob.cl"
+
+
+def _correo_ficha_modificacion(mod: dict) -> tuple:
+    asunto = f"Informe de Modificación — {mod.get('codigo_sep', '')}"
+    cuerpo = (
+        "Estimado Sebastián,\n\nAdjunto envío a la Ficha con el informe de Modificación "
+        f"solicitada al proyecto {mod.get('codigo_sep', '')}.\n\nAtentamente,"
+    )
+    return asunto, cuerpo
 
 
 def _mailto_ficha_modificacion(mod: dict) -> str:
-    asunto = quote(f"Informe de Modificación — {mod.get('codigo_sep', '')}")
-    cuerpo = quote(
-        "Estimados Sres. Gestión Administrativa. Adjunto envío a ustedes la Ficha con el informe "
-        "de Modificación.\n\nAtentamente,"
-    )
-    return f"mailto:{EMAIL_FOMENTO_CNR}?subject={asunto}&body={cuerpo}"
+    asunto, cuerpo = _correo_ficha_modificacion(mod)
+    return f"mailto:{EMAIL_FOMENTO_CNR}?subject={quote(asunto)}&body={quote(cuerpo)}"
+
+
+def _gmail_ficha_modificacion(mod: dict) -> str:
+    asunto, cuerpo = _correo_ficha_modificacion(mod)
+    return ("https://mail.google.com/mail/?view=cm&fs=1&to=" + quote(EMAIL_FOMENTO_CNR)
+            + "&su=" + quote(asunto) + "&body=" + quote(cuerpo))
 
 
 @app.get("/modificaciones", response_class=HTMLResponse)
@@ -5192,7 +5206,7 @@ async def ver_modificacion(request: Request, mod_id: str):
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "costo_api": _costo_para_vista(mod),
         "n_pendientes_respuesta": n_pendientes_respuesta,
-        "mailto_ficha": _mailto_ficha_modificacion(mod),
+        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod),
     })
 
 
@@ -5917,7 +5931,7 @@ async def pagina_resumen_modificacion(request: Request, mod_id: str):
         "resumen": mod.get("resumen", {}), "tipos_modificacion": TIPOS_MODIFICACION,
         "n_pendientes_respuesta": n_pendientes_respuesta,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
-        "mailto_ficha": _mailto_ficha_modificacion(mod), "error": error,
+        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod), "error": error,
     })
 
 

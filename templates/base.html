@@ -466,6 +466,22 @@
   // la IA"). Helper global para que toda llamada a una ruta que llama a la IA se cancele sola
   // tras `ms` (default 90s — bastante más que lo que tarda cualquier respuesta normal, 5-17s
   // medido) en vez de colgarse sin error ni éxito.
+  // Botón "Enviar Ficha": abre la redacción de Gmail en una pestaña, con la cuenta del revisor
+  // (authuser) guardada en este navegador — no va en el repo (público). Shift+clic la cambia.
+  // Si no hay cuenta o se cancela el aviso, cae al `mailto:` normal del enlace.
+  window.abrirGmailFicha = function(a, ev) {
+    var cuenta = "";
+    try { cuenta = localStorage.getItem("gmail_authuser") || ""; } catch (e) {}
+    if (!cuenta || (ev && ev.shiftKey)) {
+      var nueva = window.prompt("Correo de la cuenta de Gmail desde la que envías (se recuerda en este navegador):", cuenta);
+      if (nueva === null) return !cuenta;  // cancelado: sin cuenta usa mailto; con cuenta no hace nada
+      cuenta = nueva.trim();
+      try { localStorage.setItem("gmail_authuser", cuenta); } catch (e) {}
+    }
+    if (!cuenta) return true;
+    window.open(a.dataset.gmail + "&authuser=" + encodeURIComponent(cuenta), "_blank", "noopener");
+    return false;
+  };
   window.fetchConTope = function(url, opciones, ms) {
     var controlador = new AbortController();
     var tope = setTimeout(function() { controlador.abort(); }, ms || 90000);

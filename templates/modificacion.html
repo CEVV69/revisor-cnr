@@ -42,8 +42,8 @@
     </div>
 
     {% if proyecto.estado == 'Aprobado' %}
-    <a href="{{ mailto_ficha }}" class="btn btn-primary btn-sm"
-       title="Abre tu cliente de correo con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano, un mailto no puede adjuntar archivos">
+    <a href="{{ mailto_ficha }}" data-gmail="{{ gmail_ficha }}" onclick="return abrirGmailFicha(this, event)" class="btn btn-primary btn-sm"
+       title="Abre Gmail con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano. Shift+clic cambia la cuenta de Gmail">
       Enviar Ficha a CNR
     </a>
     {% endif %}

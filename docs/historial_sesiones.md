@@ -7969,3 +7969,11 @@ Los automáticos se re-sincronizan (texto/tipo vigentes) al guardar el Chequeo F
 antecedentes y al abrir la ficha.
 
 Pendientes automáticos ampliados (MEE, F4, TE4+Protocolo, TE1 SEC, reclasificación de suelos): confirmado por el usuario (nov-2026), "funciona perfecto".
+
+## Modificaciones: nuevo destinatario y Gmail directo (nov-2026)
+
+`EMAIL_FOMENTO_CNR` pasa a sebastian.silva@cnr.gob.cl con el texto nuevo ("Estimado Sebastián, ...
+Modificación solicitada al proyecto [código]"). El botón "Enviar Ficha a CNR" ahora abre la redacción
+de Gmail (`_gmail_ficha_modificacion`, `abrirGmailFicha` en base.html) con `authuser` = cuenta que el
+revisor ingresa una vez (localStorage del navegador, Shift+clic la cambia; no va en el repo público).
+Sin cuenta o si cancela, cae al `mailto:`. Sin probar en el navegador real.
