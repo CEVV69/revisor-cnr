@@ -7952,3 +7952,5 @@ Se sincroniza al guardar el Chequeo FV (formulario y extracción IA) y al abrir 
 proyectos anteriores). Si cambia la conexión se reemplazan; si el revisor elimina uno queda en
 `pendientes_auto_descartados` y no se re-agrega. Hay FV si el Chequeo tiene pkw, horas, GU o
 datos declarados. Suben al SEP por la ficha (las notas no).
+
+Pendientes automáticos por FV: confirmado por el usuario (nov-2026) en un proyecto on-grid ya revisado; aparecen en la ficha y en la tarjeta Pendientes tras recargar.

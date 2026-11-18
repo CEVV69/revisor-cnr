@@ -44,7 +44,8 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
-**Confirmado por el usuario (nov-2026):** botón "Debate con la IA" sin pegarse; anti-doble-cobro;
+**Confirmado por el usuario (nov-2026):** pendientes automáticos por FV (TE4/Protocolo on-grid,
+TE1 off-grid; `_sincronizar_pendientes_fv`); botón "Debate con la IA" sin pegarse; anti-doble-cobro;
 notas manuales en Revisión Ítem SEP (`_form_nota_manual`); **Chequeo Fotovoltaico** con la
 metodología de la app Revisor FV (`calculos_riego.verificacion_fv_anual`: demanda mensual vs
 generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.2; GU derivada del
@@ -58,7 +59,6 @@ todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloq
 hilo; si sigue lenta, revisar logs de Railway); lectura con IA real del reporte del Explorador
 (capacidad instalada y total anual) y de energía requerida/cobertura declaradas, sin probar con API
 real; ítem Presupuesto recibe los antecedentes del ítem Declaración IVA (`_bloque_antecedentes_iva`).
-Pendientes automáticos por FV (TE4/Protocolo on-grid, TE1 off-grid; `_sincronizar_pendientes_fv`).
 Detalle de todo en `docs/historial_sesiones.md`.
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la
