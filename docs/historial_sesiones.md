@@ -7981,3 +7981,7 @@ Fix (nov-2026): con `&authuser=<correo>` Gmail envió desde la cuenta personal (
 activa del navegador) y el primer clic no abría nada (pestaña bloqueada tras el `prompt`). Ahora la
 pestaña se abre antes del aviso y la cuenta va en la ruta `/mail/u/<correo>/`. Requiere tener la
 sesión de la cuenta institucional iniciada en el mismo perfil de Chrome. Por confirmar con el usuario.
+Fix 2 (nov-2026): el usuario usa la app instalada (PWA de Chrome); sus enlaces externos se abren en
+el perfil predeterminado (cuenta personal) sin importar `/mail/u/`. En modo standalone el botón
+"Enviar Ficha" ya no abre Gmail: muestra un cuadro con Para/Asunto/Mensaje y botones "Copiar"
+(`_modalCorreo`, base.html). En pestaña de Chrome sigue abriendo Gmail con la cuenta guardada.

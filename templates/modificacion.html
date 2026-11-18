@@ -42,7 +42,7 @@
     </div>
 
     {% if proyecto.estado == 'Aprobado' %}
-    <a href="{{ mailto_ficha }}" data-gmail="{{ gmail_ficha }}" onclick="return abrirGmailFicha(this, event)" class="btn btn-primary btn-sm"
+    <a href="{{ mailto_ficha }}" data-gmail="{{ gmail_ficha }}" data-para="{{ correo_destino }}" data-asunto="{{ correo_ficha[0] }}" data-cuerpo="{{ correo_ficha[1] }}" onclick="return abrirGmailFicha(this, event)" class="btn btn-primary btn-sm"
        title="Abre Gmail con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano. Shift+clic cambia la cuenta de Gmail">
       Enviar Ficha a CNR
     </a>

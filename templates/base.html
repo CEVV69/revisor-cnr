@@ -469,7 +469,38 @@
   // Botón "Enviar Ficha": abre la redacción de Gmail en una pestaña, con la cuenta del revisor
   // (authuser) guardada en este navegador — no va en el repo (público). Shift+clic la cambia.
   // Si no hay cuenta o se cancela el aviso, cae al `mailto:` normal del enlace.
+  // App instalada (PWA): sus enlaces externos se abren en el Chrome/perfil PREDETERMINADO del
+  // equipo, no en el que tiene la cuenta de trabajo (nov-2026: el correo salía de la cuenta
+  // personal). Ahí no se abre Gmail: se muestra el correo con botones "Copiar" para pegarlo en el
+  // Gmail correcto.
+  function _modalCorreo(a) {
+    var fondo = document.createElement("div");
+    fondo.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+    var caja = document.createElement("div");
+    caja.style.cssText = "background:var(--surface,#fff);color:var(--text,#111);border-radius:12px;padding:1rem 1.2rem;max-width:560px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3);font-size:.88rem;";
+    [["Para", a.dataset.para], ["Asunto", a.dataset.asunto], ["Mensaje", a.dataset.cuerpo]].forEach(function(f) {
+      var fila = document.createElement("div");
+      fila.style.cssText = "display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.6rem;";
+      var et = document.createElement("strong"); et.textContent = f[0]; et.style.cssText = "width:4.5rem;flex:none;";
+      var tx = document.createElement("div"); tx.textContent = f[1]; tx.style.cssText = "flex:1;white-space:pre-wrap;";
+      var bt = document.createElement("button"); bt.type = "button"; bt.className = "btn btn-outline btn-sm"; bt.textContent = "Copiar";
+      bt.onclick = function() {
+        try { navigator.clipboard.writeText(f[1]); bt.textContent = "Copiado"; } catch (e) { bt.textContent = "No se pudo"; }
+      };
+      fila.appendChild(et); fila.appendChild(tx); fila.appendChild(bt); caja.appendChild(fila);
+    });
+    var cerrar = document.createElement("button"); cerrar.type = "button"; cerrar.className = "btn btn-ghost btn-sm"; cerrar.textContent = "Cerrar";
+    cerrar.onclick = function() { fondo.remove(); };
+    caja.appendChild(cerrar); fondo.appendChild(caja);
+    fondo.onclick = function(e) { if (e.target === fondo) fondo.remove(); };
+    document.body.appendChild(fondo);
+  }
+
   window.abrirGmailFicha = function(a, ev) {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
+      _modalCorreo(a);
+      return false;
+    }
     var cuenta = "";
     try { cuenta = localStorage.getItem("gmail_authuser") || ""; } catch (e) {}
     // La pestaña se abre ANTES del aviso: abrirla después la bloquea el navegador (se perdía el

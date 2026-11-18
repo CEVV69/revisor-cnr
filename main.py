@@ -5206,7 +5206,7 @@ async def ver_modificacion(request: Request, mod_id: str):
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
         "costo_api": _costo_para_vista(mod),
         "n_pendientes_respuesta": n_pendientes_respuesta,
-        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod),
+        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod), "correo_ficha": _correo_ficha_modificacion(mod), "correo_destino": EMAIL_FOMENTO_CNR,
     })
 
 
@@ -5931,7 +5931,7 @@ async def pagina_resumen_modificacion(request: Request, mod_id: str):
         "resumen": mod.get("resumen", {}), "tipos_modificacion": TIPOS_MODIFICACION,
         "n_pendientes_respuesta": n_pendientes_respuesta,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
-        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod), "error": error,
+        "mailto_ficha": _mailto_ficha_modificacion(mod), "gmail_ficha": _gmail_ficha_modificacion(mod), "correo_ficha": _correo_ficha_modificacion(mod), "correo_destino": EMAIL_FOMENTO_CNR, "error": error,
     })
 
 
