@@ -7942,3 +7942,13 @@ coherencia con el tratamiento del IVA ahí.
 
 `static/superficies_tecnificacion_v12.html` reemplazada por `superficies_tecnificacion_v13.html`
 (archivo entregado por el usuario); enlace del menú "Apps" y CLAUDE.md actualizados.
+
+## Pendientes automáticos por generación fotovoltaica (nov-2026)
+
+Nuevo tipo de pendiente "A la acreditación" (`TIPOS_PENDIENTE`). `_sincronizar_pendientes_fv`
+(main.py) agrega a `proyecto["pendientes"]` (marcados con `auto`): on-grid -> TE4 (recepción) y
+Protocolo de Conexión a la Red (acreditación); aislado/aislado con baterías -> TE1 (recepción).
+Se sincroniza al guardar el Chequeo FV (formulario y extracción IA) y al abrir la ficha (completa
+proyectos anteriores). Si cambia la conexión se reemplazan; si el revisor elimina uno queda en
+`pendientes_auto_descartados` y no se re-agrega. Hay FV si el Chequeo tiene pkw, horas, GU o
+datos declarados. Suben al SEP por la ficha (las notas no).

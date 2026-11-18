@@ -58,6 +58,7 @@ todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloq
 hilo; si sigue lenta, revisar logs de Railway); lectura con IA real del reporte del Explorador
 (capacidad instalada y total anual) y de energía requerida/cobertura declaradas, sin probar con API
 real; ítem Presupuesto recibe los antecedentes del ítem Declaración IVA (`_bloque_antecedentes_iva`).
+Pendientes automáticos por FV (TE4/Protocolo on-grid, TE1 off-grid; `_sincronizar_pendientes_fv`).
 Detalle de todo en `docs/historial_sesiones.md`.
 
 **Pendiente / sin probar:** extracción automática de presupuesto en Modificaciones, sin probar con la

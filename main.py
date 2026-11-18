@@ -1877,9 +1877,45 @@ async def estado_lote(request: Request, proyecto_id: str):
 TIPOS_PENDIENTE = {
     "inicio_obra":    "Al inicio de obra",
     "recepcion_obra": "A la recepción de obras",
+    "acreditacion":   "A la acreditación",
     "pago":           "Al momento de pago",
 }
 templates.env.globals["TIPOS_PENDIENTE"] = TIPOS_PENDIENTE
+
+# Pendientes automáticos por generación fotovoltaica (nov-2026): suben al SEP vía la ficha, a
+# diferencia de las notas. Se sincronizan al guardar el Chequeo FV según el tipo de conexión.
+# Si el revisor elimina uno, queda en `pendientes_auto_descartados` y no se vuelve a agregar.
+_PEND_FV = {
+    "fv_te4":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE4 del proyecto"),
+    "fv_prot": ("acreditacion", "El beneficiario deberá presentar el Protocolo de Conexión a la Red "
+                                "emitido por la empresa distribuidora de electricidad"),
+    "fv_te1":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE1 del proyecto"),
+}
+
+
+def _sincronizar_pendientes_fv(proyecto: dict) -> None:
+    fv = (proyecto.get("verificacion_calculos") or {}).get("energetico") or {}
+    decl = fv.get("declarado") or {}
+    hay_fv = any(fv.get(c) is not None for c in ("pkw", "horas_mensuales", "gu_anual")) or \
+        any(decl.get(c) is not None for c in ("n_paneles", "kwp_total", "gen_anual_kwh"))
+    if not hay_fv:
+        deseados = []
+    elif (fv.get("conexion") or "aislado").lower() == "ongrid":
+        deseados = ["fv_te4", "fv_prot"]
+    else:
+        deseados = ["fv_te1"]
+    descartados = set(proyecto.get("pendientes_auto_descartados") or [])
+    lista = [p for p in proyecto.get("pendientes", [])
+             if not p.get("auto") or p.get("auto") in deseados]
+    existentes = {p.get("auto") for p in lista}
+    for clave in deseados:
+        if clave in existentes or clave in descartados:
+            continue
+        tipo, texto = _PEND_FV[clave]
+        lista.append({"id": str(uuid.uuid4())[:8], "tipo": tipo, "texto": texto, "auto": clave,
+                      "fecha": _ahora().isoformat(), "por": "Automático (Chequeo FV)"})
+    if lista or proyecto.get("pendientes") is not None:
+        proyecto["pendientes"] = lista
 
 
 @app.post("/proyecto/{proyecto_id}/pendientes/agregar")
@@ -1912,6 +1948,9 @@ async def eliminar_pendiente(request: Request, proyecto_id: str, pend_id: str):
     proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
+    for p in proyecto.get("pendientes", []):
+        if p.get("id") == pend_id and p.get("auto"):
+            proyecto.setdefault("pendientes_auto_descartados", []).append(p["auto"])
     proyecto["pendientes"] = [p for p in proyecto.get("pendientes", []) if p.get("id") != pend_id]
     (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items?pend_ok=1#pendientes", status_code=302)
@@ -3359,6 +3398,7 @@ async def calculos_extraer_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     _fv_preservar_legado(proyecto["verificacion_calculos"].get("energetico"), datos)
     proyecto["verificacion_calculos"]["energetico"] = datos
+    _sincronizar_pendientes_fv(proyecto)
     _registrar_costo(proyecto, "chequeo", acc_costo)
     (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
@@ -3396,6 +3436,7 @@ async def calculos_guardar_fv(request: Request, proyecto_id: str):
     proyecto.setdefault("verificacion_calculos", {})
     datos["fuente_docs"] = (proyecto["verificacion_calculos"].get("energetico") or {}).get("fuente_docs")
     proyecto["verificacion_calculos"]["energetico"] = datos
+    _sincronizar_pendientes_fv(proyecto)
     (await asyncio.to_thread(db.save_proyecto, proyecto))
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/calculos", status_code=302)
 
@@ -3770,6 +3811,11 @@ async def ficha_revision(request: Request, proyecto_id: str):
     proyecto = (await asyncio.to_thread(db.get_proyecto, proyecto_id))
     if not proyecto:
         raise HTTPException(status_code=404)
+    # Proyectos con FV anteriores a los pendientes automáticos: se completan al abrir la ficha.
+    _antes = json.dumps(proyecto.get("pendientes"), sort_keys=True)
+    _sincronizar_pendientes_fv(proyecto)
+    if json.dumps(proyecto.get("pendientes"), sort_keys=True) != _antes:
+        await asyncio.to_thread(db.save_proyecto, proyecto)
     try:
         obs_aprobadas = [o for o in proyecto.get("observaciones", [])
                          if o.get("estado") == "aprobada" and o.get("severidad") != "informativa"]
