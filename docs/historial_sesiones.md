@@ -7985,3 +7985,6 @@ Fix 2 (nov-2026): el usuario usa la app instalada (PWA de Chrome); sus enlaces e
 el perfil predeterminado (cuenta personal) sin importar `/mail/u/`. En modo standalone el botón
 "Enviar Ficha" ya no abre Gmail: muestra un cuadro con Para/Asunto/Mensaje y botones "Copiar"
 (`_modalCorreo`, base.html). En pestaña de Chrome sigue abriendo Gmail con la cuenta guardada.
+Fix 3 (nov-2026, aprobado por el usuario): se quitó el respaldo `mailto:` (abría Firefox con la cuenta
+personal) y el cuadro "Copiar". El botón solo abre Gmail con `/mail/u/<correo>/`; si el navegador
+bloquea la pestaña, avisa. Junto al botón se muestra "Desde <cuenta>" (clic para cambiarla).
