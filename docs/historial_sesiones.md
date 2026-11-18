@@ -7937,3 +7937,8 @@ si no está acreditado"; `analizar_item` lo antepone a `contexto_extra` para `pr
 un test que captura `contexto_extra`; sin probar con la API real. Idea abierta (no hecha): el
 camino inverso — el ítem Declaración IVA tampoco ve el presupuesto, aunque su checklist pide
 coherencia con el tratamiento del IVA ahí.
+
+## App Cálculo de Superficies actualizada a v13 (nov-2026)
+
+`static/superficies_tecnificacion_v12.html` reemplazada por `superficies_tecnificacion_v13.html`
+(archivo entregado por el usuario); enlace del menú "Apps" y CLAUDE.md actualizados.

@@ -26,6 +26,7 @@ header .codigo input{width:200px}
 .bn-eq{display:flex;gap:6px}
 .bn{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:700}
 .bn:hover{background:rgba(255,255,255,.24)}
+.bn-sm{padding:4px 8px;font-size:11px}
 .tabs{display:flex;gap:6px;padding:10px 14px;background:var(--ice);flex-wrap:wrap;border-bottom:1px solid var(--border);justify-content:center}
 .tab{padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;background:#fff;border:1px solid var(--border);color:#3a4d63}
 .tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -93,9 +94,10 @@ th.tt-th:hover .tt-bubble, th.tt-th.tt-open .tt-bubble{display:block}
     <input type="text" id="inpCodigo" style="width:180px">
   </div>
   <div class="bn-eq no-print">
-    <button class="bn" onclick="exportJSON()">Exportar JSON</button>
-    <button class="bn" onclick="document.getElementById('fileInput').click()">Importar JSON</button>
+    <button class="bn bn-sm" onclick="exportJSON()">Exportar</button>
+    <button class="bn bn-sm" onclick="document.getElementById('fileInput').click()">Importar</button>
     <button class="bn" onclick="window.print()">Imprimir</button>
+    <button class="bn" onclick="abrirManual()" title="Abre el manual de uso en una ventana nueva">Manual</button>
   </div>
   <input type="file" id="fileInput" accept=".json">
 </header>
@@ -757,6 +759,14 @@ function renderInforme(){
 }
 
 /* ===================== IMPORT / EXPORT ===================== */
+function abrirManual(){
+  const html = document.getElementById('manualTpl').textContent;
+  const w = window.open('', '_blank');
+  if(!w){ alert('El navegador bloqueó la ventana nueva. Permita las ventanas emergentes para este archivo y vuelva a intentar.'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
 function exportJSON(){
   const data = {formato:'riego-cnr-superficies', version:1, estado:S};
   const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
@@ -787,6 +797,376 @@ document.querySelectorAll('.tab').forEach(t=>{
 });
 
 render();
+</script>
+<script type="text/template" id="manualTpl">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de uso — Cálculo de Superficies de Tecnificación</title>
+<style>
+:root{--navy:#0b2545;--blue:#1e5ba6;--ice:#eef4fb;--frost:#f7fafc;--border:#d7e2ee;--ok:#1b7a3d;--warn:#b45309;--err:#b3261e}
+@media(prefers-color-scheme:dark){
+  :root{--navy:#0b2545;--blue:#4d8fd6;--ice:#132338;--frost:#0e1a2b;--border:#274156}
+  body{background:#0a1420;color:#dbe6f2}
+  .box{background:#0f2035}
+  th{background:#152a42}
+  code{background:#152a42;color:#dbe6f2}
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Nunito",system-ui,-apple-system,sans-serif;background:var(--frost);color:#16243a;line-height:1.6}
+header{background:var(--navy);color:#fff;padding:14px 22px;position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{margin:0;font-size:16px;font-weight:800}
+header .sub{font-size:11.5px;opacity:.8}
+header button{margin-left:auto;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.wrap{max-width:900px;margin:0 auto;padding:20px 22px 60px}
+nav.toc{background:var(--ice);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:22px}
+nav.toc b{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--navy)}
+nav.toc ol{margin:8px 0 0;padding-left:20px;font-size:13.5px;columns:2;column-gap:28px}
+nav.toc a{color:var(--blue);text-decoration:none}
+nav.toc a:hover{text-decoration:underline}
+h2{font-size:17px;color:var(--navy);margin:30px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--border)}
+h3{font-size:14px;color:var(--navy);margin:20px 0 6px}
+h4{font-size:13px;margin:14px 0 4px;color:var(--blue)}
+p,li{font-size:13.5px}
+ul,ol{padding-left:22px}
+li{margin-bottom:4px}
+.box{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin:12px 0}
+.box.tip{border-left:4px solid var(--ok)}
+.box.warn{border-left:4px solid var(--warn)}
+.box.key{border-left:4px solid var(--blue);background:var(--ice)}
+.box p:first-child,.box ul:first-child{margin-top:0}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:10px 0}
+th,td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--ice);font-weight:700}
+code{background:var(--ice);padding:1px 5px;border-radius:4px;font-family:"DM Mono",ui-monospace,monospace;font-size:12.5px}
+.formula{background:var(--ice);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:6px;padding:10px 14px;margin:10px 0;font-family:"DM Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.8}
+.paso{display:inline-block;background:var(--navy);color:#fff;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:800;margin-right:6px}
+.badge{display:inline-block;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700}
+.badge.ing{background:#e6f0fb;color:#15497f}
+.badge.auto{background:#e8f5ec;color:#1b7a3d}
+.muted{color:#6b7d90;font-size:12px}
+footer{border-top:1px solid var(--border);margin-top:34px;padding-top:12px;font-size:11.5px;color:#6b7d90}
+@media print{
+  header{position:static}
+  header button{display:none}
+  nav.toc{page-break-after:always}
+  h2{page-break-after:avoid}
+  .box,table,.formula{page-break-inside:avoid}
+  @page{size:letter;margin:16mm}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Manual de uso — Cálculo de Superficies de Tecnificación</h1>
+    <div class="sub">Ley N° 18.450 · Instructivos CNR ITT-01, ITT-02, DT-04 (ex AT-11) y Reglamento D.S. N° 95/2014</div>
+  </div>
+  <button onclick="window.print()">Imprimir / Guardar PDF</button>
+</header>
+<div class="wrap">
+
+<nav class="toc">
+  <b>Contenido</b>
+  <ol>
+    <li><a href="#q1">¿Qué hace esta app?</a></li>
+    <li><a href="#q2">La idea central en 1 minuto</a></li>
+    <li><a href="#q3">Cómo usarla (dos modos)</a></li>
+    <li><a href="#p1">Paso 1 · Predio</a></li>
+    <li><a href="#p2">Paso 2 · Demanda</a></li>
+    <li><a href="#p3">Paso 3 · Situación Actual</a></li>
+    <li><a href="#p4">Paso 4 · Situación Futura</a></li>
+    <li><a href="#p5">Paso 5 · Resultado</a></li>
+    <li><a href="#p6">Paso 6 · Informe</a></li>
+    <li><a href="#val">Mensajes de validación</a></li>
+    <li><a href="#tab">Tabla de eficiencias</a></li>
+    <li><a href="#glo">Glosario de siglas</a></li>
+    <li><a href="#conv">Convenciones y guardado</a></li>
+    <li><a href="#lim">Qué NO hace la app</a></li>
+  </ol>
+</nav>
+
+<h2 id="q1">1 · ¿Qué hace esta app?</h2>
+<p>Determina la <b>superficie de postulación</b> de un proyecto de tecnificación de riego presentado a los concursos de la Ley N° 18.450: es decir, <b>cuántas hectáreas puede bonificar el proyecto</b>, que casi nunca son las mismas hectáreas físicas que se van a tecnificar.</p>
+<p>Reemplaza la planilla Excel oficial <b>FT-04</b> "Cálculo de superficies de tecnificación", aplicando los instructivos vigentes:</p>
+<table>
+  <tr><th>Documento</th><th>Qué aporta al cálculo</th></tr>
+  <tr><td><b>ITT-01</b></td><td>Reglas de disponibilidad de aguas (Q85%), incluido el factor 0,5 para derechos eventuales.</td></tr>
+  <tr><td><b>ITT-02</b></td><td>El procedimiento completo: superficie regable máxima, eficiencias (Tabla N°1), balance hídrico, SRA/SRF, SNR/SENR y casos especiales.</td></tr>
+  <tr><td><b>DT-04</b> (ex AT-11)</td><td>Fórmula de eficiencia de riego ponderada, cuando hay más de un método de riego actual.</td></tr>
+  <tr><td><b>Reglamento</b></td><td>Cuadro N°1 letra b): factor del incremento de potencialidad de suelos.</td></tr>
+</table>
+
+<div class="box key">
+  <p><b>Para qué sirve en la práctica:</b></p>
+  <ul>
+    <li><b>Calcular</b> la superficie de postulación de un proyecto que usted está formulando.</li>
+    <li><b>Revisar/auditar</b> el cálculo que presentó un consultor: usted ingresa los mismos datos de entrada y la app compara su resultado con el declarado en el proyecto, marcando dónde difieren.</li>
+  </ul>
+</div>
+
+<h2 id="q2">2 · La idea central en 1 minuto</h2>
+<p>La Ley bonifica el <b>beneficio de riego que el proyecto genera</b>, no el equipo que se instala. Ese beneficio puede venir por dos caminos, y la app los calcula por separado:</p>
+
+<div class="box">
+  <h4>Camino 1 — Riego nuevo (SNR)</h4>
+  <p>El proyecto <b>riega más superficie</b> que antes. Ejemplo: antes se regaban 10 ha, ahora se riegan 18 ha. Las 8 ha de diferencia son <b>superficie de riego nuevo</b>.</p>
+  <div class="formula">SNR = SRF − SRA</div>
+</div>
+
+<div class="box">
+  <h4>Camino 2 — Riego equivalente a nuevo (SENR)</h4>
+  <p>El proyecto riega <b>la misma superficie pero con mucho menos agua</b>, porque mejora la eficiencia (por ejemplo, pasa de surcos 45% a goteo 90%). Esa agua que queda libre <b>podría</b> regar hectáreas adicionales, y la Ley reconoce ese ahorro como si fuera superficie nueva.</p>
+  <div class="formula">Agua liberada = QSRA − QSRF
+SRQe = Agua liberada ÷ demanda por ha (con la eficiencia del sistema actual)
+SENR = SRQe</div>
+</div>
+
+<div class="box key">
+  <div class="formula" style="margin:0">Superficie de postulación = SNR + SENR</div>
+  <p class="muted" style="margin-bottom:0">Siempre con un techo: no puede superar la superficie física del proyecto que se está tecnificando.</p>
+</div>
+
+<p>Para llegar a eso, la app necesita saber tres cosas, y de ahí sale el orden de los pasos:</p>
+<ol>
+  <li><b>¿Cuánto del predio es legalmente regable?</b> → Paso 1</li>
+  <li><b>¿Cuánta agua consume una hectárea en esa zona?</b> → Paso 2</li>
+  <li><b>¿Cuánta agua hay y cómo se riega, antes y después?</b> → Pasos 3 y 4</li>
+</ol>
+
+<h2 id="q3">3 · Cómo usarla (dos modos)</h2>
+<h3>Modo cálculo</h3>
+<p>Recorra los pasos 1 al 5 con los botones <b>Siguiente / Anterior</b> al pie de cada paso, o haciendo clic en las pestañas de arriba. Los campos en <span class="badge ing">azul claro = editables</span> los ingresa usted; los campos <span class="badge auto">grises y bloqueados</span> los calcula la app sola y no se pueden escribir.</p>
+
+<h3>Modo revisión / auditoría</h3>
+<p>Ingrese los <b>datos de entrada</b> del proyecto que está revisando (predio, demanda, situación actual y futura) y luego, en el Paso 5, use la tabla <b>"Chequeo — comparar con valores declarados en el proyecto (SEP)"</b>: escriba lo que el consultor declaró y la app le marcará <b>✓ coincide</b> o <b>⚠ difiere en X ha</b> para SRA, SRF, SNR, SENR, superficie de postulación e incremento de potencialidad. La tolerancia es de 0,02 ha.</p>
+
+<div class="box tip">
+  <p style="margin:0">En cada paso hay un botón <b>📖 Instructivo</b> que despliega las reglas puntuales de ese paso. Además, pasando el mouse por sobre los títulos de campos y columnas aparecen notas con la explicación y las unidades.</p>
+</div>
+
+<h2 id="p1"><span class="paso">Paso 1</span>Predio — cuánta superficie es legalmente regable</h2>
+<p><b>Para qué:</b> fija el techo legal de todo el cálculo. Ninguna superficie posterior puede superar este valor. Se basa en la clase de capacidad de uso de suelo: la Ley solo considera regables las <b>clases I a IV</b>.</p>
+
+<h4>Qué ingresar</h4>
+<table>
+  <tr><th>Campo</th><th>De dónde se obtiene</th></tr>
+  <tr><td><b>Rol</b></td><td>El número de rol del predio (formato xxxx-xxxx). Es un identificador, no una superficie. Puede agregar varios roles con <b>+ agregar rol</b>.</td></tr>
+  <tr><td><b>Superficie por clase I a VIII</b></td><td>Certificado de Avalúo del SII de cada rol. Se ingresa la superficie en ha que corresponde a cada clase.</td></tr>
+  <tr><td><b>Fila "Reclasif."</b></td><td>Solo si el proyecto presenta un estudio de reclasificación de suelos: se ingresa la superficie <b>según la nueva clase</b>.</td></tr>
+  <tr><td><b>Asimilación de suelos</b></td><td>Solo si hay estudio de asimilación: superficie de clases VI o VII que se reconoce como regable.</td></tr>
+  <tr><td><b>Superficie título de dominio</b></td><td>La escritura / título de dominio. Actúa como tope absoluto.</td></tr>
+</table>
+
+<div class="box warn">
+  <p style="margin:0"><b>Arriendos:</b> ingrese la superficie arrendada manteniendo <b>la misma distribución de clases</b> que tiene el rol completo, no toda la superficie del rol.</p>
+</div>
+
+<h4>Cómo lo calcula</h4>
+<p>La superficie de título de dominio casi nunca coincide con la suma del avalúo. La app prorratea esa diferencia respetando la proporción de suelo regable del predio:</p>
+<div class="formula">Suma I-IV   = clases I + II + III + IV (incluyendo reclasificación)
+Total predio = suma de todas las clases I a VIII
+Proporción   = Suma I-IV ÷ Total predio
+
+Superficie regable máxima = Suma I-IV + Asimilación
+                          + Proporción × (Título de dominio − Total predio)
+
+…y si el resultado supera el Título de dominio, se topa en el Título de dominio.</div>
+<p class="muted">Ejemplo real verificado: predio con 288,10 ha clase III, 8,80 VI, 28,00 VII y 0,60 VIII (total 325,50 ha) y título de dominio de 13,52 ha → <b>superficie regable máxima 11,967 ha</b>.</p>
+
+<h2 id="p2"><span class="paso">Paso 2</span>Demanda — cuánta agua consume una hectárea</h2>
+<p><b>Para qué:</b> obtener la demanda unitaria de agua de la zona del proyecto. Es el dato que convierte hectáreas en caudal y caudal en hectáreas; sin él no hay balance posible.</p>
+
+<h4>Tres orígenes de ETo (elija uno)</h4>
+<table>
+  <tr><th>Origen</th><th>Cuándo usarlo</th><th>Qué ingresar</th></tr>
+  <tr><td><b>Zona CNR</b></td><td>Método clásico del Excel FT-04.</td><td>Zona de distribución (I a XI) + Isolínea de ETp en mm/año, según el mapa oficial CNR del lugar del proyecto.</td></tr>
+  <tr><td><b>Estación meteorológica</b></td><td>Cuando quiere mayor precisión y existe una estación representativa.</td><td>Nombre de la estación (escriba para buscar entre 561 estaciones; es la misma base de datos que usa la app Diseño SCALL).</td></tr>
+  <tr><td><b>Manual</b></td><td>Cuando tiene ETo propio, georreferenciado o de otra fuente oficial.</td><td>ETo de los 3 meses de máxima demanda (mm/día) y ETp de la temporada (m³/ha).</td></tr>
+</table>
+
+<h4>Cómo lo calcula</h4>
+<p>El dimensionamiento se hace para el <b>peor momento del año</b>: la app identifica sola los 3 meses de mayor ETo y promedia su valor diario. En Chile normalmente resultan diciembre, enero y febrero.</p>
+<div class="formula">ETo mensual (mm/mes) = Isolínea × % de la zona para ese mes ÷ 100
+   (en modo estación, el ETo mensual viene directo de la estación)
+
+ETo diario    = promedio de los 3 meses mayores, cada uno ÷ sus días
+Demanda por ha = promedio de [ ETo_mes × 10.000 ÷ (86.400 × días_mes) ]   → l/s/ha
+
+ETp temporada = suma de ETo de septiembre a abril × 10                     → m³/ha</div>
+
+<div class="box key">
+  <p><b>Dos resultados distintos que se confunden mucho:</b></p>
+  <ul>
+    <li><b>Demanda por ha (l/s/ha)</b> — para fuentes de <b>caudal continuo</b>: canal y pozo. Se compara contra la disponibilidad instantánea, en el mes más exigente.</li>
+    <li><b>ETp temporada (m³/ha)</b> — para fuentes de <b>volumen acumulado</b>: embalses. Se compara contra el volumen total disponible para los 8 meses de temporada.</li>
+  </ul>
+  <p style="margin-bottom:0">Un canal entrega agua todo el tiempo, por eso se mira el momento crítico. Un embalse guarda un volumen fijo para toda la temporada, por eso se mira el consumo total. La temporada de riego es <b>septiembre a abril</b>, fija por el ITT-02.</p>
+</div>
+
+<h4>Superficie del proyecto</h4>
+<p>Las hectáreas físicas que se van a tecnificar. Es el <b>techo de la superficie de postulación</b>: no se puede postular más superficie que la que efectivamente se interviene. No puede superar la superficie regable máxima del Paso 1.</p>
+
+<h2 id="p3"><span class="paso">Paso 3</span>Situación Actual — cómo se riega hoy</h2>
+<p><b>Para qué:</b> establecer la línea base. Cuánta agua hay, cuánta superficie se riega hoy y con qué eficiencia. De aquí sale la <b>SRA</b> y el <b>QSRA</b>, que son la referencia contra la cual se mide el proyecto.</p>
+
+<h4>Disponibilidad Q85%</h4>
+<p>Es el caudal o volumen con 85% de probabilidad de excedencia, que el proyecto debe acreditar por separado (certificado de derechos, DT-01, estudio hidrológico, etc.). <b>La app no lo calcula: usted lo ingresa como dato ya determinado.</b></p>
+<ul>
+  <li><b>Canal</b> y <b>Pozo</b>: en l/s.</li>
+  <li><b>Embalse</b>: en m³/año. Solo para embalses interanuales que certifican su dotación por temporada.</li>
+</ul>
+
+<div class="box warn">
+  <p style="margin:0"><b>¿Derecho eventual?</b> Si lo activa, la app aplica automáticamente el <b>factor 0,5</b> al canal y al pozo declarados antes de comparar contra el consumo (ITT-01). Verifique que el caso califica: el factor aplica en Zona Sur / Extremo Sur o con certificación de la organización de usuarios de agua. El valor efectivo usado queda a la vista bajo el campo.</p>
+</div>
+
+<h4>Métodos de riego (hasta 4)</h4>
+<p>Por cada método que se usa hoy, se indica la superficie regada <b>separada por fuente de agua</b>. La eficiencia la asigna la app sola desde la Tabla N°1 del ITT-02 según el método elegido.</p>
+<ul>
+  <li><b>Conducción californiana:</b> solo aparece en métodos gravitacionales (tendido, surcos, bordes, pretiles, tazas), porque solo ellos tienen una eficiencia distinta con aducción californiana. En métodos presurizados dice "No aplica".</li>
+  <li><b>Columna "Q fila":</b> el caudal que consume esa fila para regar las hectáreas indicadas. Canal y pozo en <b>l/s</b>, embalse en <b>m³/año</b>. No es una superficie: es el "costo en agua" de esa fila.</li>
+</ul>
+<div class="formula">Q fila (canal o pozo) = ha × ( Demanda por ha ÷ Eficiencia )
+Q fila (embalse)      = ha × ( ETp temporada ÷ Eficiencia )
+
+SRA  = suma de todas las hectáreas
+QSRA = suma de todos los Q fila, por fuente</div>
+
+<div class="box tip">
+  <p style="margin:0"><b>Superficie máxima sugerida:</b> la app le muestra cuántas hectáreas alcanzaría a regar con el agua que declaró, usando la eficiencia del primer método activo. Es un <b>chequeo cruzado</b>, no una obligación: si usted ingresó 5 ha y la sugerencia dice 3 ha, hay algo mal (agua insuficiente o mal ingresada).</p>
+</div>
+
+<h2 id="p4"><span class="paso">Paso 4</span>Situación Futura — cómo se regará con el proyecto</h2>
+<p><b>Para qué:</b> lo mismo que el Paso 3, pero con el proyecto ya ejecutado. De aquí salen la <b>SRF</b> y el <b>QSRF</b>.</p>
+<p>Funciona exactamente igual que el Paso 3 (misma disponibilidad por fuente, mismo toggle de derecho eventual, mismos 4 métodos, misma columna Q fila). Dos puntos a cuidar:</p>
+<ul>
+  <li>Si el proyecto incorpora <b>agua nueva</b> (pozo nuevo, nuevos derechos, una impulsión que habilita agua antes inutilizable), esa agua va en la disponibilidad <b>futura</b>, no en la actual.</li>
+  <li>Normalmente la SRF es mayor o igual que la SRA. Si resulta menor, la app lo advierte, porque un proyecto no debería reducir la superficie regada.</li>
+</ul>
+
+<h2 id="p5"><span class="paso">Paso 5</span>Resultado — la superficie de postulación</h2>
+<p><b>Para qué:</b> cruzar las dos situaciones y entregar el resultado final, con las correcciones y topes que exige el instructivo.</p>
+
+<h4>a) Agua liberada</h4>
+<p>Es el agua que el proyecto deja de consumir gracias a la mejora de eficiencia:</p>
+<div class="formula">Q liberado = QSRA − QSRF        (nunca negativo)</div>
+<p>Solo se considera cuando el proyecto efectivamente libera agua respecto de la situación actual (SRF ≥ SRA, o el predio ya está saturado de superficie regable).</p>
+
+<h4>b) Eficiencia ponderada (DT-04 / AT-11)</h4>
+<p>Si hoy se riega con <b>más de un método</b>, no se puede usar una sola eficiencia: hay que ponderarlas según la superficie de cada una. La app la calcula sola desde los métodos del Paso 3, con la fórmula oficial del DT-04:</p>
+<div class="formula">Ef ponderada = 1 ÷ Σ [ (Si ÷ S total) × (1 ÷ Efi) ]</div>
+<p class="muted">Ejemplo del propio DT-04: 5,0 ha de tendido (30%) + 7,0 ha de surcos (45%) → Ef ponderada = <b>0,372</b>. La app reproduce este valor exacto.</p>
+<p>El campo <b>"Eficiencia sistema actual a usar (%)"</b> es opcional: si lo deja vacío, se usa la ponderada sugerida; si el proyecto declara otro valor, escríbalo ahí y la app recalcula con ese.</p>
+
+<h4>c) Superficie por caudal excedentario (SRQe)</h4>
+<div class="formula">SRQe = Q liberado ÷ ( Demanda por ha ÷ Ef del sistema actual )</div>
+
+<div class="box warn">
+  <p style="margin:0"><b>¿Incorpora nuevos recursos hídricos?</b> Si el proyecto incluye un pozo o una impulsión nueva, el ITT-02 (punto 4.5.c) <b>prohíbe</b> que el cálculo genere caudal excedentario: el agua no se "liberó" por eficiencia, se agregó. Al activar este selector, la app fuerza <b>SRQe = 0</b> y lo informa en los mensajes.</p>
+</div>
+
+<h4>d) Resultado final</h4>
+<div class="formula">SNR  = SRF − SRA            (topado por la superficie del proyecto)
+SENR = SRQe                 (topado por la superficie del proyecto)
+
+Superficie de postulación = SNR + SENR
+                            (topada por la superficie del proyecto)</div>
+
+<h4>e) Corrección ERNC (opcional)</h4>
+<p>Si el proyecto usa energías renovables no convencionales, la superficie de postulación se incrementa según el porcentaje de utilización de ERNC:</p>
+<div class="formula">Postulación con ERNC = Postulación × ( 1 + %P ÷ 100 )</div>
+<p class="muted">Esta app solo aplica el porcentaje; el dimensionamiento del sistema fotovoltaico se hace en la app de Revisión Fotovoltaica.</p>
+
+<h4>f) Incremento de potencialidad de suelos</h4>
+<div class="formula">Incremento = Superficie de postulación × factor del Cuadro N°1 letra b)</div>
+<p>Según el Reglamento vigente (D.S. N° 95/2014) ese factor es <b>1,00</b> para las clases I a IV en todas las comunas del país, por lo que hoy el valor coincide con la superficie de postulación. Se muestra por separado porque es un dato que el sistema de postulación reporta, y porque hay un <b>reglamento nuevo en elaboración</b> que podría cambiar el factor.</p>
+
+<h2 id="p6"><span class="paso">Paso 6</span>Informe</h2>
+<p>Vista imprimible del cálculo completo, con el mismo orden del informe que genera el sistema de postulación: datos de demanda, agua disponible, detalle de SRA con su QSRA, detalle de SRF con su QSRF, y el resultado final. Use el botón <b>Imprimir</b> de la barra superior para llevarlo a papel o a PDF. Los instructivos desplegables y los botones no se imprimen.</p>
+
+<h2 id="val">Mensajes de validación y qué significan</h2>
+<table>
+  <tr><th>Mensaje</th><th>Qué revisar</th></tr>
+  <tr><td>La superficie del proyecto no puede ser mayor a la superficie regable máxima</td><td>Paso 2 contra Paso 1: se está tecnificando más superficie de la que el predio tiene como regable.</td></tr>
+  <tr><td>La SRA no puede ser mayor a la superficie regable del predio menos la asimilación</td><td>La superficie que se declara regada hoy excede lo legalmente regable sin contar el estudio de asimilación.</td></tr>
+  <tr><td>Agua insuficiente (canal / pozo / embalse)</td><td>Las hectáreas ingresadas consumen más agua de la disponible. Si hay derecho eventual activo, el mensaje lo aclara, porque la comparación ya usa el factor 0,5.</td></tr>
+  <tr><td>La superficie de riego futura no puede ser menor que la actual</td><td>Revise los métodos y superficies del Paso 4: el proyecto estaría reduciendo la superficie regada.</td></tr>
+  <tr><td>La superficie de postulación no puede ser mayor a la superficie física del proyecto</td><td>El resultado excede las hectáreas que realmente se intervienen.</td></tr>
+  <tr><td>Se forzó SRQe=0 por incorporar nuevos recursos hídricos</td><td>Es informativo, no un error: confirma que se aplicó el punto 4.5.c del ITT-02.</td></tr>
+</table>
+
+<h2 id="tab">Tabla de eficiencias de aplicación (Tabla N°1, ITT-02)</h2>
+<p>La app asigna estas eficiencias automáticamente. La columna "Californiana" solo aplica a métodos gravitacionales.</p>
+<table>
+  <tr><th>Método</th><th>Eficiencia</th><th>Con conducción californiana</th></tr>
+  <tr><td>Tendido</td><td>30%</td><td>35%</td></tr>
+  <tr><td>Surcos</td><td>45%</td><td>50%</td></tr>
+  <tr><td>Surcos (en contorno)</td><td>50%</td><td>60%</td></tr>
+  <tr><td>Bordes (en contorno)</td><td>50%</td><td>65%</td></tr>
+  <tr><td>Bordes rectos</td><td>60%</td><td>65%</td></tr>
+  <tr><td>Pretiles</td><td>60%</td><td>65%</td></tr>
+  <tr><td>Tazas</td><td>65%</td><td>70%</td></tr>
+  <tr><td>Borboteo</td><td>70%</td><td>no aplica</td></tr>
+  <tr><td>Aspersión</td><td>75%</td><td>no aplica</td></tr>
+  <tr><td>Carrete (aspersión móvil)</td><td>75%</td><td>no aplica</td></tr>
+  <tr><td>Microjet</td><td>85%</td><td>no aplica</td></tr>
+  <tr><td>Micro aspersión</td><td>85%</td><td>no aplica</td></tr>
+  <tr><td>Goteo</td><td>90%</td><td>no aplica</td></tr>
+</table>
+<p class="muted">Nota técnica: estos valores son los del instructivo ITT-02 oficial. La planilla Excel FT-04 difiere en Borboteo (muestra 85%); esta app sigue el instructivo, que prevalece.</p>
+
+<h2 id="glo">Glosario de siglas</h2>
+<table>
+  <tr><th>Sigla</th><th>Significado</th></tr>
+  <tr><td><b>SRA</b></td><td>Superficie de Riego Actual — hectáreas regadas antes del proyecto.</td></tr>
+  <tr><td><b>SRF</b></td><td>Superficie de Riego Futura — hectáreas regadas con el proyecto ejecutado.</td></tr>
+  <tr><td><b>QSRA / QSRF</b></td><td>Caudal (o volumen) que consume la SRA y la SRF respectivamente, por fuente de agua.</td></tr>
+  <tr><td><b>SRQe</b></td><td>Superficie de Riego por caudal excedentario — hectáreas equivalentes al agua liberada por mejora de eficiencia.</td></tr>
+  <tr><td><b>SNR</b></td><td>Superficie de Riego Nuevo = SRF − SRA.</td></tr>
+  <tr><td><b>SENR</b></td><td>Superficie Equivalente a Riego Nuevo = SRQe.</td></tr>
+  <tr><td><b>ETo</b></td><td>Evapotranspiración de referencia — demanda de agua de la zona.</td></tr>
+  <tr><td><b>ETp</b></td><td>Evapotranspiración potencial — se usa aquí para la demanda de la temporada completa.</td></tr>
+  <tr><td><b>Q85%</b></td><td>Caudal con 85% de probabilidad de excedencia: la disponibilidad que exige la Ley 18.450.</td></tr>
+  <tr><td><b>ERNC</b></td><td>Energías Renovables No Convencionales.</td></tr>
+  <tr><td><b>SEP</b></td><td>Sistema Electrónico de Postulación de la CNR, donde el consultor presenta el proyecto.</td></tr>
+</table>
+
+<h2 id="conv">Convenciones de la app y guardado</h2>
+<ul>
+  <li><b>Decimales:</b> 3 decimales en todos los resultados. Se acepta coma o punto como separador decimal al escribir ("0,6" y "0.6" son equivalentes).</li>
+  <li><b>Campos vacíos:</b> los campos editables parten vacíos a propósito, sin ceros precargados, para que ningún valor por defecto contamine el cálculo.</li>
+  <li><b>Recálculo:</b> los resultados se actualizan al salir de cada campo (no en cada tecla), para no interferir mientras usted escribe.</li>
+  <li><b>Exportar:</b> guarda todo el cálculo en un archivo <code>.json</code> con el nombre del proyecto. Sirve de respaldo y para retomar el trabajo después.</li>
+  <li><b>Importar:</b> recupera un cálculo guardado. Los archivos de versiones anteriores de la app siguen siendo compatibles.</li>
+  <li><b>Offline:</b> la app es un único archivo HTML y funciona sin internet. Nada se envía a ningún servidor.</li>
+</ul>
+
+<h2 id="lim">Qué NO hace la app (y por qué)</h2>
+<table>
+  <tr><th>Tema</th><th>Situación</th></tr>
+  <tr><td><b>Determinación del Q85%</b></td><td>Queda fuera a propósito. El ITT-01 completo es un proceso documental (certificados, DT-01, estudio hidrológico) y no una fórmula única. La app recibe el Q85% ya determinado.</td></tr>
+  <tr><td><b>Pivotes y avances frontales</b></td><td>El ITT-02 (4.5.b) define la superficie física hasta el voladizo, sin considerar aspersores o cañón final. Requiere un módulo geométrico propio; pendiente como caso especial.</td></tr>
+  <tr><td><b>Recursos discontinuos</b></td><td>Balance anual mes a mes cuando hay sistema de almacenamiento. No implementado.</td></tr>
+  <tr><td><b>Cultivos con Kc bajo</b></td><td>El ITT-02 (4.5.d) permite acreditar disponibilidad con Kc = 0,5 según DT-05. No implementado.</td></tr>
+  <tr><td><b>Pozos con bombeo sobredimensionado</b></td><td>ITT-02 (4.5.a). Caso de diseño del equipo, no de balance de superficies.</td></tr>
+  <tr><td><b>Rubros y rendimientos del uso actual</b></td><td>Es un requisito documental del sistema de postulación; no altera el cálculo de superficies.</td></tr>
+</table>
+
+<div class="box warn">
+  <p style="margin:0"><b>Importante:</b> esta herramienta es un apoyo de cálculo y revisión. El resultado oficial de un proyecto es el que emite el sistema de postulación de la CNR, y los instructivos vigentes al momento del concurso prevalecen sobre lo implementado aquí. El ETo en el sistema oficial se obtiene georreferenciado; en esta app se aproxima por zona CNR, estación meteorológica o ingreso manual.</p>
+</div>
+
+<footer>
+  Manual de uso · Cálculo de Superficies de Tecnificación · Basado en ITT-01, ITT-02 e ITT-03 (Res. CNR N° 4598/2017), DT-04 (ex AT-11), planilla FT-04 y Reglamento de la Ley N° 18.450 (D.S. N° 95/2014).
+</footer>
+
+</div>
+</body>
+</html>
 </script>
 </body>
 </html>
