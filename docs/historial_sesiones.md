@@ -7977,3 +7977,7 @@ Modificación solicitada al proyecto [código]"). El botón "Enviar Ficha a CNR"
 de Gmail (`_gmail_ficha_modificacion`, `abrirGmailFicha` en base.html) con `authuser` = cuenta que el
 revisor ingresa una vez (localStorage del navegador, Shift+clic la cambia; no va en el repo público).
 Sin cuenta o si cancela, cae al `mailto:`. Sin probar en el navegador real.
+Fix (nov-2026): con `&authuser=<correo>` Gmail envió desde la cuenta personal (la de cnr no era la
+activa del navegador) y el primer clic no abría nada (pestaña bloqueada tras el `prompt`). Ahora la
+pestaña se abre antes del aviso y la cuenta va en la ruta `/mail/u/<correo>/`. Requiere tener la
+sesión de la cuenta institucional iniciada en el mismo perfil de Chrome. Por confirmar con el usuario.

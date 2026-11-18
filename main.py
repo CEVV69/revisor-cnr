@@ -5085,7 +5085,7 @@ TIPOS_MODIFICACION = {
 # antes secretarias.fomento@). `mailto:` NO puede adjuntar archivos (ninguna convención de email lo
 # permite desde una página web) — el botón solo precarga destinatario/asunto/cuerpo; el revisor
 # arrastra la Ficha descargada del SEP a mano antes de enviar. Además del `mailto` (respaldo) se arma
-# la URL de redacción de Gmail, que se abre directo en una pestaña; la cuenta (`authuser`) la pone el
+# la URL de redacción de Gmail, que se abre directo en una pestaña; la cuenta (ruta `/mail/u/<correo>/`) la pone el
 # navegador del revisor (localStorage, ver `abrirGmailFicha` en base.html) — NO va en el repo, que
 # es público.
 EMAIL_FOMENTO_CNR = "sebastian.silva@cnr.gob.cl"

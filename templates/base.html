@@ -472,14 +472,20 @@
   window.abrirGmailFicha = function(a, ev) {
     var cuenta = "";
     try { cuenta = localStorage.getItem("gmail_authuser") || ""; } catch (e) {}
+    // La pestaña se abre ANTES del aviso: abrirla después la bloquea el navegador (se perdía el
+    // primer clic). Gmail se carga en ella cuando ya se conoce la cuenta.
+    var w = window.open("", "_blank");
     if (!cuenta || (ev && ev.shiftKey)) {
       var nueva = window.prompt("Correo de la cuenta de Gmail desde la que envías (se recuerda en este navegador):", cuenta);
-      if (nueva === null) return !cuenta;  // cancelado: sin cuenta usa mailto; con cuenta no hace nada
+      if (nueva === null || !nueva.trim()) { if (w) w.close(); return !cuenta; }
       cuenta = nueva.trim();
       try { localStorage.setItem("gmail_authuser", cuenta); } catch (e) {}
     }
-    if (!cuenta) return true;
-    window.open(a.dataset.gmail + "&authuser=" + encodeURIComponent(cuenta), "_blank", "noopener");
+    if (!w) return true;  // pestaña bloqueada: cae al mailto
+    w.opener = null;
+    // /mail/u/<correo>/ fija la cuenta por su dirección (si no hay sesión con ella, Gmail pide
+    // iniciarla en vez de redactar desde otra cuenta).
+    w.location.href = a.dataset.gmail.replace("/mail/?", "/mail/u/" + encodeURIComponent(cuenta) + "/?");
     return false;
   };
   window.fetchConTope = function(url, opciones, ms) {
