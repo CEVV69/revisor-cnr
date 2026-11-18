@@ -5094,7 +5094,7 @@ EMAIL_FOMENTO_CNR = "sebastian.silva@cnr.gob.cl"
 def _correo_ficha_modificacion(mod: dict) -> tuple:
     asunto = f"Informe de Modificación — {mod.get('codigo_sep', '')}"
     cuerpo = (
-        "Estimado Sebastián,\n\nAdjunto envío a la Ficha con el informe de Modificación "
+        "Estimado Sebastián,\n\nAdjunto envío la Ficha con el informe de Modificación "
         f"solicitada al proyecto {mod.get('codigo_sep', '')}.\n\nAtentamente,"
     )
     return asunto, cuerpo
