@@ -7988,3 +7988,6 @@ el perfil predeterminado (cuenta personal) sin importar `/mail/u/`. En modo stan
 Fix 3 (nov-2026, aprobado por el usuario): se quitó el respaldo `mailto:` (abría Firefox con la cuenta
 personal) y el cuadro "Copiar". El botón solo abre Gmail con `/mail/u/<correo>/`; si el navegador
 bloquea la pestaña, avisa. Junto al botón se muestra "Desde <cuenta>" (clic para cambiarla).
+Fix 4 (nov-2026, opción B aprobada): Gmail no inserta la firma si el cuerpo viene en la URL. El enlace
+ahora lleva solo destinatario + asunto y el texto del mensaje se copia al portapapeles al hacer clic
+(el revisor lo pega bajo su firma). Se avisa con "Texto copiado: pégalo bajo tu firma".

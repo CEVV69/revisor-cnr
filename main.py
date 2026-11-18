@@ -5107,8 +5107,10 @@ def _mailto_ficha_modificacion(mod: dict) -> str:
 
 def _gmail_ficha_modificacion(mod: dict) -> str:
     asunto, cuerpo = _correo_ficha_modificacion(mod)
+    # Sin `body`: con cuerpo precargado Gmail NO inserta la firma del usuario. El texto se copia al
+    # portapapeles al hacer clic (`abrirGmailFicha`) y el revisor lo pega bajo la firma.
     return ("https://mail.google.com/mail/?view=cm&fs=1&to=" + quote(EMAIL_FOMENTO_CNR)
-            + "&su=" + quote(asunto) + "&body=" + quote(cuerpo))
+            + "&su=" + quote(asunto))
 
 
 @app.get("/modificaciones", response_class=HTMLResponse)

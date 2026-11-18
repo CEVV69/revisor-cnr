@@ -493,11 +493,17 @@
   window.abrirGmailFicha = function(a) {
     // La pestaña se abre ANTES de cualquier aviso: abrirla después la bloquea el navegador.
     var w = window.open("", "_blank");
+    // Texto del mensaje al portapapeles (Gmail no inserta la firma si el cuerpo viene precargado).
+    var copiado = false;
+    try { navigator.clipboard.writeText(a.dataset.cuerpo || ""); copiado = true; } catch (e) {}
     if (!w) { alert("El navegador bloqueó la pestaña de Gmail. Permite ventanas emergentes para este sitio y vuelve a intentar."); return false; }
     var cuenta = _cuentaGmail() || window.cambiarCuentaGmail();
     if (!cuenta) { w.close(); return false; }
     w.opener = null;
     w.location.href = a.dataset.gmail.replace("/mail/?", "/mail/u/" + encodeURIComponent(cuenta) + "/?");
+    var msg = copiado ? "Texto copiado: pégalo bajo tu firma" : "No se pudo copiar el texto";
+    document.querySelectorAll(".gmail-cuenta").forEach(function(el) { el.textContent = msg; });
+    setTimeout(_pintarCuentaGmail, 8000);
     return false;
   };
   document.addEventListener("DOMContentLoaded", _pintarCuentaGmail);

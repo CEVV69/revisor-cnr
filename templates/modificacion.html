@@ -42,8 +42,8 @@
     </div>
 
     {% if proyecto.estado == 'Aprobado' %}
-    <a href="#" data-gmail="{{ gmail_ficha }}" onclick="return abrirGmailFicha(this)" class="btn btn-primary btn-sm"
-       title="Abre Gmail con el destinatario y el texto ya listos — debes adjuntar la Ficha descargada del SEP a mano">
+    <a href="#" data-gmail="{{ gmail_ficha }}" data-cuerpo="{{ correo_ficha[1] }}" onclick="return abrirGmailFicha(this)" class="btn btn-primary btn-sm"
+       title="Abre Gmail con destinatario y asunto, y copia el texto del mensaje: pégalo bajo tu firma y adjunta la Ficha descargada del SEP">
       Enviar Ficha a CNR
     </a>
     <a href="#" class="gmail-cuenta" onclick="cambiarCuentaGmail(); return false;" title="Cambiar la cuenta de Gmail" style="font-size:0.78rem; color:var(--text-2);"></a>
