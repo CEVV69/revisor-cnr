@@ -7945,7 +7945,7 @@ coherencia con el tratamiento del IVA ahí.
 
 ## Pendientes automáticos por generación fotovoltaica (nov-2026)
 
-Nuevo tipo de pendiente "A la acreditación" (`TIPOS_PENDIENTE`). `_sincronizar_pendientes_fv`
+El tipo de pendiente `pago` pasó a llamarse "A la acreditación" (era el mismo momento; no hay tipo aparte). `_sincronizar_pendientes_fv`
 (main.py) agrega a `proyecto["pendientes"]` (marcados con `auto`): on-grid -> TE4 (recepción) y
 Protocolo de Conexión a la Red (acreditación); aislado/aislado con baterías -> TE1 (recepción).
 Se sincroniza al guardar el Chequeo FV (formulario y extracción IA) y al abrir la ficha (completa

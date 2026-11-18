@@ -1877,8 +1877,7 @@ async def estado_lote(request: Request, proyecto_id: str):
 TIPOS_PENDIENTE = {
     "inicio_obra":    "Al inicio de obra",
     "recepcion_obra": "A la recepción de obras",
-    "acreditacion":   "A la acreditación",
-    "pago":           "Al momento de pago",
+    "pago":           "A la acreditación",
 }
 templates.env.globals["TIPOS_PENDIENTE"] = TIPOS_PENDIENTE
 
@@ -1887,7 +1886,7 @@ templates.env.globals["TIPOS_PENDIENTE"] = TIPOS_PENDIENTE
 # Si el revisor elimina uno, queda en `pendientes_auto_descartados` y no se vuelve a agregar.
 _PEND_FV = {
     "fv_te4":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE4 del proyecto"),
-    "fv_prot": ("acreditacion", "El beneficiario deberá presentar el Protocolo de Conexión a la Red "
+    "fv_prot": ("pago", "El beneficiario deberá presentar el Protocolo de Conexión a la Red "
                                 "emitido por la empresa distribuidora de electricidad"),
     "fv_te1":  ("recepcion_obra", "El beneficiario deberá presentar el documento TE1 del proyecto"),
 }
@@ -1904,6 +1903,9 @@ def _sincronizar_pendientes_fv(proyecto: dict) -> None:
         deseados = ["fv_te4", "fv_prot"]
     else:
         deseados = ["fv_te1"]
+    for p in proyecto.get("pendientes", []):
+        if p.get("tipo") == "acreditacion":  # tipo efímero previo: "acreditación" es el tipo "pago"
+            p["tipo"] = "pago"
     descartados = set(proyecto.get("pendientes_auto_descartados") or [])
     lista = [p for p in proyecto.get("pendientes", [])
              if not p.get("auto") or p.get("auto") in deseados]
