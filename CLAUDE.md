@@ -52,7 +52,10 @@ generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.
 reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
 Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
 
-**En prueba, sin confirmar (nov-2026):** fix "Revisar todos"; Ficha solo con párrafo de propuesta;
+**En prueba, sin confirmar (nov-2026):** Modificaciones: botón "Enviar Ficha a CNR" (destinatario Sebastián Silva, abre Gmail con
+`/mail/u/<cuenta>/` + asunto y copia el texto al portapapeles para conservar la firma; la cuenta vive en
+localStorage, NO en el repo; sin respaldo `mailto`; usar en pestaña de Chrome, no en la app instalada);
+fix "Revisar todos"; Ficha solo con párrafo de propuesta;
 fix scroll al aprobar/descartar; total en UF del Presupuesto; "Características obras" con datos
 técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igual al del análisis;
 todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloqueaba su único
