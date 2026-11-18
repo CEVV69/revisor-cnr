@@ -7967,3 +7967,5 @@ off-grid: TE1 inscrito en la SEC (recepción); reclasificación de suelos (marca
 `/pendientes/config`); al cambiarlos vuelve a regir su pendiente aunque se hubiera eliminado.
 Los automáticos se re-sincronizan (texto/tipo vigentes) al guardar el Chequeo FV, al cambiar los
 antecedentes y al abrir la ficha.
+
+Pendientes automáticos ampliados (MEE, F4, TE4+Protocolo, TE1 SEC, reclasificación de suelos): confirmado por el usuario (nov-2026), "funciona perfecto".

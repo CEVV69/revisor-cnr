@@ -44,15 +44,15 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
-**Confirmado por el usuario (nov-2026):** pendientes automáticos por FV (`_sincronizar_pendientes_auto`); botón "Debate con la IA" sin pegarse; anti-doble-cobro;
+**Confirmado por el usuario (nov-2026):** pendientes automáticos (`_sincronizar_pendientes_auto`: MEE, F4, TE4+Protocolo on-grid, TE1 SEC off-grid,
+reclasificación de suelos); botón "Debate con la IA" sin pegarse; anti-doble-cobro;
 notas manuales en Revisión Ítem SEP (`_form_nota_manual`); **Chequeo Fotovoltaico** con la
 metodología de la app Revisor FV (`calculos_riego.verificacion_fv_anual`: demanda mensual vs
 generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.2; GU derivada del
 reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
 Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
 
-**En prueba, sin confirmar (nov-2026):** pendientes automáticos ampliados (MEE, F4, TE4+Protocolo, TE1 SEC, reclasificación de suelos);
-fix "Revisar todos"; Ficha solo con párrafo de propuesta;
+**En prueba, sin confirmar (nov-2026):** fix "Revisar todos"; Ficha solo con párrafo de propuesta;
 fix scroll al aprobar/descartar; total en UF del Presupuesto; "Características obras" con datos
 técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igual al del análisis;
 todas las llamadas `db.*` en rutas async van en `asyncio.to_thread` (la app bloqueaba su único
