@@ -8071,3 +8071,4 @@ pero solo para lo NUEVO o MODIFICADO: `_partidas_modificadas` descarta las parti
 observar). Si no se pueden extraer las partidas del original, se verifican todas con la instrucción de
 observar solo lo modificado. Probado con mocks; sin probar con IA real.
 Criterios de Modificaciones: ahora en una tarjeta aparte de /admin/aprendizaje (formulario propio, mismas claves item_mod_*); guardar una tarjeta no toca las cajas de la otra. Las reglas de la Revisión normal y las de Modificaciones no se cruzan (cada ítem lee solo su caja).
+Modificaciones: círculo verde "Realizado" en cada ítem de Observaciones cuando no quedan observaciones pendientes (aprobadas/descartadas), igual que la Revisión normal (modificacion.html). Probado con la plantilla; sin desplegar al escribir esto.
