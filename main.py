@@ -5192,7 +5192,10 @@ async def ver_modificacion(request: Request, mod_id: str):
     items_lista = [
         {"key": k, "nombre": ITEMS_MODIFICACION[k]["nombre"],
          "n_docs": len(mod.get("documentos", [])) if k == "mod_coherencia"
-                   else sum(len(docs_por_tipo.get(td, [])) for td in ITEMS_MODIFICACION[k]["tipo_docs"])}
+                   else sum(len(docs_por_tipo.get(td, [])) for td in ITEMS_MODIFICACION[k]["tipo_docs"]),
+         # Documentos de REFERENCIA (plano/presupuesto original): van a la IA, no se revisan.
+         "n_ref": sum(len(docs_por_tipo.get(td, []))
+                      for td in ITEMS_MODIFICACION[k].get("tipos_docs_referencia", []))}
         for k in ITEMS_MODIFICACION_ORDEN
     ]
     obs_por_item = {}

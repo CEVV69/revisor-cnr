@@ -155,7 +155,7 @@
     <div id="item-{{ item.key }}" style="border:1px solid var(--border); border-radius:10px; padding:0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.5rem;">
       <strong style="font-size:0.86rem;">{{ item.nombre }}</strong>
       <div style="font-size:0.76rem; color:var(--text-2);">
-        {{ item.n_docs }} documento{{ 's' if item.n_docs != 1 else '' }} disponible{{ 's' if item.n_docs != 1 else '' }}
+        {{ item.n_docs }} documento{{ 's' if item.n_docs != 1 else '' }} disponible{{ 's' if item.n_docs != 1 else '' }}{% if item.n_ref %} + {{ item.n_ref }} de referencia{% endif %}
       </div>
       {% if obs_por_item.get(item.key) %}
       <span class="badge badge-tecnica" style="width:fit-content;">{{ obs_por_item[item.key]|length }} observación{{ 'es' if obs_por_item[item.key]|length != 1 else '' }}</span>
