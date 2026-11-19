@@ -5529,9 +5529,21 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
     ]
 
+    # Criterios de énfasis permanentes de Modificaciones (/admin/aprendizaje): los generales de todos
+    # sus ítems + los del ítem. Mismo canal que usa la Revisión normal (prioridad en el prompt).
+    criterios_guardados = (await asyncio.to_thread(db.get_criterios_item)).get("criterios", {}) or {}
+    partes_enfasis = []
+    if (criterios_guardados.get("item_mod_general") or "").strip():
+        partes_enfasis.append("GENERALES DE MODIFICACIONES (todos los ítems):\n"
+                              + criterios_guardados["item_mod_general"].strip())
+    if (criterios_guardados.get("item_" + item_key) or "").strip():
+        partes_enfasis.append("DE ESTE ÍTEM:\n" + criterios_guardados["item_" + item_key].strip())
+    criterios_enfasis = "\n\n".join(partes_enfasis)
+
     acc_costo = iniciar_costo()
     try:
         resultado = await analizar_item(
+            criterios_enfasis=criterios_enfasis,
             item_key=item_key, documentos=documentos_con_texto,
             resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
             item_override=ITEMS_MODIFICACION[item_key], contexto_extra=contexto_extra,
@@ -6900,6 +6912,15 @@ async def admin_aprendizaje(request: Request):
         {"key": "item_" + item_key, "nombre": ITEMS_SEP[item_key]["nombre"],
          "texto": criterios_guardados.get("item_" + item_key, "")}
         for item_key in ITEMS_ORDEN
+    ]
+    # Criterios para la revisión de MODIFICACIONES (nov-2026): una caja general para todos sus ítems
+    # y una por ítem. Mismo mecanismo y mismo guardado que los ítems SEP (claves "item_mod_*").
+    grupos_enfasis += [{"key": "item_mod_general", "nombre": "Modificaciones — todos los ítems",
+                        "texto": criterios_guardados.get("item_mod_general", "")}]
+    grupos_enfasis += [
+        {"key": "item_" + k, "nombre": "Modificaciones — " + ITEMS_MODIFICACION[k]["nombre"],
+         "texto": criterios_guardados.get("item_" + k, "")}
+        for k in ITEMS_MODIFICACION_ORDEN
     ]
     consultores_info = []
     for c in (await asyncio.to_thread(db.get_all_consultores)):

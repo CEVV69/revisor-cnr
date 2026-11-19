@@ -8053,3 +8053,12 @@ Diagnóstico ampliado (nov-2026): si la app cae no se puede abrir /admin, así q
 de reinicios (normal = apagado limpio por SIGTERM; NO LIMPIO = murió sin apagado: OOM/kill, con la memoria
 del último latido) y las peticiones lentas/atrasos previos. Se ve en /admin/diagnostico en cuanto la app
 vuelve. Probado local con SIGTERM y SIGKILL.
+
+## Criterios permanentes para Modificaciones (nov-2026, SIN DESPLEGAR a la espera de la observación de caídas)
+
+La revisión de Modificaciones no usaba los aprendizajes (criterios de énfasis, feedback, perfil del
+consultor, bases, tabla de precios). Ahora `/admin/aprendizaje` tiene una caja "Modificaciones — todos
+los ítems" y una por ítem (claves `item_mod_general` / `item_<mod_...>` en `db.get_criterios_item`), y
+`revisar_item_modificacion` los pasa como `criterios_enfasis` (generales + del ítem). El usuario escribe
+las reglas (copia de las de la Revisión normal). No se usan aún: feedback de aprobar/descartar, perfil del
+consultor, bases del concurso ni la tabla de precios referenciales en Modificaciones.
