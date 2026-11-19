@@ -8029,3 +8029,11 @@ le faltan `categorias` (se re-extrae al revisar "Presupuesto modificado" o con "
 Checklist de Presupuesto modificado: estructuras distintas no implican eliminación. Sin probar con API real.
 
 Presupuesto de Modificaciones por categorías comunes: confirmado por el usuario (nov-2026), "funcionó mucho mejor"; tema superado.
+
+## Modificaciones: auto-descarte entre ítems (nov-2026, aprobado por el usuario)
+
+`revisar_item_modificacion` ahora pasa a `analizar_item` las observaciones ya registradas en otros
+ítems (`observaciones_previas`, para no repetirlas) y las pendientes de otros ítems
+(`observaciones_pendientes_otros`); si el ítem recién revisado resuelve alguna, se auto-descarta
+(solo estado "pendiente", con la justificación de la IA añadida al texto), igual que la Revisión
+normal. Probado con mocks; sin probar con la API real.

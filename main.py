@@ -5376,12 +5376,27 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     # del revisor — ver `_contexto_modificacion`.
     contexto_extra = _contexto_modificacion(mod, item_key, documentos_con_texto)
 
+    # Lo ya observado en los OTROS ítems (para no repetirlo) y las pendientes que este ítem pueda
+    # resolver (auto-descarte), igual que la Revisión normal (nov-2026). Se excluyen las descartadas.
+    observaciones_previas = [
+        {"item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+        for o in mod.get("observaciones", [])
+        if o.get("item") and o.get("item") != item_key and o.get("estado") != "descartada"
+    ]
+    observaciones_pendientes_otros = [
+        {"id": o.get("id"), "item_nombre": o.get("item_nombre", ""), "texto": o.get("texto", "")}
+        for o in mod.get("observaciones", [])
+        if o.get("item") and o.get("item") != item_key and o.get("estado") == "pendiente"
+    ]
+
     acc_costo = iniciar_costo()
     try:
         resultado = await analizar_item(
             item_key=item_key, documentos=documentos_con_texto,
             resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
             item_override=ITEMS_MODIFICACION[item_key], contexto_extra=contexto_extra,
+            observaciones_previas=observaciones_previas,
+            observaciones_pendientes_otros=observaciones_pendientes_otros,
         )
     except Exception as e:
         import traceback
@@ -5414,6 +5429,18 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         obs["fecha"] = _ahora().isoformat()
         obs["estado"] = "pendiente"
         mod["observaciones"].append(obs)
+
+    # Invalidación cruzada: auto-descarta observaciones PENDIENTES de otros ítems que este ítem
+    # resolvió (mismo mecanismo y justificación visible que la Revisión normal). No toca las
+    # aprobadas ni las ya descartadas.
+    mapa_invalidadas = {i.get("id"): i.get("justificacion", "")
+                        for i in (resultado.get("invalidadas") or []) if i.get("id")}
+    for o in mod["observaciones"]:
+        if o.get("id") in mapa_invalidadas and o.get("estado") == "pendiente":
+            just = mapa_invalidadas[o["id"]]
+            o["estado"] = "descartada"
+            o["texto"] = o["texto"] + (f'\n\n[Auto-descartada: resuelta al revisar "{nombre_item}"'
+                                       + (f" — {just}" if just else "") + "]")
 
     mod.setdefault("items_revisados", {})[item_key] = {
         "fecha": _ahora().isoformat(), "docs": docs_incluidos,

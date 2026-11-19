@@ -56,7 +56,7 @@ Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislad
 reciben el original como referencia (`tipos_docs_referencia`, doc nuevo "Plano original"), reglas de
 sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia)
 (conteo "+ N de referencia" y comparación de presupuesto por categorías comunes ya confirmados; falta
-probar la revisión de Planos con el original en IA real);
+probar la revisión de Planos con el original en IA real); auto-descarte entre ítems de Modificaciones (sin probar con IA real);
 Modificaciones: botón "Enviar Ficha a CNR" (destinatario Sebastián Silva, abre Gmail con
 `/mail/u/<cuenta>/` + asunto y copia el texto al portapapeles para conservar la firma; la cuenta vive en
 localStorage, NO en el repo; sin respaldo `mailto`; usar en pestaña de Chrome, no en la app instalada);
