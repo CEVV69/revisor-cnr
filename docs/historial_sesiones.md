@@ -8010,3 +8010,5 @@ modificado y en Coherencia (cantidad baja y monto no; precios unitarios que sube
 otra partida; total que no baja pese a reducir/acortar; partidas globales; cotizaciones sospechosas).
 (D) Se eliminó el ítem `mod_cuadro_variables`: el tipo de documento sigue existiendo y se revisa en
 Solicitud (tipo_docs) y Coherencia (reglas trasladadas). Sin probar con la API real.
+
+Modificaciones: la tarjeta del ítem muestra "N documento(s) disponible(s) + M de referencia" (`n_ref`, main.py/modificacion.html); confirmado por el usuario (nov-2026) en su última modificación, con el plano original ya subido. La revisión con IA real de Planos/Presupuesto con referencia sigue sin probarse.

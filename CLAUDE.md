@@ -54,7 +54,8 @@ Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislad
 
 **En prueba, sin confirmar (nov-2026):** Modificaciones: contexto común por ítem (`_contexto_modificacion`), Presupuesto/Planos
 reciben el original como referencia (`tipos_docs_referencia`, doc nuevo "Plano original"), reglas de
-sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia);
+sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia)
+(el conteo "+ N de referencia" de la tarjeta ya está confirmado; falta probar la revisión con IA real);
 Modificaciones: botón "Enviar Ficha a CNR" (destinatario Sebastián Silva, abre Gmail con
 `/mail/u/<cuenta>/` + asunto y copia el texto al portapapeles para conservar la firma; la cuenta vive en
 localStorage, NO en el repo; sin respaldo `mailto`; usar en pestaña de Chrome, no en la app instalada);
