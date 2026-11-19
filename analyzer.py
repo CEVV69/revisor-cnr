@@ -3200,6 +3200,31 @@ def _mejor_match_precio(item_texto: str, tabla_precios: list):
     return mejor if mejor_score >= 0.35 else None
 
 
+def _partidas_modificadas(partidas_mod: list, partidas_orig: list) -> tuple:
+    """Partidas del presupuesto MODIFICADO que son nuevas o cuyo precio unitario cambió respecto del
+    ORIGINAL (nov-2026). Lo ya aprobado no se vuelve a observar: una partida con nombre equivalente
+    (similitud >= 0,6) y mismo precio unitario (±1 %) se descarta. Devuelve (partidas, comparado);
+    `comparado` es False si no hay partidas del original para comparar (se devuelven todas)."""
+    partidas_mod = [p for p in (partidas_mod or []) if isinstance(p, dict)]
+    partidas_orig = [p for p in (partidas_orig or []) if isinstance(p, dict)]
+    if not partidas_orig:
+        return partidas_mod, False
+    cambiadas = []
+    for p in partidas_mod:
+        nombre, pu = p.get("item") or "", p.get("precio_unitario")
+        mejor, mejor_s = None, 0.0
+        for o in partidas_orig:
+            sc = _similitud_item_precio(nombre, o.get("item") or "")
+            if sc > mejor_s:
+                mejor, mejor_s = o, sc
+        if mejor is not None and mejor_s >= 0.6:
+            opu = mejor.get("precio_unitario")
+            if pu is None or opu in (None, 0) or abs(pu - opu) / abs(opu) <= 0.01:
+                continue
+        cambiadas.append(p)
+    return cambiadas, True
+
+
 async def _extraer_partidas_presupuesto(docs_grupo: list) -> dict:
     """Extrae las partidas (ítem, unidad, cantidad, precio unitario) declaradas en el
     presupuesto. Nunca inventa: usa null si un dato no aparece en el texto."""
@@ -4263,6 +4288,28 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
             partidas_data = await _extraer_partidas_presupuesto(docs_grupo)
             bloque_verificacion = _bloque_verificacion_precios(
                 partidas_data.get("partidas", []), tabla_precios)
+        elif item_key == "mod_presupuesto" and tabla_precios:
+            # Modificaciones (nov-2026): solo se verifican precios de lo NUEVO o MODIFICADO; el
+            # presupuesto original (documento de referencia) ya fue aprobado y no se vuelve a observar.
+            docs_mod = [d for d in docs_grupo if d.get("tipo_doc") in item["tipo_docs"]]
+            docs_orig = [d for d in docs_grupo
+                         if d.get("tipo_doc") in (item.get("tipos_docs_referencia") or [])]
+
+            async def _sin_partidas():
+                return {}
+            datos_mod, datos_orig = await asyncio.gather(
+                _extraer_partidas_presupuesto(docs_mod),
+                _extraer_partidas_presupuesto(docs_orig) if docs_orig else _sin_partidas())
+            cambiadas, comparado = _partidas_modificadas(
+                (datos_mod or {}).get("partidas"), (datos_orig or {}).get("partidas"))
+            bloque_verificacion = _bloque_verificacion_precios(cambiadas, tabla_precios)
+            if bloque_verificacion:
+                bloque_verificacion += (
+                    "\n\nSOLO se compararon las partidas NUEVAS o con precio unitario distinto al "
+                    "presupuesto original; lo ya aprobado no se vuelve a observar." if comparado else
+                    "\n\nNo se pudieron identificar las partidas del original para descartar las que "
+                    "no cambiaron: observa SOLO las que correspondan a lo modificado según la "
+                    "Solicitud — las partidas del proyecto ya aprobado no se vuelven a observar.")
     except Exception as e:
         print(f"⚠️ Verificación numérica '{item_key}' falló, se omite: {e}")
 

@@ -5540,10 +5540,17 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
         partes_enfasis.append("DE ESTE ÍTEM:\n" + criterios_guardados["item_" + item_key].strip())
     criterios_enfasis = "\n\n".join(partes_enfasis)
 
+    # Tabla de precios referenciales (común a la Revisión normal y a Modificaciones): solo "Presupuesto
+    # modificado", y solo se verifican las partidas nuevas o cambiadas (ver `_partidas_modificadas`).
+    tabla_precios = None
+    if item_key == "mod_presupuesto":
+        precios_data = await asyncio.to_thread(db.get_precios)
+        tabla_precios = precios_data.get("items") if precios_data else None
+
     acc_costo = iniciar_costo()
     try:
         resultado = await analizar_item(
-            criterios_enfasis=criterios_enfasis,
+            tabla_precios=tabla_precios, criterios_enfasis=criterios_enfasis,
             item_key=item_key, documentos=documentos_con_texto,
             resumen=mod.get("resumen", {}), ruta_uploads=str(UPLOAD_DIR / mod_id),
             item_override=ITEMS_MODIFICACION[item_key], contexto_extra=contexto_extra,

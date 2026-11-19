@@ -8062,3 +8062,11 @@ los ítems" y una por ítem (claves `item_mod_general` / `item_<mod_...>` en `db
 `revisar_item_modificacion` los pasa como `criterios_enfasis` (generales + del ítem). El usuario escribe
 las reglas (copia de las de la Revisión normal). No se usan aún: feedback de aprobar/descartar, perfil del
 consultor, bases del concurso ni la tabla de precios referenciales en Modificaciones.
+
+## Tabla de precios en Modificaciones (nov-2026)
+
+"Presupuesto modificado" usa la tabla de precios referenciales (admin/precios) igual que la Revisión normal,
+pero solo para lo NUEVO o MODIFICADO: `_partidas_modificadas` descarta las partidas con nombre equivalente
+(similitud >= 0,6) y mismo precio unitario (±1 %) que el presupuesto original (ya aprobado, no se vuelve a
+observar). Si no se pueden extraer las partidas del original, se verifican todas con la instrucción de
+observar solo lo modificado. Probado con mocks; sin probar con IA real.
