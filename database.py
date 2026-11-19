@@ -18,6 +18,7 @@ CONSULTORES_FILE = DATA_DIR / "consultores.json"
 PRECIOS_FILE     = DATA_DIR / "precios.json"
 CRITERIOS_ITEM_FILE = DATA_DIR / "criterios_item.json"
 META_FILE        = DATA_DIR / "meta.json"
+DIAG_FILE        = DATA_DIR / "diag.json"
 # Textos extraídos de los documentos, uno por proyecto (modo JSON local — en PostgreSQL van
 # bajo la clave "textos:{proyecto_id}" de la tabla storage). Ver la nota en
 # Database.get_textos_proyecto() sobre por qué viven aparte del proyecto.
@@ -673,6 +674,14 @@ class Database:
         c["feedback"] = c["feedback"][-300:]
         consultores[key] = c
         self._save("consultores", CONSULTORES_FILE, consultores)
+
+    # ── Diagnóstico de caídas (nov-2026): latido, historial de reinicios y lo ocurrido antes ──
+
+    def get_diag(self) -> dict:
+        return self._load("diag", DIAG_FILE)
+
+    def save_diag(self, data: dict):
+        self._save("diag", DIAG_FILE, data)
 
     # ── Precios referenciales (tabla única global, sube el revisor vía Excel) ──
 

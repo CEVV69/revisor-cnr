@@ -17,6 +17,25 @@
 </div>
 
 <div class="card" style="margin-bottom:1rem;">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0; font-size:1rem;">Reinicios de la app (se guardan: se ven aunque la app se haya caído)</h2>
+  {% if reinicios %}
+  <table style="font-size:0.84rem;"><thead><tr><th>Volvió a encender</th><th>Último latido antes</th><th>Tipo</th><th>Memoria antes (MB / límite)</th></tr></thead><tbody>
+    {% for r in reinicios %}<tr><td>{{ r.encendida }}</td><td>{{ r.ultimo_latido_previo }}</td><td>{{ r.tipo }}</td><td>{{ r.memoria_previa_mb or '—' }} / {{ r.limite_mb or '—' }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="text-muted" style="font-size:0.85rem;">Sin reinicios registrados todavía.</p>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0; font-size:1rem;">Lo registrado antes del último reinicio</h2>
+  {% if lentas_previas or lag_previos %}
+  <table style="font-size:0.84rem;"><thead><tr><th>Hora</th><th>Qué</th><th>Segundos</th></tr></thead><tbody>
+    {% for l in lag_previos %}<tr><td>{{ l.ts }}</td><td>Servidor atrasado</td><td>{{ l.seg }}</td></tr>{% endfor %}
+    {% for p in lentas_previas %}<tr><td>{{ p.ts }}</td><td>{{ p.metodo }} {{ p.ruta }} {{ p.error }}</td><td>{{ p.seg }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="text-muted" style="font-size:0.85rem;">Nada registrado.</p>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
   <h2 style="margin:0 0 0.4rem; border:none; padding:0; font-size:1rem;">Atrasos del servidor (event loop &gt; 0,3 s)</h2>
   {% if lag %}
   <table style="font-size:0.84rem;"><thead><tr><th>Hora</th><th>Atraso (s)</th></tr></thead><tbody>

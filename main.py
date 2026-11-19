@@ -525,6 +525,68 @@ _RUTAS_LARGAS_ESPERADAS = ("/revisar-item/", "/revisar-todos", "/subir", "/anali
                            "/consultar", "/evaluar", "/extraer", "/resumir", "/ficha")
 
 
+_DIAG_PREVIO = {}   # lo persistido por la ejecución anterior (se carga al encender)
+_DIAG_REINICIOS = []
+
+
+def _fmt_ts(epoch) -> str:
+    try:
+        return datetime.fromtimestamp(float(epoch), TZ_CHILE).strftime("%d-%m %H:%M:%S")
+    except Exception:
+        return "—"
+
+
+def _diag_guardar(limpio: bool = False) -> None:
+    """Persiste el latido (hora + memoria), el historial de reinicios y lo lento/atrasos recientes.
+    Si la app muere sin pasar por el apagado normal (OOM, kill), `limpio` queda en False y al
+    volver a encender se registra como reinicio NO limpio, con la memoria del último latido."""
+    from database import db
+    mem = _leer_memoria()
+    db.save_diag({
+        "latido": {"ts": time.time(), "limpio": limpio, "proceso_mb": mem.get("proceso_mb"),
+                   "contenedor_mb": mem.get("contenedor_mb"), "limite_mb": mem.get("limite_mb"),
+                   "en_curso": _DIAG_ESTADO["en_curso"]},
+        "reinicios": _DIAG_REINICIOS[-40:],
+        "lentas": list(_DIAG_LENTAS), "lag": list(_DIAG_LAG),
+    })
+
+
+async def _diag_arranque() -> None:
+    """Compara con el latido de la ejecución anterior para registrar el reinicio y su tipo."""
+    from database import db
+    global _DIAG_PREVIO
+    try:
+        _DIAG_PREVIO = await asyncio.to_thread(db.get_diag) or {}
+        _DIAG_REINICIOS.extend(_DIAG_PREVIO.get("reinicios") or [])
+        lat = _DIAG_PREVIO.get("latido")
+        if lat:
+            _DIAG_REINICIOS.append({
+                "encendida": _fmt_ts(_DIAG_INICIO), "ultimo_latido_previo": _fmt_ts(lat.get("ts")),
+                "tipo": "normal (despliegue o parada)" if lat.get("limpio") else "NO LIMPIO (caída, falta de memoria o kill)",
+                "memoria_previa_mb": lat.get("contenedor_mb") or lat.get("proceso_mb"),
+                "limite_mb": lat.get("limite_mb"), "en_curso_previo": lat.get("en_curso")})
+        await asyncio.to_thread(_diag_guardar, False)
+    except Exception as e:
+        print(f"⚠️ DIAG: no se pudo leer/guardar el diagnóstico previo: {e}")
+
+
+async def _diag_latido() -> None:
+    while True:
+        await asyncio.sleep(60)
+        try:
+            await asyncio.to_thread(_diag_guardar, False)
+        except Exception as e:
+            print(f"⚠️ DIAG: latido falló: {e}")
+
+
+@app.on_event("shutdown")
+async def _diag_apagado():
+    try:
+        await asyncio.wait_for(asyncio.to_thread(_diag_guardar, True), timeout=3)
+    except Exception:
+        pass
+
+
 async def _monitor_event_loop():
     """Mide cuánto se atrasa un sleep(0.5): si el loop estuvo ocupado/bloqueado, se atrasa."""
     while True:
@@ -935,6 +997,8 @@ async def startup_event():
     _EXECUTOR = ThreadPoolExecutor(max_workers=64, thread_name_prefix="app")
     asyncio.get_running_loop().set_default_executor(_EXECUTOR)
     asyncio.create_task(_monitor_event_loop())
+    asyncio.create_task(_diag_arranque())
+    asyncio.create_task(_diag_latido())
     from database import DATABASE_URL, db
     if DATABASE_URL:
         print("🐘 Modo: PostgreSQL (persistencia garantizada)")
@@ -6388,6 +6452,9 @@ async def admin_diagnostico(request: Request):
         "memoria": _leer_memoria(), "hilos": threading.active_count(), "cola_hilos": cola,
         "estado": _DIAG_ESTADO, "lentas": list(reversed(_DIAG_LENTAS)),
         "lag": list(reversed(_DIAG_LAG)),
+        "reinicios": list(reversed(_DIAG_REINICIOS)),
+        "lentas_previas": list(reversed(_DIAG_PREVIO.get("lentas") or [])),
+        "lag_previos": list(reversed(_DIAG_PREVIO.get("lag") or [])),
     })
 
 

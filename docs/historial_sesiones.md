@@ -8048,3 +8048,8 @@ libre. Medidas: (1) `startup_event` fija un ThreadPoolExecutor de 64 hilos como 
 del contenedor, hilos y cola, peticiones lentas (>3 s) o con error con su ruta, atrasos del event loop
 (>0,3 s, monitor `_monitor_event_loop`). Lo lento fuera de análisis largos también se imprime en los
 logs de Railway como "DIAG". Pendiente: ver los datos tras una caída y decidir.
+Diagnóstico ampliado (nov-2026): si la app cae no se puede abrir /admin, así que el diagnóstico se persiste
+(`db.get_diag/save_diag`, clave "diag"): latido cada 60 s (hora, memoria del proceso/contenedor), historial
+de reinicios (normal = apagado limpio por SIGTERM; NO LIMPIO = murió sin apagado: OOM/kill, con la memoria
+del último latido) y las peticiones lentas/atrasos previos. Se ve en /admin/diagnostico en cuanto la app
+vuelve. Probado local con SIGTERM y SIGKILL.
