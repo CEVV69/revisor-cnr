@@ -6445,8 +6445,31 @@ async def admin_diagnostico(request: Request):
     except Exception:
         pass
     seg = int(time.time() - _DIAG_INICIO)
+    mem = _leer_memoria()
+    L = ["DIAGNÓSTICO Revisor CNR (" + _ahora().strftime("%d-%m-%Y %H:%M:%S") + ")",
+         f"Encendida desde {datetime.fromtimestamp(_DIAG_INICIO, TZ_CHILE).strftime('%d-%m %H:%M:%S')} "
+         f"({seg // 3600} h {seg % 3600 // 60} min)",
+         f"Memoria proceso {mem.get('proceso_mb')} MB; contenedor {mem.get('contenedor_mb')} MB; "
+         f"límite {mem.get('limite_mb')} MB",
+         f"Hilos {threading.active_count()}; cola de hilos {cola}; peticiones en curso "
+         f"{_DIAG_ESTADO['en_curso']}, máx simultáneo {_DIAG_ESTADO['max_en_curso']}, "
+         f"total {_DIAG_ESTADO['total']}",
+         "REINICIOS (más reciente primero):"]
+    L += [f"- {r['encendida']} | último latido previo {r['ultimo_latido_previo']} | {r['tipo']} | "
+          f"memoria previa {r.get('memoria_previa_mb')} / límite {r.get('limite_mb')} MB | "
+          f"peticiones en curso previas {r.get('en_curso_previo')}" for r in reversed(_DIAG_REINICIOS)] or ["- ninguno"]
+    L.append("ATRASOS DEL SERVIDOR (event loop):")
+    L += [f"- {l['ts']} {l['seg']} s" for l in reversed(_DIAG_LAG)] or ["- ninguno"]
+    L.append("PETICIONES LENTAS O CON ERROR:")
+    L += [f"- {p['ts']} {p['metodo']} {p['ruta']} {p['seg']} s {p.get('error') or ''}"
+          f"{' (análisis largo esperado)' if p.get('esperada') else ''}" for p in reversed(_DIAG_LENTAS)] or ["- ninguna"]
+    L.append("REGISTRADO ANTES DEL ÚLTIMO REINICIO:")
+    prev = [f"- {l['ts']} servidor atrasado {l['seg']} s" for l in reversed(_DIAG_PREVIO.get("lag") or [])]
+    prev += [f"- {p['ts']} {p['metodo']} {p['ruta']} {p['seg']} s {p.get('error') or ''}"
+             for p in reversed(_DIAG_PREVIO.get("lentas") or [])]
+    L += prev or ["- nada"]
     return templates.TemplateResponse("admin_diagnostico.html", {
-        "request": request, "user": user,
+        "request": request, "user": user, "texto_copiar": "\n".join(L),
         "encendida": f"{seg // 3600} h {seg % 3600 // 60} min",
         "inicio": datetime.fromtimestamp(_DIAG_INICIO, TZ_CHILE).strftime("%d-%m %H:%M:%S"),
         "memoria": _leer_memoria(), "hilos": threading.active_count(), "cola_hilos": cola,

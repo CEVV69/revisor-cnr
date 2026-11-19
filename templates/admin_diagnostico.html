@@ -1,9 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Diagnóstico — Revisor CNR{% endblock %}
+{% block title %}Diagnóstico — Revisor CNR<textarea id="diag-texto" readonly style="position:absolute; left:-9999px;">{{ texto_copiar }}</textarea>
+<script>
+document.getElementById("btn-copiar").onclick = function() {
+  var b = this, ta = document.getElementById("diag-texto");
+  function ok() { b.textContent = "Copiado: pégalo en el chat"; setTimeout(function(){ b.textContent = "Copiar para Claude"; }, 4000); }
+  try { navigator.clipboard.writeText(ta.value).then(ok, function(){ ta.select(); document.execCommand("copy"); ok(); }); }
+  catch (e) { ta.select(); document.execCommand("copy"); ok(); }
+};
+</script>
+{% endblock %}
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
   <h1>Diagnóstico</h1>
-  <button type="button" onclick="location.reload()" class="btn btn-ghost btn-sm">Actualizar</button>
+  <div style="display:flex; gap:0.5rem;">
+    <button type="button" id="btn-copiar" class="btn btn-primary btn-sm">Copiar para Claude</button>
+    <button type="button" onclick="location.reload()" class="btn btn-ghost btn-sm">Actualizar</button>
+  </div>
 </div>
 
 <div class="card" style="margin-bottom:1rem;">
