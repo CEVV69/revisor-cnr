@@ -8037,3 +8037,14 @@ Presupuesto de Modificaciones por categorías comunes: confirmado por el usuario
 (`observaciones_pendientes_otros`); si el ítem recién revisado resuelve alguna, se auto-descarta
 (solo estado "pendiente", con la justificación de la IA añadida al texto), igual que la Revisión
 normal. Probado con mocks; sin probar con la API real.
+
+## Caídas intermitentes: más hilos y página de diagnóstico (nov-2026, aprobado por el usuario)
+
+Síntoma: de cada 2 cambios de pestaña/análisis con IA, ~1 falla; sin avisos en Railway; otras apps del
+usuario no fallan. Hipótesis (sin confirmar): los hilos de `asyncio.to_thread` (por defecto
+min(32, CPUs+4)) se agotan con análisis de IA/render de PDF y las lecturas de Postgres esperan hilo
+libre. Medidas: (1) `startup_event` fija un ThreadPoolExecutor de 64 hilos como default; (2) página
+`/admin/diagnostico` (solo admin): hora de encendido (un reinicio la pone en 0), memoria del proceso y
+del contenedor, hilos y cola, peticiones lentas (>3 s) o con error con su ruta, atrasos del event loop
+(>0,3 s, monitor `_monitor_event_loop`). Lo lento fuera de análisis largos también se imprime en los
+logs de Railway como "DIAG". Pendiente: ver los datos tras una caída y decidir.

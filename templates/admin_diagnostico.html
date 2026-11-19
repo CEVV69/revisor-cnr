@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Diagnóstico — Revisor CNR{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>Diagnóstico</h1>
+  <button type="button" onclick="location.reload()" class="btn btn-ghost btn-sm">Actualizar</button>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <table style="font-size:0.88rem;">
+    <tr><td>Encendida desde</td><td><strong>{{ inicio }}</strong> ({{ encendida }})</td></tr>
+    <tr><td>Memoria del proceso</td><td>{{ memoria.proceso_mb or '—' }} MB</td></tr>
+    <tr><td>Memoria del contenedor / límite</td><td>{{ memoria.contenedor_mb or '—' }} / {{ memoria.limite_mb or '—' }} MB</td></tr>
+    <tr><td>Hilos activos / en cola de espera</td><td>{{ hilos }} / {{ cola_hilos if cola_hilos is not none else '—' }}</td></tr>
+    <tr><td>Peticiones en curso / máximo simultáneo / total desde el inicio</td><td>{{ estado.en_curso }} / {{ estado.max_en_curso }} / {{ estado.total }}</td></tr>
+  </table>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0; font-size:1rem;">Atrasos del servidor (event loop &gt; 0,3 s)</h2>
+  {% if lag %}
+  <table style="font-size:0.84rem;"><thead><tr><th>Hora</th><th>Atraso (s)</th></tr></thead><tbody>
+    {% for l in lag %}<tr><td>{{ l.ts }}</td><td>{{ l.seg }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="text-muted" style="font-size:0.85rem;">Sin atrasos registrados.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 0.4rem; border:none; padding:0; font-size:1rem;">Peticiones lentas (&gt; 3 s) o con error</h2>
+  {% if lentas %}
+  <table style="font-size:0.84rem;"><thead><tr><th>Hora</th><th>Petición</th><th>Segundos</th><th>Error</th></tr></thead><tbody>
+    {% for p in lentas %}<tr><td>{{ p.ts }}</td><td>{{ p.metodo }} {{ p.ruta }}{% if p.esperada %} <span class="text-muted">(análisis largo esperado)</span>{% endif %}</td><td>{{ p.seg }}</td><td>{{ p.error }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="text-muted" style="font-size:0.85rem;">Ninguna desde que se encendió.</p>{% endif %}
+</div>
+{% endblock %}

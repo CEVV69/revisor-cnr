@@ -4,6 +4,10 @@ Revisor CNR - Aplicación de revisión de proyectos de riego Ley 18.450
 import os
 import re
 import json
+from concurrent.futures import ThreadPoolExecutor
+import collections
+import threading
+import time
 import uuid
 import asyncio
 import unicodedata
@@ -507,12 +511,77 @@ app.add_middleware(_Compresion)
 _MAX_REQUEST_BYTES = 1024 * 1024 * 1024  # 1 GB: holgado para un expediente completo en ZIP
 
 
+# ─── Diagnóstico de caídas (nov-2026) ────────────────────────────────────────
+# La app "se cae" a ratos sin que Railway registre nada. Para dejar de adivinar se miden: cuánto
+# lleva encendida (si se reinicia, vuelve a 0), memoria, peticiones lentas (con ruta y duración),
+# atrasos del event loop (el loop congelado = todas las páginas colgadas) y la cola de hilos de
+# trabajo. Se ve en /admin/diagnostico (solo admin) y lo lento sale también en los logs de Railway.
+_DIAG_INICIO = time.time()
+_DIAG_LENTAS = collections.deque(maxlen=80)      # peticiones > 3 s o con excepción
+_DIAG_LAG = collections.deque(maxlen=80)         # atrasos del loop > 0,3 s
+_DIAG_ESTADO = {"en_curso": 0, "max_en_curso": 0, "total": 0}
+_EXECUTOR = None
+_RUTAS_LARGAS_ESPERADAS = ("/revisar-item/", "/revisar-todos", "/subir", "/analizar", "/chat",
+                           "/consultar", "/evaluar", "/extraer", "/resumir", "/ficha")
+
+
+async def _monitor_event_loop():
+    """Mide cuánto se atrasa un sleep(0.5): si el loop estuvo ocupado/bloqueado, se atrasa."""
+    while True:
+        t0 = time.perf_counter()
+        await asyncio.sleep(0.5)
+        atraso = time.perf_counter() - t0 - 0.5
+        if atraso > 0.3:
+            _DIAG_LAG.append({"ts": _ahora().strftime("%d-%m %H:%M:%S"), "seg": round(atraso, 2)})
+            if atraso > 2:
+                print(f"⚠️ DIAG: event loop atrasado {atraso:.1f}s (bloqueado por código síncrono)")
+
+
+def _leer_memoria() -> dict:
+    out = {}
+    try:
+        with open("/proc/self/status") as f:
+            for linea in f:
+                if linea.startswith("VmRSS:"):
+                    out["proceso_mb"] = round(int(linea.split()[1]) / 1024)
+    except Exception:
+        pass
+    for archivo, clave in (("/sys/fs/cgroup/memory.current", "contenedor_mb"),
+                           ("/sys/fs/cgroup/memory.max", "limite_mb")):
+        try:
+            v = open(archivo).read().strip()
+            if v.isdigit():
+                out[clave] = round(int(v) / 1048576)
+        except Exception:
+            pass
+    return out
+
+
 @app.middleware("http")
 async def _cabeceras_seguridad(request: Request, call_next):
     largo = request.headers.get("content-length", "")
     if largo.isdigit() and int(largo) > _MAX_REQUEST_BYTES:
         return Response("Archivo demasiado grande (máximo 1 GB por envío).", status_code=413)
-    response = await call_next(request)
+    t0 = time.perf_counter()
+    _DIAG_ESTADO["en_curso"] += 1
+    _DIAG_ESTADO["total"] += 1
+    _DIAG_ESTADO["max_en_curso"] = max(_DIAG_ESTADO["max_en_curso"], _DIAG_ESTADO["en_curso"])
+    error = ""
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        raise
+    finally:
+        _DIAG_ESTADO["en_curso"] -= 1
+        dur = time.perf_counter() - t0
+        if dur > 3 or error:
+            esperada = any(r in request.url.path for r in _RUTAS_LARGAS_ESPERADAS)
+            _DIAG_LENTAS.append({"ts": _ahora().strftime("%d-%m %H:%M:%S"), "metodo": request.method,
+                                 "ruta": request.url.path, "seg": round(dur, 1), "error": error,
+                                 "esperada": esperada})
+            if not esperada or error:
+                print(f"⚠️ DIAG: {request.method} {request.url.path} tardó {dur:.1f}s {error}")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -859,6 +928,13 @@ def _generar_excel_resumen_proyectos(resumen: list, titulo: str = "Resumen de pr
 
 @app.on_event("startup")
 async def startup_event():
+    # Más hilos para `asyncio.to_thread` (por defecto min(32, CPUs+4), que en un contenedor chico
+    # son pocos): un análisis con IA o un render de PDF ocupa un hilo por muchos segundos, y las
+    # lecturas de Postgres que esperan hilo libre dejaban las páginas colgadas (nov-2026).
+    global _EXECUTOR
+    _EXECUTOR = ThreadPoolExecutor(max_workers=64, thread_name_prefix="app")
+    asyncio.get_running_loop().set_default_executor(_EXECUTOR)
+    asyncio.create_task(_monitor_event_loop())
     from database import DATABASE_URL, db
     if DATABASE_URL:
         print("🐘 Modo: PostgreSQL (persistencia garantizada)")
@@ -6292,6 +6368,27 @@ async def extraer_presupuesto_modificacion(request: Request, mod_id: str):
     estado = await _extraer_presupuesto_modificacion(mod_id, list(_TIPO_DOC_PRESUPUESTO_MOD))
     return RedirectResponse(url=f"/modificacion/{mod_id}/presupuesto?extraer={estado}",
                             status_code=302)
+
+
+@app.get("/admin/diagnostico", response_class=HTMLResponse)
+async def admin_diagnostico(request: Request):
+    user = get_current_user(request)
+    if not user or user.get("rol") != "admin":
+        return RedirectResponse(url="/")
+    cola = None
+    try:
+        cola = _EXECUTOR._work_queue.qsize() if _EXECUTOR else None
+    except Exception:
+        pass
+    seg = int(time.time() - _DIAG_INICIO)
+    return templates.TemplateResponse("admin_diagnostico.html", {
+        "request": request, "user": user,
+        "encendida": f"{seg // 3600} h {seg % 3600 // 60} min",
+        "inicio": datetime.fromtimestamp(_DIAG_INICIO, TZ_CHILE).strftime("%d-%m %H:%M:%S"),
+        "memoria": _leer_memoria(), "hilos": threading.active_count(), "cola_hilos": cola,
+        "estado": _DIAG_ESTADO, "lentas": list(reversed(_DIAG_LENTAS)),
+        "lag": list(reversed(_DIAG_LAG)),
+    })
 
 
 # ─── Administración de concursos ─────────────────────────────────────────────

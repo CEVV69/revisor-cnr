@@ -52,7 +52,9 @@ generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.
 reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
 Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
 
-**En prueba, sin confirmar (nov-2026):** Modificaciones: contexto común por ítem (`_contexto_modificacion`), Presupuesto/Planos
+**En prueba, sin confirmar (nov-2026):** caídas intermitentes: 64 hilos para `to_thread` + `/admin/diagnostico` (ver uptime, memoria,
+peticiones lentas, atrasos del loop tras una caída);
+Modificaciones: contexto común por ítem (`_contexto_modificacion`), Presupuesto/Planos
 reciben el original como referencia (`tipos_docs_referencia`, doc nuevo "Plano original"), reglas de
 sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia)
 (conteo "+ N de referencia" y comparación de presupuesto por categorías comunes ya confirmados; falta
