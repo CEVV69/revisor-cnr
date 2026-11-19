@@ -7991,3 +7991,22 @@ bloquea la pestaña, avisa. Junto al botón se muestra "Desde <cuenta>" (clic pa
 Fix 4 (nov-2026, opción B aprobada): Gmail no inserta la firma si el cuerpo viene en la URL. El enlace
 ahora lleva solo destinatario + asunto y el texto del mensaje se copia al portapapeles al hacer clic
 (el revisor lo pega bajo su firma). Se avisa con "Texto copiado: pégalo bajo tu firma".
+
+## Modificaciones: contexto, originales de referencia y sobreprecios (nov-2026)
+
+Pedido del usuario tras devolución de la CNR (se aprobó una modificación sin observar sobreprecios).
+Diagnóstico previo: cada ítem veía solo sus documentos con checklist genérico; Presupuesto modificado
+no veía el original; Planos no veía el original ni la Solicitud; `mod_planos` no estaba en
+`TIPOS_PLANO_VISION` (un plano con texto nunca se veía como imagen). Cambios:
+(A) `_contexto_modificacion` (main.py) antepone a cada ítem: marco (modificación + antecedentes
+previos + factibilidad), tipo de modificación, extracto de la Solicitud, comparación del resumen de
+presupuesto con alerta determinística (partidas solo en el original y costo que no baja), y el cálculo
+de Variables (solo Solicitud/Coherencia). (B) Nuevo tipo de documento `mod_plano_original` (sin ítem);
+`ITEMS_MODIFICACION[...]["tipos_docs_referencia"]` entrega al ítem docs de referencia (Planos <- plano
+original, Presupuesto <- presupuesto original) rotulados por su tipo; sin docs propios no se revisa.
+`mod_planos` y `mod_plano_original` van por visión (con ambos, cada uno recibe 1 página con
+cuadrantes por el tope MAX_IMG_EJE=14). (C) Regla "SOBREPRECIOS Y COSTOS QUE NO BAJAN" en Presupuesto
+modificado y en Coherencia (cantidad baja y monto no; precios unitarios que suben; costo trasladado a
+otra partida; total que no baja pese a reducir/acortar; partidas globales; cotizaciones sospechosas).
+(D) Se eliminó el ítem `mod_cuadro_variables`: el tipo de documento sigue existiendo y se revisa en
+Solicitud (tipo_docs) y Coherencia (reglas trasladadas). Sin probar con la API real.

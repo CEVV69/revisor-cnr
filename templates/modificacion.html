@@ -148,7 +148,7 @@
   <h2 style="margin:0 0 0.3rem; border:none; padding:0;">Revisión por ítems</h2>
   <p style="font-size:0.8rem; color:var(--text-2); margin-bottom:0.8rem;">
     Analiza con IA los documentos de la modificación con el mismo checklist del ítem SEP correspondiente.
-    (v1: no compara todavía automáticamente contra el proyecto original — esa comparación la hace el revisor a ojo.)
+    Cada ítem recibe el contexto de la modificación; Presupuesto y Planos reciben además el original como referencia.
   </p>
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:0.6rem;">
     {% for item in items_lista %}

@@ -33,7 +33,7 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       _solo_version_vigente,
-                      MIN_CHARS_TEXTO, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
+                      MIN_CHARS_TEXTO, _truncar_inteligente, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
@@ -5368,26 +5368,9 @@ async def revisar_item_modificacion(request: Request, mod_id: str, item_key: str
     await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
     documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
 
-    # "mod_cuadro_variables" compara el documento del consultor contra el cálculo propio del
-    # revisor en la pestaña "Variables" (si ya lo completó) — se le pasa como contexto extra del
-    # prompt, no como otro "documento" (sería confuso mezclarlo con lo subido por el consultor).
-    contexto_extra = ""
-    if item_key == "mod_cuadro_variables" and mod.get("variables_concurso_datos"):
-        r = calcular_variables_concurso(mod["variables_concurso_datos"])
-        contexto_extra = (
-            f"\n{'='*60}\nCÁLCULO PROPIO DEL REVISOR (pestaña \"Variables\" de esta modificación) "
-            f"— usar como referencia para comparar contra el cuadro del consultor\n{'='*60}\n"
-            f"ORIGINAL: superficie beneficiada {r['original']['superficie_beneficiada_ha']} ha, "
-            f"costo {r['original']['costo_uf']} UF, aporte {r['original']['aporte_pct']:.2%}, "
-            f"bonificación {r['original']['bonificacion_uf']:.2f} UF, "
-            f"costo/ha {r['original']['costo_ha']:.2f}.\n"
-            f"MODIFICADO: superficie beneficiada {r['modificado']['superficie_beneficiada_ha']} ha, "
-            f"costo {r['modificado']['costo_uf']} UF, aporte {r['modificado']['aporte_pct']:.2%}, "
-            f"bonificación {r['modificado']['bonificacion_uf']:.2f} UF, "
-            f"costo/ha {r['modificado']['costo_ha']:.2f}.\n"
-            f"Indicador variable de concurso (costo/ha no debe empeorar): "
-            f"{r['variable_concurso_estado']}.\n"
-        ) if r['original']['aporte_pct'] is not None else ""
+    # Contexto común de la modificación (nov-2026): qué cambia, cómo era antes y el cálculo propio
+    # del revisor — ver `_contexto_modificacion`.
+    contexto_extra = _contexto_modificacion(mod, item_key, documentos_con_texto)
 
     acc_costo = iniciar_costo()
     try:
@@ -6013,6 +5996,88 @@ async def generar_justificacion_modificacion_ruta(
     _registrar_costo(mod, "resumen", acc_costo)
     (await asyncio.to_thread(db.save_proyecto, mod))
     return RedirectResponse(url=f"/modificacion/{mod_id}/resumen", status_code=302)
+
+
+def _contexto_modificacion(mod: dict, item_key: str, documentos: list) -> str:
+    """Bloque de contexto que se antepone al prompt de CADA ítem de Modificaciones (nov-2026).
+
+    Antes cada ítem veía solo sus propios documentos con un checklist genérico, sin saber qué
+    cambia, cómo era antes ni si el conjunto sigue siendo viable. Acá se arma: (1) el marco de la
+    revisión, (2) el tipo de modificación declarado, (3) la Solicitud (texto, truncado) cuando el
+    ítem no es la propia Solicitud, (4) la comparación de presupuesto original vs. modificado
+    (con alertas determinísticas de costos que no bajan), y (5) el cálculo propio de Variables de
+    Concurso (solo Solicitud y Coherencia Global, donde se revisa el cuadro)."""
+    sep = "=" * 60
+    partes = [
+        f"\n{sep}\nCONTEXTO DE LA MODIFICACIÓN (no son documentos a revisar: úsalo como referencia)\n{sep}\n"
+        "Revisa este ítem con tres cosas a la vista: (a) la modificación solicitada, (b) los "
+        "antecedentes previos del proyecto aprobado y (c) la factibilidad técnica de que el "
+        "sistema de riego resultante funcione bien. Una modificación no debe empeorar el proyecto "
+        "ni aumentar la bonificación."
+    ]
+    tipo = TIPOS_MODIFICACION.get(mod.get("tipo_modificacion") or "")
+    if tipo:
+        partes.append(f"Tipo de modificación declarado por el revisor: {tipo}.")
+
+    if item_key != "mod_solicitud":
+        for d in documentos:
+            if d.get("tipo_doc") != "mod_solicitud":
+                continue
+            t = (d.get("texto_extraido") or "").strip()
+            if t and t != "__PDF_ESCANEADO__" and len(t) >= MIN_CHARS_TEXTO:
+                partes.append(f"SOLICITUD DE MODIFICACIÓN ({d.get('nombre_original', '')}), extracto:\n"
+                              + _truncar_inteligente(t, 4000))
+            else:
+                partes.append(f"La Solicitud de Modificación ({d.get('nombre_original', '')}) está "
+                              "escaneada: no hay texto disponible, no asumas su contenido.")
+
+    if item_key in ("mod_presupuesto", "mod_cubicaciones", "mod_planos", "mod_diseno",
+                    "mod_coherencia", "mod_solicitud"):
+        r = _resumen_presupuesto_modificacion(mod)
+        if r.get("hay_comparacion"):
+            lineas = []
+            for f in r["filas"]:
+                ini, fin, dif = f.get("costo_inicial"), f.get("costo_final"), f.get("diferencia")
+                if ini is not None and fin is None:
+                    estado = "solo en el ORIGINAL (eliminada o renombrada)"
+                elif ini is None:
+                    estado = "solo en el MODIFICADO (agregada)"
+                else:
+                    estado = f"original {ini:,.2f} -> modificado {fin:,.2f} (dif. {dif:+,.2f})"
+                lineas.append(f"- {f.get('item')}: {estado}")
+            partes.append("COMPARACIÓN DEL RESUMEN DE PRESUPUESTO (extraída por la app; los montos "
+                          "están en la moneda del presupuesto):\n" + "\n".join(lineas)
+                          + f"\nTOTAL: original {r['total_original']} -> modificado "
+                            f"{r['total_modificado']} (dif. {r['diferencia_total']})")
+            alertas = []
+            elim = [f.get("item") for f in r["filas"]
+                    if f.get("costo_inicial") is not None and f.get("costo_final") is None]
+            if elim and r.get("diferencia_total") is not None and r["diferencia_total"] >= 0:
+                alertas.append("hay partidas que figuran solo en el original y el costo total NO baja")
+            if (mod.get("tipo_modificacion") in ("eliminacion_partidas",)
+                    and r.get("diferencia_total") is not None and r["diferencia_total"] >= 0):
+                alertas.append("la modificación se declara como eliminación de partidas y el costo no baja")
+            if alertas:
+                partes.append("ALERTA DETERMINÍSTICA: " + "; ".join(alertas)
+                              + ". Investígalo como posible costo que no baja (sobreprecio).")
+
+    if item_key in ("mod_solicitud", "mod_coherencia") and mod.get("variables_concurso_datos"):
+        r = calcular_variables_concurso(mod["variables_concurso_datos"])
+        if r["original"]["aporte_pct"] is not None:
+            partes.append(
+                f"CÁLCULO PROPIO DEL REVISOR (pestaña \"Variables\" de esta modificación) — referencia "
+                f"para comparar contra el Cuadro de Variables del consultor:\n"
+                f"ORIGINAL: superficie beneficiada {r['original']['superficie_beneficiada_ha']} ha, "
+                f"costo {r['original']['costo_uf']} UF, aporte {r['original']['aporte_pct']:.2%}, "
+                f"bonificación {r['original']['bonificacion_uf']:.2f} UF, "
+                f"costo/ha {r['original']['costo_ha']:.2f}.\n"
+                f"MODIFICADO: superficie beneficiada {r['modificado']['superficie_beneficiada_ha']} ha, "
+                f"costo {r['modificado']['costo_uf']} UF, aporte {r['modificado']['aporte_pct']:.2%}, "
+                f"bonificación {r['modificado']['bonificacion_uf']:.2f} UF, "
+                f"costo/ha {r['modificado']['costo_ha']:.2f}.\n"
+                f"Indicador variable de concurso (costo/ha no debe empeorar): "
+                f"{r['variable_concurso_estado']}.")
+    return "\n".join(partes) + "\n\n"
 
 
 def _resumen_presupuesto_modificacion(mod: dict) -> dict:

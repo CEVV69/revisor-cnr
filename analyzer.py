@@ -173,7 +173,7 @@ MAX_TOKENS_POR_ITEM = {
 # set, replicar el cambio acá (no se referencia directo porque ese set se define más abajo en
 # el archivo, después de esta constante).
 for _tipo_plano in ("planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion",
-                    "identificacion_riego"):
+                    "identificacion_riego", "mod_planos", "mod_plano_original"):
     MAX_TOKENS_POR_ITEM[_tipo_plano] = 24000
 del _tipo_plano
 
@@ -1045,7 +1045,11 @@ ITEMS_ORDEN = ["plano_ubicacion", "identificacion_riego", "hidrologico", "prueba
 ITEMS_MODIFICACION = {
     "mod_solicitud": {
         "nombre": "Solicitud de Modificación",
-        "tipo_docs": ["mod_solicitud"],
+        # El Cuadro de Variables de Concurso YA NO es un ítem aparte (nov-2026): es un insumo de la
+        # decisión (¿la modificación mejora o empeora las variables?), no algo que se apruebe por
+        # sí mismo. Si el consultor lo sube, se revisa acá junto a la Solicitud y en Coherencia
+        # Global (ver regla "CUADRO DE VARIABLES" más abajo y en mod_coherencia).
+        "tipo_docs": ["mod_solicitud", "mod_cuadro_variables"],
         "checklist": """Verifica que la solicitud identifique con claridad: el código del proyecto (debe ser el mismo
 del proyecto ya bonificado, una modificación nunca cambia el código), qué elemento(s) específicos
 del proyecto original se modifican, y el motivo de la modificación con su justificación técnica.
@@ -1073,11 +1077,12 @@ objetivo/propósito del proyecto aprobado (ej. sigue siendo el mismo sistema de 
 misma superficie y cultivo, con los mismos beneficiarios) — un cambio que en los hechos convierte
 el proyecto en uno distinto al que ganó el concurso excede lo que el Art. 33° permite modificar.
 
-Nota: el efecto sobre el costo y la bonificación (Cuadro de Variables de Concurso) NO se revisa
-acá — es un documento y un ítem de revisión aparte (algunos formatos de solicitud traen un resumen
-simple de costo/bonificación incluido, pero el Cuadro de Variables oficial es un documento propio,
-más detallado, con superficie beneficiada/ponderada, N° de beneficiarios y el indicador de
-variable de concurso).""",
+CUADRO DE VARIABLES DE CONCURSO (documento Excel propio, si el consultor lo adjunta; algunos
+formatos de solicitud traen un resumen simple de costo/bonificación): no es un ítem aparte, es el
+insumo para decidir si la modificación mejora o empeora las variables de concurso. Si viene,
+aplica la regla "CUADRO DE VARIABLES" de Coherencia Global (la bonificación modificada nunca es
+mayor a la original, aporte % coherente, costo por hectárea que no empeore) y compáralo con el
+cálculo propio del revisor si viene en el contexto.""",
     },
     "mod_diseno": {
         "nombre": "Diseño hidráulico, agronómico u otros diseños modificados",
@@ -1109,41 +1114,6 @@ según el tipo de cambio:
 - Cualquier cambio de equipo que modifique su peso, dimensiones o requerimiento eléctrico puede
   afectar la obra civil o el tablero/instalación eléctrica asociada — si el expediente no aborda
   ese efecto derivado y es razonable esperar que exista, obsérvalo.""",
-    },
-    "mod_cuadro_variables": {
-        "nombre": "Cuadro de Variables de Concurso",
-        "tipo_docs": ["mod_cuadro_variables"],
-        "checklist": """Verifica que el cuadro incluya, para el proyecto ORIGINAL y el MODIFICADO: superficie (ha) y
-método de riego; superficie beneficiada y superficie ponderada (ha); costo total (UF); N° de
-beneficiarios; aporte % del postulante; y la bonificación solicitada (UF) resultante. El costo
-modificado NO debe quedar en blanco — es el dato que determina todo lo demás.
-Regla crítica, sin excepción (Art. 33° del Reglamento de la Ley Nº 18.450, D.S. Nº 95/2015: "La
-modificación en ningún caso podrá aumentar el monto de la bonificación aprobada" — la misma regla
-rige el Presupuesto modificado): la bonificación MODIFICADA nunca puede ser mayor a la ORIGINAL.
-Si el costo total SUBE respecto al original, la
-bonificación debe quedar IGUAL a la original (el 100% del aumento lo asume el beneficiario/
-solicitante — el aporte % efectivo del modificado, en este caso, es MAYOR al original, no igual) —
-observa de inmediato un cuadro que calcule la bonificación modificada aplicando el mismo aporte %
-al costo más alto (eso la hace subir, está mal, aunque sea lo que hace el Excel oficial de forma
-literal si no se ajusta a mano). Si el costo total BAJA, la bonificación debe bajar
-proporcionalmente manteniendo el mismo aporte % que el original. Si el costo queda IGUAL, ambos
-valores deben coincidir.
-Verifica también el indicador de variable de concurso: el costo por hectárea beneficiada
-(costo/superficie beneficiada) del modificado NO debería empeorar (subir) respecto al original —
-esa relación es una de las variables que le dio puntaje al proyecto en el concurso original, y la
-modificación no debe degradarla sin que quede justificado.
-Si el revisor ya completó su propia calculadora en la pestaña "Variables" de esta modificación,
-esos resultados vienen en el contexto de este análisis — compara el cuadro del consultor contra
-ese cálculo y señala cualquier discrepancia en bonificación, aporte % o el indicador de variable de
-concurso, citando ambos valores (el del consultor y el calculado).
-
-EXIGIBILIDAD RELATIVA cuando el costo NO cambia: el propósito de este cuadro es mostrar el efecto
-de la modificación sobre el costo y la bonificación. Si la Solicitud y el resto del expediente
-dejan claro que el costo total del proyecto NO varía con esta modificación (ej. un cambio de marca/
-modelo sin alterar el presupuesto), la exigencia de este cuadro es más relativa — un cuadro
-ausente o incompleto en ese escenario NO debería observarse con la misma severidad que si el costo
-sí cambia, porque no hay nada que mostrar: no fuerces una observación solo por la forma si el fondo
-(costo y bonificación sin variación) ya está claro en otros documentos del expediente.""",
     },
     "mod_especificaciones": {
         "nombre": "Especificaciones técnicas de los elementos modificados",
@@ -1179,12 +1149,41 @@ ausencia salvo que el resto del expediente sugiera que sí hay impacto no declar
     "mod_presupuesto": {
         "nombre": "Presupuesto modificado",
         "tipo_docs": ["mod_presupuesto"],
+        # Documentos de REFERENCIA (nov-2026): se entregan a la IA para comparar, pero NO se revisan
+        # ni generan observaciones sobre ellos (el presupuesto original ya fue aprobado por la CNR).
+        "tipos_docs_referencia": ["mod_presupuesto_original"],
         "checklist": """Verifica que el presupuesto modificado mantenga intacto el resto de las partidas NO
 modificadas (idénticas al presupuesto aprobado original) y que solo cambien los montos de las
 partidas efectivamente declaradas como modificadas. Las partidas nuevas/modificadas deben seguir
 el mismo criterio de precios de mercado y formato FT-01 exigido al presupuesto original (materiales
 + mano de obra + equipos, razonable según DT-18) — cotizaciones de respaldo con menos de 6 meses
 de antigüedad.
+COMPARACIÓN CONTRA EL PRESUPUESTO ORIGINAL (se te entrega como documento de REFERENCIA — no lo
+revises ni lo observes, úsalo para comparar partida por partida): verifica que las partidas NO
+modificadas sean idénticas (misma cantidad, precio unitario y monto) y que solo cambien las
+declaradas como modificadas en la Solicitud.
+
+SOBREPRECIOS Y COSTOS QUE NO BAJAN (revisión prioritaria — la CNR ha devuelto modificaciones
+aprobadas por no haber detectado esto). La práctica a pesquisar es mantener el costo del proyecto,
+y con él la bonificación, pese a reducir elementos o dimensiones, apoyándose en cotizaciones que
+"respaldan" montos inflados (que pueden manipularse de acuerdo con el proveedor). Compara con el
+original y observa, citando partida, monto original y monto modificado:
+- Partidas cuya cantidad, dimensión, longitud, potencia o cantidad de equipos BAJA o se elimina, y
+  cuyo monto NO baja de forma proporcional, queda igual o sube.
+- Precios unitarios de partidas existentes que SUBEN sin justificación frente al original.
+- Partidas nuevas que reemplazan a las eliminadas con un monto similar o mayor al de lo que se
+  quitó (el costo "se traslada" de una partida a otra para que el total no cambie).
+- Un costo total modificado igual o muy cercano al original aun cuando la Solicitud declara
+  eliminaciones, reducciones de dimensión o acortamiento de redes/distancias (un cambio de
+  ubicación que acorta distancias o tuberías debería reducir cubicaciones y costo).
+- Partidas globales o "gl" sin desglose de cantidades y precio unitario que impiden comprobar la
+  rebaja.
+- Cotizaciones sospechosas: que calcen exactamente con el monto de la partida, mismo proveedor
+  para varias partidas, valores muy por sobre el precio de mercado o la tabla DT-18, o que
+  respalden un monto mayor al de la partida equivalente del original.
+Si el costo total NO baja pese a una reducción clara, esa es la observación principal: pide el
+desglose o la rebaja correspondiente. Aplica el criterio de ingeniero: sé riguroso con montos
+relevantes, no con diferencias menores.
 Regla crítica de bonificación (ver también Cuadro de Variables): si el presupuesto modificado
 AUMENTA el costo total, el documento debe dejar expresamente establecido que el mayor valor lo
 asume el beneficiario/solicitante, sin aumentar el monto de bonificación aprobado. Si el costo
@@ -1195,12 +1194,22 @@ observable sin excepción.""",
     "mod_planos": {
         "nombre": "Planos modificados",
         "tipo_docs": ["mod_planos"],
+        # Plano ORIGINAL del proyecto aprobado: referencia para comparar ubicaciones/trazados.
+        "tipos_docs_referencia": ["mod_plano_original"],
         "checklist": """Exigible cuando el cambio implica una variación física respecto al proyecto original
 (emplazamiento de obras, trazado de redes, ubicación de equipos). Analiza el plano visualmente:
 debe mantener los mismos estándares gráficos exigidos en la postulación original (escala, norte,
 coordenadas UTM, simbología, cuadro de títulos) y señalar con claridad qué cambia respecto al plano
 aprobado — idealmente con nube de revisión, achurado o anotación comparativa. Un plano modificado
-sin ninguna marca que distinga lo nuevo de lo original dificulta la revisión y es observable.""",
+sin ninguna marca que distinga lo nuevo de lo original dificulta la revisión y es observable.
+Si se entrega el PLANO ORIGINAL (documento de REFERENCIA, no se revisa ni se observa), compáralo con
+el modificado: verifica que lo que cambió en el dibujo (ubicación de paneles fotovoltaicos, de
+equipos o de obras civiles; trazado y longitudes de redes de tuberías o eléctricas) coincida con lo
+declarado en la Solicitud, y que no haya cambios NO declarados. Evalúa la factibilidad técnica de la
+nueva ubicación (distancias, pendientes, interferencias, accesos). Si el cambio acorta distancias
+o elimina tramos, anótalo: debería reflejarse en cubicaciones y costo (el Presupuesto lo revisa en
+su ítem). Sin plano original no puedes comparar: dilo en una observación informativa en vez de
+suponer.""",
     },
     "mod_otros": {
         "nombre": "Otros documentos de respaldo",
@@ -1264,13 +1273,30 @@ proyecto original completo). Responde dos preguntas, en este orden:
    inconsistente — un plano desactualizado frente a una cubicación nueva (o viceversa) es tan
    observable como que falte alguno de los dos por completo.
 
+CUADRO DE VARIABLES DE CONCURSO (ya NO es un ítem aparte — nov-2026 —; es un insumo para decidir si
+la modificación mejora o empeora las variables de concurso; se revisa acá y junto a la Solicitud):
+si el consultor lo adjuntó, verifica que incluya para el proyecto ORIGINAL y el MODIFICADO:
+superficie (ha) y método de riego; superficie beneficiada y ponderada; costo total (UF); N° de
+beneficiarios; aporte % del postulante; bonificación solicitada (UF). El costo modificado no debe
+quedar en blanco. Regla crítica, sin excepción (Art. 33° del Reglamento, D.S. Nº 95/2015: "La
+modificación en ningún caso podrá aumentar el monto de la bonificación aprobada"): la bonificación
+MODIFICADA nunca puede ser mayor a la ORIGINAL. Si el costo SUBE, la bonificación queda IGUAL a la
+original (el aumento lo asume el beneficiario; el aporte % efectivo sube) — observa de inmediato un
+cuadro que aplique el mismo aporte % al costo más alto (eso la hace subir). Si el costo BAJA, la
+bonificación baja proporcionalmente con el mismo aporte %. Si el costo queda IGUAL, ambos valores
+coinciden. El costo por hectárea beneficiada del modificado NO debería empeorar (subir) respecto al
+original sin justificación. Compara el cuadro del consultor contra el cálculo propio del revisor si
+viene en el contexto, citando ambos valores ante cualquier discrepancia. Si el costo NO cambia con
+la modificación, la exigencia de este cuadro es relativa: no fuerces una observación por la forma.
+
 2. Si la información disponible alcanza para evaluar coherencia de fondo, verifica que sea
    consistente entre documentos: el motivo y el elemento que cambia según la Solicitud coinciden
    con lo que efectivamente muestran el Diseño/Especificaciones/Presupuesto modificados; el Cuadro
    de Variables de Concurso es aritméticamente consistente con el Presupuesto modificado; la
-   bonificación modificada nunca es mayor a la original (ver el detalle de esta regla en el
-   checklist de Cuadro de Variables de Concurso y Presupuesto modificado — acá solo confirma que no
-   haya contradicción entre esos documentos); y que el cambio, en conjunto, sea técnicamente viable
+   bonificación modificada nunca es mayor a la original (regla de arriba); el costo modificado
+   refleja de verdad lo que se quita o acorta (reducciones de elementos, dimensiones o distancias
+   frente al Presupuesto original: si el costo no baja, es un posible sobreprecio — ver el ítem
+   Presupuesto modificado); y que el cambio, en conjunto, sea técnicamente viable
    y ejecutable tal como fue declarado — no un cambio parcial que deja una pieza del sistema de
    riego sin resolver.
 
@@ -1289,7 +1315,7 @@ en ese caso la prioridad es señalar qué falta, no evaluar coherencia con infor
 # ITEMS_ORDEN/ITEMS_SEP).
 ITEMS_MODIFICACION_ORDEN = ["mod_diseno", "mod_especificaciones", "mod_cubicaciones",
                             "mod_cronograma", "mod_presupuesto", "mod_planos", "mod_otros",
-                            "mod_solicitud", "mod_cuadro_variables", "mod_coherencia"]
+                            "mod_solicitud", "mod_coherencia"]
 
 TIPO_DOC_LABELS_MODIFICACION = {
     "mod_diseno":              "Anexo — Diseño hidráulico, agronómico u otros diseños",
@@ -1299,6 +1325,7 @@ TIPO_DOC_LABELS_MODIFICACION = {
     "mod_presupuesto_original": "Anexo — Presupuesto original (del proyecto aprobado)",
     "mod_presupuesto":         "Anexo — Presupuesto modificado",
     "mod_planos":              "Anexo — Planos modificados",
+    "mod_plano_original":      "Anexo — Plano original (del proyecto aprobado)",
     "mod_otros":               "Anexo — Otros Documentos",
     "mod_solicitud":           "Anexo — Solicitud de Modificación",
     "mod_cuadro_variables":    "Anexo — Cuadro de Variables de Concurso",
@@ -1519,7 +1546,11 @@ MAX_IMG_SUBSANACION = 6
 # hectáreas) — el texto extraído del PDF no captura esas anotaciones, así que sin visión la IA
 # no las "ve" y puede observar por error que la superficie no está declarada.
 TIPOS_PLANO_VISION = {"planos_tecnificacion", "planos_obras_civiles", "plano_ubicacion",
-                       "identificacion_riego"}
+                       "identificacion_riego",
+                       # Modificaciones (nov-2026): sin esto, un plano vectorial con algo de texto
+                       # nunca se veía como imagen y el ítem "Planos modificados" no podía revisar
+                       # ubicaciones ni trazados; el plano original va por visión para compararlo.
+                       "mod_planos", "mod_plano_original"}
 
 # Tipos que van a visión SIEMPRE que el archivo exista, igual que TIPOS_PLANO_VISION, pero SIN
 # el renderizado en cuadrantes (no son dibujos grandes — usan el renderizado básico de página
@@ -4104,6 +4135,12 @@ async def analizar_item(item_key: str, documentos: list, bases_texto: str = "",
     else:
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+        # Documentos de REFERENCIA (Modificaciones, nov-2026): el original contra el que se compara.
+        # Solo se agregan si el ítem tiene sus propios documentos — por sí solos no justifican
+        # revisar nada. Van rotulados con su tipo ("Plano original", "Presupuesto original").
+        tipos_ref = set(item.get("tipos_docs_referencia") or [])
+        if tipos_ref and docs_grupo:
+            docs_grupo = docs_grupo + [d for d in documentos if d.get("tipo_doc") in tipos_ref]
 
     # Verificación numérica determinística (Hazen-Williams / cadena agronómica / dimensionamiento
     # FV): solo en los ítems donde hay fórmula normativa aplicable. Si la extracción no
@@ -5224,6 +5261,12 @@ async def _preparar_contexto_evaluacion(documentos: list, item_key: str, ids_ext
     if item and item_key != "coherencia" and item.get("tipo_docs"):
         tipos = set(item["tipo_docs"])
         docs_grupo = [d for d in documentos if d.get("tipo_doc") in tipos]
+        # Documentos de REFERENCIA (Modificaciones, nov-2026): el original contra el que se compara.
+        # Solo se agregan si el ítem tiene sus propios documentos — por sí solos no justifican
+        # revisar nada. Van rotulados con su tipo ("Plano original", "Presupuesto original").
+        tipos_ref = set(item.get("tipos_docs_referencia") or [])
+        if tipos_ref and docs_grupo:
+            docs_grupo = docs_grupo + [d for d in documentos if d.get("tipo_doc") in tipos_ref]
     else:
         docs_grupo = list(documentos)
     if ids_extra:
