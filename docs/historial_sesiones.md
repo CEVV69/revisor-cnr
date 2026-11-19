@@ -8027,3 +8027,5 @@ si no, la IA recibe solo los totales (y sin alerta de costos) y la tabla dice "S
 de Eliminado/Nuevo (sin aviso adicional, a pedido del usuario). (3) La extracción corre sola si a un lado
 le faltan `categorias` (se re-extrae al revisar "Presupuesto modificado" o con "Extraer datos").
 Checklist de Presupuesto modificado: estructuras distintas no implican eliminación. Sin probar con API real.
+
+Presupuesto de Modificaciones por categorías comunes: confirmado por el usuario (nov-2026), "funcionó mucho mejor"; tema superado.
