@@ -1161,7 +1161,10 @@ de antigüedad.
 COMPARACIÓN CONTRA EL PRESUPUESTO ORIGINAL (se te entrega como documento de REFERENCIA — no lo
 revises ni lo observes, úsalo para comparar partida por partida): verifica que las partidas NO
 modificadas sean idénticas (misma cantidad, precio unitario y monto) y que solo cambien las
-declaradas como modificadas en la Solicitud.
+declaradas como modificadas en la Solicitud. Ojo: el original suele ser un Excel resumido y el
+modificado un PDF extendido (o al revés) con estructuras y rótulos distintos — que una partida o un
+subtotal tenga otro nombre o esté agrupado distinto NO significa que fue eliminada o agregada;
+concilia por contenido (qué obra o equipo es y cuánto cuesta) y por los totales antes de observar.
 
 SOBREPRECIOS Y COSTOS QUE NO BAJAN (revisión prioritaria — la CNR ha devuelto modificaciones
 aprobadas por no haber detectado esto). La práctica a pesquisar es mantener el costo del proyecto,
@@ -3286,6 +3289,73 @@ def _es_fila_total(nombre: str) -> bool:
     `extraer_presupuesto_general`) — la fila Total, en cambio, ya es la suma correcta."""
     n = _normalizar_item_presupuesto(nombre)
     return bool(re.search(r"\btotal\b", n)) and "subtotal" not in n
+
+
+# Categorías COMUNES para comparar el presupuesto original contra el modificado en Modificaciones
+# (nov-2026). El original suele ser un Excel con un resumen corto y el modificado un PDF extendido
+# con otra estructura: emparejar filas por nombre marcaba como "Eliminado"/"Nuevo" casi todo
+# (falsos positivos que llegaron a las observaciones). Llevando ambos a las mismas categorías, la
+# comparación es posible aunque cada consultor rotule distinto.
+CATEGORIAS_PRESUPUESTO_MOD = [
+    ("riego", "Sistema de riego"),
+    ("fv", "Generación fotovoltaica"),
+    ("civiles", "Obras civiles y otras obras"),
+    ("gg", "Gastos generales"),
+    ("util", "Utilidades"),
+    ("imprev", "Imprevistos"),
+    ("estudios", "Estudios, preparación del proyecto e ITO"),
+    ("neto", "Total neto (antes de IVA)"),
+    ("iva", "IVA"),
+    ("total", "Total del proyecto"),
+]
+
+
+async def extraer_presupuesto_categorias(docs_grupo: list) -> dict:
+    """Lleva un presupuesto a las categorías comunes de `CATEGORIAS_PRESUPUESTO_MOD`. Devuelve
+    {clave: monto} solo con las categorías que el documento permite determinar (explícitas o suma de
+    líneas explícitas); {} si no pudo. Nunca inventa ni estima."""
+    texto = _texto_grupo_para_extraccion(docs_grupo)
+    if not texto.strip():
+        return {}
+    lista = "\n".join(f'- "{k}": {lbl}' for k, lbl in CATEGORIAS_PRESUPUESTO_MOD)
+    prompt = f"""Del siguiente presupuesto de un proyecto de riego, entrega el monto de cada una de estas
+CATEGORÍAS COMUNES (el consultor puede rotularlas distinto):
+{lista}
+
+Reglas:
+- Usa el monto explícito del documento; si la categoría viene repartida en varias líneas, SUMA esas
+  líneas. NO sumes subtotales y sus líneas a la vez (no dupliques).
+- "neto" es el total del proyecto ANTES de IVA (incluye estudios/preparación solo si el
+  presupuesto los suma antes del IVA); "total" es el total final del proyecto, con IVA.
+- Si una categoría no aparece o no se puede determinar con certeza, pon null. NO estimes, NO
+  calcules lo que no está, NO inventes.
+- Montos como número plano, sin separador de miles. ⚠️ NOTACIÓN CHILENA: coma (,) = decimal,
+  punto (.) = miles (ej. "1.234,56" = 1234.56).
+Responde SOLO este JSON: {{"riego": number|null, "fv": number|null, "civiles": number|null,
+"gg": number|null, "util": number|null, "imprev": number|null, "estudios": number|null,
+"neto": number|null, "iva": number|null, "total": number|null}}
+
+PRESUPUESTO:
+{texto}"""
+    try:
+        client = _get_client()
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=MODELO_HAIKU, max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        _log_uso("3 · Modificación · presupuesto por categorías", response, MODELO_HAIKU)
+        data = _extraer_json_tolerante(_texto_respuesta(response))
+        out = {}
+        if isinstance(data, dict):
+            for k, _lbl in CATEGORIAS_PRESUPUESTO_MOD:
+                v = numero_desde_texto(data.get(k))
+                if v is not None:
+                    out[k] = v
+        return out
+    except Exception as e:
+        print(f"⚠️ extraer_presupuesto_categorias: {e}")
+        return {}
 
 
 async def extraer_presupuesto_general(docs_grupo: list) -> dict:

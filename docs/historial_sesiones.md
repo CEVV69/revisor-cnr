@@ -8012,3 +8012,18 @@ otra partida; total que no baja pese a reducir/acortar; partidas globales; cotiz
 Solicitud (tipo_docs) y Coherencia (reglas trasladadas). Sin probar con la API real.
 
 Modificaciones: la tarjeta del ítem muestra "N documento(s) disponible(s) + M de referencia" (`n_ref`, main.py/modificacion.html); confirmado por el usuario (nov-2026) en su última modificación, con el plano original ya subido. La revisión con IA real de Planos/Presupuesto con referencia sigue sin probarse.
+
+## Presupuesto de Modificaciones: comparación por categorías comunes (nov-2026)
+
+Falso positivo reportado por el usuario: original Excel (resumen de 16 filas) vs modificado PDF
+extendido (otra estructura) -> la comparación por nombre marcaba casi todo "Eliminado"/"Nuevo" y,
+como el diff se entrega a la IA desde `_contexto_modificacion`, generó ~8 observaciones falsas.
+Cambios: (1) `extraer_presupuesto_categorias` (analyzer.py, Haiku) lleva cada presupuesto a categorías
+comunes (`CATEGORIAS_PRESUPUESTO_MOD`: riego, FV, civiles, GG, utilidades, imprevistos, estudios,
+neto, IVA, total); se guarda en `presupuesto_modificacion[lado]["categorias"]` y la pestaña
+Presupuesto compara solo las categorías con dato en AMBOS lados (si hay >=2). (2) Sin categorías, la
+comparación literal solo se considera confiable si >=60 % de las filas del original tienen pareja;
+si no, la IA recibe solo los totales (y sin alerta de costos) y la tabla dice "Sin equivalente" en vez
+de Eliminado/Nuevo (sin aviso adicional, a pedido del usuario). (3) La extracción corre sola si a un lado
+le faltan `categorias` (se re-extrae al revisar "Presupuesto modificado" o con "Extraer datos").
+Checklist de Presupuesto modificado: estructuras distintas no implican eliminación. Sin probar con API real.

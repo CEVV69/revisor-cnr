@@ -110,11 +110,11 @@
       {% for f in resumen.filas %}
       <tr>
         <td>{{ f.item }}</td>
-        <td>{% if f.costo_inicial is not none %}${{ f.costo_inicial | clp }}{% else %}<span class="ppto-sin-dato">Nuevo</span>{% endif %}</td>
+        <td>{% if f.costo_inicial is not none %}${{ f.costo_inicial | clp }}{% else %}<span class="ppto-sin-dato">{{ 'Nuevo' if resumen.confiable else 'Sin equivalente' }}</span>{% endif %}</td>
         <td>
           {% if not resumen.hay_comparacion %}<span class="ppto-sin-dato">—</span>
           {% elif f.costo_final is not none %}${{ f.costo_final | clp }}
-          {% else %}<span class="ppto-sin-dato">Eliminado</span>{% endif %}
+          {% else %}<span class="ppto-sin-dato">{{ 'Eliminado' if resumen.confiable else 'Sin equivalente' }}</span>{% endif %}
         </td>
         <td class="{% if f.diferencia and f.diferencia > 0 %}ppto-positivo{% elif f.diferencia and f.diferencia < 0 %}ppto-negativo{% endif %}">
           {% if f.diferencia is not none %}{{ '+' if f.diferencia > 0 }}${{ f.diferencia | clp }}

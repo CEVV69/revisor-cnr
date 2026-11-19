@@ -33,7 +33,8 @@ from analyzer import (consultar_expediente, analizar_item, chatear_item, resumir
                       consolidar_aprendizaje, consolidar_perfil_consultor, ITEMS_SEP,
                       ITEMS_ORDEN, RESUMEN_SECCIONES, RESUMEN_KEYS, _documentos_para_verificacion,
                       _solo_version_vigente,
-                      MIN_CHARS_TEXTO, _truncar_inteligente, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
+                      MIN_CHARS_TEXTO, _truncar_inteligente, extraer_presupuesto_categorias,
+                      CATEGORIAS_PRESUPUESTO_MOD, _extraer_datos_hidraulicos, _extraer_datos_agronomicos,
                       _extraer_datos_fv, extraer_documentos_obligatorios, _buscar_rango_kc,
                       _rango_eficiencia_oficial,
                       TIPOS_SIEMPRE_VISION, evaluar_respuesta_subsanacion, iniciar_costo,
@@ -6037,7 +6038,15 @@ def _contexto_modificacion(mod: dict, item_key: str, documentos: list) -> str:
     if item_key in ("mod_presupuesto", "mod_cubicaciones", "mod_planos", "mod_diseno",
                     "mod_coherencia", "mod_solicitud"):
         r = _resumen_presupuesto_modificacion(mod)
-        if r.get("hay_comparacion"):
+        if r.get("hay_comparacion") and not r.get("confiable"):
+            # Estructuras distintas (ej. Excel resumido vs PDF extendido): comparar fila por fila
+            # daría falsos "eliminada/agregada". Solo se entregan los totales.
+            partes.append(
+                "TOTALES DE PRESUPUESTO (el original y el modificado tienen estructuras distintas, no "
+                f"comparables fila por fila): original {r['total_original']} -> modificado "
+                f"{r['total_modificado']} (dif. {r['diferencia_total']}). No trates como eliminadas o "
+                "agregadas las partidas solo porque su rótulo difiere: compara los documentos completos.")
+        elif r.get("hay_comparacion"):
             lineas = []
             for f in r["filas"]:
                 ini, fin, dif = f.get("costo_inicial"), f.get("costo_final"), f.get("diferencia")
@@ -6048,13 +6057,16 @@ def _contexto_modificacion(mod: dict, item_key: str, documentos: list) -> str:
                 else:
                     estado = f"original {ini:,.2f} -> modificado {fin:,.2f} (dif. {dif:+,.2f})"
                 lineas.append(f"- {f.get('item')}: {estado}")
-            partes.append("COMPARACIÓN DEL RESUMEN DE PRESUPUESTO (extraída por la app; los montos "
+            partes.append("COMPARACIÓN DEL RESUMEN DE PRESUPUESTO"
+                          + (" POR CATEGORÍAS COMUNES" if r.get("origen") == "categorias" else "")
+                          + " (extraída por la app; los montos "
                           "están en la moneda del presupuesto):\n" + "\n".join(lineas)
                           + f"\nTOTAL: original {r['total_original']} -> modificado "
                             f"{r['total_modificado']} (dif. {r['diferencia_total']})")
             alertas = []
             elim = [f.get("item") for f in r["filas"]
-                    if f.get("costo_inicial") is not None and f.get("costo_final") is None]
+                    if r.get("origen") == "literal"
+                    and f.get("costo_inicial") is not None and f.get("costo_final") is None]
             if elim and r.get("diferencia_total") is not None and r["diferencia_total"] >= 0:
                 alertas.append("hay partidas que figuran solo en el original y el costo total NO baja")
             if (mod.get("tipo_modificacion") in ("eliminacion_partidas",)
@@ -6103,8 +6115,27 @@ def _resumen_presupuesto_modificacion(mod: dict) -> dict:
         return {"extraido": False, "hay_comparacion": False, "filas": [],
                 "total_original": None, "total_modificado": None, "diferencia_total": None}
     hay_comparacion = bool(orig and modi)
+    origen, confiable = "literal", True
     if hay_comparacion:
         filas = comparar_presupuesto_general(orig.get("items") or [], modi.get("items") or [])
+        # Comparación por CATEGORÍAS comunes (nov-2026): cuando ambos presupuestos tienen estructuras
+        # distintas (Excel resumido vs PDF extendido), emparejar filas por nombre da falsos
+        # "Eliminado"/"Nuevo". Se usan las categorías en que AMBOS tienen dato (las de un solo lado
+        # no son comparables); el total va aparte en el pie de la tabla.
+        co, cm = orig.get("categorias") or {}, modi.get("categorias") or {}
+        comunes = [(k, lbl) for k, lbl in CATEGORIAS_PRESUPUESTO_MOD
+                   if k != "total" and co.get(k) is not None and cm.get(k) is not None]
+        if len(comunes) >= 2:
+            filas = [{"item": lbl, "costo_inicial": co[k], "costo_final": cm[k],
+                      "diferencia": cm[k] - co[k]} for k, lbl in comunes]
+            origen = "categorias"
+        else:
+            # Sin categorías: la comparación literal solo es confiable si la mayoría de las filas del
+            # original tiene pareja en el modificado (≥60 %).
+            n_orig = len([i for i in (orig.get("items") or []) if isinstance(i, dict)])
+            con_pareja = len([f for f in filas if f["costo_inicial"] is not None
+                              and f["costo_final"] is not None])
+            confiable = bool(n_orig) and con_pareja / n_orig >= 0.6
     elif orig:
         filas = [{"item": it.get("item"), "costo_inicial": numero_desde_texto(it.get("monto")),
                   "costo_final": None, "diferencia": None}
@@ -6115,9 +6146,14 @@ def _resumen_presupuesto_modificacion(mod: dict) -> dict:
                  for it in (modi.get("items") or []) if isinstance(it, dict)]
     total_original = numero_desde_texto(orig.get("total")) if orig else None
     total_modificado = numero_desde_texto(modi.get("total")) if modi else None
+    if total_original is None and orig and (orig.get("categorias") or {}).get("total") is not None:
+        total_original = orig["categorias"]["total"]
+    if total_modificado is None and modi and (modi.get("categorias") or {}).get("total") is not None:
+        total_modificado = modi["categorias"]["total"]
     diferencia_total = (total_modificado - total_original
                         if (total_original is not None and total_modificado is not None) else None)
     return {"extraido": True, "hay_comparacion": hay_comparacion, "filas": filas,
+            "origen": origen, "confiable": confiable,
             "total_original": total_original, "total_modificado": total_modificado,
             "diferencia_total": diferencia_total,
             "fecha_original": orig.get("fecha") if orig else None,
@@ -6158,8 +6194,8 @@ def _lados_presupuesto_desactualizados(mod: dict) -> list:
         if not docs:
             continue
         guardado = datos.get(lado)
-        if not guardado or any((d.get("fecha_subida") or "") > (guardado.get("fecha") or "")
-                               for d in docs):
+        if not guardado or "categorias" not in guardado or any(
+                (d.get("fecha_subida") or "") > (guardado.get("fecha") or "") for d in docs):
             pendientes.append(lado)
     return pendientes
 
@@ -6178,10 +6214,13 @@ async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
     await asyncio.to_thread(_restaurar_archivos_necesarios, mod_id, mod.get("documentos", []))
     documentos_con_texto = await _con_texto(mod_id, mod.get("documentos", []))
     acc_costo = iniciar_costo()
-    resultados = dict(zip(lados, await asyncio.gather(*[
-        extraer_presupuesto_general(
-            [d for d in documentos_con_texto if d.get("tipo_doc") == _TIPO_DOC_PRESUPUESTO_MOD[l]])
-        for l in lados])))
+    docs_lado = {l: [d for d in documentos_con_texto if d.get("tipo_doc") == _TIPO_DOC_PRESUPUESTO_MOD[l]]
+                 for l in lados}
+    # Dos extracciones por lado, en paralelo: el cuadro literal (filas tal como las rotula el
+    # consultor) y el desglose por categorías comunes, que permite comparar estructuras distintas.
+    generales = await asyncio.gather(*[extraer_presupuesto_general(docs_lado[l]) for l in lados])
+    categorias = await asyncio.gather(*[extraer_presupuesto_categorias(docs_lado[l]) for l in lados])
+    resultados = {l: dict(g or {}, categorias=c or {}) for l, g, c in zip(lados, generales, categorias)}
     mod = (await asyncio.to_thread(db.get_proyecto, mod_id))
     if not mod:
         return "vacio"
@@ -6190,7 +6229,8 @@ async def _extraer_presupuesto_modificacion(mod_id: str, lados) -> str:
     for lado, datos_lado in resultados.items():
         if datos_lado.get("items"):
             datos[lado] = {"fecha": _ahora().isoformat(), "items": datos_lado["items"],
-                           "total": datos_lado.get("total")}
+                           "total": datos_lado.get("total"),
+                           "categorias": datos_lado.get("categorias") or {}}
             estado = "ok"
     _registrar_costo(mod, "presupuesto", acc_costo)
     (await asyncio.to_thread(db.save_proyecto, mod))
