@@ -6922,10 +6922,10 @@ async def admin_aprendizaje(request: Request):
     ]
     # Criterios para la revisión de MODIFICACIONES (nov-2026): una caja general para todos sus ítems
     # y una por ítem. Mismo mecanismo y mismo guardado que los ítems SEP (claves "item_mod_*").
-    grupos_enfasis += [{"key": "item_mod_general", "nombre": "Modificaciones — todos los ítems",
-                        "texto": criterios_guardados.get("item_mod_general", "")}]
-    grupos_enfasis += [
-        {"key": "item_" + k, "nombre": "Modificaciones — " + ITEMS_MODIFICACION[k]["nombre"],
+    grupos_mod = [{"key": "item_mod_general", "nombre": "Todos los ítems de Modificaciones",
+                   "texto": criterios_guardados.get("item_mod_general", "")}]
+    grupos_mod += [
+        {"key": "item_" + k, "nombre": ITEMS_MODIFICACION[k]["nombre"],
          "texto": criterios_guardados.get("item_" + k, "")}
         for k in ITEMS_MODIFICACION_ORDEN
     ]
@@ -6941,6 +6941,7 @@ async def admin_aprendizaje(request: Request):
     msg_ok = request.query_params.get("ok")
     return templates.TemplateResponse("admin_aprendizaje.html", {
         "request": request, "user": user, "grupos_enfasis": grupos_enfasis,
+        "grupos_mod": grupos_mod,
         "criterios_fecha": (await asyncio.to_thread(db.get_criterios_item)).get("fecha_actualizado", ""),
         "consultores_info": consultores_info, "msg_ok": msg_ok,
     })

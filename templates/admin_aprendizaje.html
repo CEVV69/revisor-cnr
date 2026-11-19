@@ -62,6 +62,34 @@
   </div>
 </form>
 
+<!-- Criterios de énfasis de MODIFICACIONES (nov-2026): tarjeta aparte; mismo guardado (claves item_mod_*) -->
+<form method="post" action="/admin/aprendizaje/criterios-item">
+  <div class="card" style="margin-bottom:1.5rem; border-left:4px solid #c05621;">
+    <h2 style="margin-bottom:0.4rem;">Criterios de énfasis de Modificaciones</h2>
+    <p class="text-muted" style="font-size:0.82rem; margin-bottom:0.75rem;">
+      Se aplican solo a la revisión de Modificaciones, con prioridad en el prompt. La primera caja rige
+      para todos sus ítems.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:0.5rem;">
+      {% for g in grupos_mod %}
+      <details style="border:1px solid var(--border); border-radius:8px;">
+        <summary style="cursor:pointer; padding:0.5rem 0.75rem; font-weight:600; font-size:0.85rem;">
+          {{ g.nombre }}{% if g.texto %} <span style="color:var(--green-dk);">●</span>{% endif %}
+        </summary>
+        <div style="padding:0 0.75rem 0.75rem;">
+          <textarea name="enfasis__{{ g.key }}" rows="3"
+                    style="width:100%; font-size:0.82rem; font-family:inherit; padding:0.5rem;
+                           border:1px solid var(--border); border-radius:6px; resize:vertical;">{{ g.texto }}</textarea>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-sm" style="background:#c05621; color:white; margin-top:0.85rem;">
+      Guardar criterios de Modificaciones
+    </button>
+  </div>
+</form>
+
 <!-- Aprendizaje por consultor (cruza proyectos y concursos por diseño) -->
 <div class="card" style="border-left:4px solid #2b6cb0;">
   <h2 style="margin-bottom:0.4rem;">Aprendizaje por consultor</h2>

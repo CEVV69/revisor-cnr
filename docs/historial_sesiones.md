@@ -8070,3 +8070,4 @@ pero solo para lo NUEVO o MODIFICADO: `_partidas_modificadas` descarta las parti
 (similitud >= 0,6) y mismo precio unitario (±1 %) que el presupuesto original (ya aprobado, no se vuelve a
 observar). Si no se pueden extraer las partidas del original, se verifican todas con la instrucción de
 observar solo lo modificado. Probado con mocks; sin probar con IA real.
+Criterios de Modificaciones: ahora en una tarjeta aparte de /admin/aprendizaje (formulario propio, mismas claves item_mod_*); guardar una tarjeta no toca las cajas de la otra. Las reglas de la Revisión normal y las de Modificaciones no se cruzan (cada ítem lee solo su caja).
