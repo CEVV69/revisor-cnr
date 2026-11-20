@@ -8088,3 +8088,5 @@ calculado, JS + Python), bloque de verificación para la IA (ausencia de PP = a 
 al .json no (el Diseñador la calcula). Probado en Chromium con servidor local; sin probar con IA real. Posible
 inconsistencia a revisar en el Diseñador (no tocada): su `precip` no incluye el N° de líneas de emisor pero su
 Q requerido sí.
+
+Precipitación derivada en Goteo/Microaspersión: confirmada por el usuario (nov-2026), "quedó muy bien".
