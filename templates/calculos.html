@@ -368,6 +368,14 @@
               <span id="{{ p }}agro-sup-info" class="calc-nota" style="display:none;"></span>
             </td>
           </tr>
+          <tr class="campo-localizado">
+            <td class="col-concepto" title="En Goteo/Microaspersión la precipitación resulta del emisor y el marco: I = q × N° líneas / (dist. entre hileras × esp. entre emisores). El ITT-03 pide declararla como PP en el Cuadro Resumen del Diseño Agronómico.">Precipitación del sistema (mm/hr) — Goteo/Microaspersión</td>
+            <td id="{{ p }}agro-pp-decl">—</td>
+            <td class="col-calc">
+              <span id="{{ p }}agro-pp-calc">—</span>
+              <span id="{{ p }}agro-pp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
+            </td>
+          </tr>
           <tr>
             <td class="col-concepto">Tiempo de riego (hr/día)</td>
             <td><input type="number" step="0.01" id="{{ p }}decl_triego" name="{{ p }}decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></td>
@@ -1036,6 +1044,7 @@
     wrap.querySelectorAll(".campo-goteo").forEach(function(el) { el.classList.toggle("activo", mostrarGoteo); });
     wrap.querySelectorAll(".campo-aspersion").forEach(function(el) { el.classList.toggle("activo", mostrarAspersion); });
     wrap.querySelectorAll(".campo-carrete").forEach(function(el) { el.classList.toggle("activo", mostrarCarrete); el.style.display = mostrarCarrete ? "" : "none"; });
+    wrap.querySelectorAll(".campo-localizado").forEach(function(el) { el.style.display = esAltaFrecuencia ? "" : "none"; });
     // En Aspersión/Carrete el diseño real es por POSTURAS (geométrico, no depende del caudal
     // disponible) — el consultor casi siempre declara ese número rotulado "N° de sectores" en el
     // expediente, pero corresponde comparar contra el N° de posturas real de cada sistema (ver
@@ -1592,9 +1601,26 @@
     // tipeado a mano) para alimentar Tiempo de riego/Caudal de operación/Diseño Base — mismo
     // criterio que Dn/Fr/Db (la cadena de la app manda, lo declarado solo se compara). Cae a la
     // Precipitación del sistema declarada si no se pudo calcular, o en Goteo/Microaspersión.
+    // Goteo/Microaspersión (nov-2026): la precipitación se DERIVA del emisor y el marco —
+    // I = q × N° líneas / (DEH × Esp. emisores); sin N° de líneas se asume 1. Misma fórmula que
+    // `calculos_riego.precipitacion_localizado()` y que el Diseñador de Riego (calcGE).
+    var qEmisor = numVal(p + "caudal_emisor_lhr"), dehLoc = numVal(p + "distancia_hileras_m"),
+        espEmLoc = numVal(p + "espaciamiento_emisores_m"), nLinLoc = numVal(p + "n_lineas_emisor");
+    var ppLoc = null, ppLocAsume1 = false;
+    if (esAltaFrecuencia && qEmisor && dehLoc && espEmLoc) {
+      var nLinUso = (nLinLoc !== null && nLinLoc > 0) ? nLinLoc : 1;
+      ppLocAsume1 = !(nLinLoc !== null && nLinLoc > 0);
+      ppLoc = qEmisor * nLinUso / (dehLoc * espEmLoc);
+    }
+    setText(p + "agro-pp-decl", precip !== null ? fmt(precip, 2) + " mm/hr" : "—");
+    setText(p + "agro-pp-calc", ppLoc !== null ? fmt(ppLoc, 2) + " mm/hr" + (ppLocAsume1 ? " (asume 1 línea de emisor)" : "") : "—");
+    nota(p + "agro-pp-nota", ppLoc === null ? ""
+      : (precip === null ? "No declarada: se usa la derivada del emisor y el marco (el ITT-03 pide declararla en el Cuadro Resumen del Diseño Agronómico)."
+        : (diferenciaRelevante(ppLoc, precip, 10) ? "No coincide con la declarada (" + fmt(precip, 2) + " mm/hr) — verificar cuál es la correcta." : "")));
     var precipEfectiva = precip;
     if (sistema === "Aspersión" && vaAsp !== null) precipEfectiva = vaAsp;
     else if (sistema === "Carrete" && ppCalc !== null) precipEfectiva = ppCalc;
+    else if (esAltaFrecuencia && ppLoc !== null) precipEfectiva = ppLoc;
 
     // Tiempo de riego (por sector, independiente del área total) — se calcula ACÁ porque lo
     // necesitan tanto el acumulador (Q_estanque) como el N° de sectores más abajo.
@@ -1649,7 +1675,9 @@
     var articuloPl = esPosturas ? "las" : "los";
     if (precipEfectiva !== null) {
       var origenPrecip = precipEfectiva !== precip
-        ? (sistema === "Aspersión" ? " (con VA calculada, " + fmt(precipEfectiva, 2) + " mm/hr)" : " (con PP calculada, " + fmt(precipEfectiva, 2) + " mm/hr)")
+        ? (sistema === "Aspersión" ? " (con VA calculada, " + fmt(precipEfectiva, 2) + " mm/hr)"
+          : (esAltaFrecuencia ? " (con la precipitación derivada del emisor y el marco, " + fmt(precipEfectiva, 2) + " mm/hr)"
+            : " (con PP calculada, " + fmt(precipEfectiva, 2) + " mm/hr)"))
         : "";
       setText(p + "agro-triego-calc", fmt(tiempoRiego, 2) + " hr" + origenPrecip);
       nota(p + "agro-triego-nota", diferenciaRelevante(tiempoRiego, declTriego, 15) ? "No coincide con lo declarado (" + fmt(declTriego, 2) + " hr)." : "");

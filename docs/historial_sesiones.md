@@ -8072,3 +8072,19 @@ observar). Si no se pueden extraer las partidas del original, se verifican todas
 observar solo lo modificado. Probado con mocks; sin probar con IA real.
 Criterios de Modificaciones: ahora en una tarjeta aparte de /admin/aprendizaje (formulario propio, mismas claves item_mod_*); guardar una tarjeta no toca las cajas de la otra. Las reglas de la Revisión normal y las de Modificaciones no se cruzan (cada ítem lee solo su caja).
 Modificaciones: círculo verde "Realizado" en cada ítem de Observaciones cuando no quedan observaciones pendientes (aprobadas/descartadas), igual que la Revisión normal (modificacion.html). Probado con la plantilla; sin desplegar al escribir esto.
+
+## Precipitación del sistema derivada en Goteo/Microaspersión (nov-2026, aprobado por el usuario)
+
+Consulta del usuario: un goteo sin "Precipitación del sistema" declarada dejaba sin calcular tiempo de riego,
+N° de sectores y caudal de operación. Normativa (Drive): el ITT-03 (Instructivos de Tecnificación 2017) pide en
+riego localizado la "Precipitación del equipo (PP) (mm/h)" como información mínima del Cuadro 1 Resumen Diseño
+Agronómico; el Instructivo Técnico PEPA 2024 remite a ese manual y agrega que diseños con >8 hr de riego diario
+y/o >=5 sectores deben automatizarse. Pero en goteo la PP resulta del emisor y el marco (el Diseñador la calcula:
+I = q·N/(DEH·DSH)), así que se deriva: `calculos_riego.precipitacion_localizado` = q × N líneas / (DEH × Esp.
+emisores) (sin N líneas se asume 1). Si hay datos, esa PP alimenta la cadena (como VA/PP en Aspersión/Carrete) y la
+declarada solo se compara. Llega a: Chequeo (nueva fila "Precipitación del sistema" en la tabla declarado vs.
+calculado, JS + Python), bloque de verificación para la IA (ausencia de PP = a lo sumo observación menor; diferencia
+>10 % con la declarada se señala; línea de AUTOMATIZACIÓN con >8 hr o >=5 sectores) y las dos Memorias de Cálculo;
+al .json no (el Diseñador la calcula). Probado en Chromium con servidor local; sin probar con IA real. Posible
+inconsistencia a revisar en el Diseñador (no tocada): su `precip` no incluye el N° de líneas de emisor pero su
+Q requerido sí.

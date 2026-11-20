@@ -401,6 +401,14 @@
 
 {% if calc.tiempo_riego_hr is not none %}
 {% call paso('tiempo_riego') %}
+  {% if calc.pp_localizado_mmhr is not none %}
+  <div class="formula">Precipitación del sistema (Goteo/Microaspersión) = q emisor × N° líneas / (Dist. hileras × Esp. emisores) = {{ val(agro.caudal_emisor_lhr) }} × {{ val(calc.pp_localizado_nlineas) }} / ({{ val(agro.distancia_hileras_m) }} × {{ val(agro.espaciamiento_emisores_m) }}) = <strong>{{ val(calc.pp_localizado_mmhr, ' mm/hr') }}</strong>{% if calc.pp_localizado_asumio_1_linea %} (se asumió 1 línea de emisor){% endif %}</div>
+  {% if agro.precipitacion_sistema_mmhr is none %}
+  <div class="compara">Precipitación del sistema declarada: <span class="alerta">no declarada</span> — el ITT-03 la pide como PP en el Cuadro Resumen del Diseño Agronómico; se usa la derivada del emisor y el marco.</div>
+  {% else %}
+  <div class="compara">Precipitación del sistema declarada: {{ num(agro.precipitacion_sistema_mmhr) }} mm/hr — {% if (calc.pp_localizado_mmhr - agro.precipitacion_sistema_mmhr) | abs / calc.pp_localizado_mmhr * 100 > 10 %}<span class="alerta">no coincide con la que resulta de su propio emisor y marco.</span>{% else %}<span class="ok">coincide.</span>{% endif %}</div>
+  {% endif %}
+  {% endif %}
   <div class="formula">Tiempo de riego = Db / Precipitación {% if calc.precipitacion_efectiva_origen and 'calculada' in calc.precipitacion_efectiva_origen %}EFECTIVA{% else %}del sistema declarada{% endif %} = {{ val(calc.db_mm) }} / {{ val(calc.precipitacion_efectiva_mmhr, ' mm/hr') }} = <strong>{{ val(calc.tiempo_riego_hr, ' hr') }}</strong></div>
   <div class="explica">Tiempo diario de riego por sector, independiente del área total.{% if calc.precipitacion_efectiva_origen and 'calculada' in calc.precipitacion_efectiva_origen %} Usa la {{ calc.precipitacion_efectiva_origen }} desde el marco de emisores/cañón — más confiable que la Precipitación del sistema tipeada a mano ({{ val(agro.precipitacion_sistema_mmhr, ' mm/hr') }}).{% endif %}</div>
   {% if agro.declarado and agro.declarado.tiempo_riego_hr is not none %}

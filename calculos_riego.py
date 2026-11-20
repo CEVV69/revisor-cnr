@@ -842,6 +842,22 @@ def verificacion_diseno_riego(db_mm_dia: float, superficie_ha: float = None,
     return r
 
 
+def precipitacion_localizado(caudal_emisor_lhr: float, dist_hileras_m: float,
+                             esp_emisores_m: float, n_lineas: float = None) -> dict:
+    """Precipitación del sistema (mm/hr) de Goteo/Microaspersión derivada del emisor y el marco
+    (nov-2026): I = (q_emisor[l/hr] × N° de líneas de emisor) / (distancia entre hileras[m] ×
+    espaciamiento entre emisores[m]) — 1 l/hr/m² = 1 mm/hr. Es la misma relación del Diseñador de
+    Riego (`calcGE`: I = q·N/(DEH·DSH)); en goteo la precipitación NO se elige, resulta del emisor y
+    el marco. El ITT-03 pide declararla como PP en el Cuadro Resumen del Diseño Agronómico; si el
+    consultor no la declara (o para compararla), se deriva acá. Sin N° de líneas se asume 1
+    (`asumio_1_linea`). None si falta el caudal del emisor o alguna distancia."""
+    if not (caudal_emisor_lhr and dist_hileras_m and esp_emisores_m):
+        return None
+    n = n_lineas if (n_lineas and n_lineas > 0) else 1
+    return {"pp_mmhr": round(caudal_emisor_lhr * n / (dist_hileras_m * esp_emisores_m), 3),
+            "n_lineas": n, "asumio_1_linea": not (n_lineas and n_lineas > 0)}
+
+
 def verificacion_vib(vib_mmhr: float, precipitacion_mmhr: float) -> dict:
     """Verifica que la Velocidad de Infiltración Básica (VIB) del suelo supere la precipitación
     (velocidad de aplicación) del sistema de riego — si no, hay riesgo de escorrentía. Aplica

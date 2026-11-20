@@ -2699,6 +2699,19 @@ def _agronomico_calculo(datos: dict):
     elif datos.get("sistema_riego") == "Carrete" and carrete_check and carrete_check.get("pluviometria_mmhr"):
         precip_efectiva = carrete_check["pluviometria_mmhr"]
         precip_origen = "calculada (PP)"
+    # Goteo/Microaspersión (nov-2026): la precipitación resulta del emisor y el marco; si hay datos
+    # para derivarla, ESA alimenta la cadena y la declarada solo se compara (misma lógica que
+    # Aspersión/Carrete). Sin datos para derivarla, cae a la declarada.
+    if datos.get("sistema_riego") in ("Goteo", "Microaspersión"):
+        pp_loc = calculos_riego.precipitacion_localizado(
+            datos.get("caudal_emisor_lhr"), datos.get("distancia_hileras_m"),
+            datos.get("espaciamiento_emisores_m"), datos.get("n_lineas_emisor"))
+        if pp_loc:
+            r["pp_localizado_mmhr"] = pp_loc["pp_mmhr"]
+            r["pp_localizado_nlineas"] = pp_loc["n_lineas"]
+            r["pp_localizado_asumio_1_linea"] = pp_loc["asumio_1_linea"]
+            precip_efectiva = pp_loc["pp_mmhr"]
+            precip_origen = "calculada (emisor y marco)"
     if precip_efectiva is not None:
         r["precipitacion_efectiva_mmhr"] = precip_efectiva
         r["precipitacion_efectiva_origen"] = precip_origen
@@ -2951,6 +2964,7 @@ def _fecha_disenador() -> str:
 _CAMPOS_AGRO_INFORME = (
     "cultivo", "cc_pct", "pmp_pct", "da", "prof_radicular_cm", "factor_agotamiento_pct",
     "kc", "eto_dia_mm", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr",
+    "distancia_hileras_m", "espaciamiento_emisores_m", "n_lineas_emisor",
     "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno", "periodo_turno_dias",
     "tipo_fuente_agua", "precipitacion_sistema_mmhr",
     "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
@@ -2970,6 +2984,7 @@ _CAMPOS_CALC_INFORME = (
     "tiempo_llenado_estanque_hr", "caudal_estanque_ls", "q_requerido_total_ls",
     "dias_necesarios", "diferencia_caudal_operacion_pct", "v_ciclo_l",
     "precipitacion_efectiva_mmhr", "precipitacion_efectiva_origen",
+    "pp_localizado_mmhr", "pp_localizado_nlineas", "pp_localizado_asumio_1_linea",
     "tiempo_total_ciclo_hr", "horas_disponibles_ciclo_hr",
 )
 _CAMPOS_TRAMO_INFORME = (

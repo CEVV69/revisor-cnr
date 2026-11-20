@@ -31,6 +31,10 @@ adivinado). El truncamiento de cada capa a la profundidad radicular (`{p}-pr`) l
 Diseñador al recalcular — acá se exportan las capas tal cual las declaró el consultor.
 
 DATOS QUE REVISOR TIENE PERO NO SE EXPORTAN, y por qué (para no volver a intentarlo cada vez):
+- `precipitacion_sistema_mmhr` / precipitación derivada (Goteo/Microaspersión, nov-2026): NO se exporta —
+  el Diseñador no la tiene como campo de entrada, la calcula él mismo (calcGE: I = q·N/(DEH·DSH)) a partir
+  del emisor, DEH y DSH, que SÍ se exportan; el Chequeo deriva el mismo valor con esos datos
+  (`calculos_riego.precipitacion_localizado`).
 - `caudal_emisor_lhr` (Goteo/Microaspersión): el Diseñador NO tiene un campo numérico para el
   caudal del gotero — lo saca del emisor elegido en su propio catálogo (`g-tipe`/`m-tipe`, select
   con botón "⚙ Gestionar"). Escribirlo exigiría inventar una entrada de catálogo.

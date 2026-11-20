@@ -2701,6 +2701,16 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         precip_efectiva = postura["va_mmhr"]
     elif datos.get("sistema_riego") == "Carrete" and carrete and carrete.get("pluviometria_mmhr"):
         precip_efectiva = carrete["pluviometria_mmhr"]
+    # Goteo/Microaspersión (nov-2026): la precipitación se DERIVA del emisor y el marco; si hay datos
+    # para derivarla alimenta la cadena y la declarada solo se compara (ITT-03 pide declarar la PP
+    # en el Cuadro Resumen del Diseño Agronómico, pero resulta de q·N/(DEH·Se)).
+    pp_loc = None
+    if datos.get("sistema_riego") in ("Goteo", "Microaspersión"):
+        pp_loc = calculos_riego.precipitacion_localizado(
+            datos.get("caudal_emisor_lhr"), datos.get("distancia_hileras_m"),
+            datos.get("espaciamiento_emisores_m"), datos.get("n_lineas_emisor"))
+        if pp_loc:
+            precip_efectiva = pp_loc["pp_mmhr"]
     diseno = calculos_riego.verificacion_diseno_riego(
         db_mm_dia=r["db_mm"],
         db_diario_mm_dia=r.get("db_diario_mm"),
@@ -2744,8 +2754,28 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                           f"({superficie_decl} ha): el caudal disponible no alcanza para regar "
                           f"toda la superficie con esta demanda.")
             lineas_diseno.append(linea)
+        if pp_loc:
+            linea_pp = (f"Precipitación del sistema DERIVADA del emisor y el marco = q × N líneas / "
+                        f"(DEH × Esp. emisores) = {datos.get('caudal_emisor_lhr')} × {pp_loc['n_lineas']} / "
+                        f"({datos.get('distancia_hileras_m')} × {datos.get('espaciamiento_emisores_m')}) = "
+                        f"{pp_loc['pp_mmhr']} mm/hr")
+            if pp_loc["asumio_1_linea"]:
+                linea_pp += " (no se declara el N° de líneas de emisor: se asumió 1)"
+            if precip_declarada is None:
+                linea_pp += (" — el consultor NO declara la Precipitación (PP) que el ITT-03 pide en el "
+                             "Cuadro Resumen del Diseño Agronómico, pero es derivable de los datos del "
+                             "emisor y del marco: a lo sumo una observación MENOR, no bloquea el análisis.")
+            elif _diferencia_relevante(pp_loc["pp_mmhr"], precip_declarada, 10):
+                linea_pp += (f" — la PP declarada es {precip_declarada} mm/hr y NO coincide con la que "
+                             f"resulta de su propio emisor y marco: verifica cuál es la correcta.")
+            else:
+                linea_pp += f" — coincide con la declarada ({precip_declarada} mm/hr)."
+            lineas_diseno.append(linea_pp)
         if "tiempo_riego_hr" in diseno:
-            if precip_efectiva != precip_declarada:
+            if pp_loc:
+                linea = (f"Tiempo de riego = Db / Precipitación derivada ({pp_loc['pp_mmhr']} mm/hr) = "
+                          f"{diseno['tiempo_riego_hr']} hr/día")
+            elif precip_efectiva != precip_declarada:
                 linea = (f"Tiempo de riego = Db / Precipitación EFECTIVA — se usa la VA/PP YA "
                           f"calculada ({precip_efectiva} mm/hr, más confiable que la "
                           f"\"Precipitación del sistema\" declarada de "
@@ -2851,6 +2881,17 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
                                           f"caudal (ej. con acumulador), la superficie, o distribuir "
                                           f"el riego en más días.")
                 lineas_diseno.append(linea_tiempo)
+                # Instructivo Técnico de Pequeña Agricultura 2024, punto 5: más de 8 hr de riego diario
+                # y/o 5 sectores o más => debe estar automatizado (válvulas eléctricas, programador).
+                if (not es_postura_sist and
+                        (diseno["tiempo_total_dia_hr"] > 8 or diseno["n_sectores"] >= 5)):
+                    lineas_diseno.append(
+                        f"AUTOMATIZACIÓN: el diseño calculado tiene {diseno['n_sectores']} sector(es) y "
+                        f"{diseno['tiempo_total_dia_hr']} hr/día de riego — con más de 8 hr de riego diario "
+                        f"y/o 5 sectores o más, un proyecto del Programa de Pequeña Agricultura (PEPA) "
+                        f"debe ser AUTOMATIZADO (Instructivo Técnico PEPA 2024, punto 5): verifica que el "
+                        f"presupuesto incluya válvulas eléctricas, programador de riego y lo necesario "
+                        f"para su funcionamiento; si no están, es observable.")
             if "acumulador_requerido" in diseno:
                 linea_acum = "Acumulador requerido (ITT-03 §1): "
                 if not diseno["acumulador_requerido"]:
