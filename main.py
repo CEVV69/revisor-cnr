@@ -5245,6 +5245,8 @@ TIPOS_MODIFICACION = {
 # navegador del revisor (localStorage, ver `abrirGmailFicha` en base.html) — NO va en el repo, que
 # es público.
 EMAIL_FOMENTO_CNR = "sebastian.silva@cnr.gob.cl"
+# Con copia (CC) del correo de la Ficha (nov-2026, pedido del usuario).
+EMAIL_CC_FOMENTO_CNR = "secretarias.fomento@cnr.gob.cl"
 
 
 def _correo_ficha_modificacion(mod: dict) -> tuple:
@@ -5266,7 +5268,7 @@ def _gmail_ficha_modificacion(mod: dict) -> str:
     # Sin `body`: con cuerpo precargado Gmail NO inserta la firma del usuario. El texto se copia al
     # portapapeles al hacer clic (`abrirGmailFicha`) y el revisor lo pega bajo la firma.
     return ("https://mail.google.com/mail/?view=cm&fs=1&to=" + quote(EMAIL_FOMENTO_CNR)
-            + "&su=" + quote(asunto))
+            + "&cc=" + quote(EMAIL_CC_FOMENTO_CNR) + "&su=" + quote(asunto))
 
 
 @app.get("/modificaciones", response_class=HTMLResponse)

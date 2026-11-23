@@ -44,7 +44,11 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
-**Confirmado por el usuario (nov-2026):** Goteo/Micro: Precipitación derivada del emisor y marco (`calculos_riego.precipitacion_localizado`)
+**Confirmado por el usuario (nov-2026):** Modificaciones: botón "Enviar Ficha a CNR" (Aprobado y Rechazado; destinatario Sebastián Silva con CC a
+secretarias.fomento; abre Gmail en ventana emergente con `/a/<dominio>/` para forzar la cuenta institucional
+y copia el texto al portapapeles para conservar la firma; la cuenta vive en localStorage, NO en el repo;
+sin respaldo `mailto`; funciona desde la app instalada);
+Goteo/Micro: Precipitación derivada del emisor y marco (`calculos_riego.precipitacion_localizado`)
 como fila de la tabla declarado vs. calculado + chequeo de automatización >8 hr / >=5 sectores;
 pendientes automáticos (`_sincronizar_pendientes_auto`: MEE, F4, TE4+Protocolo on-grid, TE1 SEC off-grid,
 reclasificación de suelos); botón "Debate con la IA" sin pegarse; anti-doble-cobro;
@@ -61,9 +65,6 @@ reciben el original como referencia (`tipos_docs_referencia`, doc nuevo "Plano o
 sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia)
 (conteo "+ N de referencia" y comparación de presupuesto por categorías comunes ya confirmados; falta
 probar la revisión de Planos con el original en IA real); auto-descarte entre ítems de Modificaciones (sin probar con IA real);
-Modificaciones: botón "Enviar Ficha a CNR" (destinatario Sebastián Silva, abre Gmail con
-`/mail/u/<cuenta>/` + asunto y copia el texto al portapapeles para conservar la firma; la cuenta vive en
-localStorage, NO en el repo; sin respaldo `mailto`; usar en pestaña de Chrome, no en la app instalada);
 fix "Revisar todos"; Ficha solo con párrafo de propuesta;
 fix scroll al aprobar/descartar; total en UF del Presupuesto; "Características obras" con datos
 técnicos (tope 400); regla "no mezclar sistemas de riego" + texto del chat igual al del análisis;

@@ -8096,3 +8096,5 @@ Modificaciones: botón "← Modificaciones" (vuelve al listado) al inicio de las
 Modificaciones: el botón "Enviar Ficha a CNR" aparece ahora también en estado "Rechazado" (antes solo "Aprobado"): ambos son cierre de la revisión. "Retirado" no lo muestra.
 
 Enviar Ficha desde la app instalada (nov-2026): el botón abre Gmail como ventana emergente (popup) cuando la app corre en modo standalone, y con cuentas de dominio propio (Workspace) usa /a/<dominio>/mail/ + authuser en vez de /mail/u/<correo>/, para forzar la cuenta institucional en vez de caer a la personal. El dominio sale de la cuenta guardada en localStorage (no del repo). Sin probar con Gmail real.
+
+Enviar Ficha a CNR: confirmado por el usuario (nov-2026) desde la app instalada (ventana emergente, cuenta institucional, firma). Se agrega CC a secretarias.fomento@cnr.gob.cl (`EMAIL_CC_FOMENTO_CNR`, parámetro `cc` de la URL de Gmail).
