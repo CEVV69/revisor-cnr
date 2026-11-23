@@ -743,7 +743,7 @@ Criterio oficial (ITT-02 4.5.1.2): %P = ERNC generada anualmente (kWh/año) / en
 temporada de riego (kWh/temporada); en ningún caso el %P aplicable supera 100% — el
 sobredimensionamiento solo es aceptable por tamaños comerciales de equipos, por lo que uno
 desproporcionado (muy por sobre lo requerido) también es observable y debe justificarse. La app
-verifica con la metodología del Revisor Fotovoltaico: demanda mensual de la bomba (horas de riego
+verifica con la metodología del Dimensionamiento Fotovoltaico: demanda mensual de la bomba (horas de riego
 por mes × potencia) contra la generación anual por kWp del Explorador Solar (kWp requeridos,
 cobertura anual, %P); el modo aislado hora a hora no lo recalcula la app.
 El proyecto eléctrico debe estar firmado por profesional acreditado SEC y detallar
@@ -3131,7 +3131,7 @@ EXPEDIENTE:
 
 
 def _bloque_verificacion_fv(datos: dict) -> str:
-    """Recalcula la verificación fotovoltaica con la metodología del Revisor Fotovoltaico (demanda
+    """Recalcula la verificación fotovoltaica con la metodología del Dimensionamiento Fotovoltaico (demanda
     mensual de la bomba vs. generación anual del Explorador Solar) y arma el bloque para inyectar
     en el prompt. Solo calcula si están los datos base imprescindibles (bomba y horas por mes)."""
     if not datos:

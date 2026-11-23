@@ -1231,9 +1231,9 @@ def verificar_superficie_cubrible_carrete(n_posturas: int, superficie_postura_ha
     return r
 
 
-# ── Fotovoltaico: misma metodología del Revisor Fotovoltaico (app hermana) ─────
+# ── Fotovoltaico: misma metodología del Dimensionamiento Fotovoltaico (app hermana) ─────
 # nov-2026: se reemplazó la cadena del Diseñador de Riego (día de diseño con hbom + HSP, N° de
-# paneles, serie/paralelo, cable DC) por la del Revisor Fotovoltaico, construido sobre el Excel de
+# paneles, serie/paralelo, cable DC) por la del Dimensionamiento Fotovoltaico, construido sobre el Excel de
 # la CNR: demanda de la bomba por MES (horas/día × días del mes) contra la generación anual por
 # kWp del Explorador Solar. Motivo: el instructivo oficial (ITT-02 §4.5.1) solo exige comparar la
 # energía generada anualmente (Explorador Solar) con la requerida en la temporada de riego —
@@ -1241,23 +1241,23 @@ def verificar_superficie_cubrible_carrete(n_posturas: int, superficie_postura_ha
 
 
 MESES_3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-# Días por mes que usa el Revisor Fotovoltaico (fotovoltaico_riego_v15.html, const DIAS) —
+# Días por mes que usa el Dimensionamiento Fotovoltaico (dimensionamiento_fotovoltaico_v25.html, const DIAS) —
 # incluye feb=29 fijo (no depende del año del proyecto).
 DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
 def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
     """Demanda energética mensual de la bomba con la MISMA fórmula que usa el Revisor
-    Fotovoltaico (fotovoltaico_riego_v15.html, función calc()):
+    Fotovoltaico (dimensionamiento_fotovoltaico_v25.html, función calc()):
 
     Dem_día[mes] = Horas_riego[mes] × P_bomba × (1 + Adicionales%/100)   [kWh/día]
     Dem_mes[mes] = Dem_día[mes] × Días_del_mes                          [kWh/mes]
     Dem_anual    = Σ Dem_mes[mes]                                       [kWh/año]
 
-    Es la única parte de la metodología del Revisor Fotovoltaico que Revisor CNR puede
+    Es la única parte de la metodología del Dimensionamiento Fotovoltaico que Revisor CNR puede
     recalcular de forma determinística: la generación, cobertura y potencia requerida
     dependen del perfil solar horario del predio (Explorador Solar), que solo se importa
-    dentro del propio Revisor Fotovoltaico — no se replica acá.
+    dentro del propio Dimensionamiento Fotovoltaico — no se replica acá.
 
     `pkw`: potencia de la bomba (kW). `adic`: consumos adicionales declarados (%, ej. 5).
     `horas_mensuales`: lista de 12 valores (horas de riego promedio/día por mes, Ene→Dic;
@@ -1285,7 +1285,7 @@ def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
 # Rango esperable del recurso solar (kWh/kWp/día, promedio anual) — mismo umbral que el Revisor
 # Fotovoltaico (verificar(): "Recurso solar fuera de rango esperable"; en Chile se espera 3-7).
 GU_DIA_RANGO = (2.0, 9.0)
-# Holgura sobre la que el Revisor Fotovoltaico pide justificar el sobredimensionamiento.
+# Holgura sobre la que el Dimensionamiento Fotovoltaico pide justificar el sobredimensionamiento.
 HOLGURA_ALTA_PCT = 60
 
 
@@ -1294,8 +1294,8 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
                           wp: float = None, gen_anual_declarada: float = None,
                           dem_anual_declarada: float = None,
                           cobertura_declarada_pct: float = None) -> dict:
-    """Verificación fotovoltaica con la metodología del Revisor Fotovoltaico (app hermana,
-    fotovoltaico_riego_v19.html, `calc()` modo on-grid + `verificar()`):
+    """Verificación fotovoltaica con la metodología del Dimensionamiento Fotovoltaico (app hermana,
+    dimensionamiento_fotovoltaico_v25.html, `calc()` modo on-grid + `verificar()`):
 
     Dem_anual    = Σ_mes  Horas[mes] × P_bomba × (1 + Adic%/100) × Días[mes]      [kWh/año]
     kWp_requerido= Dem_anual / GU_anual                                           [kWp]
@@ -1316,9 +1316,9 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
     su análisis de generación vs energía requerida (ITT-02 §4.5.1.1) — se comparan contra la demanda
     y la cobertura que calcula la app (tolerancia 15 % y 10 puntos).
 
-    Limitación (igual que el chequeo anual del Revisor FV): no verifica el modo aislado, que exige
+    Limitación (igual que el chequeo anual del Dimensionamiento FV): no verifica el modo aislado, que exige
     el perfil solar HORARIO (¿alcanza la potencia instantánea para mover la bomba en las horas de
-    riego?, banco de baterías) — ese análisis se hace en el Revisor Fotovoltaico con el .json
+    riego?, banco de baterías) — ese análisis se hace en el Dimensionamiento Fotovoltaico con el .json
     exportado desde el Chequeo.
 
     Devuelve {} si falta la potencia de la bomba o no hay ningún mes con horas declaradas."""

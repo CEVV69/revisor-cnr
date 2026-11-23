@@ -559,7 +559,7 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
 
 <!-- ══════════ 7. SISTEMA FOTOVOLTAICO ══════════ -->
 {% if fv and (fv.pkw is not none or fv.horas_mensuales or fv.gu_anual is not none) %}
-<div class="titulo-seccion">7. Sistema fotovoltaico — verificación (metodología del Revisor Fotovoltaico)</div>
+<div class="titulo-seccion">7. Sistema fotovoltaico — verificación (metodología del Dimensionamiento Fotovoltaico)</div>
 
 {% call paso('fv_inputs') %}
 <div class="nota-alcance">El sistema FV es único para el proyecto (aunque haya 2 sistemas de riego) — alimenta la bomba declarada en Potencia bomba (kW). Demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar.</div>
@@ -620,7 +620,7 @@ El caudal máximo entre los tramos de este sistema es {{ num(q_max_tramo) }} l/s
     {% if fv_calc.gen_declarada_coincide %}<span class="ok">coherente.</span>{% else %}<span class="alerta">difiere {{ val(fv_calc.gen_declarada_dif_pct, ' %') }}.</span>{% endif %}
   {% endif %}
 </div>
-<div class="nota-alcance" style="margin-top:0.4rem;">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Revisor Fotovoltaico.</div>
+<div class="nota-alcance" style="margin-top:0.4rem;">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Dimensionamiento Fotovoltaico.</div>
 {% endcall %}
 {% else %}
 <p class="nota-alcance">Completa potencia de la bomba y horas de riego por mes (y la generación específica anual del Explorador Solar) en el Chequeo de Cálculos para ver la verificación.</p>

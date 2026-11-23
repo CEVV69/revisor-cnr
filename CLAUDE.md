@@ -53,7 +53,7 @@ como fila de la tabla declarado vs. calculado + chequeo de automatización >8 hr
 pendientes automáticos (`_sincronizar_pendientes_auto`: MEE, F4, TE4+Protocolo on-grid, TE1 SEC off-grid,
 reclasificación de suelos); botón "Debate con la IA" sin pegarse; anti-doble-cobro;
 notas manuales en Revisión Ítem SEP (`_form_nota_manual`); **Chequeo Fotovoltaico** con la
-metodología de la app Revisor FV (`calculos_riego.verificacion_fv_anual`: demanda mensual vs
+metodología de la app Dimensionamiento Fotovoltaico (`calculos_riego.verificacion_fv_anual`: demanda mensual vs
 generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.2; GU derivada del
 reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
 Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
@@ -79,11 +79,11 @@ API real; tope de bonificación en el diff de Presupuesto de Modificaciones. Sec
 Ítem SEP en `<details>` cerrados: pendiente de confirmar. Lección: estados de `<details>`/anclas se
 prueban en Chromium real, no con TestClient.
 
-**Pendiente bloqueado:** chequeos del Revisor Fotovoltaico en la Memoria Completa — necesita el
+**Pendiente bloqueado:** chequeos del Dimensionamiento Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
-`fotovoltaico_riego_v19.html`; sin exportarlo desde ahí no hay forma de desbloquearlo.
+`dimensionamiento_fotovoltaico_v25.html`; sin exportarlo desde ahí no hay forma de desbloquearlo.
 
-**Fuera de alcance:** cultivos vía Kc mensual son del **Revisor Fotovoltaico** (su chequeo FV usa
+**Fuera de alcance:** cultivos vía Kc mensual son del **Dimensionamiento Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).
 
 ---
@@ -116,7 +116,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v135.html, scall_diseno_v21.html, fotovoltaico_riego_v19.html
+                 disenador_riego_v135.html, scall_diseno_v21.html, dimensionamiento_fotovoltaico_v25.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v13.html,
                  invernadero_diseno_v44.html (obras anexas CNR)

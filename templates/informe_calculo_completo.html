@@ -559,7 +559,7 @@
 {% if fv and (fv.pkw is not none or fv.horas_mensuales or fv.gu_anual is not none) %}
 <div class="salto"></div>
 <div class="titulo-fv">Sistema de Energización Fotovoltaico</div>
-<div class="nota-alcance">Sistema único para el proyecto completo — alimenta el equipo de bombeo. Metodología del Revisor Fotovoltaico: demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar (criterio oficial: ITT-02 §4.5.1, %P = generación anual / energía requerida en la temporada de riego, aplicable hasta 100 %).</div>
+<div class="nota-alcance">Sistema único para el proyecto completo — alimenta el equipo de bombeo. Metodología del Dimensionamiento Fotovoltaico: demanda mensual de la bomba contra la generación anual por kWp del Explorador Solar (criterio oficial: ITT-02 §4.5.1, %P = generación anual / energía requerida en la temporada de riego, aplicable hasta 100 %).</div>
 
 <div class="titulo-seccion">FV.1. Datos base ingresados</div>
 <div class="paso">
@@ -648,7 +648,7 @@
 </table></div>
 {% endif %}
 {% if fv_calc %}
-<div class="nota-alcance">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Revisor Fotovoltaico.</div>
+<div class="nota-alcance">No verifica el modo aislado hora a hora (potencia instantánea para mover la bomba, banco de baterías): use el .json exportado desde el Chequeo en el Dimensionamiento Fotovoltaico.</div>
 {% endif %}
 
 {% endif %}{# fin fv #}

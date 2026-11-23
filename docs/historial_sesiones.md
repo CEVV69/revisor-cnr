@@ -8098,3 +8098,12 @@ Modificaciones: el botón "Enviar Ficha a CNR" aparece ahora también en estado 
 Enviar Ficha desde la app instalada (nov-2026): el botón abre Gmail como ventana emergente (popup) cuando la app corre en modo standalone, y con cuentas de dominio propio (Workspace) usa /a/<dominio>/mail/ + authuser en vez de /mail/u/<correo>/, para forzar la cuenta institucional en vez de caer a la personal. El dominio sale de la cuenta guardada en localStorage (no del repo). Sin probar con Gmail real.
 
 Enviar Ficha a CNR: confirmado por el usuario (nov-2026) desde la app instalada (ventana emergente, cuenta institucional, firma). Se agrega CC a secretarias.fomento@cnr.gob.cl (`EMAIL_CC_FOMENTO_CNR`, parámetro `cc` de la URL de Gmail).
+
+## App FV: "Revisor Fotovoltaico" pasa a "Dimensionamiento Fotovoltaico" v25 (nov-2026)
+
+`static/fotovoltaico_riego_v19.html` reemplazada por `static/dimensionamiento_fotovoltaico_v25.html` (archivo del
+usuario). El formato de intercambio no cambió (`formato: riego-cnr-proyecto` v1, `app: revision-fv-riego`):
+verificado que el .json exportado por el Chequeo (con la clave extra `revisorCNR`, que la app ignora) se importa
+sin errores en v25. Renombrados los textos visibles (menú Apps, tooltips del Chequeo, 2 Memorias de Cálculo) y los
+comentarios/docstrings; la ruta `/calculos/exportar-revisor-fv` y la clave `app` del .json conservan su nombre
+para no romper compatibilidad. Las menciones anteriores en este historial conservan el nombre antiguo.

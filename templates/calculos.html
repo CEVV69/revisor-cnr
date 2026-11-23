@@ -599,7 +599,7 @@
       {% endif %}
     </form>
     <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
-      <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-revisor-fv" class="btn btn-outline btn-sm" title="Exporta los datos FV al formato del Revisor Fotovoltaico (.json)">Exportar al Revisor FV (.json)</a>
+      <a href="/proyecto/{{ proyecto.id }}/calculos/exportar-revisor-fv" class="btn btn-outline btn-sm" title="Exporta los datos FV al formato del Dimensionamiento Fotovoltaico (.json)">Exportar al Revisor FV (.json)</a>
       <a href="https://solar.minenergia.cl/inicio" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Explorador Solar</a>
     </div>
   </div>
@@ -612,7 +612,7 @@
       <div><label title="Generación anual por cada kWp instalado en el predio, del reporte del Explorador Solar (kWh/kWp·año). Ya incluye pérdidas, inclinación y temperatura.">Generación específica anual (kWh/kWp·año)</label><input type="number" step="1" id="gu_anual" name="gu_anual" value="{{ fv.gu_anual if fv.gu_anual is not none else '' }}"></div>
     </div>
 
-    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— demanda de la bomba; también se exporta al Revisor Fotovoltaico</span></div>
+    <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— demanda de la bomba; también se exporta al Dimensionamiento Fotovoltaico</span></div>
     <div class="agro-grid" style="grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); margin-bottom:0.9rem;">
       {% for mes in ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'] %}
       <div><label>{{ mes }}</label><input type="number" step="0.1" id="hmes{{ loop.index0 }}" name="hmes{{ loop.index0 }}" value="{{ fv.horas_mensuales[loop.index0] if fv.horas_mensuales and fv.horas_mensuales[loop.index0] is not none else '' }}"></div>
@@ -623,7 +623,7 @@
     <div class="agro-grid" style="margin-bottom:0.9rem;">
       <div><label>Panel Wp</label><input type="number" step="1" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
       <div>
-        <label title="Aislado: sin red eléctrica. La verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Revisor Fotovoltaico con el .json exportado">Tipo de conexión</label>
+        <label title="Aislado: sin red eléctrica. La verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Dimensionamiento Fotovoltaico con el .json exportado">Tipo de conexión</label>
         <select id="conexion" name="conexion">
           <option value="aislado" {% if not fv.conexion or fv.conexion == 'aislado' %}selected{% endif %}>Aislado (sin red)</option>
           <option value="aislado_bat" {% if fv.conexion == 'aislado_bat' %}selected{% endif %}>Aislado con baterías (sin red)</option>
@@ -649,7 +649,7 @@
         <colgroup><col><col style="width:210px;"><col style="width:260px;"></colgroup>
         <tr><th>Resultado</th><th>Extraído / declarado</th><th>Calculado por la app</th></tr>
         <tr>
-          <td class="col-concepto" title="Σ mes: horas/día × potencia bomba × (1 + adicionales) × días del mes — misma fórmula del Revisor Fotovoltaico">Demanda anual de la bomba</td><td id="fv-dem-decl">—</td>
+          <td class="col-concepto" title="Σ mes: horas/día × potencia bomba × (1 + adicionales) × días del mes — misma fórmula del Dimensionamiento Fotovoltaico">Demanda anual de la bomba</td><td id="fv-dem-decl">—</td>
           <td class="col-calc">
             <span id="fv-dem-calc">—</span>
             <span id="fv-dem-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -707,7 +707,7 @@
 
 <div class="card" style="background:rgba(128,128,128,0.05); border:none;">
   <p class="text-muted" style="font-size:0.8rem; margin:0;">
-    Fotovoltaico usa la metodología del Revisor Fotovoltaico (demanda mensual de la bomba contra la
+    Fotovoltaico usa la metodología del Dimensionamiento Fotovoltaico (demanda mensual de la bomba contra la
     generación anual del Explorador Solar); no verifica el modo aislado hora a hora (potencia
     instantánea, baterías), cableado, protecciones ni estructura de montaje — para lo primero use el .json.
     Carrete de avance frontal y microaspersión todavía no tienen verificación numérica.
@@ -2049,7 +2049,7 @@
   };
 
   // ── Fotovoltaico ────────────────────────────────────────────
-  // Misma metodología que el Revisor Fotovoltaico (app hermana) y que
+  // Misma metodología que el Dimensionamiento Fotovoltaico (app hermana) y que
   // calculos_riego.verificacion_fv_anual — si se toca una, tocar la otra (y los 2 informes).
   var DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   var MES3_FV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -2140,7 +2140,7 @@
       nota("fv-paneles-nota", diferenciaRelevante(kwpP, declKwp, 5) ? "Los paneles declarados no suman el kWp declarado (" + fmt(declKwp, 2) + " kWp)." : "");
     }
     if (conexion !== "ongrid" && !hint) {
-      hint = "Sistema aislado: la verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Revisor Fotovoltaico — exporta el .json.";
+      hint = "Sistema aislado: la verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Dimensionamiento Fotovoltaico — exporta el .json.";
     }
     setText("fv-hint", hint);
   }
