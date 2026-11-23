@@ -7,8 +7,11 @@
 </style>
 
 <div class="flex items-center gap-2 mt-2" style="margin-bottom:0.4rem; flex-wrap:wrap;">
-  <a href="/modificacion/{{ proyecto.id }}" class="btn btn-outline btn-sm">← Volver</a>
-  <h1>Resumen — {{ proyecto.codigo_sep }}</h1>
+  <a href="/modificaciones" class="btn btn-ghost btn-sm">← Modificaciones</a>
+  <span style="width:1px; height:18px; background:var(--border); margin:0 0.2rem;"></span>
+  <span class="text-muted">Costo API:</span>
+  {% include "_costo_api.html" %}
+  <h1 style="margin-left:0.6rem;">Resumen — {{ proyecto.codigo_sep }}</h1>
   <span style="flex:1;"></span>
   <div style="position:relative; display:inline-block;" id="menu-estado-wrapper">
     <button onclick="toggleMenuEstado()" class="btn btn-sm"

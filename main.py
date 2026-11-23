@@ -6118,6 +6118,7 @@ async def pagina_resumen_modificacion(request: Request, mod_id: str):
         if o.get("estado") == "aprobada" and _estado_subsanacion(o)["puede_responder"])
     return templates.TemplateResponse("modificacion_resumen.html", {
         "request": request, "user": user, "proyecto": mod,
+        "costo_api": _costo_para_vista(mod),
         "resumen": mod.get("resumen", {}), "tipos_modificacion": TIPOS_MODIFICACION,
         "n_pendientes_respuesta": n_pendientes_respuesta,
         "estados_proyecto_opciones": [(e, ESTADOS_PROYECTO_COLOR_SOLIDO[e]) for e in ESTADOS_PROYECTO],
