@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    {% if proyecto.estado == 'Aprobado' %}
+    {% if proyecto.estado in ('Aprobado', 'Rechazado') %}
     <a href="#" data-gmail="{{ gmail_ficha }}" data-cuerpo="{{ correo_ficha[1] }}" onclick="return abrirGmailFicha(this)" class="btn btn-primary btn-sm"
        title="Abre Gmail con destinatario y asunto, y copia el texto del mensaje: pégalo bajo tu firma y adjunta la Ficha descargada del SEP">
       Enviar Ficha a CNR

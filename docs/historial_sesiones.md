@@ -8092,3 +8092,5 @@ Q requerido sí.
 Precipitación derivada en Goteo/Microaspersión: confirmada por el usuario (nov-2026), "quedó muy bien".
 
 Modificaciones: botón "← Modificaciones" (vuelve al listado) al inicio de las pantallas Respuestas y Resumen; en Resumen reemplaza al "← Volver" y se muestra el Costo API a su derecha (la ruta ahora pasa `costo_api`). Presupuesto y Variables conservan su "← Volver".
+
+Modificaciones: el botón "Enviar Ficha a CNR" aparece ahora también en estado "Rechazado" (antes solo "Aprobado"): ambos son cierre de la revisión. "Retirado" no lo muestra.
