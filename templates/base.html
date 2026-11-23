@@ -493,7 +493,10 @@
   };
   window.abrirGmailFicha = function(a) {
     // La pestaña se abre ANTES de cualquier aviso: abrirla después la bloquea el navegador.
-    var w = window.open("", "_blank");
+    // En la app instalada se abre como VENTANA emergente (mismo perfil de Chrome de la app, y se puede
+    // mover por las pantallas); en una pestaña normal, como pestaña.
+    var instalada = !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    var w = instalada ? window.open("", "gmail_ficha", "popup=yes,width=1000,height=800") : window.open("", "_blank");
     // Texto del mensaje al portapapeles (Gmail no inserta la firma si el cuerpo viene precargado).
     var copiado = false;
     try { navigator.clipboard.writeText(a.dataset.cuerpo || ""); copiado = true; } catch (e) {}
@@ -501,7 +504,15 @@
     var cuenta = _cuentaGmail() || window.cambiarCuentaGmail();
     if (!cuenta) { w.close(); return false; }
     w.opener = null;
-    w.location.href = a.dataset.gmail.replace("/mail/?", "/mail/u/" + encodeURIComponent(cuenta) + "/?");
+    // Cuenta de Google Workspace (dominio propio, ej. el institucional): la ruta /a/<dominio>/ obliga a
+    // Gmail a usar la cuenta de ESE dominio (o a pedir su inicio de sesión) en vez de caer en silencio
+    // a la cuenta personal. Con @gmail.com se usa /u/<correo>/. El dominio sale de la cuenta que el
+    // revisor ingresó (localStorage), no está escrito en el código (el repo es público).
+    var dom = cuenta.indexOf("@") > 0 ? cuenta.split("@")[1].toLowerCase() : "";
+    var personal = !dom || dom === "gmail.com" || dom === "googlemail.com";
+    w.location.href = personal
+      ? a.dataset.gmail.replace("/mail/?", "/mail/u/" + encodeURIComponent(cuenta) + "/?")
+      : a.dataset.gmail.replace("/mail/?", "/a/" + dom + "/mail/?") + "&authuser=" + encodeURIComponent(cuenta);
     var msg = copiado ? "Texto copiado: pégalo bajo tu firma" : "No se pudo copiar el texto";
     document.querySelectorAll(".gmail-cuenta").forEach(function(el) { el.textContent = msg; });
     setTimeout(_pintarCuentaGmail, 8000);

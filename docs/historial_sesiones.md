@@ -8094,3 +8094,5 @@ Precipitación derivada en Goteo/Microaspersión: confirmada por el usuario (nov
 Modificaciones: botón "← Modificaciones" (vuelve al listado) al inicio de las pantallas Respuestas y Resumen; en Resumen reemplaza al "← Volver" y se muestra el Costo API a su derecha (la ruta ahora pasa `costo_api`). Presupuesto y Variables conservan su "← Volver".
 
 Modificaciones: el botón "Enviar Ficha a CNR" aparece ahora también en estado "Rechazado" (antes solo "Aprobado"): ambos son cierre de la revisión. "Retirado" no lo muestra.
+
+Enviar Ficha desde la app instalada (nov-2026): el botón abre Gmail como ventana emergente (popup) cuando la app corre en modo standalone, y con cuentas de dominio propio (Workspace) usa /a/<dominio>/mail/ + authuser en vez de /mail/u/<correo>/, para forzar la cuenta institucional en vez de caer a la personal. El dominio sale de la cuenta guardada en localStorage (no del repo). Sin probar con Gmail real.
