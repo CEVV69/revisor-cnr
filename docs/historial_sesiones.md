@@ -8122,3 +8122,5 @@ alcance era `/static/` y nunca controló las páginas; base.html y login.html lo
 desregistran el antiguo. (2) Latido: base.html llama a `/ping` (sin auth ni BD) cada 25 s con la app visible y al
 volver a verla, para mantener la conexión abierta y evitar nuevas resoluciones DNS (probado: 1 cada 25 s). No
 resuelve la causa de fondo. Pendiente: ver si las caídas bajan.
+
+Caídas por DNS: el usuario confirma (nov-2026) una notable mayor rapidez de respuesta (abrir páginas, menús, Aprobar/Descartar) con el latido `/ping` + service worker en la raíz. Sigue en observación si las caídas desaparecen del todo.
