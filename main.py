@@ -19,7 +19,7 @@ from typing import Optional, List
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
+from fastapi.responses import PlainTextResponse, HTMLResponse, RedirectResponse, FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 from markupsafe import Markup
@@ -1138,6 +1138,23 @@ async def login(request: Request, username: str = Form(...), password: str = For
     response = RedirectResponse(url=destino, status_code=302)
     _set_cookie_sesion(request, response, token)
     return response
+
+
+@app.get("/sw.js")
+async def service_worker():
+    """El service worker se sirve desde la RAÍZ (no desde /static/) para que su alcance cubra toda la app: desde
+    /static/sw.js solo alcanzaba /static/ y no podía interceptar las cargas de página (nov-2026). Sin caché
+    para que una versión nueva se active de inmediato."""
+    return FileResponse(BASE_DIR / "static" / "sw.js", media_type="text/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.get("/ping")
+async def ping():
+    """Latido de conexión (nov-2026): el navegador lo llama cada ~25 s mientras la app está visible, para
+    mantener abierta la conexión HTTP/2 y evitar volver a resolver el nombre (DNS) en cada clic.
+    Sin autenticación, sin base de datos, sin caché."""
+    return PlainTextResponse("ok", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/logout")

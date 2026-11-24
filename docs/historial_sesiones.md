@@ -8107,3 +8107,18 @@ verificado que el .json exportado por el Chequeo (con la clave extra `revisorCNR
 sin errores en v25. Renombrados los textos visibles (menú Apps, tooltips del Chequeo, 2 Memorias de Cálculo) y los
 comentarios/docstrings; la ruta `/calculos/exportar-revisor-fv` y la clave `app` del .json conservan su nombre
 para no romper compatibilidad. Las menciones anteriores en este historial conservan el nombre antiguo.
+
+## Caídas: causa = DNS de la red de la oficina; recuperación automática y latido (nov-2026)
+
+Captura del usuario (24-nov): `DNS_PROBE_FINISHED_NXDOMAIN` para revisor-cnr-production.up.railway.app; los logs de
+Railway no muestran la petición fallida, el Diagnóstico muestra 18 h sin reinicios, memoria normal y ningún
+atraso: la falla ocurre antes de salir del computador (el DNS de la red institucional responde "no existe" a
+ratos, a veces por minutos). TI no aceptará cambios ni dominio propio; Chrome 158 administrado (DNS seguro
+bloqueado por política). La app no puede arreglar la causa; se agregan dos paliativos (aprobados por el usuario):
+(1) `static/sw.js` ahora intercepta SOLO navegaciones GET: si fallan por red/DNS muestra un aviso propio ("Sin
+conexión con el servidor") que reintenta cada 4 s y recarga sola al volver la red (probado en Chromium: ~4 s).
+El service worker se sirve desde la raíz (`/sw.js`, header Service-Worker-Allowed) porque desde `/static/sw.js` su
+alcance era `/static/` y nunca controló las páginas; base.html y login.html lo registran con alcance "/" y
+desregistran el antiguo. (2) Latido: base.html llama a `/ping` (sin auth ni BD) cada 25 s con la app visible y al
+volver a verla, para mantener la conexión abierta y evitar nuevas resoluciones DNS (probado: 1 cada 25 s). No
+resuelve la causa de fondo. Pendiente: ver si las caídas bajan.

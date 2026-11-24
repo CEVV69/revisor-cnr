@@ -84,7 +84,10 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js');
+        navigator.serviceWorker.getRegistrations().then(function(rs) {
+          rs.forEach(function(r) { if (/\/static\/$/.test(r.scope)) r.unregister(); });
+        }).catch(function() {});
+        navigator.serviceWorker.register('/sw.js', {scope: '/'});
       });
     }
   </script>

@@ -537,10 +537,28 @@
     if (pos !== null) { sessionStorage.removeItem('cnr_scroll'); window.scrollTo({ top: parseInt(pos), behavior: 'instant' }); }
   });
 
+  // Latido de conexión (nov-2026): una petición mínima cada ~25 s mientras la app está visible (y una al
+  // volver a verla) para mantener abierta la conexión y no tener que resolver el nombre (DNS) de nuevo
+  // en cada clic — la red de la oficina falla a ratos con esa resolución. Misma política de
+  // credenciales que las páginas (si no, Chrome usaría otra conexión). Los errores se ignoran.
+  (function() {
+    function latido() {
+      if (document.visibilityState !== "visible") return;
+      try { fetch("/ping", {cache: "no-store"}).catch(function() {}); } catch (e) {}
+    }
+    setInterval(latido, 25000);
+    document.addEventListener("visibilitychange", latido);
+  })();
+
   // Registro del service worker mínimo — habilita el botón "Instalar app" del navegador.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/static/sw.js');
+      // Desde la raíz (alcance "/"): antes se registraba /static/sw.js, de alcance /static/ (no cubría las
+      // páginas). Se desregistra el antiguo para no dejar dos service workers.
+      navigator.serviceWorker.getRegistrations().then(function(rs) {
+        rs.forEach(function(r) { if (/\/static\/$/.test(r.scope)) r.unregister(); });
+      }).catch(function() {});
+      navigator.serviceWorker.register('/sw.js', {scope: '/'});
     });
   }
 
