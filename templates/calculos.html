@@ -136,33 +136,33 @@
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos base declarados</div>
       <div class="agro-grid">
         <div><label>Cultivo</label><input type="text" id="{{ p }}cultivo" name="{{ p }}cultivo" value="{{ agro.cultivo if agro.cultivo is not none else '' }}"></div>
-        <div class="campo-cc-pmp-da"><label>CC (%)</label><input type="number" step="0.1" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
-        <div class="campo-cc-pmp-da"><label>PMP (%)</label><input type="number" step="0.1" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
-        <div class="campo-cc-pmp-da"><label>Da (g/cc)</label><input type="number" step="0.01" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
-        <div><label>Prof. radicular (cm)</label><input type="number" step="1" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
-        <div><label>Criterio de Riego (%)</label><input type="number" step="1" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
-        <div><label>Kc</label><input type="number" step="0.01" id="{{ p }}kc" name="{{ p }}kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
-        <div><label>ETo día crítico (mm/día)</label><input type="number" step="0.01" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
-        <div><label>Eficiencia sistema (%)</label><input type="number" step="1" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>CC (%)</label><input type="number" step="any" id="{{ p }}cc_pct" name="{{ p }}cc_pct" value="{{ agro.cc_pct if agro.cc_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>PMP (%)</label><input type="number" step="any" id="{{ p }}pmp_pct" name="{{ p }}pmp_pct" value="{{ agro.pmp_pct if agro.pmp_pct is not none else '' }}"></div>
+        <div class="campo-cc-pmp-da"><label>Da (g/cc)</label><input type="number" step="any" id="{{ p }}da" name="{{ p }}da" value="{{ agro.da if agro.da is not none else '' }}"></div>
+        <div><label>Prof. radicular (cm)</label><input type="number" step="any" id="{{ p }}prof_radicular_cm" name="{{ p }}prof_radicular_cm" value="{{ agro.prof_radicular_cm if agro.prof_radicular_cm is not none else '' }}"></div>
+        <div><label>Criterio de Riego (%)</label><input type="number" step="any" id="{{ p }}factor_agotamiento_pct" name="{{ p }}factor_agotamiento_pct" value="{{ agro.factor_agotamiento_pct if agro.factor_agotamiento_pct is not none else '' }}"></div>
+        <div><label>Kc</label><input type="number" step="any" id="{{ p }}kc" name="{{ p }}kc" value="{{ agro.kc if agro.kc is not none else '' }}"></div>
+        <div><label>ETo día crítico (mm/día)</label><input type="number" step="any" id="{{ p }}eto_dia_mm" name="{{ p }}eto_dia_mm" value="{{ agro.eto_dia_mm if agro.eto_dia_mm is not none else '' }}"></div>
+        <div><label>Eficiencia sistema (%)</label><input type="number" step="any" id="{{ p }}eficiencia_pct" name="{{ p }}eficiencia_pct" value="{{ agro.eficiencia_pct if agro.eficiencia_pct is not none else '' }}"></div>
         <div><label>Presión Operación del Emisor (mca)</label><input type="number" step="any" id="{{ p }}presion_emisor_mca" name="{{ p }}presion_emisor_mca" value="{{ agro.presion_emisor_mca if agro.presion_emisor_mca is not none else '' }}" onchange="recalcHidraulicoSistema('s{{ loop.index0 }}_')"></div>
-        <div class="sistema-riego-campo campo-caudal-emisor"><label>Caudal emisor (l/hr)</label><input type="number" step="0.01" id="{{ p }}caudal_emisor_lhr" name="{{ p }}caudal_emisor_lhr" value="{{ agro.caudal_emisor_lhr if agro.caudal_emisor_lhr is not none else '' }}"></div>
-        <div class="campo-vib"><label>VIB del suelo (mm/hr)</label><input type="number" step="0.1" id="{{ p }}vib_mmhr" name="{{ p }}vib_mmhr" value="{{ agro.vib_mmhr if agro.vib_mmhr is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre hileras (m)</label><input type="number" step="0.01" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="0.01" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-goteo"><label>N° líneas de emisor (Goteo)</label><input type="number" step="1" id="{{ p }}n_lineas_emisor" name="{{ p }}n_lineas_emisor" value="{{ agro.n_lineas_emisor if agro.n_lineas_emisor is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-goteo"><label>Espaciamiento entre emisores (Goteo, m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_emisores_m" name="{{ p }}espaciamiento_emisores_m" value="{{ agro.espaciamiento_emisores_m if agro.espaciamiento_emisores_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_aspersores_m" name="{{ p }}espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="0.01" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
-        <div class="campo-postura"><label>N° aspersores por postura</label><input type="number" step="1" id="{{ p }}n_aspersores_postura" name="{{ p }}n_aspersores_postura" value="{{ agro.n_aspersores_postura if agro.n_aspersores_postura is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-caudal-emisor"><label>Caudal emisor (l/hr)</label><input type="number" step="any" id="{{ p }}caudal_emisor_lhr" name="{{ p }}caudal_emisor_lhr" value="{{ agro.caudal_emisor_lhr if agro.caudal_emisor_lhr is not none else '' }}"></div>
+        <div class="campo-vib"><label>VIB del suelo (mm/hr)</label><input type="number" step="any" id="{{ p }}vib_mmhr" name="{{ p }}vib_mmhr" value="{{ agro.vib_mmhr if agro.vib_mmhr is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre hileras (m)</label><input type="number" step="any" id="{{ p }}distancia_hileras_m" name="{{ p }}distancia_hileras_m" value="{{ agro.distancia_hileras_m if agro.distancia_hileras_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>Distancia entre plantas / sobre hilera (m)</label><input type="number" step="any" id="{{ p }}distancia_plantas_m" name="{{ p }}distancia_plantas_m" value="{{ agro.distancia_plantas_m if agro.distancia_plantas_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>N° líneas de emisor (Goteo)</label><input type="number" step="any" id="{{ p }}n_lineas_emisor" name="{{ p }}n_lineas_emisor" value="{{ agro.n_lineas_emisor if agro.n_lineas_emisor is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-goteo"><label>Espaciamiento entre emisores (Goteo, m)</label><input type="number" step="any" id="{{ p }}espaciamiento_emisores_m" name="{{ p }}espaciamiento_emisores_m" value="{{ agro.espaciamiento_emisores_m if agro.espaciamiento_emisores_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre aspersores (m)</label><input type="number" step="any" id="{{ p }}espaciamiento_aspersores_m" name="{{ p }}espaciamiento_aspersores_m" value="{{ agro.espaciamiento_aspersores_m if agro.espaciamiento_aspersores_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-aspersion"><label>Espaciamiento entre laterales (m)</label><input type="number" step="any" id="{{ p }}espaciamiento_laterales_m" name="{{ p }}espaciamiento_laterales_m" value="{{ agro.espaciamiento_laterales_m if agro.espaciamiento_laterales_m is not none else '' }}"></div>
+        <div class="campo-postura"><label>N° aspersores por postura</label><input type="number" step="any" id="{{ p }}n_aspersores_postura" name="{{ p }}n_aspersores_postura" value="{{ agro.n_aspersores_postura if agro.n_aspersores_postura is not none else '' }}"></div>
         <div class="campo-postura"><label>Caudal del aspersor (m³/hr)</label><input type="number" step="any" id="{{ p }}caudal_aspersor_m3h" name="{{ p }}caudal_aspersor_m3h" value="{{ agro.caudal_aspersor_m3h if agro.caudal_aspersor_m3h is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Caudal cañón — catálogo (m³/hr)</label><input type="number" step="0.1" id="{{ p }}caudal_canon_m3h" name="{{ p }}caudal_canon_m3h" value="{{ agro.caudal_canon_m3h if agro.caudal_canon_m3h is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Margen sobredimensionamiento caudal (%)</label><input type="number" step="1" id="{{ p }}margen_sobredimensionamiento_pct" name="{{ p }}margen_sobredimensionamiento_pct" value="{{ agro.margen_sobredimensionamiento_pct if agro.margen_sobredimensionamiento_pct is not none else '' }}" placeholder="15"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Radio de alcance del cañón (m)</label><input type="number" step="0.5" id="{{ p }}radio_alcance_m" name="{{ p }}radio_alcance_m" value="{{ agro.radio_alcance_m if agro.radio_alcance_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Velocidad del viento de diseño (m/s)</label><input type="number" step="0.1" id="{{ p }}velocidad_viento_ms" name="{{ p }}velocidad_viento_ms" value="{{ agro.velocidad_viento_ms if agro.velocidad_viento_ms is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Longitud de franja (m)</label><input type="number" step="1" id="{{ p }}longitud_franja_m" name="{{ p }}longitud_franja_m" value="{{ agro.longitud_franja_m if agro.longitud_franja_m is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="1" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
-        <div class="sistema-riego-campo campo-carrete"><label>Tiempo cambio de postura (hr)</label><input type="number" step="0.1" id="{{ p }}tiempo_cambio_postura_hr" name="{{ p }}tiempo_cambio_postura_hr" value="{{ agro.tiempo_cambio_postura_hr if agro.tiempo_cambio_postura_hr is not none else '' }}" placeholder="1.5"></div>
-        <div class="sistema-riego-campo campo-carrete"><label title="INIA recomienda 200-220°. Si el expediente no lo declara, se asume 210° (se indica explícitamente en el resultado).">Ángulo de sector del cañón (°)</label><input type="number" step="1" id="{{ p }}angulo_sector_deg" name="{{ p }}angulo_sector_deg" value="{{ agro.angulo_sector_deg if agro.angulo_sector_deg is not none else '' }}" placeholder="210"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Caudal cañón — catálogo (m³/hr)</label><input type="number" step="any" id="{{ p }}caudal_canon_m3h" name="{{ p }}caudal_canon_m3h" value="{{ agro.caudal_canon_m3h if agro.caudal_canon_m3h is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Margen sobredimensionamiento caudal (%)</label><input type="number" step="any" id="{{ p }}margen_sobredimensionamiento_pct" name="{{ p }}margen_sobredimensionamiento_pct" value="{{ agro.margen_sobredimensionamiento_pct if agro.margen_sobredimensionamiento_pct is not none else '' }}" placeholder="15"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Radio de alcance del cañón (m)</label><input type="number" step="any" id="{{ p }}radio_alcance_m" name="{{ p }}radio_alcance_m" value="{{ agro.radio_alcance_m if agro.radio_alcance_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Velocidad del viento de diseño (m/s)</label><input type="number" step="any" id="{{ p }}velocidad_viento_ms" name="{{ p }}velocidad_viento_ms" value="{{ agro.velocidad_viento_ms if agro.velocidad_viento_ms is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Longitud de franja (m)</label><input type="number" step="any" id="{{ p }}longitud_franja_m" name="{{ p }}longitud_franja_m" value="{{ agro.longitud_franja_m if agro.longitud_franja_m is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Velocidad de avance del carrete (m/hr)</label><input type="number" step="any" id="{{ p }}velocidad_avance_mh" name="{{ p }}velocidad_avance_mh" value="{{ agro.velocidad_avance_mh if agro.velocidad_avance_mh is not none else '' }}"></div>
+        <div class="sistema-riego-campo campo-carrete"><label>Tiempo cambio de postura (hr)</label><input type="number" step="any" id="{{ p }}tiempo_cambio_postura_hr" name="{{ p }}tiempo_cambio_postura_hr" value="{{ agro.tiempo_cambio_postura_hr if agro.tiempo_cambio_postura_hr is not none else '' }}" placeholder="1.5"></div>
+        <div class="sistema-riego-campo campo-carrete"><label title="INIA recomienda 200-220°. Si el expediente no lo declara, se asume 210° (se indica explícitamente en el resultado).">Ángulo de sector del cañón (°)</label><input type="number" step="any" id="{{ p }}angulo_sector_deg" name="{{ p }}angulo_sector_deg" value="{{ agro.angulo_sector_deg if agro.angulo_sector_deg is not none else '' }}" placeholder="210"></div>
       </div>
       <p class="text-muted" style="font-size:0.78rem; margin:-0.4rem 0 0.9rem;">Referencia para contrastar contra el plano y el presupuesto: no entra al recálculo. Los datos del cañón (Carrete) sí — alimentan el modelo INIA-Carillanca.</p>
 
@@ -181,19 +181,19 @@
       <div class="campo-capas-suelo" style="margin:-0.3rem 0 0.9rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
         <label for="{{ p }}humedad_aprovechable_mm" style="font-size:0.85rem; font-weight:600;"
                title="Humedad aprovechable TOTAL del suelo (mm), antes del criterio de riego. Solo se usa si no hay ninguna capa con datos: la cadena (Dn, Fr, Db, tiempo, sectores) parte de este valor. Si no la hay, pero sí un Dn declarado, la app la deduce: Dn / criterio de riego. Con capas, solo se compara contra la calculada.">Ha total declarada (mm)</label>
-        <input type="number" step="0.01" style="width:7rem;" id="{{ p }}humedad_aprovechable_mm" name="{{ p }}humedad_aprovechable_mm" value="{{ agro.humedad_aprovechable_mm if agro.humedad_aprovechable_mm is not none else '' }}">
+        <input type="number" step="any" style="width:7rem;" id="{{ p }}humedad_aprovechable_mm" name="{{ p }}humedad_aprovechable_mm" value="{{ agro.humedad_aprovechable_mm if agro.humedad_aprovechable_mm is not none else '' }}">
       </div>
       <script>window["{{ p }}capasIniciales"] = {{ (agro.capas_suelo or []) | tojson }};</script>
 
       <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Datos de diseño (Superficie, caudal, sectores)</div>
       <div class="agro-grid">
         <div><label>Superficie de riego (ha)</label><input type="number" step="any" id="{{ p }}superficie_riego_ha" name="{{ p }}superficie_riego_ha" value="{{ agro.superficie_riego_ha if agro.superficie_riego_ha is not none else '' }}"></div>
-        <div><label>Caudal disponible (l/s)</label><input type="number" step="0.01" id="{{ p }}caudal_disponible_ls" name="{{ p }}caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
-        <div><label>Horas disponibles por turno <span title="Solo si el caudal declarado NO está disponible continuo (ej. turno de una comunidad de canalistas: X horas cada tantos días). Vacío = disponible continuo (comportamiento normal). Con este dato + 'Cada cuántos días', la app usa un caudal promedio equivalente para superficie segura, balance diario y necesidad de acumulador.">ⓘ</span></label><input type="number" step="0.1" id="{{ p }}horas_disponibles_turno" name="{{ p }}horas_disponibles_turno" placeholder="Continuo" value="{{ agro.horas_disponibles_turno if agro.horas_disponibles_turno is not none else '' }}"></div>
-        <div><label>Cada cuántos días <span title="Cada cuántos días se repite el turno (7 = semanal, el más común — 15, 30, etc. para turnos más espaciados). Solo aplica si se completó 'Horas disponibles por turno'.">ⓘ</span></label><input type="number" step="1" id="{{ p }}periodo_turno_dias" name="{{ p }}periodo_turno_dias" placeholder="7" value="{{ agro.periodo_turno_dias if agro.periodo_turno_dias is not none else '' }}"></div>
-        <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="0.01" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
-        <div><label>Horas disponibles al día</label><input type="number" step="0.1" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
-        <div><label>Volumen acumulador (m³)</label><input type="number" step="0.1" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
+        <div><label>Caudal disponible (l/s)</label><input type="number" step="any" id="{{ p }}caudal_disponible_ls" name="{{ p }}caudal_disponible_ls" value="{{ agro.caudal_disponible_ls if agro.caudal_disponible_ls is not none else '' }}"></div>
+        <div><label>Horas disponibles por turno <span title="Solo si el caudal declarado NO está disponible continuo (ej. turno de una comunidad de canalistas: X horas cada tantos días). Vacío = disponible continuo (comportamiento normal). Con este dato + 'Cada cuántos días', la app usa un caudal promedio equivalente para superficie segura, balance diario y necesidad de acumulador.">ⓘ</span></label><input type="number" step="any" id="{{ p }}horas_disponibles_turno" name="{{ p }}horas_disponibles_turno" placeholder="Continuo" value="{{ agro.horas_disponibles_turno if agro.horas_disponibles_turno is not none else '' }}"></div>
+        <div><label>Cada cuántos días <span title="Cada cuántos días se repite el turno (7 = semanal, el más común — 15, 30, etc. para turnos más espaciados). Solo aplica si se completó 'Horas disponibles por turno'.">ⓘ</span></label><input type="number" step="any" id="{{ p }}periodo_turno_dias" name="{{ p }}periodo_turno_dias" placeholder="7" value="{{ agro.periodo_turno_dias if agro.periodo_turno_dias is not none else '' }}"></div>
+        <div><label>Precipitación del sistema (mm/hr)</label><input type="number" step="any" id="{{ p }}precipitacion_sistema_mmhr" name="{{ p }}precipitacion_sistema_mmhr" value="{{ agro.precipitacion_sistema_mmhr if agro.precipitacion_sistema_mmhr is not none else '' }}"></div>
+        <div><label>Horas disponibles al día</label><input type="number" step="any" id="{{ p }}horas_disponibles_dia" name="{{ p }}horas_disponibles_dia" value="{{ agro.horas_disponibles_dia if agro.horas_disponibles_dia is not none else '' }}"></div>
+        <div><label>Volumen acumulador (m³)</label><input type="number" step="any" id="{{ p }}volumen_acumulador_m3" name="{{ p }}volumen_acumulador_m3" value="{{ agro.volumen_acumulador_m3 if agro.volumen_acumulador_m3 is not none else '' }}"></div>
         <div style="grid-column:span 2;"><label>Tipo de fuente <span title="Solo en aguas superficiales, ITT-03 §1 exime del acumulador si el caudal de operación supera al disponible en menos de 20%.">ⓘ</span></label>
           <select id="{{ p }}tipo_fuente_agua" name="{{ p }}tipo_fuente_agua">
             <option value="" {{ 'selected' if not agro.tipo_fuente_agua }}>—</option>
@@ -273,7 +273,7 @@
           </tr>
           <tr class="campo-carrete">
             <td class="col-concepto">Pluviometría media del cañón (Carrete)</td>
-            <td><input type="number" step="0.1" id="{{ p }}decl_pp" name="{{ p }}decl_pp" value="{{ agro.declarado.pluviometria_mmhr if agro.declarado and agro.declarado.pluviometria_mmhr is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_pp" name="{{ p }}decl_pp" value="{{ agro.declarado.pluviometria_mmhr if agro.declarado and agro.declarado.pluviometria_mmhr is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-car-pp-calc">—</span>
               <span id="{{ p }}agro-car-pp-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -332,7 +332,7 @@
           </tr>
           <tr class="fila-agotamiento{{ '' if agro.sistema_riego in ('Goteo', 'Microaspersión') else ' activa' }}">
             <td class="col-concepto">Dn — lámina neta (mm)</td>
-            <td><input type="number" step="0.01" id="{{ p }}decl_dn" name="{{ p }}decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_dn" name="{{ p }}decl_dn" value="{{ agro.declarado.dn_mm if agro.declarado and agro.declarado.dn_mm is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-dn-calc">—</span>
               <span id="{{ p }}agro-dn-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -344,7 +344,7 @@
           </tr>
           <tr>
             <td class="col-concepto">Fr — frecuencia de riego (días)</td>
-            <td><input type="number" step="1" id="{{ p }}decl_fr" name="{{ p }}decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_fr" name="{{ p }}decl_fr" value="{{ agro.declarado.fr_dias if agro.declarado and agro.declarado.fr_dias is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-fr-calc">—</span>
               <span id="{{ p }}agro-fr-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -352,7 +352,7 @@
           </tr>
           <tr>
             <td class="col-concepto">Db — demanda bruta del ciclo (mm)</td>
-            <td><input type="number" step="0.01" id="{{ p }}decl_db" name="{{ p }}decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_db" name="{{ p }}decl_db" value="{{ agro.declarado.db_mm if agro.declarado and agro.declarado.db_mm is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-db-calc">—</span>
               <span id="{{ p }}agro-db-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -383,7 +383,7 @@
           </tr>
           <tr>
             <td class="col-concepto">Tiempo de riego (hr/día)</td>
-            <td><input type="number" step="0.01" id="{{ p }}decl_triego" name="{{ p }}decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_triego" name="{{ p }}decl_triego" value="{{ agro.declarado.tiempo_riego_hr if agro.declarado and agro.declarado.tiempo_riego_hr is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-triego-calc">—</span>
               <span id="{{ p }}agro-triego-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -391,7 +391,7 @@
           </tr>
           <tr>
             <td class="col-concepto" id="{{ p }}agro-nsec-label">N° de sectores</td>
-            <td><input type="number" step="1" id="{{ p }}decl_nsec" name="{{ p }}decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_nsec" name="{{ p }}decl_nsec" value="{{ agro.declarado.n_sectores if agro.declarado and agro.declarado.n_sectores is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-nsec-calc">—</span>
               <span id="{{ p }}agro-nsec-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -399,7 +399,7 @@
           </tr>
           <tr>
             <td class="col-concepto">Caudal de diseño (operación de la red) vs. declarado</td>
-            <td><input type="number" step="0.01" id="{{ p }}decl_qdiseno" name="{{ p }}decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></td>
+            <td><input type="number" step="any" id="{{ p }}decl_qdiseno" name="{{ p }}decl_qdiseno" value="{{ agro.declarado.caudal_diseno_ls if agro.declarado and agro.declarado.caudal_diseno_ls is not none else '' }}"></td>
             <td class="col-calc">
               <span id="{{ p }}agro-qdiseno-calc">—</span>
               <span id="{{ p }}agro-qdiseno-nota" class="calc-nota calc-alerta" style="display:none;"></span>
@@ -612,21 +612,21 @@
   <form method="post" action="/proyecto/{{ proyecto.id }}/calculos/energetico/guardar" id="form-fv">
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Bomba y recurso solar</div>
     <div class="agro-grid">
-      <div><label>Potencia bomba (kW)</label><input type="number" step="0.01" id="pkw" name="pkw" value="{{ fv.pkw if fv.pkw is not none else '' }}"></div>
-      <div><label title="Fertirriego, controlador y pérdidas menores — 5% es un valor típico">Consumos adicionales (%)</label><input type="number" step="0.1" id="adic" name="adic" value="{{ fv.adic if fv.adic is not none else '' }}" placeholder="5"></div>
-      <div><label title="Generación anual por cada kWp instalado en el predio, del reporte del Explorador Solar (kWh/kWp·año). Ya incluye pérdidas, inclinación y temperatura.">Generación específica anual (kWh/kWp·año)</label><input type="number" step="1" id="gu_anual" name="gu_anual" value="{{ fv.gu_anual if fv.gu_anual is not none else '' }}"></div>
+      <div><label>Potencia bomba (kW)</label><input type="number" step="any" id="pkw" name="pkw" value="{{ fv.pkw if fv.pkw is not none else '' }}"></div>
+      <div><label title="Fertirriego, controlador y pérdidas menores — 5% es un valor típico">Consumos adicionales (%)</label><input type="number" step="any" id="adic" name="adic" value="{{ fv.adic if fv.adic is not none else '' }}" placeholder="5"></div>
+      <div><label title="Generación anual por cada kWp instalado en el predio, del reporte del Explorador Solar (kWh/kWp·año). Ya incluye pérdidas, inclinación y temperatura.">Generación específica anual (kWh/kWp·año)</label><input type="number" step="any" id="gu_anual" name="gu_anual" value="{{ fv.gu_anual if fv.gu_anual is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Horas de riego promedio/día por mes <span class="text-muted" style="font-weight:400; font-size:0.85em;">— demanda de la bomba; también se exporta al Dimensionamiento Fotovoltaico</span></div>
     <div class="agro-grid" style="grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); margin-bottom:0.9rem;">
       {% for mes in ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'] %}
-      <div><label>{{ mes }}</label><input type="number" step="0.1" id="hmes{{ loop.index0 }}" name="hmes{{ loop.index0 }}" value="{{ fv.horas_mensuales[loop.index0] if fv.horas_mensuales and fv.horas_mensuales[loop.index0] is not none else '' }}"></div>
+      <div><label>{{ mes }}</label><input type="number" step="any" id="hmes{{ loop.index0 }}" name="hmes{{ loop.index0 }}" value="{{ fv.horas_mensuales[loop.index0] if fv.horas_mensuales and fv.horas_mensuales[loop.index0] is not none else '' }}"></div>
       {% endfor %}
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Sistema</div>
     <div class="agro-grid" style="margin-bottom:0.9rem;">
-      <div><label>Panel Wp</label><input type="number" step="1" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
+      <div><label>Panel Wp</label><input type="number" step="any" id="wp" name="wp" value="{{ fv.wp if fv.wp is not none else '' }}"></div>
       <div>
         <label title="Aislado: sin red eléctrica. La verificación hora a hora (potencia instantánea para mover la bomba, banco de baterías) se hace en el Dimensionamiento Fotovoltaico con el .json exportado">Tipo de conexión</label>
         <select id="conexion" name="conexion">
@@ -639,12 +639,12 @@
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.4rem;">Resultados declarados por el consultor (para comparar)</div>
     <div class="agro-grid" style="margin-bottom:0.9rem;">
-      <div><label>N° paneles declarado</label><input type="number" step="1" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
-      <div><label>kWp total declarado</label><input type="number" step="0.01" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
-      <div><label title="Energía que el consultor declara que generará el sistema en un año (reporte del Explorador Solar o memoria)">Generación anual declarada (kWh/año)</label><input type="number" step="1" id="decl_gen_anual" name="decl_gen_anual" value="{{ fv.declarado.gen_anual_kwh if fv.declarado and fv.declarado.gen_anual_kwh is not none else '' }}"></div>
-      <div><label title="Energía que el consultor declara que requiere la bomba al año o en la temporada de riego (su análisis de generación vs energía requerida, ITT-02 4.5.1.1)">Energía requerida anual declarada (kWh/año)</label><input type="number" step="1" id="decl_dem_anual" name="decl_dem_anual" value="{{ fv.declarado.dem_anual_kwh if fv.declarado and fv.declarado.dem_anual_kwh is not none else '' }}"></div>
-      <div><label title="Porcentaje de la energía requerida que el consultor declara cubrir con el sistema fotovoltaico (cobertura o %P)">Cobertura declarada (%)</label><input type="number" step="0.1" id="decl_cobertura" name="decl_cobertura" value="{{ fv.declarado.cobertura_pct if fv.declarado and fv.declarado.cobertura_pct is not none else '' }}"></div>
-      <div><label title="Solo aplica si el sistema es aislado con baterías">Banco de baterías declarado (kWh)</label><input type="number" step="0.01" id="decl_banco" name="decl_banco" value="{{ fv.declarado.banco_baterias_kwh if fv.declarado and fv.declarado.banco_baterias_kwh is not none else '' }}"></div>
+      <div><label>N° paneles declarado</label><input type="number" step="any" id="decl_npaneles" name="decl_npaneles" value="{{ fv.declarado.n_paneles if fv.declarado and fv.declarado.n_paneles is not none else '' }}"></div>
+      <div><label>kWp total declarado</label><input type="number" step="any" id="decl_kwp" name="decl_kwp" value="{{ fv.declarado.kwp_total if fv.declarado and fv.declarado.kwp_total is not none else '' }}"></div>
+      <div><label title="Energía que el consultor declara que generará el sistema en un año (reporte del Explorador Solar o memoria)">Generación anual declarada (kWh/año)</label><input type="number" step="any" id="decl_gen_anual" name="decl_gen_anual" value="{{ fv.declarado.gen_anual_kwh if fv.declarado and fv.declarado.gen_anual_kwh is not none else '' }}"></div>
+      <div><label title="Energía que el consultor declara que requiere la bomba al año o en la temporada de riego (su análisis de generación vs energía requerida, ITT-02 4.5.1.1)">Energía requerida anual declarada (kWh/año)</label><input type="number" step="any" id="decl_dem_anual" name="decl_dem_anual" value="{{ fv.declarado.dem_anual_kwh if fv.declarado and fv.declarado.dem_anual_kwh is not none else '' }}"></div>
+      <div><label title="Porcentaje de la energía requerida que el consultor declara cubrir con el sistema fotovoltaico (cobertura o %P)">Cobertura declarada (%)</label><input type="number" step="any" id="decl_cobertura" name="decl_cobertura" value="{{ fv.declarado.cobertura_pct if fv.declarado and fv.declarado.cobertura_pct is not none else '' }}"></div>
+      <div><label title="Solo aplica si el sistema es aislado con baterías">Banco de baterías declarado (kWh)</label><input type="number" step="any" id="decl_banco" name="decl_banco" value="{{ fv.declarado.banco_baterias_kwh if fv.declarado and fv.declarado.banco_baterias_kwh is not none else '' }}"></div>
     </div>
 
     <div style="font-weight:600; font-size:0.85rem; color:var(--text-2); margin-bottom:0.3rem;">Extraído/declarado vs. calculado por la app</div>
@@ -945,15 +945,15 @@
       ).join("");
       return '<div style="display:flex; gap:0.35rem; align-items:center; margin-bottom:0.3rem; flex-wrap:nowrap;">' +
         '<span style="font-weight:700; font-size:0.8rem; width:1.2rem; flex-shrink:0;">' + (i + 1) + '</span>' +
-        '<input type="number" step="1" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
-        '<input type="number" step="1" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
+        '<input type="number" step="any" placeholder="Desde (cm)" value="' + c.desde + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_desde" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'desde\',this.value)">' +
+        '<input type="number" step="any" placeholder="Hasta (cm)" value="' + c.hasta + '" style="width:90px; flex-shrink:0;" name="' + p + 'capa' + i + '_hasta" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'hasta\',this.value)">' +
         '<select style="width:165px; flex-shrink:0;" name="' + p + 'capa' + i + '_tex" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'tex\',this.value)">' + texOpts + '</select>' +
         '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">CC</span>' +
-        '<input type="number" step="0.1" placeholder="%" value="' + c.cc + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
+        '<input type="number" step="any" placeholder="%" value="' + c.cc + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_cc" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'cc\',this.value)">' +
         '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">PMP</span>' +
-        '<input type="number" step="0.1" placeholder="%" value="' + c.pmp + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
+        '<input type="number" step="any" placeholder="%" value="' + c.pmp + '" style="width:80px; flex-shrink:0;" name="' + p + 'capa' + i + '_pmp" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'pmp\',this.value)">' +
         '<span style="font-size:0.72rem; color:var(--text-2); flex-shrink:0; margin-left:11px;">Da</span>' +
-        '<input type="number" step="0.01" placeholder="g/cc" value="' + c.da + '" style="width:83px; flex-shrink:0;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
+        '<input type="number" step="any" placeholder="g/cc" value="' + c.da + '" style="width:83px; flex-shrink:0;" name="' + p + 'capa' + i + '_da" onchange="actualizarCapa(\'' + p + '\',' + i + ',\'da\',this.value)">' +
         '<button type="button" class="btn-elim-tramo" style="display:inline; margin:0 0 0 auto; flex-shrink:0; font-size:1.05rem; line-height:1;" onclick="eliminarCapa(\'' + p + '\',' + i + ')">×</button>' +
       '</div>';
     }).join("");
