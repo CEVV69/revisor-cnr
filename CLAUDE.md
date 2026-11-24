@@ -44,7 +44,10 @@ privado el repo en GitHub**) · estado "Retirado" · fix link roto en Respuestas
 Postgres Hobby 5 GB (~200 proyectos de margen) · 3ª medición de rendimiento (textareas en `<details>`
 cerrados) · análisis de Modificaciones queda SÍNCRONO (decisión del usuario).
 
-**Confirmado por el usuario (nov-2026):** caídas = DNS de la red de la oficina (`DNS_PROBE_FINISHED_NXDOMAIN`, el servidor sano; TI no cambiará nada):
+**Confirmado por el usuario (nov-2026):** Chequeo Asp/Carrete sin capas: campo `humedad_aprovechable_mm` y AD deducida del Dn declarado
+(`calculos_riego.ad_sin_capas`), capas de suelo con Tab corregido (valores correctos); Aprobar/Descartar/
+Pendiente sin recargar + cierre automático del ítem (observaciones: ok del usuario, falta uso cotidiano);
+caídas = DNS de la red de la oficina (`DNS_PROBE_FINISHED_NXDOMAIN`, el servidor sano; TI no cambiará nada):
 paliativos `/ping` cada 25 s (latido) + aviso "Sin conexión" con reintento automático en `static/sw.js`
 (servido desde `/sw.js`, alcance "/") — mejora notable de rapidez confirmada, falta ver si las caídas cesan;
 `/admin/diagnostico` (uptime, memoria, reinicios: los despliegues salen como "NO LIMPIO", no son caídas);
@@ -62,9 +65,7 @@ generación anual por kWp del Explorador Solar, cobertura = %P del ITT-02 4.5.1.
 reporte; compara demanda y cobertura declaradas) — "los cálculos cuadran y son más claros". Llega a
 Chequeo, 2 informes, análisis IA y .json (regla 10); no verifica el modo aislado hora a hora.
 
-**En prueba, sin confirmar (nov-2026):** Chequeo Asp/Carrete sin capas: campo `humedad_aprovechable_mm` y AD deducida del Dn declarado
-(`calculos_riego.ad_sin_capas`); Aprobar/Descartar/Pendiente sin recargar + cierre automático del ítem;
-Modificaciones: contexto común por ítem (`_contexto_modificacion`), Presupuesto/Planos
+**En prueba, sin confirmar (nov-2026):** Modificaciones: contexto común por ítem (`_contexto_modificacion`), Presupuesto/Planos
 reciben el original como referencia (`tipos_docs_referencia`, doc nuevo "Plano original"), reglas de
 sobreprecios, `mod_planos` por visión, ítem Cuadro de Variables eliminado (pasó a Solicitud/Coherencia)
 (conteo "+ N de referencia" y comparación de presupuesto por categorías comunes ya confirmados; falta

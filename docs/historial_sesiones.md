@@ -8149,3 +8149,5 @@ Memorias; al .json no (el Diseñador no tiene campo de Ha total; anotado en expo
 el texto de la tarjeta (los campos CC/PMP/Da "de arriba" no existen en Aspersión/Carrete).
 
 Fix capas de suelo (nov-2026): al volver a escribir una capa ya ingresada, el valor nuevo se AGREGABA al anterior (PMP "31" quedaba "3131", Da "0,83" quedaba "0830,8"; capa inválida, AD subestimada) porque el Tab interceptado enfocaba el siguiente campo por código sin seleccionar su contenido. Ahora se llama a select() tras focus() (calculos.html). Reproducido y verificado en Chromium escribiendo la fila dos veces.
+
+Humedad aprovechable sin capas (campo Ha total, AD deducida del Dn) y corrección del Tab en las capas de suelo: confirmados por el usuario (nov-2026), "ahora sí da los valores correctos". Aprobar/Descartar sin recargar: aprobado en el diseño por el usuario, sin comentarios de uso aún.
