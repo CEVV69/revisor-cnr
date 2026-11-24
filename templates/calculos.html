@@ -922,7 +922,14 @@
     t.onchange = null;
     actualizarCapa(p, i, campo, t.value);
     var el = document.querySelector('[name="' + destName + '"]');
-    if (el) el.focus();
+    if (el) {
+      el.focus();
+      // Un Tab nativo SELECCIONA el contenido del campo al que llega, así que lo que se tipea lo
+      // reemplaza; con focus() por código no, y lo tipeado se AGREGABA al valor ya existente
+      // (reportado nov-2026: al volver a escribir una capa, PMP "31" quedó "3131" y Da "0,83"
+      // quedó "0830,8", capa descartada por datos inválidos y AD total subestimada).
+      try { el.select(); } catch (e) {}
+    }
   });
   function renderCapas(p) {
     var cont = document.getElementById(p + "capas_list");
