@@ -8124,3 +8124,12 @@ volver a verla, para mantener la conexión abierta y evitar nuevas resoluciones 
 resuelve la causa de fondo. Pendiente: ver si las caídas bajan.
 
 Caídas por DNS: el usuario confirma (nov-2026) una notable mayor rapidez de respuesta (abrir páginas, menús, Aprobar/Descartar) con el latido `/ping` + service worker en la raíz. Sigue en observación si las caídas desaparecen del todo.
+
+## Aprobar/Descartar/Pendiente sin recargar la página + cierre automático del ítem (nov-2026)
+
+El envío normal recargaba la página y el restaurador de scroll de base.html la devolvía a su posición: de ahí el
+"sube y baja". Ahora los formularios `data-obs-estado` (Revisión normal: observaciones principales, no las notas;
+Modificaciones: todas) se envían con fetch (`X-Requested-With: fetch`, las rutas devuelven JSON con contadores y
+pendientes del ítem), actualizan la tarjeta (color, badge, botón "Pendiente"), los contadores y el círculo
+"Realizado", y cierran el `<details>` del ítem cuando la última pendiente queda sancionada. Si el fetch falla, cae
+al envío normal. Probado en Chromium con servidor local (0 navegaciones, marca de página persistente).

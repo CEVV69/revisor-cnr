@@ -187,37 +187,36 @@
   {% set obs_item = obs_por_item.get(item.key) %}
   {% if obs_item %}
   {% set sin_pendientes = obs_item | selectattr('estado', 'equalto', 'pendiente') | list | length == 0 %}
-  <details {% if item.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
+  <details data-item-key="{{ item.key }}" {% if item.key == item_ok %}open{% endif %} style="margin-bottom:0.8rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
               font-weight:700; color:var(--blue); font-size:0.9rem; user-select:none; display:flex; align-items:center; gap:0.4rem;">
     {{ item.nombre }}
-    {% if sin_pendientes %}
     {# Círculo verde "Realizado": no quedan observaciones pendientes de este ítem (igual que la Revisión normal) #}
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
-         stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"
+    <svg class="obs-realizado" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;{% if not sin_pendientes %} display:none;{% endif %}"
          title="Realizado — sin observaciones pendientes de este ítem">
       <circle cx="12" cy="12" r="10"></circle>
       <polyline points="8 12.5 11 15.5 16 9"></polyline>
     </svg>
-    {% endif %}
     <span style="font-weight:400; color:var(--text-2); font-size:0.8rem;">· {{ obs_item|length }} observación{{ 'es' if obs_item|length != 1 else '' }}</span>
   </summary>
   <div style="padding-top:0.6rem;">
     {% for obs in obs_item %}
-    <div style="border:1px solid var(--border); border-left:4px solid {% if obs.estado == 'aprobada' %}#276749{% elif obs.estado == 'descartada' %}var(--text-3){% else %}#c2185b{% endif %};
+    <div data-obs-card data-c-pend="#c2185b" data-c-aprob="#276749" data-c-desc="var(--text-3)"
+         style="border:1px solid var(--border); border-left:4px solid {% if obs.estado == 'aprobada' %}#276749{% elif obs.estado == 'descartada' %}var(--text-3){% else %}#c2185b{% endif %};
                 border-radius:8px; padding:0.6rem 0.8rem; margin-top:0.5rem; font-size:0.84rem;">
       <div style="display:flex; justify-content:space-between; gap:0.6rem; align-items:baseline; flex-wrap:wrap;">
         <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
           {% if obs.categoria %}<span class="badge badge-{{ obs.categoria }}">{{ obs.categoria }}</span>{% endif %}
           {% if obs.severidad %}<span class="badge badge-{{ obs.severidad }}">{{ obs.severidad }}</span>{% endif %}
-          <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}">{{ obs.estado }}</span>
+          <span data-badge-estado class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}">{{ obs.estado }}</span>
           {% if obs.derivada_de %}
           <span class="badge badge-administrativa" title="Derivada desde {{ obs.derivada_de }}">derivada</span>
           {% endif %}
         </div>
         <span class="text-muted" style="font-size:0.74rem; white-space:nowrap;">{{ obs.fecha | fecha }}</span>
       </div>
-      <form method="post" action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
+      <form method="post" data-obs-estado action="/modificacion/{{ proyecto.id }}/observacion/{{ obs.id }}/estado">
         <textarea name="texto_editado" rows="3" class="auto-expand"
           style="width:100%; padding:0.5rem; border:1px solid var(--border); border-radius:6px;
                  font-size:0.84rem; line-height:1.5; margin:0.4rem 0; box-sizing:border-box;
@@ -228,9 +227,7 @@
         <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
           <button type="submit" name="estado" value="aprobada" class="btn btn-success btn-sm">Aprobar</button>
           <button type="submit" name="estado" value="descartada" class="btn btn-outline btn-sm">Descartar</button>
-          {% if obs.estado != 'pendiente' %}
-          <button type="submit" name="estado" value="pendiente" class="btn btn-ghost btn-sm">↺ Pendiente</button>
-          {% endif %}
+          <button type="submit" data-btn-pendiente name="estado" value="pendiente" class="btn btn-ghost btn-sm"{% if obs.estado == 'pendiente' %} style="display:none;"{% endif %}>↺ Pendiente</button>
           <button type="submit" form="elim-{{ obs.id }}" class="btn btn-danger btn-sm">Eliminar</button>
         </div>
       </form>

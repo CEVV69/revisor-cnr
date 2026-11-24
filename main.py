@@ -4507,6 +4507,20 @@ async def actualizar_observacion(
     # dejar pendiente. `obs_ok` (en vez de `item_ok`) solo controla el `<details>` del ítem en
     # bloque_observaciones/bloque_notas — ver proyecto.html — no `hay_item_activo`.
     item_key = obs_actualizada.get("item") if obs_actualizada else None
+    if request.headers.get("x-requested-with") == "fetch":
+        # Respuesta para el cambio de estado SIN recargar la página (nov-2026): la página recargada
+        # saltaba arriba y luego volvía a la posición anterior. El navegador actualiza la tarjeta,
+        # los contadores y el cierre automático del ítem con estos datos.
+        prin = [o for o in proyecto.get("observaciones", [])
+                if o.get("item") and o.get("severidad") != "informativa"]
+        del_item = [o for o in prin if o.get("item") == item_key]
+        return JSONResponse({
+            "ok": True, "estado": estado, "item": item_key,
+            "pend_item": len([o for o in del_item if o.get("estado") == "pendiente"]),
+            "cont": {"pend": len([o for o in prin if o.get("estado") == "pendiente"]),
+                     "aprob": len([o for o in prin if o.get("estado") == "aprobada"]),
+                     "desc": len([o for o in prin if o.get("estado") not in ("pendiente", "aprobada")])},
+        })
     extra = f"?obs_ok={item_key}" if item_key else ""
     return RedirectResponse(url=f"/proyecto/{proyecto_id}/items{extra}", status_code=302)
 
@@ -5762,6 +5776,12 @@ async def actualizar_observacion_modificacion(
             item_key = obs.get("item")
             break
     (await asyncio.to_thread(db.save_proyecto, mod))
+    if request.headers.get("x-requested-with") == "fetch":   # sin recargar la página (nov-2026)
+        del_item = [o for o in mod.get("observaciones", []) if o.get("item") == item_key]
+        return JSONResponse({
+            "ok": True, "estado": estado, "item": item_key,
+            "pend_item": len([o for o in del_item if o.get("estado") == "pendiente"]),
+        })
     extra = f"?item_ok={item_key}#item-{item_key}" if item_key else ""
     return RedirectResponse(url=f"/modificacion/{mod_id}{extra}", status_code=302)
 

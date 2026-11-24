@@ -106,29 +106,28 @@
     </a>
   </div>
   <p class="text-muted" style="margin-bottom:1rem; font-size:0.88rem;">
-    <strong>{{ cont.pend }}</strong> pendientes &nbsp;·&nbsp;
-    <strong>{{ cont.aprob }}</strong> aprobadas &nbsp;·&nbsp;
-    <strong>{{ cont.desc }}</strong> descartadas
+    <strong data-cont="pend">{{ cont.pend }}</strong> pendientes &nbsp;·&nbsp;
+    <strong data-cont="aprob">{{ cont.aprob }}</strong> aprobadas &nbsp;·&nbsp;
+    <strong data-cont="desc">{{ cont.desc }}</strong> descartadas
   </p>
   {% for grupo in grupos %}
   {% set sin_pendientes = grupo.obs | selectattr('estado', 'equalto', 'pendiente') | list | length == 0 %}
-  <details id="item-{{ grupo.key }}" {% if grupo.key == abrir_key %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
+  <details id="item-{{ grupo.key }}" data-item-key="{{ grupo.key }}" {% if grupo.key == abrir_key %}open{% endif %} style="margin:1.2rem 0 0.6rem; border-radius:8px; overflow:hidden;">
   <summary style="cursor:pointer; padding:0.5rem 0.75rem; background:#ebf4ff; border-radius:8px;
               font-weight:700; color:var(--blue); font-size:0.95rem; user-select:none; display:flex; align-items:center; gap:0.4rem;">
     {{ grupo.nombre }}
-    {% if sin_pendientes %}
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
-         stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"
+    <svg class="obs-realizado" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;{% if not sin_pendientes %} display:none;{% endif %}"
          title="Realizado — sin observaciones pendientes de este ítem">
       <circle cx="12" cy="12" r="10"></circle>
       <polyline points="8 12.5 11 15.5 16 9"></polyline>
     </svg>
-    {% endif %}
     <span style="font-weight:400; color:var(--text-2); font-size:0.82rem;">· {{ grupo.obs|length }} observación{{ 'es' if grupo.obs|length != 1 else '' }}</span>
   </summary>
   <div style="padding-top:0.6rem;">
   {% for obs in grupo.obs %}
-  <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
+  <div data-obs-card data-c-pend="#d69e2e" data-c-aprob="#276749" data-c-desc="#a0aec0" data-bg-aprob="#f0fff4"
+       style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem;
     {% if obs.estado == 'aprobada' %}border-left:4px solid #276749; background:#f0fff4;
     {% elif obs.estado == 'descartada' %}opacity:0.5; border-left:4px solid #a0aec0;
     {% else %}border-left:4px solid #d69e2e;{% endif %}">
@@ -144,10 +143,10 @@
         <span class="badge badge-administrativa" title="Derivada desde {{ obs.derivada_de }}">derivada</span>
         {% endif %}
       </div>
-      <span class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
+      <span data-badge-estado class="badge badge-{% if obs.estado == 'aprobada' %}tecnica{% elif obs.estado == 'descartada' %}administrativa{% else %}menor{% endif %}"
             style="white-space:nowrap;">{{ obs.estado }}</span>
     </div>
-    <form method="post" action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
+    <form method="post" data-obs-estado action="/proyecto/{{ proyecto_id }}/observacion/{{ obs.id }}/estado">
       <textarea name="texto_editado" rows="3" class="auto-expand"
         style="width:100%; padding:0.5rem; border:1px solid #cbd5e0; border-radius:6px;
                font-size:0.88rem; line-height:1.5; margin-bottom:0.5rem; box-sizing:border-box;
