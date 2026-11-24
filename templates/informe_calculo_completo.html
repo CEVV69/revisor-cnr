@@ -212,7 +212,12 @@
   <tr><td colspan="9" style="text-align:right; font-weight:bold;">AD total (profundidad efectiva {{ num(calc.capas_suelo_calc.prof_total_cm) }} cm)</td><td style="font-weight:bold;">{{ num(calc.ad_mm) }}</td></tr>
 </table>
 {% else %}
+{% if calc.ad_origen %}
+<div class="formula">AD = <strong>{{ val(calc.ad_mm, ' mm') }}</strong> — {{ 'Humedad aprovechable total declarada por el consultor' if calc.ad_origen == 'declarada' else 'deducida del Dn declarado: Dn / criterio de riego (' ~ val(agro.declarado.dn_mm, ' mm') ~ ' / ' ~ val(agro.factor_agotamiento_pct, ' %') ~ ')' }}</div>
+<div class="explica">Sin desglose de suelo por capas el AD no se puede verificar: la cadena (Dn, Fr, Db, tiempo de riego, sectores) parte de este valor.{% if calc.ad_origen != 'declarada' %} El Dn recalculado coincide con el declarado por construcción: lo comparable es Fr, Db, tiempo de riego y sectores.{% endif %}</div>
+{% else %}
 <div class="formula">AD = (CC − PMP) / 100 × Da × Prof(m) × 1000 = ({{ val(agro.cc_pct) }} − {{ val(agro.pmp_pct) }}) / 100 × {{ val(agro.da) }} × ({{ val(agro.prof_radicular_cm) }}/100) × 1000 = <strong>{{ val(calc.ad_mm, ' mm') }}</strong></div>
+{% endif %}
 {% if calc.posible_unidad_da_kgm3 is defined and calc.posible_unidad_da_kgm3 %}
 <div class="compara"><span class="alerta">Posible error de unidad en Da: {{ num(agro.da) }} g/cm³ es físicamente imposible para cualquier suelo real (máximo ≈2,2) — probablemente {{ num(agro.da) }} kg/m³ ≈ {{ num(calc.da_usada) }} g/cm³, un valor normal. El recálculo de arriba YA USA el valor corregido; genera una observación explicando este posible error de unidad en el expediente.</span></div>
 {% endif %}

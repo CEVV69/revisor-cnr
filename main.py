@@ -2546,6 +2546,14 @@ def _agronomico_calculo(datos: dict):
             prof_radicular_cm=prof_z if prof_z not in (None, "") else prof_default,
         ) or None
     usa_capas = capas_calc is not None
+    # Sin capas (nov-2026): Ha total declarada, o deducida del Dn declarado (ver `ad_sin_capas`).
+    ad_ext = None
+    if datos and not alta_frec and not usa_capas:
+        suelo_completo = all(datos.get(k) not in (None, "")
+                             for k in ("cc_pct", "pmp_pct", "da", "prof_radicular_cm"))
+        ad_ext = calculos_riego.ad_sin_capas(
+            datos.get("humedad_aprovechable_mm"), suelo_completo,
+            (datos.get("declarado") or {}).get("dn_mm"), datos.get("factor_agotamiento_pct"))
     # En alta frecuencia (Goteo/Microaspersión) Db sale directo de ETc/Ef (Fr=1) — CC/PMP/Da/Prof.
     # radicular NO entran en esa cuenta, solo se usan para el dato informativo AD (que ahí ni
     # siquiera se muestra). Exigirlos bloqueaba el cálculo sin necesidad — el revisor tenía
@@ -2553,7 +2561,7 @@ def _agronomico_calculo(datos: dict):
     campos = ["kc", "eto_dia_mm", "eficiencia_pct"]
     if not alta_frec:
         campos = ["kc", "eto_dia_mm", "factor_agotamiento_pct", "eficiencia_pct"]
-        if not usa_capas:
+        if not usa_capas and ad_ext is None:
             campos += ["cc_pct", "pmp_pct", "da", "prof_radicular_cm"]
     kc_dt05 = _kc_dt05_calculo(datos.get("cultivo") if datos else None,
                                datos.get("kc") if datos else None)
@@ -2625,10 +2633,15 @@ def _agronomico_calculo(datos: dict):
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec,
-        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None),
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else (ad_ext[0] if ad_ext else None)),
         sistema_riego=datos.get("sistema_riego"))
     if capas_calc:
         r["capas_suelo_calc"] = capas_calc
+    if ad_ext:
+        r["ad_origen"] = ad_ext[1]
+    ha_decl = (datos or {}).get("humedad_aprovechable_mm")
+    if ha_decl and r.get("ad_mm") and (usa_capas or ad_ext is None):
+        r["ha_declarada_dif_pct"] = round((ha_decl - r["ad_mm"]) / r["ad_mm"] * 100, 1)
     # Q mínimo necesario del Carrete — requiere ETc de la cadena agronómica (r["etc_mm_dia"]).
     # Se computa aquí (después de cadena_agronomica) porque diseno_carrete() se llama ANTES.
     if datos.get("sistema_riego") == "Carrete" and carrete_check is not None:
@@ -2984,7 +2997,7 @@ _CAMPOS_AGRO_INFORME = (
     "distancia_hileras_m", "espaciamiento_emisores_m", "n_lineas_emisor",
     "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno", "periodo_turno_dias",
     "tipo_fuente_agua", "precipitacion_sistema_mmhr",
-    "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr",
+    "horas_disponibles_dia", "volumen_acumulador_m3", "vib_mmhr", "humedad_aprovechable_mm",
     "caudal_aspersor_m3h", "caudal_canon_m3h",
     "margen_sobredimensionamiento_pct", "radio_alcance_m", "velocidad_viento_ms",
     "longitud_franja_m", "velocidad_avance_mh", "tiempo_cambio_postura_hr", "angulo_sector_deg",
@@ -3002,6 +3015,7 @@ _CAMPOS_CALC_INFORME = (
     "dias_necesarios", "diferencia_caudal_operacion_pct", "v_ciclo_l",
     "precipitacion_efectiva_mmhr", "precipitacion_efectiva_origen",
     "pp_localizado_mmhr", "pp_localizado_nlineas", "pp_localizado_asumio_1_linea",
+    "ad_origen", "ha_declarada_dif_pct",
     "tiempo_total_ciclo_hr", "horas_disponibles_ciclo_hr",
 )
 _CAMPOS_TRAMO_INFORME = (
@@ -3561,7 +3575,7 @@ async def calculos_guardar_agronomico(request: Request, proyecto_id: str):
     n_sistemas = _n_sistemas_proyecto(proyecto.get("verificacion_calculos", {}))
     form = await request.form()
     campos = ["cc_pct", "pmp_pct", "da", "prof_radicular_cm", "kc", "eto_dia_mm",
-              "factor_agotamiento_pct", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr", "vib_mmhr",
+              "factor_agotamiento_pct", "eficiencia_pct", "presion_emisor_mca", "caudal_emisor_lhr", "vib_mmhr", "humedad_aprovechable_mm",
               "superficie_riego_ha", "caudal_disponible_ls", "horas_disponibles_turno", "periodo_turno_dias",
               "precipitacion_sistema_mmhr", "horas_disponibles_dia", "volumen_acumulador_m3",
               "distancia_hileras_m", "distancia_plantas_m", "n_lineas_emisor",

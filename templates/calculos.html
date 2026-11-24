@@ -170,13 +170,18 @@
         <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:0.85rem; cursor:pointer;">
           <input type="checkbox" id="{{ p }}capas_chk" onchange="toggleCapas('{{ p }}')" {% if agro.capas_suelo %}checked{% endif %}>
           Desglose de Humedad Aprovechable por capas de suelo
-          <span class="text-muted" style="font-weight:400; font-size:0.78rem;">reemplaza CC/PMP/Da de arriba si se activa — Prof. radicular se sigue usando para truncar cada capa</span>
+          <span class="text-muted" style="font-weight:400; font-size:0.78rem;">en Aspersión/Carrete el suelo se declara por capas — Prof. radicular se usa para truncar cada capa</span>
         </label>
         <div id="{{ p }}capas_box" style="display:{{ 'block' if agro.capas_suelo else 'none' }}; margin-top:0.6rem;">
           <div id="{{ p }}capas_list" style="overflow-x:auto;"></div>
           <button type="button" class="btn btn-outline btn-sm" onclick="agregarCapa('{{ p }}')">+ Agregar capa</button>
           <div id="{{ p }}capas_total" class="text-muted" style="font-size:0.8rem; margin-top:0.5rem;"></div>
         </div>
+      </div>
+      <div class="campo-capas-suelo" style="margin:-0.3rem 0 0.9rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <label for="{{ p }}humedad_aprovechable_mm" style="font-size:0.85rem; font-weight:600;"
+               title="Humedad aprovechable TOTAL del suelo (mm), antes del criterio de riego. Solo se usa si no hay ninguna capa con datos: la cadena (Dn, Fr, Db, tiempo, sectores) parte de este valor. Si no la hay, pero sí un Dn declarado, la app la deduce: Dn / criterio de riego. Con capas, solo se compara contra la calculada.">Ha total declarada (mm)</label>
+        <input type="number" step="0.01" style="width:7rem;" id="{{ p }}humedad_aprovechable_mm" name="{{ p }}humedad_aprovechable_mm" value="{{ agro.humedad_aprovechable_mm if agro.humedad_aprovechable_mm is not none else '' }}">
       </div>
       <script>window["{{ p }}capasIniciales"] = {{ (agro.capas_suelo or []) | tojson }};</script>
 
@@ -1419,6 +1424,15 @@
     // única — CC/PMP/Da/Prof. radicular dejan de ser obligatorios (igual que en Goteo).
     var adCapas = esAspersionOCarrete ? calcAdCapas(p, prof, sistema) : null;
     var usaCapas = adCapas !== null;
+    // Sin capas (nov-2026): Ha total declarada, o deducida del Dn declarado (Dn / criterio de riego) —
+    // misma regla que `calculos_riego.ad_sin_capas()`. Con Ha declarada manda sobre CC/PMP/Da sueltos.
+    var haDecl = numVal(p + "humedad_aprovechable_mm");
+    var adExt = null, adExtOrigen = "";
+    if (!esAltaFrecuencia && !usaCapas) {
+      var sueloCompleto = cc !== null && pmp !== null && da !== null && prof !== null;
+      if (haDecl) { adExt = haDecl; adExtOrigen = "declarada"; }
+      else if (!sueloCompleto && declDn && fa) { adExt = declDn / (fa / 100); adExtOrigen = "deducida del Dn declarado"; }
+    }
 
     // En goteo (alta frecuencia) Db sale directo de ETc/Ef — CC/PMP/Da/Prof. radicular NO
     // entran en esa cuenta, solo alimentan AD (dato informativo que en goteo ni se usa ni se
@@ -1427,7 +1441,7 @@
     // necesitando el Criterio de Riego (fa) para Dn = AD × fa.
     var base;
     if (esAltaFrecuencia) base = [kc, eto, ef];
-    else if (usaCapas) base = [kc, eto, fa, ef];
+    else if (usaCapas || adExt !== null) base = [kc, eto, fa, ef];
     else base = [cc, pmp, da, prof, kc, eto, fa, ef];
     if (base.indexOf(null) !== -1) {
       ["agro-etc", "agro-ad", "agro-dn-calc", "agro-dnadj-calc", "agro-fr-calc", "agro-db-calc",
@@ -1441,8 +1455,8 @@
       if (diasRowReset) diasRowReset.style.display = "none";
       setText(p + "agro-hint", esAltaFrecuencia
         ? "Completa Kc, ETo y Eficiencia para ver el recálculo."
-        : esAspersionOCarrete && (document.getElementById(p + "capas_chk") || {}).checked
-        ? "Completa al menos una capa de suelo válida (o Kc/ETo/Criterio de Riego/Eficiencia) para ver el recálculo."
+        : esAspersionOCarrete
+        ? "Completa las capas de suelo (o la Ha total declarada, o el Dn declarado) y Kc, ETo, Criterio de Riego y Eficiencia para ver el recálculo."
         : "Completa todos los datos base (CC, PMP, Da, Prof. radicular, Kc, ETo, Criterio de Riego, Eficiencia) para ver el recálculo.");
       return;
     }
@@ -1452,6 +1466,16 @@
     var ad;
     if (usaCapas) {
       ad = adCapas;
+      // Con capas, la Ha total declarada (si hay) solo se compara contra la calculada.
+      if (haDecl && ad) {
+        var difHa = (haDecl - ad) / ad * 100;
+        if (Math.abs(difHa) > 5) nota(p + "agro-ad-nota", "Ha total declarada = " + fmt(haDecl, 2) + " mm; difiere " + fmt(difHa, 1) + " % de la calculada con las capas (" + fmt(ad, 2) + " mm).");
+      }
+    } else if (adExt !== null) {
+      ad = adExt;
+      nota(p + "agro-ad-nota", adExtOrigen === "declarada"
+        ? "AD tomada de la Ha total declarada (" + fmt(adExt, 2) + " mm): sin capas, el suelo no se puede verificar."
+        : "AD deducida del Dn declarado: " + fmt(declDn, 2) + " / " + fmt(fa / 100, 4) + " = " + fmt(adExt, 2) + " mm. El suelo no se puede verificar; el Dn coincide con el declarado por construcción.");
     } else if (cc !== null && pmp !== null && da !== null && prof !== null) {
       var daNormSimple = normalizarDa(da);
       ad = (cc - pmp) / 100 * daNormSimple.da * (prof / 100) * 1000;

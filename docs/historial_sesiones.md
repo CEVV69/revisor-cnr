@@ -8133,3 +8133,17 @@ Modificaciones: todas) se envían con fetch (`X-Requested-With: fetch`, las ruta
 pendientes del ítem), actualizan la tarjeta (color, badge, botón "Pendiente"), los contadores y el círculo
 "Realizado", y cierran el `<details>` del ítem cuando la última pendiente queda sancionada. Si el fetch falla, cae
 al envío normal. Probado en Chromium con servidor local (0 navegaciones, marca de página persistente).
+
+## Humedad aprovechable sin desglose por capas (nov-2026, aprobado por el usuario)
+
+Caso real: el consultor presenta horizontes con CC/PMP/Da y espesor en mm y da como resultado final "Hd total =
+36,0 mm" (= Dn, ya con el umbral de riego 27,45 %), sin mostrar la Ha total (131,2 mm). La app ya reproduce el 36,02
+si se ingresan las capas (0-15, 15-30, 30-50 cm); el Hr del consultor (48,03 = Hd/0,75) difiere del Db de la app
+(46,67) porque la app redondea Fr (7,2 -> 7 días, criterio de la planilla oficial CNR). Cambios:
+`calculos_riego.ad_sin_capas` — con capas válidas mandan las capas; si no, Ha total declarada (campo nuevo
+`humedad_aprovechable_mm`, tarjeta de capas de Aspersión/Carrete, también extraíble por la IA); si no hay Ha ni suelo
+completo, el AD se DEDUCE del Dn declarado (Dn / criterio de riego). Con capas, la Ha declarada solo se compara
+(nota si difiere >5 %). La Ha en sí no es verificable sin suelo: el Dn deducido coincide con el declarado por
+construcción, lo comparable es Fr, Db, tiempo y sectores. Llega a Chequeo (JS + Python), bloque de la IA y las dos
+Memorias; al .json no (el Diseñador no tiene campo de Ha total; anotado en exportar_disenador.py). También se corrigió
+el texto de la tarjeta (los campos CC/PMP/Da "de arriba" no existen en Aspersión/Carrete).

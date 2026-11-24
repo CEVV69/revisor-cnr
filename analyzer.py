@@ -1926,7 +1926,11 @@ espaciamiento del sistema: si es Goteo/Microaspersión, distancia entre hileras,
 plantas o sobre hilera, N° de líneas de emisor y espaciamiento entre emisores (marco de
 plantación del cultivo); si es Aspersión/Carrete, espaciamiento entre aspersores y entre
 laterales (NO el marco de plantación — en aspersión/carrete no aplica). Si el sistema es
-Aspersión o Carrete, extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr).
+Aspersión o Carrete, extrae además la VIB (Velocidad de Infiltración Básica del suelo, mm/hr). Si el documento declara la
+Humedad aprovechable TOTAL del suelo en mm (la lámina de agua disponible en la profundidad radicular, ANTES
+de aplicar el umbral/criterio de riego), reporta "humedad_aprovechable_mm". NO la confundas con "Hd"/"Hr"/
+lámina de reposición, que ya incluyen el umbral de riego: esa es la lámina neta (declarado.dn_mm), no la Ha.
+Si solo aparece la lámina de reposición, deja humedad_aprovechable_mm en null.
 Si el sistema es Aspersión, extrae también el N° de aspersores por postura y el caudal de UN
 SOLO aspersor individual (dato de catálogo/ficha técnica del aspersor — NUNCA el caudal total
 de la red ni el de la fuente/motobomba, que son órdenes de magnitud mayores). Repórtalo en
@@ -2010,7 +2014,7 @@ Responde SOLO este JSON, sin texto adicional, donde cada objeto de "sistemas" ti
 "superficie_riego_ha": number|null, "caudal_disponible_ls": number|null,
 "tipo_fuente_agua": "superficial"|"subterranea"|null,
 "precipitacion_sistema_mmhr": number|null, "horas_disponibles_dia": number|null,
-"volumen_acumulador_m3": number|null, "vib_mmhr": number|null,
+"volumen_acumulador_m3": number|null, "vib_mmhr": number|null, "humedad_aprovechable_mm": number|null,
 "n_aspersores_postura": number|null, "caudal_aspersor_m3h": number|null,
 "caudal_canon_m3h": number|null, "margen_sobredimensionamiento_pct": number|null,
 "radio_alcance_m": number|null, "velocidad_viento_ms": number|null,
@@ -2546,11 +2550,19 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
             prof_radicular_cm=prof_z if prof_z not in (None, "") else prof_default,
         ) or None
     usa_capas = capas_calc is not None
+    # Sin capas (nov-2026): Ha total declarada, o deducida del Dn declarado (ver `ad_sin_capas`).
+    ad_ext = None
+    if not alta_frec and not usa_capas:
+        suelo_completo = all(datos.get(k) not in (None, "")
+                             for k in ("cc_pct", "pmp_pct", "da", "prof_radicular_cm"))
+        ad_ext = calculos_riego.ad_sin_capas(
+            datos.get("humedad_aprovechable_mm"), suelo_completo,
+            (datos.get("declarado") or {}).get("dn_mm"), datos.get("factor_agotamiento_pct"))
     if alta_frec:
         base = ["kc", "eto_dia_mm", "eficiencia_pct"]
     else:
         base = ["kc", "eto_dia_mm", "factor_agotamiento_pct", "eficiencia_pct"]
-        if not usa_capas:
+        if not usa_capas and ad_ext is None:
             base += ["cc_pct", "pmp_pct", "da", "prof_radicular_cm"]
     if any(datos.get(k) is None for k in base):
         return texto
@@ -2558,8 +2570,19 @@ def _bloque_verificacion_agronomica_sistema(datos: dict) -> str:
         datos.get("cc_pct"), datos.get("pmp_pct"), datos.get("da"), datos.get("prof_radicular_cm"),
         datos["kc"], datos["eto_dia_mm"], datos.get("factor_agotamiento_pct"),
         datos["eficiencia_pct"], alta_frecuencia=alta_frec,
-        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else None),
+        ad_mm_override=(capas_calc["ad_total_mm"] if capas_calc else (ad_ext[0] if ad_ext else None)),
         sistema_riego=datos.get("sistema_riego"))
+    if ad_ext:
+        if ad_ext[1] == "declarada":
+            texto += (f"\n\nAGUA DISPONIBLE (AD) sin desglose por capas: se usa la Humedad aprovechable TOTAL "
+                      f"declarada por el consultor = {round(ad_ext[0], 2)} mm. El suelo no se puede verificar "
+                      f"(no hay CC/PMP/Da por capa); AD/Dn/Fr/Db de abajo parten de ese valor tal cual.")
+        else:
+            texto += (f"\n\nAGUA DISPONIBLE (AD) sin datos de suelo: se DEDUCE del Dn declarado "
+                      f"({datos['declarado'].get('dn_mm')} mm) dividido por el criterio de riego "
+                      f"({datos.get('factor_agotamiento_pct')} %) = {round(ad_ext[0], 2)} mm. El suelo no se "
+                      f"puede verificar; el Dn de abajo coincide con el declarado por construcción, así que "
+                      f"no lo cuentes como verificación: lo comparable es Fr, Db, tiempo de riego y sectores.")
     if capas_calc and capas_calc.get("posible_unidad_da_kgm3"):
         capas_malas = [c for c in capas_calc["capas"] if c.get("posible_unidad_da_kgm3")]
         texto += (

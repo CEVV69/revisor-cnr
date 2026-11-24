@@ -375,6 +375,21 @@ def _redondear_fr(fr: float) -> int:
     return int(math.floor(fr + 0.5))
 
 
+def ad_sin_capas(ha_total_mm: float, suelo_completo: bool, dn_declarado_mm: float,
+                 factor_agotamiento_pct: float):
+    """Agua Disponible (AD) cuando el consultor NO entrega el suelo por capas (nov-2026): (1) la Humedad
+    aprovechable TOTAL declarada (mm); (2) si no hay Ha ni datos de suelo completos (CC/PMP/Da/Prof.), se
+    DEDUCE del Dn declarado: AD = Dn / (criterio de riego/100) — ej. Hd total 36,0 mm con umbral 27,45 % da
+    AD = 131,2 mm, el mismo AD que resulta de sus capas. Devuelve (ad_mm, origen) o None. Con Ha declarada
+    manda sobre CC/PMP/Da sueltos; las capas válidas mandan sobre ambas (se resuelve en el llamador). La Ha en
+    sí no se puede verificar sin datos de suelo: solo permite continuar la cadena (Fr, Db, tiempo, sectores)."""
+    if ha_total_mm:
+        return float(ha_total_mm), "declarada"
+    if not suelo_completo and dn_declarado_mm and factor_agotamiento_pct:
+        return dn_declarado_mm / (factor_agotamiento_pct / 100.0), "deducida del Dn declarado"
+    return None
+
+
 def cadena_agronomica(cc_pct: float, pmp_pct: float, da: float, prof_cm: float,
                       kc: float, eto_dia_mm: float, factor_agotamiento_pct: float,
                       eficiencia_pct: float, alta_frecuencia: bool = False,
