@@ -86,7 +86,7 @@ prueban en Chromium real, no con TestClient.
 
 **Pendiente bloqueado:** chequeos del Dimensionamiento Fotovoltaico en la Memoria Completa — necesita el
 perfil solar horario del predio (8.760 valores h/h), solo disponible en
-`dimensionamiento_fotovoltaico_v25.html`; sin exportarlo desde ahí no hay forma de desbloquearlo.
+`dimensionamiento_fotovoltaico_v26.html`; sin exportarlo desde ahí no hay forma de desbloquearlo.
 
 **Fuera de alcance:** cultivos vía Kc mensual son del **Dimensionamiento Fotovoltaico** (su chequeo FV usa
 un valor diario promedio, no motor agronómico multi-cultivo).
@@ -121,7 +121,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  calculos.html (chequeo), ficha.html (informe PDF), respuestas.html,
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
-                 disenador_riego_v135.html, scall_diseno_v21.html, dimensionamiento_fotovoltaico_v25.html
+                 disenador_riego_v135.html, scall_diseno_v21.html, dimensionamiento_fotovoltaico_v26.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v13.html,
                  invernadero_diseno_v44.html (obras anexas CNR)

@@ -1256,14 +1256,14 @@ def verificar_superficie_cubrible_carrete(n_posturas: int, superficie_postura_ha
 
 
 MESES_3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-# Días por mes que usa el Dimensionamiento Fotovoltaico (dimensionamiento_fotovoltaico_v25.html, const DIAS) —
+# Días por mes que usa el Dimensionamiento Fotovoltaico (dimensionamiento_fotovoltaico_v26.html, const DIAS) —
 # incluye feb=29 fijo (no depende del año del proyecto).
 DIAS_MES_FV = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
 def demanda_fv_mensual(pkw: float, adic: float, horas_mensuales: list) -> dict:
     """Demanda energética mensual de la bomba con la MISMA fórmula que usa el Revisor
-    Fotovoltaico (dimensionamiento_fotovoltaico_v25.html, función calc()):
+    Fotovoltaico (dimensionamiento_fotovoltaico_v26.html, función calc()):
 
     Dem_día[mes] = Horas_riego[mes] × P_bomba × (1 + Adicionales%/100)   [kWh/día]
     Dem_mes[mes] = Dem_día[mes] × Días_del_mes                          [kWh/mes]
@@ -1310,7 +1310,7 @@ def verificacion_fv_anual(pkw: float, adic: float, horas_mensuales: list, gu_anu
                           dem_anual_declarada: float = None,
                           cobertura_declarada_pct: float = None) -> dict:
     """Verificación fotovoltaica con la metodología del Dimensionamiento Fotovoltaico (app hermana,
-    dimensionamiento_fotovoltaico_v25.html, `calc()` modo on-grid + `verificar()`):
+    dimensionamiento_fotovoltaico_v26.html, `calc()` modo on-grid + `verificar()`):
 
     Dem_anual    = Σ_mes  Horas[mes] × P_bomba × (1 + Adic%/100) × Días[mes]      [kWh/año]
     kWp_requerido= Dem_anual / GU_anual                                           [kWp]

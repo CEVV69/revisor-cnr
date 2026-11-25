@@ -3433,7 +3433,7 @@ async def exportar_para_disenador(request: Request, proyecto_id: str, idx: int):
 
 @app.get("/proyecto/{proyecto_id}/calculos/exportar-revisor-fv")
 async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
-    """Descarga un .json en el formato del Dimensionamiento Fotovoltaico (dimensionamiento_fotovoltaico_v25.html).
+    """Descarga un .json en el formato del Dimensionamiento Fotovoltaico (dimensionamiento_fotovoltaico_v26.html).
     Exporta SOLO lo que declara el consultor en el expediente (extraído o ingresado a mano en
     el Chequeo de Cálculos) — nunca los valores que recalcula la app, para no reemplazar el
     dato del proyecto por el criterio de Revisor CNR."""
@@ -3450,7 +3450,7 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
 
     # Caudal de diseño de la bomba: ya se declara/extrae en el Chequeo Agronómico
     # (agro.declarado.caudal_diseno_ls, comparado ahí contra el caudal de operación calculado).
-    # El Dimensionamiento FV v25 lo usa como un solo valor para todo el proyecto (una bomba) — con 2
+    # El Dimensionamiento FV v26 lo usa como un solo valor para todo el proyecto (una bomba) — con 2
     # sistemas de riego se toma el MAYOR de los declarados: es el que más exige a la bomba.
     n_sistemas = _n_sistemas_proyecto(verif)
     agro_norm = _normalizar_verif_multisistema(verif.get("agronomico"), n_sistemas)
@@ -3501,7 +3501,7 @@ async def exportar_para_revisor_fv(request: Request, proyecto_id: str):
     if banco_kwh is not None:
         doc["fotovoltaico"]["bancoBateriasKWh"] = banco_kwh
 
-    # Datos del Chequeo que el Dimensionamiento FV (v25) todavía no tiene como campo propio — el perfil solar
+    # Datos del Chequeo que el Dimensionamiento FV (v26) todavía no tiene como campo propio — el perfil solar
     # horario del predio se importa DENTRO de esa app desde el Explorador Solar, y su importador
     # ignora las claves que no conoce. Van bajo una clave propia para no perderlos al compartir el
     # archivo y para contrastarlos con el resultado de esa app (cobertura anual, %P del ITT-02).
