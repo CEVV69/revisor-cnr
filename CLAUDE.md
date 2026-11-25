@@ -122,7 +122,7 @@ templates/       Jinja2. proyecto.html (resumen/documentos/items, un template co
                  _apps_menu.html (menú "Apps" de `.proj-nav` — único punto de mantención)
 static/          Apps hermanas standalone (HTML único, sin build), se abren desde el menú "Apps":
                  disenador_riego_v135.html, scall_diseno_v21.html, dimensionamiento_fotovoltaico_v26.html
-                 (otra metodología, no la de Revisor CNR), embalses_diseno_v9.html,
+                 (otra metodología, no la de Revisor CNR), embalses_diseno_v10.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v13.html,
                  invernadero_diseno_v44.html (obras anexas CNR)
 ```

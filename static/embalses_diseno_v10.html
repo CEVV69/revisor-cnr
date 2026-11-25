@@ -52,6 +52,9 @@ input[type=number],input[type=text],select{
   padding:6px 8px;background:var(--white);color:var(--ink);width:130px;text-align:right;
 }
 select{text-align:left;width:180px;font-family:'Nunito',sans-serif;}
+.combo{display:inline-flex;gap:3px;align-items:center;}
+.combo input{width:92px;}
+.combo select{width:34px;padding:6px 2px;text-align:center;color:var(--blue);font-weight:700;cursor:pointer;}
 input[type=number]::placeholder{color:var(--orange);font-weight:600;}
 input.nocalc{color:var(--muted);}
 input.result{background:var(--ice);border-color:var(--line);color:var(--navy);font-weight:700;cursor:default;}
@@ -574,6 +577,14 @@ function setDirect(key, val){
   S.d[key] = val;
   saveState(); render();
 }
+function comboField(key, opts, decimals){
+  const cur = rawOr(key, S.d[key]);
+  return `<span class="combo">
+    <input type="text" inputmode="decimal" data-key="${key}" placeholder="Ingrese" value="${cur}" oninput="setD('${key}',this.value)">
+    <select title="Valores sugeridos" onchange="if(this.value!=='')setDirect('${key}',parseFloat(this.value))">
+      <option value="">▾</option>${opts.map(v=>`<option value="${v}">${fmt(v,decimals)}</option>`).join('')}
+    </select></span>`;
+}
 function rawOr(key, fallback){
   return RAW[key]!==undefined ? RAW[key] : fallback;
 }
@@ -638,12 +649,10 @@ function renderDiseno(){
   <div class="grid2">
     <div class="card">
       <h2>Resultados por Cálculo</h2>
-      <div class="row"><label>Volumen</label>
-        <select onchange="setD('volumen',this.value)">${VOL_OPTS.map(v=>`<option ${d.volumen==v?'selected':''} value="${v}">${v}</option>`).join('')}</select></div>
-      <div class="row"><label>Altura</label>
-        <select onchange="setD('alturaSel',this.value)">${ALT_OPTS.map(v=>`<option ${d.alturaSel==v?'selected':''} value="${v}">${fmt(v,1)}</option>`).join('')}</select></div>
-      <div class="row"><label>Largo (seleccione)</label>
-        <select onchange="setD('largoCalc',this.value)">${LARGO_OPTS.map(v=>`<option ${d.largoCalc==v?'selected':''} value="${v}">${v}</option>`).join('')}</select></div>
+      <div class="row"><label>Volumen (m³)</label>${comboField('volumen',VOL_OPTS,0)}</div>
+      <div class="row"><label>Altura (m)</label>${comboField('alturaSel',ALT_OPTS,1)}</div>
+      ${alertHtml(d.alturaSel<=REVANCHA,'Altura debe ser mayor a la revancha')}
+      <div class="row"><label>Largo (m)</label>${comboField('largoCalc',LARGO_OPTS,0)}</div>
       <div class="row"><label>Nivel de Aguas Máximas (NAM)</label><input class="result blue" readonly value="${fmt(R.h,2)}"></div>
       <div class="row"><label>Área Base necesaria (m²)</label><input class="result blue" readonly value="${fmt0(R.areaBaseNecesaria)}"></div>
       <div class="row"><label>Ancho recomendado (m)</label><input class="result blue" readonly value="${fmt(R.anchoRecom,2)}"></div>
