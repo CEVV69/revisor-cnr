@@ -8159,3 +8159,5 @@ App FV actualizada a `dimensionamiento_fotovoltaico_v26.html` (nov-2026, archivo
 App de Pequeños Embalses actualizada a `embalses_diseno_v10.html` (nov-2026, archivo del usuario; reemplaza la v9): solo agrega el ingreso manual de valores en los campos Volumen, Altura y Largo. Menú Apps y CLAUDE.md apuntan a la v10.
 
 Menú Apps: agregada "Análisis Planos" (análisis de planos .DWG), app externa en otro servicio Railway (`https://revisorplanos-production.up.railway.app/`); a diferencia de las demás no vive en `static/`, solo es un enlace en `_apps_menu.html` (nueva pestaña).
+
+"Análisis Planos" (app externa): en la app instalada se abre como ventana emergente (`abrirAppExterna` en `_apps_menu.html`, `popup=yes`, 1400x900); en navegador normal, como pestaña. Si el navegador bloquea la ventana, el enlace cae a pestaña nueva.
