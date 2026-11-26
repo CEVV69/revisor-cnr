@@ -8157,3 +8157,5 @@ Fix validación de números del Chequeo (nov-2026): los campos numéricos con `s
 App FV actualizada a `dimensionamiento_fotovoltaico_v26.html` (nov-2026, archivo del usuario; la v25 queda reemplazada): solo cambió el rótulo "Potencia de la bomba" por "Potencia bomba P1" (formulario, avisos, informe e importación). El formato del .json no cambió (`riego-cnr-proyecto` v1, `bombeo.potenciaKW`); menú Apps y referencias apuntan a la v26.
 
 App de Pequeños Embalses actualizada a `embalses_diseno_v10.html` (nov-2026, archivo del usuario; reemplaza la v9): solo agrega el ingreso manual de valores en los campos Volumen, Altura y Largo. Menú Apps y CLAUDE.md apuntan a la v10.
+
+Menú Apps: agregada "Análisis Planos" (análisis de planos .DWG), app externa en otro servicio Railway (`https://revisorplanos-production.up.railway.app/`); a diferencia de las demás no vive en `static/`, solo es un enlace en `_apps_menu.html` (nueva pestaña).

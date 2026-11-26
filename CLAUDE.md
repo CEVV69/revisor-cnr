@@ -124,7 +124,7 @@ static/          Apps hermanas standalone (HTML único, sin build), se abren des
                  disenador_riego_v135.html, scall_diseno_v21.html, dimensionamiento_fotovoltaico_v26.html
                  (otra metodología, no la de Revisor CNR), embalses_diseno_v10.html,
                  desarenador_diseno_v5.html, superficies_tecnificacion_v13.html,
-                 invernadero_diseno_v44.html (obras anexas CNR)
+                 invernadero_diseno_v44.html (obras anexas CNR). Excepción: "Análisis Planos" (.DWG) es una app externa en Railway (revisorplanos-production.up.railway.app), solo enlace en el menú
 ```
 
 ### Modelo de datos
